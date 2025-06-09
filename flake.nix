@@ -70,6 +70,8 @@
             packages = with python.pkgs; [
               venvShellHook
               pip
+              jupyter
+              jupytext
               pkgs.lmstudio
               pkgs.node2nix
               pkgs.nodejs
