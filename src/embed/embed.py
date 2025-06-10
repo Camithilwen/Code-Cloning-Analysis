@@ -12,27 +12,39 @@
 #     name: python3
 # ---
 
-# %%
-
+# %% id="CU0kDis-Rs3I" outputId="85b52138-ee07-46b0-9d79-7316193e3d30" colab={"base_uri": "https://localhost:8080/", "height": 1000}
 #System installs
-!pip install GitPython
-!pip install embed
-!pip install torch
-!pip install transformers
-!pip install --upgrade pymilvus
+# !pip install GitPython
+# !pip install embed
+# !pip install torch
+# !pip install transformers==4.46.0
+# !pip install peft==0.10.0
+# !pip install --upgrade pymilvus
+# !pip install numpy==2.0.0
 
-# %%
+
+# %% id="bM0PSGoFanJQ" outputId="aac9ccaf-41ac-4b1c-c473-c4ed012e23e3" colab={"base_uri": "https://localhost:8080/"}
+# !huggingface-cli login
+
+# %% id="Rg2H0ysvlINy"
+
+# %% id="091b9480" outputId="b65b173f-fe17-4fc4-a200-19469f3fc339" colab={"base_uri": "https://localhost:8080/", "height": 1000}
 #Imports
 from embed import BatchedInference
 from concurrent.futures import Future
 
 
+# #!export INFINITY_DISABLE_OPTIMUM="TRUE"
+# #!export INFINITY_DISABLE_COMPILE="TRUE"
+# !export INFINITY_BETTERTRANSFORMER="no-bettertransformer"
+
+
 #Define custom embedding function
-    register = BatchedInference(
+register = BatchedInference(
         model_id=[
-            "jina-embeddings-v2-base-code",
-            "voyage-code-3",
-            "codesage-large-v2"
+            "jinaai/jina-embeddings-v2-base-code",
+            "voyageai/voyage-code-3",
+            "codesage/codesage-large-v2"
         ],
         engine="torch",
         device="cuda",
@@ -57,9 +69,9 @@ for idx in collections:
     )
 
 #Define loading function for repository data
-/*aiming to successfully store embeddings at first. But want to figure out how to
-store the relevant file contents for each file as metadata on the vector as well, so it can be used in visualization
-*/
+#aiming to successfully store embeddings at first. But want to figure out how to
+#store the relevant file contents for each file as metadata on the vector as well, so it can be used in visualization
+
 def load(dir, db, model):
     import os
     for root, dirs, files in os.walk(dir):
@@ -74,12 +86,15 @@ def load(dir, db, model):
 #Pull down repositories
 from git import Repo
 
-#Embed repositories
-primary = Repo.clone_from({repo_url}, ./data/primary)
-fork = Repo.clone_from({repo_url}, ./data/fork)
+#embed repositories
+primary = Repo.clone_from({"https://github.com/cowsay-org/cowsay"}, "./data/primary")
+fork = Repo.clone_from({"https://github.com/cowsay-org/homebrew-cowsay"}, "./data/fork")
 
 load("./data/primary", "PriA", "jina-embeddings-v2-base-code")
 
-# %%
-#Destroy local storage
-!rm -rf ./repo
+register.stop()
+
+
+
+# %% id="6z2q8uP7RuyA"
+# !rm -rf ./repo
