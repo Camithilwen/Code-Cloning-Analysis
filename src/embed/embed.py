@@ -12,7 +12,7 @@
 #     name: python3
 # ---
 
-# %% id="CU0kDis-Rs3I" outputId="85b52138-ee07-46b0-9d79-7316193e3d30" colab={"base_uri": "https://localhost:8080/", "height": 1000}
+# %% colab={"base_uri": "https://localhost:8080/", "height": 1000} id="CU0kDis-Rs3I" outputId="85b52138-ee07-46b0-9d79-7316193e3d30"
 #System installs
 # !pip install GitPython
 # !pip install embed
@@ -23,27 +23,23 @@
 # !pip install numpy==2.0.0
 
 
-# %% id="bM0PSGoFanJQ" outputId="aac9ccaf-41ac-4b1c-c473-c4ed012e23e3" colab={"base_uri": "https://localhost:8080/"}
+# %% colab={"base_uri": "https://localhost:8080/"} id="bM0PSGoFanJQ" outputId="aac9ccaf-41ac-4b1c-c473-c4ed012e23e3"
 # !huggingface-cli login
 
 # %% id="Rg2H0ysvlINy"
 
-# %% id="091b9480" outputId="b65b173f-fe17-4fc4-a200-19469f3fc339" colab={"base_uri": "https://localhost:8080/", "height": 1000}
+# %% colab={"base_uri": "https://localhost:8080/", "height": 1000} id="091b9480" outputId="b65b173f-fe17-4fc4-a200-19469f3fc339"
 #Imports
 from embed import BatchedInference
 from concurrent.futures import Future
-
-
-# #!export INFINITY_DISABLE_OPTIMUM="TRUE"
-# #!export INFINITY_DISABLE_COMPILE="TRUE"
-# !export INFINITY_BETTERTRANSFORMER="no-bettertransformer"
 
 
 #Define custom embedding function
 register = BatchedInference(
         model_id=[
             "jinaai/jina-embeddings-v2-base-code",
-            "voyageai/voyage-code-3",
+            #"voyageai/voyage-code-3", #not open source--requires separate api key
+            "Salesforce/codet5p-110m-embedding",
             "codesage/codesage-large-v2"
         ],
         engine="torch",
