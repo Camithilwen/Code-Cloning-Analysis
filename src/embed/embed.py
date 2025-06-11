@@ -19,10 +19,11 @@
 
 # %% colab={"base_uri": "https://localhost:8080/"} id="bM0PSGoFanJQ" outputId="aac9ccaf-41ac-4b1c-c473-c4ed012e23e3"
 # !export HF_TOKEN=''
-# !huggingface-cli login
+# #!huggingface-cli login
 
 # %% id="6z2q8uP7RuyA"
-# uv run main.py
+# #Run script through uv environment
+# !uv run /kaggle/usr/lib/main_py/__script__.py
 #
 # %%
 # !rm -rf ./repo

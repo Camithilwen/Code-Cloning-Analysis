@@ -1,12 +1,12 @@
 # /// script
 # dependencies = [
-#   "GitPython"
-#    "embed"
-#    "torch"
-#    "transformers"
-#    "peft"
-#    "pymilvus"
-#    "numpy"
+#   "GitPython",
+#    "embed",
+#    "torch",
+#    "transformers",
+#    "peft",
+#    "pymilvus",
+#    "numpy",
 # ]
 # ///
 #
@@ -24,6 +24,11 @@
 from embed import BatchedInference
 from concurrent.futures import Future
 
+#huggingface authentication
+import os
+from huggingface_hub import login
+
+login(os.getenv(HF_TOKEN))
 
 #Define custom embedding function
 register = BatchedInference(
