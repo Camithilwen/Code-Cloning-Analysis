@@ -1,7 +1,7 @@
 {
   description = "A Nix-flake-based Python development environment";
 
-  inputs.nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/0.1";
+  inputs.nixpkgs.url = "github:nixos/nixpkgs/nixos-25.05";
 
   outputs = inputs:
     let
@@ -52,7 +52,7 @@
 
 
             postShellHook = ''
-              venvVersionWarn() {
+             venvVersionWarn() {
               	local venvVersion
               	venvVersion="$("$venvDir/bin/python" -c 'import platform; print(platform.python_version())')"
 
@@ -68,15 +68,19 @@
             '';
 
             packages = with python.pkgs; [
-              venvShellHook
-              pip
-              jupyter
-              jupytext
+              pkgs.python312
+              pkgs.uv
               pkgs.lmstudio
               pkgs.node2nix
               pkgs.nodejs
               pkgs.nodePackages.pnpm
               pkgs.yarn
+              pkgs.grpc
+              venvShellHook
+              pip
+              jupyter
+              jupytext
+              pymilvus
 
               /* Add whatever else you'd like here. */
               # pkgs.basedpyright
@@ -93,6 +97,17 @@
             env = {
               NIXPKGS_ALLOW_UNFREE=1;
               };
+
+          #  shellHook = ''
+          #  # Create a virtual environment if it doesn't exist
+          #  if [ ! -d ".venv" ]; then
+          #    uv venv .venv
+          #  fi
+          #  source .venv/bin/activate
+          #  echo "uv pip env ready"
+          #  export UV_PYTHON_PREFERENCE="only-system";
+          #  export UV_PYTHON=${python}
+          #  '';
           };
         });
     };
