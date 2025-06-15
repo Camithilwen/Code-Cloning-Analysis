@@ -3,7 +3,7 @@
 ## To-do:
 
 ### Embedding generation
-- Determine suitable model for slot B, integrate into embedding script, and test with the database checker.
+- ~Determine suitable model for slot B, integrate into embedding script, and test with the database checker.~
 - Automate pipeline, if possible within reasonable time
 - Test pipeline against a single microservices repository and fork
 - Scale system to batch-process multiple repositories and forks to a single database file
