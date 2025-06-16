@@ -1,1 +1,441 @@
-{"metadata":{"kernelspec":{"language":"python","display_name":"Python 3","name":"python3"},"language_info":{"pygments_lexer":"ipython3","nbconvert_exporter":"python","version":"3.6.4","file_extension":".py","codemirror_mode":{"name":"ipython","version":3},"name":"python","mimetype":"text/x-python"},"kaggle":{"accelerator":"gpu","dataSources":[],"dockerImageVersionId":31040,"isInternetEnabled":true,"language":"python","sourceType":"script","isGpuEnabled":true}},"nbformat_minor":4,"nbformat":4,"cells":[{"cell_type":"code","source":"# %% [code]\n# %% [code]\n# /// script\n# dependencies = [\n#   \"GitPython\",\n#   \"torch\",\n#   \"transformers>=4.21.0\",\n#   \"sentence-transformers\",\n#   \"pymilvus\",\n#   \"numpy\",\n#   \"einops\",\n# ]\n# ///\n\nimport os\nimport gc\nimport time\nimport torch\nimport numpy as np\nfrom pathlib import Path\nfrom sentence_transformers import SentenceTransformer\nfrom git import Repo\nimport shutil\nfrom pymilvus import MilvusClient\nfrom huggingface_hub import login\nimport warnings\nwarnings.filterwarnings('ignore')\n\n# Huggingface authentication\nlogin(token=os.getenv(\"HF_TOKEN\"))\n\nclass EmbeddingModelManager:\n    \"\"\"\n    Enhanced embedding model manager with aggressive memory management\n    and proper error handling for P100 GPU constraints.\n    \"\"\"\n    \n    def __init__(self):\n        # Model configurations with corrected dimensions and trust settings\n        self.model_configs = {\n            \"jinaai/jina-embeddings-v2-base-code\": {\n                \"dimension\": 768, \n                \"id\": \"jina\",\n                \"trust_remote_code\": False,\n                \"max_seq_length\": 512  # Reduced for memory efficiency\n            },\n            \"nomic-ai/CodeRankEmbed\": {\n                \"dimension\": 256, \n                \"id\": \"sfr2br\",\n                \"trust_remote_code\": True,  # Required for this model\n                \"max_seq_length\": 256      # Heavily reduced due to 2B parameters\n            }, \n            \"codesage/codesage-large-v2\": {\n                \"dimension\": 1024, \n                \"id\": \"codesage\",\n                \"trust_remote_code\": True,\n                \"max_seq_length\": 512\n            }\n        }\n        \n        # Fixed: Initialize all required attributes\n        self.current_model = None\n        self.current_model_name = None\n        self.device = \"cuda\" if torch.cuda.is_available() else \"cpu\"\n        \n        # P100-specific optimizations\n        if torch.cuda.is_available():\n            torch.cuda.set_per_process_memory_fraction(0.85)  # Reserve 15% for system\n            os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'\n        \n        print(f\"Using device: {self.device}\")\n        if self.device == \"cuda\":\n            print(f\"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB\")\n        \n    def aggressive_cleanup(self):\n        \"\"\"Perform aggressive memory cleanup between model loads.\"\"\"\n        if self.current_model is not None:\n            del self.current_model\n            self.current_model = None\n            self.current_model_name = None\n        \n        # Aggressive cleanup\n        gc.collect()\n        if torch.cuda.is_available():\n            torch.cuda.empty_cache()\n            torch.cuda.synchronize()\n        \n        # Brief pause to ensure cleanup\n        time.sleep(1)\n        \n    def load_model(self, model_name):\n        \"\"\"\n        Load model with enhanced memory management and error handling.\n        \"\"\"\n        if self.current_model_name == model_name and self.current_model is not None:\n            return self.current_model\n            \n        # Aggressive cleanup before loading new model\n        self.aggressive_cleanup()\n        \n        print(f\"Loading model: {model_name}\")\n        config = self.model_configs[model_name]\n        \n        try:\n            # Load with specific configurations for each model\n            model_kwargs = {\n                'device': self.device,\n                'trust_remote_code': config['trust_remote_code']\n            }\n            \n            # Special handling for problematic models\n            if \"SFR-Embedding\" in model_name:\n                # This model requires trust_remote_code and careful memory handling\n                model_kwargs['model_kwargs'] = {'torch_dtype': torch.float16}\n            \n            model = SentenceTransformer(model_name, **model_kwargs)\n            \n            # Set maximum sequence length to prevent memory overflow\n            if hasattr(model, 'max_seq_length'):\n                model.max_seq_length = config['max_seq_length']\n            \n            # Test with minimal sample to verify dimensions\n            test_embedding = model.encode([\"test\"], show_progress_bar=False)\n            actual_dim = len(test_embedding[0])\n            \n            # Update dimension in config\n            self.model_configs[model_name][\"dimension\"] = actual_dim\n            print(f\"Model {model_name} loaded successfully. Dimension: {actual_dim}\")\n            \n            self.current_model = model\n            self.current_model_name = model_name\n            \n            return model\n            \n        except Exception as e:\n            print(f\"Error loading model {model_name}: {e}\")\n            self.aggressive_cleanup()\n            return None\n    \n    def chunk_text(self, text, max_length=500):\n        \"\"\"\n        Chunk long text files to prevent memory overflow while preserving content.\n        Uses overlapping chunks to maintain context.\n        \"\"\"\n        if len(text) <= max_length:\n            return [text]\n        \n        chunks = []\n        overlap = 50  # 50 character overlap to maintain context\n        \n        for i in range(0, len(text), max_length - overlap):\n            chunk = text[i:i + max_length]\n            if chunk.strip():  # Only add non-empty chunks\n                chunks.append(chunk)\n        \n        return chunks\n    \n    def embed_texts(self, texts, model_name, batch_size=8):\n        \"\"\"\n        Generate embeddings with aggressive memory management and chunking.\n        Reduced batch size for P100 compatibility.\n        \"\"\"\n        model = self.load_model(model_name)\n        if model is None:\n            return None\n            \n        try:\n            all_embeddings = []\n            processed_texts = []\n            \n            # Process and chunk texts first\n            for text in texts:\n                chunks = self.chunk_text(text)\n                processed_texts.extend(chunks)\n            \n            print(f\"Processing {len(processed_texts)} text chunks (from {len(texts)} original files)\")\n            \n            # Process in very small batches for P100\n            for i in range(0, len(processed_texts), batch_size):\n                batch = processed_texts[i:i + batch_size]\n                \n                try:\n                    batch_embeddings = model.encode(\n                        batch, \n                        convert_to_numpy=True,\n                        show_progress_bar=False,\n                        batch_size=min(4, len(batch))  # Even smaller internal batches\n                    )\n                    all_embeddings.extend(batch_embeddings)\n                    \n                    # Memory cleanup between batches\n                    if i % (batch_size * 4) == 0:\n                        gc.collect()\n                        if torch.cuda.is_available():\n                            torch.cuda.empty_cache()\n                    \n                    if i % (batch_size * 2) == 0:\n                        print(f\"Processed {i + len(batch)}/{len(processed_texts)} chunks\")\n                        \n                except Exception as e:\n                    print(f\"Error in batch {i}: {e}\")\n                    # Skip this batch but continue processing\n                    continue\n                \n            return all_embeddings, processed_texts\n            \n        except Exception as e:\n            print(f\"Error generating embeddings: {e}\")\n            return None, None\n    \n    def get_dimension(self, model_name):\n        \"\"\"Get the embedding dimension for a specific model.\"\"\"\n        return self.model_configs.get(model_name, {}).get(\"dimension\", 768)\n    \n    def cleanup(self):\n        \"\"\"Clean up loaded models and free GPU memory.\"\"\"\n        self.aggressive_cleanup()\n        print(\"Model cleanup completed.\")\n\nclass RepositoryEmbedder:\n    \"\"\"\n    Enhanced repository processor with chunk-aware storage and metadata preservation.\n    \"\"\"\n    \n    def __init__(self, model_manager, milvus_client):\n        self.model_manager = model_manager\n        self.milvus_client = milvus_client\n        \n        # Expanded code file extensions\n        self.code_extensions = {\n            '.py', '.js', '.java', '.cpp', '.c', '.h', '.cs', '.php', \n            '.rb', '.go', '.rs', '.swift', '.kt', '.ts', '.jsx', '.tsx', \n            '.md', '.txt', '.csv', '.json', '.xml', '.yml', '.yaml',\n            '.sql', '.sh', '.bat', '.html', '.css', '.scss', '.less'\n        }\n        \n        # Collection mappings\n        self.collection_mapping = {\n            \"PriA\": (\"primary\", \"jinaai/jina-embeddings-v2-base-code\"),\n            \"PriB\": (\"primary\", \"nomic-ai/CodeRankEmbed\"),\n            \"PriC\": (\"primary\", \"codesage/codesage-large-v2\"),\n            \"FrkA\": (\"fork\", \"jinaai/jina-embeddings-v2-base-code\"),\n            \"FrkB\": (\"fork\", \"nomic-ai/CodeRankEmbed\"),\n            \"FrkC\": (\"fork\", \"codesage/codesage-large-v2\")\n        }\n    \n    def setup_collections(self):\n        \"\"\"Setup Milvus collections with enhanced schema for chunk metadata.\"\"\"\n        print(\"Setting up Milvus collections...\")\n        \n        for collection_name, (repo_type, model_name) in self.collection_mapping.items():\n            # Drop existing collection\n            if self.milvus_client.has_collection(collection_name):\n                self.milvus_client.drop_collection(collection_name)\n                print(f\"Dropped existing collection: {collection_name}\")\n            \n            # Get model dimension\n            dimension = self.model_manager.get_dimension(model_name)\n            \n            # Create new collection with enhanced schema\n            self.milvus_client.create_collection(\n                collection_name=collection_name,\n                dimension=dimension,\n                metric_type=\"COSINE\",\n                consistency_level=\"Strong\",\n            )\n            print(f\"Created collection {collection_name} with dimension {dimension}\")\n    \n    def extract_code_files(self, dir_path):\n        \"\"\"Extract code files with enhanced metadata preservation.\"\"\"\n        dir_path = Path(dir_path)\n        code_files = []\n        \n        for file_path in dir_path.rglob('*'):\n            if file_path.is_file() and file_path.suffix.lower() in self.code_extensions:\n                try:\n                    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:\n                        content = f.read().strip()\n                    \n                    if content:  # Skip empty files\n                        relative_path = str(file_path.relative_to(dir_path))\n                        file_stats = file_path.stat()\n                        \n                        code_files.append({\n                            'relative_path': relative_path,\n                            'filename': file_path.name,\n                            'content': content,\n                            'size': file_stats.st_size,\n                            'extension': file_path.suffix.lower()\n                        })\n                        \n                except Exception as e:\n                    print(f\"Error reading {file_path}: {e}\")\n                    continue\n        \n        print(f\"Found {len(code_files)} code files in {dir_path}\")\n        return code_files\n    \n    def process_repository(self, repo_path, collection_name, model_name):\n        \"\"\"\n        Process repository with chunk-aware storage and complete metadata preservation.\n        \"\"\"\n        print(f\"Processing repository {repo_path} with model {model_name} -> {collection_name}\")\n        \n        # Extract code files\n        code_files = self.extract_code_files(repo_path)\n        if not code_files:\n            print(f\"No code files found in {repo_path}\")\n            return\n        \n        # Prepare texts for embedding\n        texts = [file_data['content'] for file_data in code_files]\n        \n        # Generate embeddings with chunking\n        print(f\"Generating embeddings for {len(texts)} files...\")\n        result = self.model_manager.embed_texts(texts, model_name)\n        \n        if result is None or result[0] is None:\n            print(f\"Failed to generate embeddings for {collection_name}\")\n            return\n            \n        embeddings, processed_chunks = result\n        \n        # Map chunks back to original files\n        data_to_insert = []\n        chunk_idx = 0\n        \n        for file_data in code_files:\n            file_chunks = self.model_manager.chunk_text(file_data['content'])\n            \n            for chunk_num, chunk_content in enumerate(file_chunks):\n                if chunk_idx < len(embeddings):\n                    data_to_insert.append({\n                        \"id\": chunk_idx,\n                        \"vector\": embeddings[chunk_idx].tolist(),\n                        \"file_path\": file_data['relative_path'],\n                        \"file_name\": file_data['filename'],\n                        \"file_extension\": file_data['extension'],\n                        \"file_size\": file_data['size'],\n                        \"chunk_index\": chunk_num,\n                        \"total_chunks\": len(file_chunks),\n                        \"content\": chunk_content,\n                        \"is_complete_file\": len(file_chunks) == 1\n                    })\n                    chunk_idx += 1\n        \n        # Insert into Milvus in small batches\n        batch_size = 50  # Smaller batches for stability\n        for i in range(0, len(data_to_insert), batch_size):\n            batch = data_to_insert[i:i + batch_size]\n            try:\n                self.milvus_client.insert(collection_name=collection_name, data=batch)\n                print(f\"Inserted batch {i//batch_size + 1}/{(len(data_to_insert)-1)//batch_size + 1}\")\n            except Exception as e:\n                print(f\"Error inserting batch: {e}\")\n                continue\n        \n        print(f\"Successfully processed {len(code_files)} files into {len(data_to_insert)} chunks for {collection_name}\")\n\ndef clone_repositories():\n    \"\"\"Clone repositories with error handling.\"\"\"\n    print(\"Setting up repositories...\")\n    \n    # Create data directory\n    os.makedirs(\"./data\", exist_ok=True)\n    \n    repos = {\n        \"primary\": \"https://github.com/cowsay-org/cowsay\",\n        \"fork\": \"https://github.com/cowsay-org/homebrew-cowsay\"\n    }\n    \n    for repo_name, repo_url in repos.items():\n        repo_path = f\"./data/{repo_name}\"\n        \n        # Remove existing directory\n        if os.path.exists(repo_path):\n            shutil.rmtree(repo_path)\n            print(f\"Removed existing {repo_name} directory\")\n        \n        # Clone repository\n        print(f\"Cloning {repo_name} repository...\")\n        try:\n            Repo.clone_from(repo_url, repo_path)\n            print(f\"Successfully cloned {repo_name}\")\n        except Exception as e:\n            print(f\"Error cloning {repo_name}: {e}\")\n            raise\n\ndef main():\n    \"\"\"\n    Main execution with enhanced error handling and memory management.\n    \"\"\"\n    model_manager = None\n    \n    try:\n        # Initialize components\n        print(\"Initializing embedding system...\")\n        model_manager = EmbeddingModelManager()\n        milvus_client = MilvusClient(uri=\"./embeddings.db\")\n        embedder = RepositoryEmbedder(model_manager, milvus_client)\n        \n        # Setup Milvus collections\n        embedder.setup_collections()\n        \n        # Clone repositories\n        clone_repositories()\n        \n        # Process all repository-model combinations\n        print(\"Starting embedding process...\")\n        \n        for collection_name, (repo_type, model_name) in embedder.collection_mapping.items():\n            print(f\"\\n{'='*60}\")\n            print(f\"Processing {collection_name}: {repo_type} + {model_name}\")\n            print(f\"{'='*60}\")\n            \n            repo_path = f\"./data/{repo_type}\"\n            \n            try:\n                embedder.process_repository(repo_path, collection_name, model_name)\n            except Exception as e:\n                print(f\"Error processing {collection_name}: {e}\")\n                # Continue with next collection\n                continue\n            \n            # Aggressive cleanup between models\n            model_manager.aggressive_cleanup()\n            time.sleep(3)  # Longer pause between models\n        \n        print(\"\\nAll embedding operations completed!\")\n        \n    except Exception as e:\n        print(f\"Error during execution: {e}\")\n        import traceback\n        traceback.print_exc()\n        \n    finally:\n        # Cleanup\n        if model_manager:\n            model_manager.cleanup()\n        print(\"Script completed.\")\n\nif __name__ == \"__main__\":\n    main()","metadata":{"_uuid":"d5cabf40-7c47-4778-9e4c-0801a5d6f475","_cell_guid":"9b388783-e8f2-45c0-aaf6-5ed144674394","trusted":true,"collapsed":false,"jupyter":{"outputs_hidden":false}},"outputs":[],"execution_count":null}]}
+# /// script
+# dependencies = [
+#   "GitPython",
+#   "torch",
+#   "transformers>=4.21.0",
+#   "sentence-transformers",
+#   "pymilvus",
+#   "numpy",
+#   "einops",
+# ]
+# ///
+
+import os
+import gc
+import time
+import torch
+import numpy as np
+from pathlib import Path
+from sentence_transformers import SentenceTransformer
+from git import Repo
+import shutil
+from pymilvus import MilvusClient
+from huggingface_hub import login
+import warnings
+warnings.filterwarnings('ignore')
+
+# Huggingface authentication
+login(token=os.getenv("HF_TOKEN"))
+
+class EmbeddingModelManager:
+    """
+    Enhanced embedding model manager with aggressive memory management
+    and proper error handling for P100 GPU constraints.
+    """
+    
+    def __init__(self):
+        # Model configurations with corrected dimensions and trust settings
+        self.model_configs = {
+            "jinaai/jina-embeddings-v2-base-code": {
+                "dimension": 768, 
+                "id": "jina",
+                "trust_remote_code": False,
+                "max_seq_length": 512  # Reduced for memory efficiency
+            },
+            "nomic-ai/CodeRankEmbed": {
+                "dimension": 256, 
+                "id": "sfr2br",
+                "trust_remote_code": True,  # Required for this model
+                "max_seq_length": 256      # Heavily reduced due to 2B parameters
+            }, 
+            "codesage/codesage-large-v2": {
+                "dimension": 1024, 
+                "id": "codesage",
+                "trust_remote_code": True,
+                "max_seq_length": 512
+            }
+        }
+        
+        # Fixed: Initialize all required attributes
+        self.current_model = None
+        self.current_model_name = None
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        
+        # P100-specific optimizations
+        if torch.cuda.is_available():
+            torch.cuda.set_per_process_memory_fraction(0.85)  # Reserve 15% for system
+            os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
+        
+        print(f"Using device: {self.device}")
+        if self.device == "cuda":
+            print(f"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
+        
+    def aggressive_cleanup(self):
+        """Perform aggressive memory cleanup between model loads."""
+        if self.current_model is not None:
+            del self.current_model
+            self.current_model = None
+            self.current_model_name = None
+        
+        # Aggressive cleanup
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.synchronize()
+        
+        # Brief pause to ensure cleanup
+        time.sleep(1)
+        
+    def load_model(self, model_name):
+        """
+        Load model with enhanced memory management and error handling.
+        """
+        if self.current_model_name == model_name and self.current_model is not None:
+            return self.current_model
+            
+        # Aggressive cleanup before loading new model
+        self.aggressive_cleanup()
+        
+        print(f"Loading model: {model_name}")
+        config = self.model_configs[model_name]
+        
+        try:
+            # Load with specific configurations for each model
+            model_kwargs = {
+                'device': self.device,
+                'trust_remote_code': config['trust_remote_code']
+            }
+            
+            # Special handling for problematic models
+            if "SFR-Embedding" in model_name:
+                # This model requires trust_remote_code and careful memory handling
+                model_kwargs['model_kwargs'] = {'torch_dtype': torch.float16}
+            
+            model = SentenceTransformer(model_name, **model_kwargs)
+            
+            # Set maximum sequence length to prevent memory overflow
+            if hasattr(model, 'max_seq_length'):
+                model.max_seq_length = config['max_seq_length']
+            
+            # Test with minimal sample to verify dimensions
+            test_embedding = model.encode(["test"], show_progress_bar=False)
+            actual_dim = len(test_embedding[0])
+            
+            # Update dimension in config
+            self.model_configs[model_name]["dimension"] = actual_dim
+            print(f"Model {model_name} loaded successfully. Dimension: {actual_dim}")
+            
+            self.current_model = model
+            self.current_model_name = model_name
+            
+            return model
+            
+        except Exception as e:
+            print(f"Error loading model {model_name}: {e}")
+            self.aggressive_cleanup()
+            return None
+    
+    def chunk_text(self, text, max_length=500):
+        """
+        Chunk long text files to prevent memory overflow while preserving content.
+        Uses overlapping chunks to maintain context.
+        """
+        if len(text) <= max_length:
+            return [text]
+        
+        chunks = []
+        overlap = 50  # 50 character overlap to maintain context
+        
+        for i in range(0, len(text), max_length - overlap):
+            chunk = text[i:i + max_length]
+            if chunk.strip():  # Only add non-empty chunks
+                chunks.append(chunk)
+        
+        return chunks
+    
+    def embed_texts(self, texts, model_name, batch_size=8):
+        """
+        Generate embeddings with aggressive memory management and chunking.
+        Reduced batch size for P100 compatibility.
+        """
+        model = self.load_model(model_name)
+        if model is None:
+            return None
+            
+        try:
+            all_embeddings = []
+            processed_texts = []
+            
+            # Process and chunk texts first
+            for text in texts:
+                chunks = self.chunk_text(text)
+                processed_texts.extend(chunks)
+            
+            print(f"Processing {len(processed_texts)} text chunks (from {len(texts)} original files)")
+            
+            # Process in very small batches for P100
+            for i in range(0, len(processed_texts), batch_size):
+                batch = processed_texts[i:i + batch_size]
+                
+                try:
+                    batch_embeddings = model.encode(
+                        batch, 
+                        convert_to_numpy=True,
+                        show_progress_bar=False,
+                        batch_size=min(4, len(batch))  # Even smaller internal batches
+                    )
+                    all_embeddings.extend(batch_embeddings)
+                    
+                    # Memory cleanup between batches
+                    if i % (batch_size * 4) == 0:
+                        gc.collect()
+                        if torch.cuda.is_available():
+                            torch.cuda.empty_cache()
+                    
+                    if i % (batch_size * 2) == 0:
+                        print(f"Processed {i + len(batch)}/{len(processed_texts)} chunks")
+                        
+                except Exception as e:
+                    print(f"Error in batch {i}: {e}")
+                    # Skip this batch but continue processing
+                    continue
+                
+            return all_embeddings, processed_texts
+            
+        except Exception as e:
+            print(f"Error generating embeddings: {e}")
+            return None, None
+    
+    def get_dimension(self, model_name):
+        """Get the embedding dimension for a specific model."""
+        return self.model_configs.get(model_name, {}).get("dimension", 768)
+    
+    def cleanup(self):
+        """Clean up loaded models and free GPU memory."""
+        self.aggressive_cleanup()
+        print("Model cleanup completed.")
+
+class RepositoryEmbedder:
+    """
+    Enhanced repository processor with chunk-aware storage and metadata preservation.
+    """
+    
+    def __init__(self, model_manager, milvus_client):
+        self.model_manager = model_manager
+        self.milvus_client = milvus_client
+        
+        # Expanded code file extensions
+        self.code_extensions = {
+            '.py', '.js', '.java', '.cpp', '.c', '.h', '.cs', '.php', 
+            '.rb', '.go', '.rs', '.swift', '.kt', '.ts', '.jsx', '.tsx', 
+            '.md', '.txt', '.csv', '.json', '.xml', '.yml', '.yaml',
+            '.sql', '.sh', '.bat', '.html', '.css', '.scss', '.less'
+        }
+        
+        # Collection mappings
+        self.collection_mapping = {
+            "PriA": ("primary", "jinaai/jina-embeddings-v2-base-code"),
+            "PriB": ("primary", "nomic-ai/CodeRankEmbed"),
+            "PriC": ("primary", "codesage/codesage-large-v2"),
+            "FrkA": ("fork", "jinaai/jina-embeddings-v2-base-code"),
+            "FrkB": ("fork", "nomic-ai/CodeRankEmbed"),
+            "FrkC": ("fork", "codesage/codesage-large-v2")
+        }
+    
+    def setup_collections(self):
+        """Setup Milvus collections with enhanced schema for chunk metadata."""
+        print("Setting up Milvus collections...")
+        
+        for collection_name, (repo_type, model_name) in self.collection_mapping.items():
+            # Drop existing collection
+            if self.milvus_client.has_collection(collection_name):
+                self.milvus_client.drop_collection(collection_name)
+                print(f"Dropped existing collection: {collection_name}")
+            
+            # Get model dimension
+            dimension = self.model_manager.get_dimension(model_name)
+            
+            # Create new collection with enhanced schema
+            self.milvus_client.create_collection(
+                collection_name=collection_name,
+                dimension=dimension,
+                metric_type="COSINE",
+                consistency_level="Strong",
+            )
+            print(f"Created collection {collection_name} with dimension {dimension}")
+    
+    def extract_code_files(self, dir_path):
+        """Extract code files with enhanced metadata preservation."""
+        dir_path = Path(dir_path)
+        code_files = []
+        
+        for file_path in dir_path.rglob('*'):
+            if file_path.is_file() and file_path.suffix.lower() in self.code_extensions:
+                try:
+                    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                        content = f.read().strip()
+                    
+                    if content:  # Skip empty files
+                        relative_path = str(file_path.relative_to(dir_path))
+                        file_stats = file_path.stat()
+                        
+                        code_files.append({
+                            'relative_path': relative_path,
+                            'filename': file_path.name,
+                            'content': content,
+                            'size': file_stats.st_size,
+                            'extension': file_path.suffix.lower()
+                        })
+                        
+                except Exception as e:
+                    print(f"Error reading {file_path}: {e}")
+                    continue
+        
+        print(f"Found {len(code_files)} code files in {dir_path}")
+        return code_files
+    
+    def process_repository(self, repo_path, collection_name, model_name):
+        """
+        Process repository with chunk-aware storage and complete metadata preservation.
+        """
+        print(f"Processing repository {repo_path} with model {model_name} -> {collection_name}")
+        
+        # Extract code files
+        code_files = self.extract_code_files(repo_path)
+        if not code_files:
+            print(f"No code files found in {repo_path}")
+            return
+        
+        # Prepare texts for embedding
+        texts = [file_data['content'] for file_data in code_files]
+        
+        # Generate embeddings with chunking
+        print(f"Generating embeddings for {len(texts)} files...")
+        result = self.model_manager.embed_texts(texts, model_name)
+        
+        if result is None or result[0] is None:
+            print(f"Failed to generate embeddings for {collection_name}")
+            return
+            
+        embeddings, processed_chunks = result
+        
+        # Map chunks back to original files
+        data_to_insert = []
+        chunk_idx = 0
+        
+        for file_data in code_files:
+            file_chunks = self.model_manager.chunk_text(file_data['content'])
+            
+            for chunk_num, chunk_content in enumerate(file_chunks):
+                if chunk_idx < len(embeddings):
+                    data_to_insert.append({
+                        "id": chunk_idx,
+                        "vector": embeddings[chunk_idx].tolist(),
+                        "file_path": file_data['relative_path'],
+                        "file_name": file_data['filename'],
+                        "file_extension": file_data['extension'],
+                        "file_size": file_data['size'],
+                        "chunk_index": chunk_num,
+                        "total_chunks": len(file_chunks),
+                        "content": chunk_content,
+                        "is_complete_file": len(file_chunks) == 1
+                    })
+                    chunk_idx += 1
+        
+        # Insert into Milvus in small batches
+        batch_size = 50  # Smaller batches for stability
+        for i in range(0, len(data_to_insert), batch_size):
+            batch = data_to_insert[i:i + batch_size]
+            try:
+                self.milvus_client.insert(collection_name=collection_name, data=batch)
+                print(f"Inserted batch {i//batch_size + 1}/{(len(data_to_insert)-1)//batch_size + 1}")
+            except Exception as e:
+                print(f"Error inserting batch: {e}")
+                continue
+        
+        print(f"Successfully processed {len(code_files)} files into {len(data_to_insert)} chunks for {collection_name}")
+
+def clone_repositories():
+    """Clone repositories with error handling."""
+    print("Setting up repositories...")
+    
+    # Create data directory
+    os.makedirs("./data", exist_ok=True)
+    
+    repos = {
+        "primary": "https://github.com/cowsay-org/cowsay",
+        "fork": "https://github.com/cowsay-org/homebrew-cowsay"
+    }
+    
+    for repo_name, repo_url in repos.items():
+        repo_path = f"./data/{repo_name}"
+        
+        # Remove existing directory
+        if os.path.exists(repo_path):
+            shutil.rmtree(repo_path)
+            print(f"Removed existing {repo_name} directory")
+        
+        # Clone repository
+        print(f"Cloning {repo_name} repository...")
+        try:
+            Repo.clone_from(repo_url, repo_path)
+            print(f"Successfully cloned {repo_name}")
+        except Exception as e:
+            print(f"Error cloning {repo_name}: {e}")
+            raise
+
+def main():
+    """
+    Main execution with enhanced error handling and memory management.
+    """
+    model_manager = None
+    
+    try:
+        # Initialize components
+        print("Initializing embedding system...")
+        model_manager = EmbeddingModelManager()
+        milvus_client = MilvusClient(uri="./embeddings.db")
+        embedder = RepositoryEmbedder(model_manager, milvus_client)
+        
+        # Setup Milvus collections
+        embedder.setup_collections()
+        
+        # Clone repositories
+        clone_repositories()
+        
+        # Process all repository-model combinations
+        print("Starting embedding process...")
+        
+        for collection_name, (repo_type, model_name) in embedder.collection_mapping.items():
+            print(f"\n{'='*60}")
+            print(f"Processing {collection_name}: {repo_type} + {model_name}")
+            print(f"{'='*60}")
+            
+            repo_path = f"./data/{repo_type}"
+            
+            try:
+                embedder.process_repository(repo_path, collection_name, model_name)
+            except Exception as e:
+                print(f"Error processing {collection_name}: {e}")
+                # Continue with next collection
+                continue
+            
+            # Aggressive cleanup between models
+            model_manager.aggressive_cleanup()
+            time.sleep(3)  # Longer pause between models
+        
+        print("\nAll embedding operations completed!")
+        
+    except Exception as e:
+        print(f"Error during execution: {e}")
+        import traceback
+        traceback.print_exc()
+        
+    finally:
+        # Cleanup
+        if model_manager:
+            model_manager.cleanup()
+        print("Script completed.")
+
+if __name__ == "__main__":
+    main()
