@@ -363,8 +363,12 @@ def clone_repositories():
     os.makedirs("./data", exist_ok=True)
     
     repos = {
-        "primary": "https://github.com/cowsay-org/cowsay",
-        "fork": "https://github.com/cowsay-org/homebrew-cowsay"
+        "java-microservice_primary": "https://github.com/apssouza22/java-microservice",
+        "java-microservice_fork": "https://github.com/M3SOulu/EMSE2025SAR-java-microservice",
+        "MBSB_primary": "https://github.com/anilallewar/microservices-basics-spring-boot",
+        "MBSB_fork": "https://github.com/M3SOulu/EMSE2025SAR-microservices-basics-spring-boot",
+        "blog-primary": "https://github.com/callistaenterprise/blog-microservices",
+        "blog-fork": "https://github.com/M3SOulu/EMSE2025SAR-blog-microservices"
     }
     
     for repo_name, repo_url in repos.items():
