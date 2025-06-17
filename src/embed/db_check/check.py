@@ -386,7 +386,7 @@ class MilvusAnalyzer:
 
 def main():
     """Main function to run the Milvus database analysis."""
-    db_path = "./output/src/embed/data/output/embeddings.db"
+    db_path = "code-cloning-analysis/src/embed/data/embeddings.db"
 
     analyzer = MilvusAnalyzer(db_path)
     success = analyzer.run_complete_analysis()
