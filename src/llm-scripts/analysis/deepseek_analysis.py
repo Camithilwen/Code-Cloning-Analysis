@@ -5,8 +5,6 @@ import sqlite3
 from huggingface_hub import login
 from transformers import pipeline
 
-login(token = '')
-
 con = sqlite3.connect("/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/dev/data/embeddings.db")
 con.text_factory = lambda b: b.decode(errors = 'ignore') # and here
 
