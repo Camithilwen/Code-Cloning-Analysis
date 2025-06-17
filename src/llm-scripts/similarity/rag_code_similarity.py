@@ -14,6 +14,11 @@ TARGET_FILE_ID = 1        # file to compare
 TOP_K = 3                 # # of similar files to retrieve
 
 # LLM_MODEL = "bigcode/starcoder2-15b"
+LLMS = [
+    #"deepseek/deepseek-r1-0528-qwen3-8b",
+        "starcoder2-15b-instruct-v0.1",
+    #    "qwen/qwen3-8b"
+        ]
 
 # --- MILVUS EXTRACTION ---
 def get_all_embeddings(collection_name):
@@ -49,27 +54,28 @@ def find_top_k_similar(target_embedding, all_embeddings, target_file_id, top_k):
 # --- LLM RAG ASSESSMENT ---
 def rag_similarity_assessment(target_code, similar_codes, model_name):
     # llm = LLM(model=model_name)
-
-    model = lms.llm("deepseek/deepseek-r1-0528-qwen3-8b")
+    model = lms.llm(model_name)
 
     context = "\n\n".join([f"Similar Code {i+1}:\n{code}" for i, (_, _, code) in enumerate(similar_codes)])
     prompt = (
-        "Given the target code and its most similar code files, "
-        "assess the degree of similarity and provide a score (0-1) with explanation.\n\n"
-        f"Target Code:\n{target_code}\n\n{context}\n"
+            "Given the target code and its most similar code files, "
+            "assess the degree of similarity and provide a score (0-1) with explanation.\n\n"
+            f"Target Code:\n{target_code}\n\n{context}\n"
     )
     # sampling_params = SamplingParams(temperature=0.3, top_p=0.95)
     result = model.respond(prompt)
 
-    return result
+    with open(f"/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/similarity/rag-result-files/{model_name}_results.txt", 'w') as f:
+        print(result, file=f)
 
 # --- MAIN WORKFLOW ---
 def main():
     all_embeddings = get_all_embeddings(COLLECTION_NAME)
     target_code, target_embedding = get_code_and_embedding_by_id(all_embeddings, TARGET_FILE_ID)
     top_k_similar = find_top_k_similar(target_embedding, all_embeddings, TARGET_FILE_ID, TOP_K)
-    rag_result = rag_similarity_assessment(target_code, top_k_similar, "deepseek/deepseek-r1-0528-qwen3-8b")
-    print("RAG Similarity Assessment:\n", rag_result)
+    for model_name in LLMS:
+        rag_similarity_assessment(target_code, top_k_similar, model_name)
+    # print("RAG Similarity Assessment:\n", rag_result)
 
 if __name__ == "__main__":
     main()
