@@ -234,12 +234,24 @@ class RepositoryEmbedder:
         
         # Collection mappings
         self.collection_mapping = {
-            "PriA": ("primary", "jinaai/jina-embeddings-v2-base-code"),
-            "PriB": ("primary", "nomic-ai/CodeRankEmbed"),
-            "PriC": ("primary", "codesage/codesage-large-v2"),
-            "FrkA": ("fork", "jinaai/jina-embeddings-v2-base-code"),
-            "FrkB": ("fork", "nomic-ai/CodeRankEmbed"),
-            "FrkC": ("fork", "codesage/codesage-large-v2")
+            "A": ("java-microservice_primary", "jinaai/jina-embeddings-v2-base-code"),
+            "B": ("java-microservice_primary", "nomic-ai/CodeRankEmbed"),
+            "C": ("java-microservice_primary", "codesage/codesage-large-v2"),
+            "D": ("java-microservice_fork", "jinaai/jina-embeddings-v2-base-code"),
+            "E": ("java-microservice_fork", "nomic-ai/CodeRankEmbed"),
+            "F": ("java-microservice_fork", "codesage/codesage-large-v2"),
+            "G": ("MBSB_primary", "jinaai/jina-embeddings-v2-base-code"),
+            "H": ("MBSB_primary", "nomic-ai/CodeRankEmbed"),
+            "I": ("MBSB_primary", "codesage/codesage-large-v2"),
+            "J": ("MBSB_fork", "jinaai/jina-embeddings-v2-base-code"),
+            "K": ("MBSB_fork", "nomic-ai/CodeRankEmbed"),
+            "L": ("MBSB_fork", "codesage/codesage-large-v2"),
+            "M": ("blog-primary", "jinaai/jina-embeddings-v2-base-code"),
+            "N": ("blog-primary", "nomic-ai/CodeRankEmbed"),
+            "O": ("blog-primary", "codesage/codesage-large-v2"),
+            "P": ("blog-fork", "jinaai/jina-embeddings-v2-base-code"),
+            "Q": ("blog-fork", "nomic-ai/CodeRankEmbed"),
+            "R": ("blog-fork", "codesage/codesage-large-v2")
         }
     
     def setup_collections(self):
