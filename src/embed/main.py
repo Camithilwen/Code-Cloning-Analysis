@@ -394,7 +394,7 @@ def main():
         # Initialize components
         print("Initializing embedding system...")
         model_manager = EmbeddingModelManager()
-        milvus_client = MilvusClient(uri="./data/output/embeddings.db")
+        milvus_client = MilvusClient(uri="./data/embeddings.db")
         embedder = RepositoryEmbedder(model_manager, milvus_client)
         
         # Setup Milvus collections
