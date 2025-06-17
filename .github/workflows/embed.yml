@@ -11,110 +11,90 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Run Kaggle Script with UV Environment
-        uses: KevKibe/kaggle-script-action@v1.0.5
+      - name: Setup Python
+        uses: actions/setup-python@v4
         with:
-          # Kaggle credentials
-          username: ${{ secrets.KAGGLE_USERNAME }}
-          key: ${{ secrets.KAGGLE_KEY }}
+          python-version: '3.9'
 
-          # Kernel configuration
-          title: "Code Embedding Pipeline"
-          enable_gpu: true
-          enable_internet: true
+      - name: Install dependencies
+        run: |
+          pip install kaggle requests
 
-          # Script to execute (simplified for Kaggle execution)
-          custom_script: |
-            import os
-            import subprocess
-            import sys
+      - name: Setup Kaggle credentials
+        run: |
+          mkdir -p ~/.kaggle
+          echo '{"username":"${{ secrets.KAGGLE_USERNAME }}","key":"${{ secrets.KAGGLE_KEY }}"}' > ~/.kaggle/kaggle.json
+          chmod 600 ~/.kaggle/kaggle.json
 
-            # Set environment variables
-            os.environ['HF_TOKEN'] = '${{ secrets.HF_TOKEN }}'
+      - name: Create and run Kaggle kernel
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          # Create kernel script that includes the repository code
+          cat > kaggle_runner.py << 'EOF'
+          import os
+          import subprocess
+          import sys
 
-            # Clone repository to get the latest code
-            print("Cloning repository...")
-            subprocess.run(['git', 'clone', '-b', 'embed', 'https://github.com/${{ github.repository }}', 'code-cloning-analysis'], check=True)
+          # Set environment variables
+          os.environ['HF_TOKEN'] = '${{ secrets.HF_TOKEN }}'
 
-            # Change to the source directory
-            os.chdir('code-cloning-analysis/src/')
-            print(f"Changed to directory: {os.getcwd()}")
+          # Clone repository
+          subprocess.run(['git', 'clone', '-b', 'embed', 'https://github.com/camithilwen/code-cloning-analysis'], check=True)
+          os.chdir('code-cloning-analysis/src/')
 
-            # Install UV package manager
-            print("Installing UV package manager...")
-            subprocess.run('curl -LsSf https://astral.sh/uv/install.sh | sh', shell=True, check=True)
+          # Install UV
+          subprocess.run('curl -LsSf https://astral.sh/uv/install.sh | sh', shell=True, check=True)
 
-            # Add UV to path
-            uv_path = os.path.expanduser('~/.cargo/bin')
-            os.environ['PATH'] = f"{uv_path}:{os.environ['PATH']}"
+          # Add UV to path
+          uv_path = os.path.expanduser('~/.cargo/bin')
+          os.environ['PATH'] = f"{uv_path}:{os.environ['PATH']}"
 
-            # Create .env file for HF token
-            print("Creating .env file...")
-            with open('.env', 'w') as f:
-                f.write(f"HF_TOKEN={os.environ.get('HF_TOKEN', '')}\n")
+          # Create .env file
+          with open('.env', 'w') as f:
+              f.write(f"HF_TOKEN={os.environ.get('HF_TOKEN', '')}\n")
 
-            # Create embed/data directory to ensure proper path structure
-            os.makedirs('embed/data', exist_ok=True)
-            print("Created embed/data directory")
+          # Run main script
+          subprocess.run(['uv', 'run', '--env-file', '.env', 'embed/main.py'], check=True)
+          #add auto run of check script here
+          subprocess.run(['uv', 'run', 'db_check/check.py'], check=True)
 
-            # Run the main embedding script
-            print("Starting embedding process...")
-            result = subprocess.run(['uv', 'run', '--env-file', '.env', 'embed/main.py'],
-                                  capture_output=True, text=True)
-            print("STDOUT:", result.stdout)
-            if result.stderr:
-                print("STDERR:", result.stderr)
-            if result.returncode != 0:
-                print(f"Embedding script failed with return code: {result.returncode}")
-                sys.exit(1)
+          # Check for database file
+          if os.path.exists('embeddings.db'):
+              print("Database file created successfully!")
+              print(f"Size: {os.path.getsize('embeddings.db')} bytes")
+          else:
+              print("Database file not found!")
+              print("Available files:", os.listdir('.'))
+          EOF
 
-            # Run the database check script
-            print("Running database verification...")
-            result = subprocess.run(['uv', 'run', 'db_check/check.py'],
-                                  capture_output=True, text=True)
-            print("Check script output:", result.stdout)
-            if result.stderr:
-                print("Check script errors:", result.stderr)
+          # Create kernel metadata
+          cat > kernel-metadata.json << EOF
+          {
+            "id": "${{ secrets.KAGGLE_USERNAME }}/code-embedding-pipeline",
+            "title": "Code Embedding Pipeline",
+            "code_file": "kaggle_runner.py",
+            "language": "python",
+            "kernel_type": "script",
+            "is_private": true,
+            "enable_gpu": true,
+            "enable_internet": true,
+            "dataset_sources": [],
+            "competition_sources": [],
+            "kernel_sources": []
+          }
+          EOF
 
-            # Verify database was created
-            import os
-            db_path = 'embed/data/embeddings.db'
-            if os.path.exists(db_path):
-                db_size = os.path.getsize(db_path)
-                print(f"✅ Database file created successfully!")
-                print(f"Database size: {db_size} bytes")
+          # Push kernel
+          kaggle kernels push
 
-                # List contents of embed/data directory
-                print("Contents of embed/data/:")
-                for item in os.listdir('embed/data/'):
-                    item_path = os.path.join('embed/data/', item)
-                    if os.path.isfile(item_path):
-                        print(f"  {item} ({os.path.getsize(item_path)} bytes)")
-                    else:
-                        print(f"  {item} (directory)")
-            else:
-                print("❌ Database file not found at embed/data/embeddings.db")
-                print("Contents of embed/data/:")
-                try:
-                    for item in os.listdir('embed/data/'):
-                        print(f"  {item}")
-                except FileNotFoundError:
-                    print("embed/data/ directory not found")
-
-                print("Searching for .db files:")
-                import glob
-                db_files = glob.glob('**/*.db', recursive=True)
-                for db_file in db_files:
-                    print(f"  Found: {db_file}")
-
-                sys.exit(1)
 
       - name: Wait for Kaggle Execution
         run: |
           echo "Waiting for Kaggle kernel execution to complete..."
           echo "The kernel will run on Kaggle's infrastructure."
           echo "Check the action logs above for execution details."
-          sleep 30
+          sleep 300
 
       - name: Download Kaggle Output
         run: |
