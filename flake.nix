@@ -81,6 +81,7 @@
               jupyter
               jupytext
               pymilvus
+              kaggle
 
               /* Add whatever else you'd like here. */
               # pkgs.basedpyright
