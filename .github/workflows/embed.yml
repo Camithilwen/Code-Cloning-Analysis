@@ -104,19 +104,24 @@ jobs:
           while [ $WAIT_TIME -lt $MAX_WAIT ]; do
             echo "Checking kernel status... (${WAIT_TIME}s elapsed)"
 
-            # Get kernel status
-            STATUS=$(kaggle kernels status $KERNEL_REF | jq -r '.status' 2>/dev/null || echo "unknown")
-            echo "Current status: $STATUS"
+            # Get kernel status using list command and grep
+            STATUS_OUTPUT=$(kaggle kernels list --user ${{ secrets.KAGGLE_USERNAME }} --search "code-embedding-pipeline" 2>/dev/null || echo "")
 
-            if [ "$STATUS" = "complete" ]; then
+            if echo "$STATUS_OUTPUT" | grep -q "complete"; then
               echo "✅ Kernel execution completed successfully!"
+              echo "Status output: $STATUS_OUTPUT"
               break
-            elif [ "$STATUS" = "error" ]; then
+            elif echo "$STATUS_OUTPUT" | grep -q "error"; then
               echo "❌ Kernel execution failed!"
-              kaggle kernels output $KERNEL_REF --path ./kaggle_output
+              echo "Status output: $STATUS_OUTPUT"
+              # Try to download output anyway to see error logs
+              kaggle kernels output $KERNEL_REF --path ./kaggle_output 2>/dev/null || echo "Could not download error output"
               exit 1
-            elif [ "$STATUS" = "running" ]; then
+            elif echo "$STATUS_OUTPUT" | grep -q "running"; then
               echo "⏳ Kernel is still running..."
+            else
+              echo "⏳ Kernel status unclear, continuing to wait..."
+              echo "Status output: $STATUS_OUTPUT"
             fi
 
             sleep $SLEEP_INTERVAL
@@ -125,6 +130,8 @@ jobs:
 
           if [ $WAIT_TIME -ge $MAX_WAIT ]; then
             echo "⏰ Kernel execution timed out after 30 minutes"
+            echo "Final status check:"
+            kaggle kernels list --user ${{ secrets.KAGGLE_USERNAME }} --search "code-embedding-pipeline" 2>/dev/null || echo "Could not get final status"
             exit 1
           fi
 
