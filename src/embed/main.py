@@ -451,6 +451,7 @@ def main():
         # Cleanup
         if model_manager:
             model_manager.cleanup()
+        os.removedirs("./data")
         print("Script completed.")
 
 if __name__ == "__main__":
