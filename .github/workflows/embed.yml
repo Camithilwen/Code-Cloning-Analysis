@@ -60,9 +60,9 @@ jobs:
           subprocess.run(['uv', 'run', 'db_check/check.py'], check=True)
 
           # Check for database file
-          if os.path.exists('embeddings.db'):
+          if os.path.exists('embed/data/embeddings.db'):
               print("Database file created successfully!")
-              print(f"Size: {os.path.getsize('embeddings.db')} bytes")
+              print(f"Size: {os.path.getsize('embed/data/embeddings.db')} bytes")
           else:
               print("Database file not found!")
               print("Available files:", os.listdir('.'))
@@ -85,68 +85,135 @@ jobs:
           }
           EOF
 
-          # Push kernel
+          # Push kernel and capture the version
+          echo "Pushing kernel to Kaggle..."
           kaggle kernels push
-
 
       - name: Wait for Kaggle Execution
         run: |
           echo "Waiting for Kaggle kernel execution to complete..."
-          echo "The kernel will run on Kaggle's infrastructure."
-          echo "Check the action logs above for execution details."
-          sleep 900
+
+          # Get kernel status and wait for completion
+          KERNEL_REF="${{ secrets.KAGGLE_USERNAME }}/code-embedding-pipeline"
+
+          # Wait for kernel to complete (max 30 minutes)
+          MAX_WAIT=1800
+          WAIT_TIME=0
+          SLEEP_INTERVAL=30
+
+          while [ $WAIT_TIME -lt $MAX_WAIT ]; do
+            echo "Checking kernel status... (${WAIT_TIME}s elapsed)"
+
+            # Get kernel status
+            STATUS=$(kaggle kernels status $KERNEL_REF --json | jq -r '.status' 2>/dev/null || echo "unknown")
+            echo "Current status: $STATUS"
+
+            if [ "$STATUS" = "complete" ]; then
+              echo "✅ Kernel execution completed successfully!"
+              break
+            elif [ "$STATUS" = "error" ]; then
+              echo "❌ Kernel execution failed!"
+              kaggle kernels output $KERNEL_REF --path ./kaggle_output
+              exit 1
+            elif [ "$STATUS" = "running" ]; then
+              echo "⏳ Kernel is still running..."
+            fi
+
+            sleep $SLEEP_INTERVAL
+            WAIT_TIME=$((WAIT_TIME + SLEEP_INTERVAL))
+          done
+
+          if [ $WAIT_TIME -ge $MAX_WAIT ]; then
+            echo "⏰ Kernel execution timed out after 30 minutes"
+            exit 1
+          fi
 
       - name: Download Kaggle Output
         run: |
-          echo "Attempting to download Kaggle kernel output..."
+          echo "Downloading Kaggle kernel output..."
 
-          # The action should have created output files
-          # Check if any output was downloaded by the action
-          if [ -d "/code-cloning-analysis/src/embed/data/" ]; then
-            echo "Output directory found:"
-            find /src/embed/data/ -type f | head -20
-          else
-            echo "No output directory found from Kaggle action"
-          fi
+          KERNEL_REF="${{ secrets.KAGGLE_USERNAME }}/code-embedding-pipeline"
 
-          # Also check current directory for any .db files
-          echo "Searching for database files in output directory:"
-          find /code-cloning-analysis/src/embed/data/ -name "*.db" -type f 2>/dev/null || echo "No .db files found"
+          # Download kernel output
+          mkdir -p ./kaggle_output
+          kaggle kernels output $KERNEL_REF --path ./kaggle_output
 
-      - name: Extract and Upload Database
+          echo "Downloaded files:"
+          find ./kaggle_output -type f | head -20
+
+          # Search for the database file in the output
+          echo "Searching for embeddings.db in output..."
+          find ./kaggle_output -name "embeddings.db" -type f
+
+      - name: Extract and Process Database
         run: |
           echo "Searching for embeddings.db..."
 
-          # Search in multiple possible locations
-          DB_FILE=""
-
-          # Check output directory first
-          if [ -d "/code-cloning-analysis/src/embed/data/" ]; then
-            DB_FILE=$(find /code-cloning-analysis/src/embed/data -name "embeddings.db" -type f | head -1)
-          fi
+          # Search for the database file
+          DB_FILE=$(find ./kaggle_output -name "embeddings.db" -type f | head -1)
 
           if [ -n "$DB_FILE" ]; then
             echo "✅ Found database file: $DB_FILE"
+            echo "File size: $(stat -c%s "$DB_FILE") bytes"
 
-            echo "File size: $(stat -c%s $DB_FILE) bytes"
+            # Create a clean directory for the artifact
+            mkdir -p ./database_artifact
 
-            # Upload as artifact
-            echo "Database file ready for artifact upload"
+            # Copy the database file to a predictable location
+            cp "$DB_FILE" ./database_artifact/embeddings.db
+
+            echo "✅ Database file prepared for artifact upload"
+            echo "DATABASE_FOUND=true" >> $GITHUB_ENV
+
+            # Verify the copied file
+            if [ -f "./database_artifact/embeddings.db" ]; then
+              echo "✅ Verified: Database file successfully copied"
+              echo "Final size: $(stat -c%s "./database_artifact/embeddings.db") bytes"
+            else
+              echo "❌ Error: Failed to copy database file"
+              echo "DATABASE_FOUND=false" >> $GITHUB_ENV
+            fi
+
           else
-            echo "❌ No database file found"
-            echo "All files in workspace:"
-            find . -type f | head -30
-
-            # Don't exit with error - this will be handled by conditional upload
+            echo "❌ No database file found in Kaggle output"
+            echo "All files in kaggle_output:"
+            find ./kaggle_output -type f | head -30
             echo "DATABASE_FOUND=false" >> $GITHUB_ENV
           fi
 
       - name: Upload Database Artifact
-        if: env.DATABASE_FOUND != 'false'
+        if: env.DATABASE_FOUND == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: embeddings-database
-          path: /code-cloning-analysis/src/embed/data/
+          path: ./database_artifact/embeddings.db
           retention-days: 30
           compression-level: 6
-          if-no-files-found: warn
+          if-no-files-found: error
+
+      - name: Failure Diagnostics
+        if: failure()
+        run: |
+          echo "🔍 FAILURE DIAGNOSTICS"
+          echo "========================"
+
+          echo "Environment variables:"
+          echo "DATABASE_FOUND: $DATABASE_FOUND"
+
+          echo "Current directory contents:"
+          ls -la
+
+          echo "Kaggle output directory:"
+          if [ -d "./kaggle_output" ]; then
+            find ./kaggle_output -type f | head -20
+          else
+            echo "No kaggle_output directory found"
+          fi
+
+          echo "Checking for any .db files in workspace:"
+          find . -name "*.db" -type f 2>/dev/null || echo "No .db files found anywhere"
+
+          # Try to get kernel logs
+          KERNEL_REF="${{ secrets.KAGGLE_USERNAME }}/code-embedding-pipeline"
+          echo "Attempting to get kernel logs..."
+          kaggle kernels output $KERNEL_REF --path ./debug_output 2>/dev/null || echo "Could not retrieve kernel logs"
