@@ -4,22 +4,23 @@
 import numpy as np
 from pymilvus import connections, Collection, MilvusClient
 import lmstudio as lms
+import json
 import os
 
 # --- CONFIGURATION ---
-COLLECTION_NAME = "PriA"  # PriA
-TARGET_FILE_ID = 3        # file to compare
-TOP_K = 3              # # of similar files to retrieve
-RUN_NUM = 1
-DIR_NAME = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/similarity/rag-result-files/TFID∀-PriA"
+COLLECTION_NAME = "PriA"
+TARGET_FILE_ID = 1
+TOP_K = 3
+RUN_NUM = 1 # increment to avoid rewriting files
+DIR_NAME = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/similarity/rag-result-files/TFID1-PriA2"
 DB_PATH = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/dev/data/embeddings3.db"
 
 # LLM_MODEL = "bigcode/starcoder2-15b"
 LLMS = [
     #    "deepseek/deepseek-r1-0528-qwen3-8b",
-    #    "starcoder2-15b-instruct-v0.1",
+        "starcoder2-15b-instruct-v0.1",
     #    "qwen/qwen3-8b"
-        "mistralai/codestral-22b-v0.1"
+    #    "mistralai/codestral-22b-v0.1"
         ]
 
 # --- MILVUS EXTRACTION ---
@@ -56,10 +57,29 @@ def find_top_k_similar(target_embedding, all_embeddings, target_file_id, top_k):
 
 # --- LLM RAG ASSESSMENT ---
 def rag_similarity_assessment(target_code, similar_codes, model_name):
-    # llm = LLM(model=model_name)
+    # client = Qwen(base_url="http://127.0.0.1:1234", api_key="lm-studio")
     model = lms.llm(model_name)
-
+    ## do the client thing here since model.[...] doesn't work
     context = "\n\n".join([f"Similar Code {i+1}:\n{code}" for i, (_, _, code) in enumerate(similar_codes)])
+
+    messages = [
+        {"role": "system", "content": "Given the target code and its most similar "
+        "code files, assess the degree of similarity and provide a score (0-1) "
+        "with explanation for each Type (Type-1, Type-2, Type-3, and Type-4), "
+        "given the following definitions:"
+        "Type-1 or identical code fragments represent the same code except for white "
+        "space, comments, "
+        "and layout. Type-2 or lexical code snippets represent identical clone pairs "
+        "except for differences in variables or function names with Type-1 clone "
+        "differences. Type-3 or syntactically represent similar code fragments "
+        "that differ at the statement level. The code fragments differ in some "
+        "lines with removed or added of some lines in addition to type-2 clone"
+        "differences. Type-4 or semantic code clone represents code snippets that "
+        "perform the same functionality but the implementation is different. In "
+        "global they are syntactically dissimilar."},
+        {"role": "user", "content": f"Target Code:\n{target_code}\n\n{context}\n"}
+    ]
+
     prompt = f'''Given the target code and its most similar code files, assess the degree of similarity and provide a score (0-1) with explanation for each Type (Type-1, Type-2, Type-3, and Type-4), 
         given the following definitions:
         Type-1 or identical code fragments represent the same code except for white 
@@ -73,23 +93,38 @@ def rag_similarity_assessment(target_code, similar_codes, model_name):
         perform the same functionality but the implementation is different. In 
         global they are syntactically dissimilar.
         Target Code:\n{target_code}\n\n{context}\n'''
-    # sampling_params = SamplingParams(temperature=0.3, top_p=0.95)
-    result = model.respond(prompt)
+
+    schema = {
+        "type": "object",
+        "properties": {
+            "Type-1": {"type": "integer"},
+            "Type-2": {"type": "integer"},
+            "Type-3": {"type": "integer"},
+            "Type-4": {"type": "integer"},
+        },
+        "required": ["Type-1", "Type-2", "Type-3", "Type-4"]
+    }
+
+    # Get response from AI
+    response = model.respond(prompt, response_format=schema)
+
+    # Parse and display the results
+    results = response.parsed
 
     if '/' in model_name:
         try:
-            os.mkdir(f"{DIR_NAME}/SIM/{model_name.split('/')[0]}")
+            os.mkdir(f"{DIR_NAME}/STR/{model_name.split('/')[0]}")
         except FileExistsError:
             pass
-        with open(f"{DIR_NAME}/SIM/{model_name}_sim_results_{RUN_NUM}.txt", 'w') as f:
-            print(result, file=f)
+        with open(f"{DIR_NAME}/STR/{model_name}_structured_results_{RUN_NUM}.txt", 'w') as f:
+            print(results, file=f)
     else: # it's starcoder
         try:
-            os.mkdir(f"{DIR_NAME}/SIM/starcoder")
+            os.mkdir(f"{DIR_NAME}/STR/starcoder")
         except FileExistsError:
             pass
-        with open(f"{DIR_NAME}/SIM/starcoder/{model_name}_sim_results_{RUN_NUM}.txt", 'w') as f:
-            print(result, file=f)
+        with open(f"{DIR_NAME}/STR/starcoder/{model_name}_structured_results_{RUN_NUM}.txt", 'w') as f:
+            print(results, file=f)
 
 # --- MAIN WORKFLOW ---
 def main():
