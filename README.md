@@ -9,10 +9,11 @@
 - Scale system to batch-process multiple repositories and forks to a single database file
 
 ### RAG analysis
-- Setup an analysis script in LM studio with three LLMs and a milvus vector database file (we may need to run this through the LM studio service running in a kaggle notebook? or on the csc computer)
-- The vllm library should be used to ensure compatability with the csc computer.
-- Test queries against a smaller database file for ease of initial prompt engineering
-- Determine optimal format and required fields for LLM structured output (with eventual data visualization in mind)
+- ~Setup an analysis script in LM studio with three LLMs and a milvus vector database file (we may need to run this through the LM studio service running in a kaggle notebook? or on the csc computer)~
+- ~The vllm library should be used to ensure compatability with the csc computer.~
+- ~Test queries against a smaller database file for ease of initial prompt engineering~
+- ~Determine optimal format and required fields for LLM structured output (with eventual data visualization in mind)~
+- Do testing on all collections, generating CSV file, and send out actual best-fit Type + returns visual
 - When ready, integrate analysis into the embedding and database check pipeline
 
 ### CSC Mahti
