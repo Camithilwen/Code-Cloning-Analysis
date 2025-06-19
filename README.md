@@ -17,8 +17,8 @@
 - ~Test queries against a smaller database file for ease of initial prompt engineering~
 - ~Determine optimal format and required fields for LLM structured output (with eventual data visualization in mind)~
 - ~Test RAG on more than one collection and visualize results~
-- Do complete testing of RAG on all collections, placing results in CSV file - In progress
-- Create script to output best Type similarity based on average of all LLM outputs & output graph showing all LLMs’ outputs
+- ~Do complete testing of RAG on all collections, placing results in CSV file~
+- ~Create script to output best Type similarity based on average of all LLM outputs & output graph showing all LLMs’ outputs~
 - When ready, integrate analysis into the embedding and database check pipeline
 
 ### CSC Mahti
