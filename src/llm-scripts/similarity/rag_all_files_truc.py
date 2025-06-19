@@ -7,26 +7,27 @@ import pandas as pd
 import csv
 
 # --- CONFIGURATION ---
-MAX_TARGET_FILE_ID = 50
+MAX_TARGET_FILE_ID = 10000
 TOP_K = 3
 RUN_NUM = 1 # increment to avoid rewriting files
-DIR_NAME = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/similarity/rag-result-files/TFID∀-PriA"
+DIR_NAME = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/similarity/rag-result-files/TFID∀-PriB"
 DB_PATH = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/dev/data/embeddings3.db"
 id_index = 0
 
-# with open(f"{DIR_NAME}/RAG_all_v2.csv", 'w', newline='') as file:
-#     writer = csv.writer(file)
-#     writer.writerow(['FileID', 'Type-1', 'Type-2', 'Type-3', 'Type-4', 'ModelName'])
+with open(f"{DIR_NAME}/RAG_all_results.csv", 'w', newline='') as file:
+    writer = csv.writer(file)
+    writer.writerow(['FileID', 'Type-1', 'Type-2', 'Type-3', 'Type-4', 'ModelName', 'Collection'])
 
 LLMS = [
-    # "mistralai/codestral-22b-v0.1",
+     "mistralai/codestral-22b-v0.1",
     # "deepseek/deepseek-r1-0528-qwen3-8b",
-    "starcoder2-15b-instruct-v0.1",
-    # "qwen/qwen3-8b"
+    # "starcoder2-15b-instruct-v0.1",
 ]
 
+collection_pairs = [["PriA", "FrkA"], ["PriB", "FrkB"], ["PriC", 'FrkC']]
+
 # --- MILVUS EXTRACTION ---
-def get_all_embeddings_from_all_collections(db_path):
+def get_all_embeddings_from_all_collections(db_path, col_pair):
     try:
         # client = MilvusClient(uri="/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/dev/data/embeddings.db")
         client = MilvusClient(uri=DB_PATH)
@@ -35,7 +36,7 @@ def get_all_embeddings_from_all_collections(db_path):
         print(f"✗ Failed to connect to database: {e}")
     all_embeddings = []
     try:
-        collection_names = ["PriA", "FrkA"] # client.list_collections()
+        collection_names = col_pair # ["PriB", "FrkB"] # client.list_collections()
         print(f"✓ Loaded collections")
     except Exception as e:
         print(f"✗ Failed to list collections: {e}")
@@ -75,7 +76,7 @@ def find_top_k_similar(target_embedding, all_embeddings, target_file_id, target_
     return similarities[:top_k]
 
 # --- LLM RAG ASSESSMENT ---
-def rag_similarity_assessment(target_code, similar_codes, model_name, target_fid):
+def rag_similarity_assessment(target_code, similar_codes, model_name, target_fid, target_col):
     model = lms.llm(model_name)
     context = "\n\n".join([f"Similar Code {i+1} (from {col}):\n{code}" for i, (_, _, code, col) in enumerate(similar_codes)])
 
@@ -106,9 +107,9 @@ def rag_similarity_assessment(target_code, similar_codes, model_name, target_fid
     response = model.respond(prompt, response_format=schema)
     results = response.parsed
 
-    with open(f"{DIR_NAME}/RAG_all_v2.csv", 'a') as f:
+    with open(f"{DIR_NAME}/RAG_all_ColB.csv", 'a') as f:
         writer = csv.writer(f)
-        writer.writerow([target_fid, results['Type-1'], results['Type-2'], results['Type-3'], results['Type-4'], model_name])
+        writer.writerow([target_fid, results['Type-1'], results['Type-2'], results['Type-3'], results['Type-4'], model_name, target_col])
 
 # --- MAIN WORKFLOW ---
 def main():
@@ -118,7 +119,7 @@ def main():
             target_code, target_embedding, target_collection = get_code_and_embedding_by_id(all_embeddings, target_fid)
             top_k_similar = find_top_k_similar(target_embedding, all_embeddings, target_fid, target_collection, TOP_K)
             for model_name in LLMS:
-                rag_similarity_assessment(target_code, top_k_similar, model_name, target_fid)
+                rag_similarity_assessment(target_code, top_k_similar, model_name, target_fid, target_collection)
         except ValueError as e:
             print(e)
 
