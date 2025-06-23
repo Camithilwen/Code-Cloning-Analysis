@@ -387,11 +387,11 @@ def clone_repositories():
     repos = {}
     with open(pri_file, 'r') as data:
         for line in csv.DictReader(["Title", "URL"], data.read()):
-            repos.update(str(line).split(":"))
+            repos.update(str(line).split(":", 1))
 
     with open(frk_file, 'r') as data:
         for line in csv.DictReader(["Title", "URL"], data.read()):
-            repos.update(str(line).split(":"))
+            repos.update(str(line).split(":", 1))
 
    # repos = {
    #     "java-microservice_primary": "https://github.com/apssouza22/java-microservice",
