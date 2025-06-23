@@ -423,8 +423,6 @@ def clone_repositories():
             print(f"Error cloning {repo_name}: {e}")
             raise
 
-    self.repos = repos
-
 def main():
     """
     Main execution with enhanced error handling and memory management.
