@@ -385,15 +385,17 @@ def clone_repositories():
     frk_file = "./embed/data/fork-dataset.csv"
 
     repos = {}
-    with open(pri_file, 'r', newline='') as data:
-        reader = csv.DictReader(data)
-        for row in reader:
-            repos.update(row)
+    with open(pri_file, 'r') as data:
+        next(data) #Skip header
+        reader = csv.DictReader(data, skipinitialspace=True)
+        result = dict(reader)
+        repos.update(result)
 
     with open(frk_file, 'r') as data:
-        reader = csv.DictReader(data)
-        for row in reader:
-            repos.update(row)
+        next(data) #Skip header
+        reader = csv.DictReader(data, skipinitialspace=True)
+        result = dict(reader)
+        repos.update(result)
 
    # repos = {
    #     "java-microservice_primary": "https://github.com/apssouza22/java-microservice",
