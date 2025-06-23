@@ -386,11 +386,11 @@ def clone_repositories():
 
     repos = {}
     with open(pri_file, 'r') as data:
-        for line in csv.DictReader(["Title", "URL"], data):
+        for line in csv.DictReader(["Title", "URL"], data.read()):
             repos.update({line})
 
     with open(frk_file, 'r') as data:
-        for line in csv.DictReader(["Title", "URL"], data):
+        for line in csv.DictReader(["Title", "URL"], data.read()):
             repos.update({line})
 
    # repos = {
