@@ -403,6 +403,7 @@ def clone_repositories():
    # }
     
     for repo_name, repo_url in repos.items():
+        print(f"{repo_name}:{repo_url}")
         repo_path = f"./data/{repo_name}"
         
         # Remove existing directory
