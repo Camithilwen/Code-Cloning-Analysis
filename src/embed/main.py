@@ -381,8 +381,8 @@ def clone_repositories():
     os.makedirs("./data", exist_ok=True)
 
     import csv
-    pri_file = "code-cloning-analysis/src/embed/data/primary-dataset.csv"
-    frk_file = "code-cloning-analysis/src/embed/data/fork-dataset.csv"
+    pri_file = "./embed/data/primary-dataset.csv"
+    frk_file = "./embed/data/fork-dataset.csv"
 
     repos = {}
     with open(pri_file, 'r') as data:
