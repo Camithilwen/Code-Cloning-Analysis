@@ -27,6 +27,9 @@ warnings.filterwarnings('ignore')
 # Huggingface authentication
 login(token=os.getenv("HF_TOKEN"))
 
+#global repository list
+repos = {}
+
 class EmbeddingModelManager:
     """
     Enhanced embedding model manager with aggressive memory management
@@ -223,6 +226,7 @@ class RepositoryEmbedder:
     def __init__(self, model_manager, milvus_client):
         self.model_manager = model_manager
         self.milvus_client = milvus_client
+        self.repos = repos
 
         # Expanded code file extensions
         self.code_extensions = {
@@ -384,7 +388,7 @@ def clone_repositories():
     pri_file = "./embed/data/primary-dataset.csv"
     frk_file = "./embed/data/fork-dataset.csv"
 
-    repos = {}
+    #repos = {}
     with open(pri_file, 'r') as data:
         next(data) #Skip header
         reader = csv.DictReader(data, skipinitialspace=True)
