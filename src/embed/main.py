@@ -240,7 +240,7 @@ class RepositoryEmbedder:
 
 
         self.collection_mapping = {}
-        for i in len(repos):
+        for i in range(len(repos)):
             for key in repos.keys():
                 self.collection_mapping.update([i, (key, repos.get(key))])
        # self.collection_mapping = {
