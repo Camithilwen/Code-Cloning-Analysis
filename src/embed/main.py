@@ -242,7 +242,7 @@ class RepositoryEmbedder:
         self.collection_mapping = {}
         i = 1
         for key in repos.keys():
-            self.collection_mapping.update({f"{i}": (f"{key}", f"{repos.get(key)}")})
+            self.collection_mapping.update({f"C{i}": (f"{key}", f"{repos.get(key)}")})
            # self.collection_mapping[f"{i}"].update({f"{key}":f"{repos.get(key)}"})
             i+=1
        # self.collection_mapping = {
