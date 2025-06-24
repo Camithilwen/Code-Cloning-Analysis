@@ -255,7 +255,7 @@ class RepositoryEmbedder:
             self.collection_mapping.update({f"C{i}": (f"{key}", model_mapping.get("M3"))})
             i+=1
         print(repos.keys())
-        print(collection_mapping.keys())
+        print(self.collection_mapping.keys())
        # self.collection_mapping = {
        #     "A": ("java-microservice_primary", "jinaai/jina-embeddings-v2-base-code"),
        #     "B": ("java-microservice_primary", "nomic-ai/CodeRankEmbed"),
