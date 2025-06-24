@@ -295,11 +295,11 @@ class RepositoryEmbedder:
 
         for i, model_name in enumerate(self.models, 1):
             # Collections for primary repository
-            primary_collection = f"{pair_name}_primary_M{i}"
+            primary_collection = f"primary_M{i}"
             collections[primary_collection] = (primary_repo, model_name)
 
             # Collections for fork repository
-            fork_collection = f"{pair_name}_fork_M{i}"
+            fork_collection = f"fork_M{i}"
             collections[fork_collection] = (fork_repo, model_name)
 
         print(f"Setting up {len(collections)} collections for pair {pair_name}...")
