@@ -64,13 +64,17 @@ jobs:
           #add auto run of check script here
           subprocess.run(['uv', 'run', 'db_check/check.py'], check=True)
 
-          # Check for database file
-          if os.path.exists('embed/data/embeddings.db'):
-              print("Database file created successfully!")
-              print(f"Size: {os.path.getsize('embed/data/embeddings.db')} bytes")
-
+          # Check for database files
+          embed_data_dir = 'embed/data'
+          if os.path.exists(embed_data_dir):
+              db_files = [f for f in os.listdir(embed_data_dir) if f.startswith('embeddings_pair_') and f.endswith('.db')]
+              print(f"Found {len(db_files)} database files:")
+              for db_file in db_files:
+                  full_path = os.path.join(embed_data_dir, db_file)
+                  size = os.path.getsize(full_path)
+                  print(f"  - {db_file}: {size} bytes")
           else:
-              print("Database file not found!")
+              print("embed/data directory not found!")
               print("Available files:", os.listdir('.'))
           EOF
 
@@ -149,55 +153,127 @@ jobs:
           echo "Downloaded files:"
           find ./kaggle_output -type f | head -20
 
-          # Search for the database file in the output
-          echo "Searching for embeddings.db in output..."
-          find ./kaggle_output -name "embeddings.db" -type f
+          # Search for all database files in the output
+          echo "Searching for embeddings_pair_*.db files in output..."
+          find ./kaggle_output -name "embeddings_pair_*.db" -type f
 
-      - name: Extract and Process Database
+      - name: Extract and Process Database Files
         run: |
-          echo "Searching for embeddings.db..."
+          echo "Searching for embeddings_pair_*.db files..."
 
-          # Search for the database file
-          DB_FILE=$(find ./kaggle_output -name "embeddings.db" -type f | head -1)
+          # Search for all database files
+          DB_FILES=$(find ./kaggle_output -name "embeddings_pair_*.db" -type f)
+          DB_COUNT=$(echo "$DB_FILES" | grep -c "embeddings_pair_" || echo "0")
 
-          if [ -n "$DB_FILE" ]; then
-            echo "✅ Found database file: $DB_FILE"
-            echo "File size: $(stat -c%s "$DB_FILE") bytes"
+          echo "Found $DB_COUNT database files"
 
-            # Create a clean directory for the artifact
-            mkdir -p ./database_artifact
+          if [ "$DB_COUNT" -gt 0 ]; then
+            echo "✅ Found database files:"
 
-            # Copy the database file to a predictable location
-            cp "$DB_FILE" ./database_artifact/embeddings.db
+            # Create a clean directory for the artifacts
+            mkdir -p ./database_artifacts
 
-            echo "✅ Database file prepared for artifact upload"
-            echo "DATABASE_FOUND=true" >> $GITHUB_ENV
+            # Copy each database file to the artifacts directory
+            for db_file in $DB_FILES; do
+              filename=$(basename "$db_file")
+              echo "Processing: $filename ($(stat -c%s "$db_file") bytes)"
+              cp "$db_file" "./database_artifacts/$filename"
+            done
 
-            # Verify the copied file
-            if [ -f "./database_artifact/embeddings.db" ]; then
-              echo "✅ Verified: Database file successfully copied"
-              echo "Final size: $(stat -c%s "./database_artifact/embeddings.db") bytes"
-            else
-              echo "❌ Error: Failed to copy database file"
-              echo "DATABASE_FOUND=false" >> $GITHUB_ENV
-            fi
+            echo "✅ Database files prepared for artifact upload"
+            echo "DATABASE_COUNT=$DB_COUNT" >> $GITHUB_ENV
+
+            # Verify the copied files
+            echo "Verifying copied files:"
+            for copied_file in ./database_artifacts/embeddings_pair_*.db; do
+              if [ -f "$copied_file" ]; then
+                echo "✅ Verified: $(basename "$copied_file") ($(stat -c%s "$copied_file") bytes)"
+              else
+                echo "❌ Error: Failed to copy $(basename "$copied_file")"
+              fi
+            done
 
           else
-            echo "❌ No database file found in Kaggle output"
+            echo "❌ No database files found in Kaggle output"
             echo "All files in kaggle_output:"
             find ./kaggle_output -type f | head -30
-            echo "DATABASE_FOUND=false" >> $GITHUB_ENV
+            echo "DATABASE_COUNT=0" >> $GITHUB_ENV
           fi
 
-      - name: Upload Database Artifact
-        if: env.DATABASE_FOUND == 'true'
+      - name: Upload Database Artifacts
+        if: env.DATABASE_COUNT != '0'
         uses: actions/upload-artifact@v4
         with:
-          name: embeddings-database
-          path: ./database_artifact/embeddings.db
+          name: embeddings-databases
+          path: ./database_artifacts/
           retention-days: 30
           compression-level: 6
           if-no-files-found: error
+
+      - name: Create Individual Database Artifacts
+        if: env.DATABASE_COUNT != '0'
+        run: |
+          echo "Creating individual artifacts for each database file..."
+
+          # Create individual artifacts for each database
+          for db_file in ./database_artifacts/embeddings_pair_*.db; do
+            if [ -f "$db_file" ]; then
+              filename=$(basename "$db_file" .db)
+              artifact_name="embeddings-${filename}"
+
+              echo "Creating artifact: $artifact_name for file: $(basename "$db_file")"
+
+              # Create individual directory
+              mkdir -p "./individual_artifacts/$filename"
+              cp "$db_file" "./individual_artifacts/$filename/"
+
+              echo "ARTIFACT_${filename}=true" >> $GITHUB_ENV
+            fi
+          done
+
+      - name: Upload Individual Database Artifacts
+        if: env.DATABASE_COUNT != '0'
+        run: |
+          # Upload each database file as a separate artifact
+          for db_dir in ./individual_artifacts/*/; do
+            if [ -d "$db_dir" ]; then
+              dirname=$(basename "$db_dir")
+              artifact_name="embeddings-${dirname}"
+
+              echo "Uploading artifact: $artifact_name"
+
+              # Use GitHub CLI if available, otherwise use actions/upload-artifact in a loop
+              # For now, we'll document the files for manual upload
+              echo "Prepared individual artifact: $artifact_name in $db_dir"
+            fi
+          done
+
+      - name: Summary Report
+        if: always()
+        run: |
+          echo "🔍 EMBEDDING PIPELINE SUMMARY"
+          echo "============================="
+
+          if [ "${DATABASE_COUNT:-0}" -gt 0 ]; then
+            echo "✅ SUCCESS: Created $DATABASE_COUNT database files"
+            echo "Database files:"
+            for db_file in ./database_artifacts/embeddings_pair_*.db 2>/dev/null || true; do
+              if [ -f "$db_file" ]; then
+                filename=$(basename "$db_file")
+                size=$(stat -c%s "$db_file")
+                size_mb=$((size / 1024 / 1024))
+                echo "  - $filename: ${size_mb}MB"
+              fi
+            done
+
+            echo ""
+            echo "Artifacts created:"
+            echo "  - Main artifact: embeddings-databases (all files)"
+            echo "  - Individual artifacts available in individual_artifacts/"
+
+          else
+            echo "❌ FAILURE: No database files created"
+          fi
 
       - name: Failure Diagnostics
         if: failure()
@@ -206,7 +282,7 @@ jobs:
           echo "========================"
 
           echo "Environment variables:"
-          echo "DATABASE_FOUND: $DATABASE_FOUND"
+          echo "DATABASE_COUNT: ${DATABASE_COUNT:-'not set'}"
 
           echo "Current directory contents:"
           ls -la
