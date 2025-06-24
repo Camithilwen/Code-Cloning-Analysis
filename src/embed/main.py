@@ -281,6 +281,9 @@ class RepositoryEmbedder:
                 elif primary_name not in self.repos:
                     print(f"Warning: No primary found for {repo_name}")
 
+            if len(base_name) > 36:
+                base_name = base_name[:-(len(base_name) - 36)]
+
         print(f"Created {len(pairs)} repository pairs")
         return pairs
 
