@@ -401,30 +401,20 @@ def clone_repositories():
     pri_file = "./embed/data/primary-dataset.csv"
     frk_file = "./embed/data/fork-dataset.csv"
 
-    #repos = {}
     with open(pri_file, 'r') as data:
-        next(data) #Skip header
-        reader = csv.DictReader(data, skipinitialspace=True)
+        reader = csv.DictReader(data)
         for row in reader:
-            result = dict(reader)
+            result = {}
+            result[row['Title']] = row['URL']
             repos.update(result)
 
     with open(frk_file, 'r') as data:
-        next(data) #Skip header
-        reader = csv.DictReader(data, skipinitialspace=True)
+        reader = csv.DictReader(data)
         for row in reader:
-            result = dict(reader)
+            result = {}
+            result[row['Title']] = row['URL']
             repos.update(result)
 
-   # repos = {
-   #     "java-microservice_primary": "https://github.com/apssouza22/java-microservice",
-   #     "java-microservice_fork": "https://github.com/M3SOulu/EMSE2025SAR-java-microservice",
-   #     "MBSB_primary": "https://github.com/anilallewar/microservices-basics-spring-boot",
-   #     "MBSB_fork": "https://github.com/M3SOulu/EMSE2025SAR-microservices-basics-spring-boot",
-   #     "blog-primary": "https://github.com/callistaenterprise/blog-microservices",
-   #     "blog-fork": "https://github.com/M3SOulu/EMSE2025SAR-blog-microservices"
-   # }
-    
     for repo_name, repo_url in repos.items():
         repo_path = f"./data/{repo_name}"
         
