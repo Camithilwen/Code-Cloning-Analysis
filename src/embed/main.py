@@ -221,6 +221,7 @@ class EmbeddingModelManager:
 class RepositoryEmbedder:
     """
     Enhanced repository processor with chunk-aware storage and metadata preservation.
+    Modified to handle repository pairs and separate Milvus instances.
     """
 
     def __init__(self, model_manager):
@@ -235,64 +236,91 @@ class RepositoryEmbedder:
             '.sql', '.sh', '.bat', '.html', '.css', '.scss', '.less'
         }
 
-        # Create primary-fork pairs mapping
-        self.repo_pairs = self.create_repo_pairs()
+        # Model configurations
+        self.models = [
+            "jinaai/jina-embeddings-v2-base-code",
+            "nomic-ai/CodeRankEmbed",
+            "codesage/codesage-large-v2"
+        ]
 
-        # Model mapping
-        self.model_mapping = {
-            "M1": "jinaai/jina-embeddings-v2-base-code",
-            "M2": "nomic-ai/CodeRankEmbed",
-            "M3": "codesage/codesage-large-v2"
-        }
+    def group_repositories_into_pairs(self):
+        """
+        Group repositories into primary-fork pairs based on naming convention.
+        Returns a list of tuples: (pair_name, primary_repo, fork_repo)
+        """
+        pairs = []
+        processed = set()
 
-    def create_repo_pairs(self):
-        """Create primary-fork pairs from repository list."""
-        repo_pairs = []
-        repo_names = list(self.repos.keys())
+        for repo_name in self.repos.keys():
+            if repo_name in processed:
+                continue
 
-        # Group repositories into primary-fork pairs
-        # Assuming naming convention with _primary and _fork suffixes
-        primary_repos = [name for name in repo_names if '_primary' in name]
+            if repo_name.endswith('-primary'):
+                # Look for corresponding fork
+                base_name = repo_name[:-8]  # Remove '-primary'
+                fork_name = f"{base_name}-fork"
 
-        for primary_repo in primary_repos:
-            base_name = primary_repo.replace('_primary', '')
-            fork_repo = f"{base_name}_fork"
+                if fork_name in self.repos:
+                    pairs.append((base_name, repo_name, fork_name))
+                    processed.add(repo_name)
+                    processed.add(fork_name)
+                    print(f"Found pair: {base_name} -> {repo_name} + {fork_name}")
+                else:
+                    print(f"Warning: No fork found for {repo_name}")
 
-            if fork_repo in repo_names:
-                repo_pairs.append((primary_repo, fork_repo))
+            elif repo_name.endswith('-fork'):
+                # Look for corresponding primary
+                base_name = repo_name[:-5]  # Remove '-fork'
+                primary_name = f"{base_name}-primary"
 
-        print(f"Created {len(repo_pairs)} primary-fork pairs")
-        return repo_pairs
+                if primary_name in self.repos and primary_name not in processed:
+                    pairs.append((base_name, primary_name, repo_name))
+                    processed.add(repo_name)
+                    processed.add(primary_name)
+                    print(f"Found pair: {base_name} -> {primary_name} + {repo_name}")
+                elif primary_name not in self.repos:
+                    print(f"Warning: No primary found for {repo_name}")
 
-    def setup_collection_for_pair(self, milvus_client, pair_name, repo_primary, repo_fork):
-        """Setup collections for a specific primary-fork pair."""
-        print(f"Setting up collections for pair: {pair_name}")
+        print(f"Created {len(pairs)} repository pairs")
+        return pairs
 
-        # Create 6 collections per pair (2 repos x 3 models)
+    def create_milvus_instance(self, pair_name):
+        """Create a separate Milvus instance for a repository pair."""
+        db_path = f"./embed/data/embeddings_{pair_name}.db"
+        return MilvusClient(uri=db_path)
+
+    def setup_collections_for_pair(self, milvus_client, pair_name, primary_repo, fork_repo):
+        """Setup 6 collections for a repository pair (2 repos × 3 models)."""
         collections = {}
 
-        for i, (repo_name, repo_type) in enumerate([(repo_primary, 'primary'), (repo_fork, 'fork')]):
-            for j, (model_id, model_name) in enumerate(self.model_mapping.items()):
-                collection_name = f"C{i*3 + j + 1}"
+        for i, model_name in enumerate(self.models, 1):
+            # Collections for primary repository
+            primary_collection = f"{pair_name}_primary_M{i}"
+            collections[primary_collection] = (primary_repo, model_name)
 
-                # Drop existing collection if it exists
-                if milvus_client.has_collection(collection_name):
-                    milvus_client.drop_collection(collection_name)
-                    print(f"Dropped existing collection: {collection_name}")
+            # Collections for fork repository
+            fork_collection = f"{pair_name}_fork_M{i}"
+            collections[fork_collection] = (fork_repo, model_name)
 
-                # Get model dimension
-                dimension = self.model_manager.get_dimension(model_name)
+        print(f"Setting up {len(collections)} collections for pair {pair_name}...")
 
-                # Create new collection
-                milvus_client.create_collection(
-                    collection_name=collection_name,
-                    dimension=dimension,
-                    metric_type="COSINE",
-                    consistency_level="Strong",
-                )
+        for collection_name, (repo_name, model_name) in collections.items():
+            # Drop existing collection
+            if milvus_client.has_collection(collection_name):
+                milvus_client.drop_collection(collection_name)
+                print(f"Dropped existing collection: {collection_name}")
 
-                collections[collection_name] = (repo_name, model_name)
-                print(f"Created collection {collection_name} for {repo_name} + {model_name} (dim: {dimension})")
+            # Get model dimension
+            dimension = self.model_manager.get_dimension(model_name)
+
+            # Create new collection with enhanced schema
+            milvus_client.create_collection(
+                collection_name=collection_name,
+                dimension=dimension,
+                metric_type="COSINE",
+                consistency_level="Strong",
+            )
+            print(f"Created collection {collection_name} with dimension {dimension}")
 
         return collections
 
@@ -387,50 +415,6 @@ class RepositoryEmbedder:
 
         print(f"Successfully processed {len(code_files)} files into {len(data_to_insert)} chunks for {collection_name}")
 
-    def process_repo_pair(self, repo_primary, repo_fork, pair_index):
-        """Process a single primary-fork repository pair."""
-        pair_name = f"pair_{pair_index:02d}_{repo_primary.replace('_primary', '')}"
-        db_path = f"./embed/data/embeddings_{pair_name}.db"
-
-        print(f"\n{'='*80}")
-        print(f"Processing repository pair {pair_index}: {repo_primary} + {repo_fork}")
-        print(f"Database: {db_path}")
-        print(f"{'='*80}")
-
-        # Create separate Milvus client for this pair
-        milvus_client = MilvusClient(uri=db_path)
-
-        try:
-            # Setup collections for this pair
-            collections = self.setup_collection_for_pair(milvus_client, pair_name, repo_primary, repo_fork)
-
-            # Process each collection
-            for collection_name, (repo_name, model_name) in collections.items():
-                print(f"\nProcessing {collection_name}: {repo_name} + {model_name}")
-
-                repo_path = f"./data/{repo_name}"
-
-                try:
-                    self.process_repository(repo_path, collection_name, model_name, milvus_client)
-                except Exception as e:
-                    print(f"Error processing {collection_name}: {e}")
-                    continue
-
-                # Cleanup between models
-                self.model_manager.aggressive_cleanup()
-                time.sleep(2)
-
-            print(f"✅ Completed processing pair: {pair_name}")
-
-        except Exception as e:
-            print(f"❌ Error processing pair {pair_name}: {e}")
-            raise
-        finally:
-            # Close the Milvus client
-            if 'milvus_client' in locals():
-                del milvus_client
-            gc.collect()
-
 def clone_repositories():
     """Clone repositories with error handling."""
     print("Setting up repositories...")
@@ -467,7 +451,7 @@ def clone_repositories():
 
 def main():
     """
-    Main execution with separate Milvus instances for each primary-fork pair.
+    Main execution with separate Milvus instances for each repository pair.
     """
     model_manager = None
 
@@ -479,29 +463,66 @@ def main():
         # Clone repositories
         clone_repositories()
 
-        # Create embedder
         embedder = RepositoryEmbedder(model_manager)
 
-        # Create data directory for databases
-        os.makedirs("./embed/data", exist_ok=True)
+        # Group repositories into pairs
+        repo_pairs = embedder.group_repositories_into_pairs()
 
-        # Process each primary-fork pair separately
-        print(f"Found {len(embedder.repo_pairs)} repository pairs to process")
+        if not repo_pairs:
+            print("No repository pairs found!")
+            return
 
-        for pair_index, (repo_primary, repo_fork) in enumerate(embedder.repo_pairs, 1):
+        # Process each repository pair with its own Milvus instance
+        for pair_name, primary_repo, fork_repo in repo_pairs:
+            print(f"\n{'='*80}")
+            print(f"Processing repository pair: {pair_name}")
+            print(f"Primary: {primary_repo}, Fork: {fork_repo}")
+            print(f"{'='*80}")
+
+            # Create separate Milvus instance for this pair
+            milvus_client = embedder.create_milvus_instance(pair_name)
+
             try:
-                embedder.process_repo_pair(repo_primary, repo_fork, pair_index)
+                # Setup collections for this pair
+                collections = embedder.setup_collections_for_pair(
+                    milvus_client, pair_name, primary_repo, fork_repo
+                )
+
+                # Process all collections for this pair
+                for collection_name, (repo_name, model_name) in collections.items():
+                    print(f"\n{'-'*60}")
+                    print(f"Processing {collection_name}: {repo_name} + {model_name}")
+                    print(f"{'-'*60}")
+
+                    repo_path = f"./data/{repo_name}"
+
+                    try:
+                        embedder.process_repository(repo_path, collection_name, model_name, milvus_client)
+                    except Exception as e:
+                        print(f"Error processing {collection_name}: {e}")
+                        continue
+
+                    # Cleanup between models
+                    model_manager.aggressive_cleanup()
+                    time.sleep(2)
+
+                print(f"✅ Completed pair {pair_name} - Database: embeddings_{pair_name}.db")
+
             except Exception as e:
-                print(f"Error processing pair {pair_index}: {e}")
-                # Continue with next pair
+                print(f"Error processing pair {pair_name}: {e}")
                 continue
 
-        print("\n🎉 All embedding operations completed!")
+            finally:
+                # Close Milvus client for this pair
+                if 'milvus_client' in locals():
+                    del milvus_client
 
-        # List created database files
-        print("\nCreated database files:")
-        for db_file in Path("./embed/data").glob("embeddings_pair_*.db"):
-            print(f"  - {db_file.name} ({db_file.stat().st_size / (1024*1024):.1f} MB)")
+                # Additional cleanup between pairs
+                gc.collect()
+                time.sleep(3)
+
+        print(f"\n🎉 All embedding operations completed!")
+        print(f"Created {len(repo_pairs)} separate database files")
 
     except Exception as e:
         print(f"Error during execution: {e}")
