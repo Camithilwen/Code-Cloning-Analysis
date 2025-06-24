@@ -398,17 +398,18 @@ def clone_repositories():
     os.makedirs("./data", exist_ok=True)
 
     import csv
-    pri_file = "./embed/data/primary-dataset.csv"
-    frk_file = "./embed/data/fork-dataset.csv"
+    data_file = "./embed/data/main-dataset.csv"
+   # pri_file = "./embed/data/primary-dataset.csv"
+   # frk_file = "./embed/data/fork-dataset.csv"
 
-    with open(pri_file, 'r') as data:
-        reader = csv.DictReader(data)
-        for row in reader:
-            result = {}
-            result[row['Title']] = row['URL']
-            repos.update(result)
+   # with open(pri_file, 'r') as data:
+   #     reader = csv.DictReader(data)
+   #     for row in reader:
+   #         result = {}
+   #         result[row['Title']] = row['URL']
+   #         repos.update(result)
 
-    with open(frk_file, 'r') as data:
+    with open(data_file, 'r') as data:
         reader = csv.DictReader(data)
         for row in reader:
             result = {}
