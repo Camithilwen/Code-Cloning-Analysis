@@ -240,10 +240,11 @@ class RepositoryEmbedder:
 
 
         self.collection_mapping = {}
-        for i in range(len(repos)):
-            for key in repos.keys():
-                self.collection_mapping.update(f"{i}", None)
-                self.collection_mapping[f"{i}"].update({f"{key}":f"{repos.get(key)}"})
+        i = 1
+        for key in repos.keys():
+            self.collection_mapping.update({f"{i}", None})
+            self.collection_mapping[f"{i}"].update({f"{key}":f"{repos.get(key)}"})
+            i+=1
        # self.collection_mapping = {
        #     "A": ("java-microservice_primary", "jinaai/jina-embeddings-v2-base-code"),
        #     "B": ("java-microservice_primary", "nomic-ai/CodeRankEmbed"),
