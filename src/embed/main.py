@@ -237,13 +237,22 @@ class RepositoryEmbedder:
         }
         
         # Collection mappings
-
-
         self.collection_mapping = {}
+        model_mapping = {
+            "M1" : "jinaai/jina-embeddings-v2-base-code",
+            "M2" : "nomic-ai/CodeRankEmbed",
+            "M3" : "codesage/codesage-large-v2"
+        }
+
+        #counter
         i = 1
+
         for key in repos.keys():
-            self.collection_mapping.update({f"C{i}": (f"{key}", f"{repos.get(key)}")})
-           # self.collection_mapping[f"{i}"].update({f"{key}":f"{repos.get(key)}"})
+            self.collection_mapping.update({f"C{i}": (f"{key}", model_mapping.get("M1"))})
+            i+=1
+            self.collection_mapping.update({f"C{i}": (f"{key}", model_mapping.get("M2"))})
+            i+=1
+            self.collection_mapping.update({f"C{i}": (f"{key}", model_mapping.get("M3"))})
             i+=1
        # self.collection_mapping = {
        #     "A": ("java-microservice_primary", "jinaai/jina-embeddings-v2-base-code"),
@@ -394,14 +403,16 @@ def clone_repositories():
     with open(pri_file, 'r') as data:
         next(data) #Skip header
         reader = csv.DictReader(data, skipinitialspace=True)
-        result = dict(reader)
-        repos.update(result)
+        for row in reader:
+            result = dict(reader)
+            repos.update(result)
 
     with open(frk_file, 'r') as data:
         next(data) #Skip header
         reader = csv.DictReader(data, skipinitialspace=True)
-        result = dict(reader)
-        repos.update(result)
+        for row in reader:
+            result = dict(reader)
+            repos.update(result)
 
    # repos = {
    #     "java-microservice_primary": "https://github.com/apssouza22/java-microservice",
