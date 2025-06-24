@@ -289,7 +289,7 @@ class RepositoryEmbedder:
 
     def create_milvus_instance(self, pair_name):
         """Create a separate Milvus instance for a repository pair."""
-        db_path = f"./embed/data/embeddings_{pair_name}.db"
+        db_path = f"./embed/data/{pair_name}.db"
         return MilvusClient(uri=db_path)
 
     def setup_collections_for_pair(self, milvus_client, pair_name, primary_repo, fork_repo):
