@@ -281,8 +281,8 @@ class RepositoryEmbedder:
                 elif primary_name not in self.repos:
                     print(f"Warning: No primary found for {repo_name}")
 
-            if len(base_name) > 36:
-                base_name = base_name[:-(len(base_name) - 36)]
+           # if len(base_name) > 36:
+            #    base_name = base_name[:-(len(base_name) - 36)]
 
         print(f"Created {len(pairs)} repository pairs")
         return pairs
@@ -509,7 +509,7 @@ def main():
                     model_manager.aggressive_cleanup()
                     time.sleep(2)
 
-                print(f"✅ Completed pair {pair_name} - Database: embeddings_{pair_name}.db")
+                print(f"✅ Completed pair {pair_name} - Database: {pair_name}.db")
 
             except Exception as e:
                 print(f"Error processing pair {pair_name}: {e}")
