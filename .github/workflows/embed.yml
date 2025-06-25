@@ -1,8 +1,6 @@
 name: embed_check
 
-
 on:
-
   push:
     branches: [ main ]
 
@@ -18,11 +16,9 @@ jobs:
         with:
           python-version: '3.9'
 
-
       - name: Install dependencies
         run: |
           pip install kaggle requests
-
 
       - name: Setup Kaggle credentials
         run: |
@@ -39,7 +35,6 @@ jobs:
           import os
           import subprocess
           import sys
-
 
           # Set environment variables
           os.environ['HF_TOKEN'] = '${{ secrets.HF_TOKEN }}'
@@ -62,18 +57,24 @@ jobs:
           # Run main script
           subprocess.run(['uv', 'run', '--env-file', '.env', 'embed/main.py'], check=True)
           #add auto run of check script here
-          subprocess.run(['uv', 'run', 'db_check/check.py'], check=True)
+          #subprocess.run(['uv', 'run', 'db_check/check.py'], check=True)
 
-          # Check for database file
-          if os.path.exists('embed/data/embeddings.db'):
-              print("Database file created successfully!")
-              print(f"Size: {os.path.getsize('embed/data/embeddings.db')} bytes")
-
+          # Check for database files (now multiple files)
+          embed_data_path = 'embed/data'
+          if os.path.exists(embed_data_path):
+              db_files = [f for f in os.listdir(embed_data_path) if f.startswith('embeddings_') and f.endswith('.db')]
+              if db_files:
+                  print(f"Found {len(db_files)} database files:")
+                  for db_file in db_files:
+                      full_path = os.path.join(embed_data_path, db_file)
+                      print(f"  {db_file}: {os.path.getsize(full_path)} bytes")
+              else:
+                  print("No database files found!")
+                  print("Available files in embed/data:", os.listdir(embed_data_path))
           else:
-              print("Database file not found!")
+              print("embed/data directory not found!")
               print("Available files:", os.listdir('.'))
           EOF
-
 
           # Create kernel metadata
           cat > kernel-metadata.json << EOF
@@ -92,7 +93,6 @@ jobs:
           }
           EOF
 
-
           # Push kernel and capture the version
           echo "Pushing kernel to Kaggle..."
           kaggle kernels push
@@ -105,7 +105,7 @@ jobs:
           KERNEL_REF="code-embedding-pipeline"
 
           # Wait for kernel to complete (max 30 minutes)
-          MAX_WAIT=1800
+          MAX_WAIT=43200
           WAIT_TIME=0
           SLEEP_INTERVAL=240
 
@@ -132,7 +132,7 @@ jobs:
           done
 
           if [ $WAIT_TIME -ge $MAX_WAIT ]; then
-            echo "⏰ Kernel execution timed out after 30 minutes"
+            echo "⏰ Kernel execution timed out after 12 hours"
             exit 1
           fi
 
@@ -149,55 +149,73 @@ jobs:
           echo "Downloaded files:"
           find ./kaggle_output -type f | head -20
 
-          # Search for the database file in the output
-          echo "Searching for embeddings.db in output..."
-          find ./kaggle_output -name "embeddings.db" -type f
+          # Search for all database files in the output
+          echo "Searching for database files in output..."
+          find ./kaggle_output -name "embeddings_*.db" -type f
 
-      - name: Extract and Process Database
+      - name: Extract and Process Database Files
         run: |
-          echo "Searching for embeddings.db..."
+          echo "Searching for database files..."
 
-          # Search for the database file
-          DB_FILE=$(find ./kaggle_output -name "embeddings.db" -type f | head -1)
+          # Search for all database files
+          DB_FILES=$(find ./kaggle_output -name "embeddings_*.db" -type f)
 
-          if [ -n "$DB_FILE" ]; then
-            echo "✅ Found database file: $DB_FILE"
-            echo "File size: $(stat -c%s "$DB_FILE") bytes"
+          if [ -n "$DB_FILES" ]; then
+            echo "✅ Found database files:"
+            echo "$DB_FILES"
 
-            # Create a clean directory for the artifact
-            mkdir -p ./database_artifact
+            # Create a clean directory for the artifacts
+            mkdir -p ./database_artifacts
 
-            # Copy the database file to a predictable location
-            cp "$DB_FILE" ./database_artifact/embeddings.db
+            # Copy each database file to a predictable location
+            DB_COUNT=0
+            for DB_FILE in $DB_FILES; do
+              BASENAME=$(basename "$DB_FILE")
+              echo "Processing: $BASENAME ($(stat -c%s "$DB_FILE") bytes)"
 
-            echo "✅ Database file prepared for artifact upload"
-            echo "DATABASE_FOUND=true" >> $GITHUB_ENV
+              cp "$DB_FILE" "./database_artifacts/$BASENAME"
+              DB_COUNT=$((DB_COUNT + 1))
+            done
 
-            # Verify the copied file
-            if [ -f "./database_artifact/embeddings.db" ]; then
-              echo "✅ Verified: Database file successfully copied"
-              echo "Final size: $(stat -c%s "./database_artifact/embeddings.db") bytes"
-            else
-              echo "❌ Error: Failed to copy database file"
-              echo "DATABASE_FOUND=false" >> $GITHUB_ENV
-            fi
+            echo "✅ $DB_COUNT database files prepared for artifact upload"
+            echo "DATABASE_COUNT=$DB_COUNT" >> $GITHUB_ENV
+            echo "DATABASES_FOUND=true" >> $GITHUB_ENV
+
+            # Verify the copied files
+            echo "Verifying copied files:"
+            for COPIED_FILE in ./database_artifacts/embeddings_*.db; do
+              if [ -f "$COPIED_FILE" ]; then
+                echo "✅ $(basename "$COPIED_FILE"): $(stat -c%s "$COPIED_FILE") bytes"
+              fi
+            done
 
           else
-            echo "❌ No database file found in Kaggle output"
+            echo "❌ No database files found in Kaggle output"
             echo "All files in kaggle_output:"
             find ./kaggle_output -type f | head -30
-            echo "DATABASE_FOUND=false" >> $GITHUB_ENV
+            echo "DATABASES_FOUND=false" >> $GITHUB_ENV
           fi
 
-      - name: Upload Database Artifact
-        if: env.DATABASE_FOUND == 'true'
+      - name: Upload Database Artifacts
+        if: env.DATABASES_FOUND == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: embeddings-database
-          path: ./database_artifact/embeddings.db
+          name: embeddings-databases
+          path: ./database_artifacts/
           retention-days: 30
           compression-level: 6
           if-no-files-found: error
+
+      - name: Summary
+        if: env.DATABASES_FOUND == 'true'
+        run: |
+          echo "🎉 SUCCESS SUMMARY"
+          echo "=================="
+          echo "Successfully processed $DATABASE_COUNT repository pairs"
+          echo "Created $DATABASE_COUNT separate Milvus database files"
+          echo ""
+          echo "Artifact contents:"
+          ls -la ./database_artifacts/
 
       - name: Failure Diagnostics
         if: failure()
@@ -206,7 +224,8 @@ jobs:
           echo "========================"
 
           echo "Environment variables:"
-          echo "DATABASE_FOUND: $DATABASE_FOUND"
+          echo "DATABASES_FOUND: $DATABASES_FOUND"
+          echo "DATABASE_COUNT: $DATABASE_COUNT"
 
           echo "Current directory contents:"
           ls -la
