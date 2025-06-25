@@ -9,7 +9,7 @@ from sklearn.metrics import classification_report
 DATA_DIR = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/Project_CodeNet_experimentation_dataset/data"
 PAIRS_CSV = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/Project_CodeNet_experimentation_dataset/pairs.csv"
 GROUND_TRUTH_CSV = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/Project_CodeNet_experimentation_dataset/ground_truth.csv"
-OUTPUT_CSV = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/RAG_vs_CodeNet_binary_results_final.csv"
+OUTPUT_CSV = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/RAG_vs_CodeNet_binary_results_all_mistral.csv"
 
 LLMS = [
     "mistralai/codestral-22b-v0.1"
@@ -111,7 +111,7 @@ with open(OUTPUT_CSV, 'a', newline='') as outfile:
         'PairID', 'File1', 'File2', 'Type-1', 'Type-2', 'Type-3', 'Type-4',
         'PredictedType', 'PredictedSimilar', 'GroundTruthSimilar', 'ModelName'
     ])
-    for idx, row in pairs_df.iterrows():
+    for idx, row in pairs_df.head(638).iterrows():
         file1_path = os.path.join(DATA_DIR, row['file1'])
         file2_path = os.path.join(DATA_DIR, row['file2'])
         pair_id = row['pair-id']

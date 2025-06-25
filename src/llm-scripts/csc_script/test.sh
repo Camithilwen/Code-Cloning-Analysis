@@ -12,7 +12,7 @@ module load pytorch/2.5
 
 # Where to store the huge models
 # For example Deepseek-R1-Distill-Llama-70B requires 132GB
-export HF_HOME=/scratch/project_2014097/shreya/hf-cache
+export HF_HOME=/scratch/project_2014097/rouyu/hf-cache
 
 # Where to store the vLLM server log
 VLLM_LOG=/scratch/project_2014097/ruoyu/vllm-logs/${SLURM_JOB_ID}.log
