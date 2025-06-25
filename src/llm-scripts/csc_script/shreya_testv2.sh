@@ -25,7 +25,7 @@ else
     source venv/bin/activate
 fi
 
-HF_KEY="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"
+HF_KEY=""
 
 # Hugging Face login
 echo "Logging into Hugging Face..."

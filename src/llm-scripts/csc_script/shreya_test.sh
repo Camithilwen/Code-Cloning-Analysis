@@ -15,7 +15,7 @@ pip install --user --default-timeout=300 --trusted-host pypi.org --trusted-host 
 pip install --user --default-timeout=300 --trusted-host pypi.org --trusted-host files.pythonhosted.org vllm
 
 export VLLM_LOGGING_LEVEL=DEBUG
-export HF_KEY="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"
+export HF_KEY=""
 export HF_HOME=/users/muhammab/project_2014668/shreya/hf-cache
 
 VLLM_LOG=/scratch/project_2014646/shreya/vllm-logs/${SLURM_JOB_ID}.log
