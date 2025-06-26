@@ -9,11 +9,12 @@ from sklearn.metrics import classification_report
 DATA_DIR = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/Project_CodeNet_experimentation_dataset/data"
 PAIRS_CSV = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/Project_CodeNet_experimentation_dataset/pairs.csv"
 GROUND_TRUTH_CSV = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/Project_CodeNet_experimentation_dataset/ground_truth.csv"
-OUTPUT_CSV = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/RAG_vs_CodeNet_binary_results_mistral14_all.csv"
 
 LLMS = [
     "mistralai/codestral-22b-v0.1"
 ]
+
+thresholds = [0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]
 
 # --- LOAD PAIRS AND GROUND TRUTH ---
 pairs_df = pd.read_csv(PAIRS_CSV)
@@ -22,7 +23,7 @@ ground_truth_map = dict(zip(ground_truth_df['pair-id'], ground_truth_df['similar
 
 # --- TYPE TO BINARY SIMILARITY ---
 def type_to_binary(predicted_type):
-    return 1 if predicted_type in ["Type-1", "Type-4"] else 0
+    return 1 if predicted_type in ["Type-4"] else 0
 
 # --- CODE TRUNCATION FOR CONTEXT FITTING ---
 def truncate_code(code, max_lines=50):
@@ -30,10 +31,10 @@ def truncate_code(code, max_lines=50):
     return '\n'.join(lines[:max_lines]) if len(lines) > max_lines else code
 
 # --- ENSEMBLE ASSESSMENT ---
-def ensemble_assessment(code1, code2, model_name, n=3):
+def ensemble_assessment(code1, code2, model_name, thr, n=3):
     predictions = []
     for _ in range(n):
-        results, predicted_type, predicted_sim = rag_similarity_assessment(code1, code2, model_name)
+        results, predicted_type, predicted_sim = rag_similarity_assessment(code1, code2, model_name, thr)
         predictions.append((results, predicted_type, predicted_sim))
     # Majority voting on predicted_sim
     sim_votes = [pred[2] for pred in predictions]
@@ -46,31 +47,19 @@ def ensemble_assessment(code1, code2, model_name, n=3):
     return avg_results, final_type, final_sim
 
 # --- THRESHOLD-BASED SIMILARITY DECISION ---
-def determine_similarity(results):
-    # Prioritize Type-4 if high enough, then Type-1, else non-clone
-    if results['Type-1'] > 0.85:
-            return "Type-1", 1
-    elif ((results['Type-4'] + results['Type-1'] + results['Type-2'] + results['Type-3'])/4) > 0.6:
-        max = 'Type-1'
-        for tp in results:
-            if results[tp] > results[max]:
-                max = tp
-        # if results['Type-4'] > 0.7:
-        #     return "Type-4", 1
-        # elif results['Type-1'] > 0.85:
-        #     return "Type-1", 1
-        # elif results['Type-2'] > 0.85:
-        #     return 'Type-2', 1
-        # elif results['Type-3'] > 0.85:
-        #     return 'Type-3', 1
-        # else:
-        #     return 'Type-1', 1
-        return tp, 1
+def determine_similarity(results, min_threshold=0.1):
+    # Sort by score, then by type severity
+    type_priority = {"Type-4": 4, "Type-3": 3, "Type-2": 2, "Type-1": 1}
+    sorted_types = sorted(results.items(), key=lambda x: (x[1], type_priority[x[0]]), reverse=True)
+    max_type, max_score = sorted_types[0]
+    if max_score >= min_threshold:
+        return max_type, 1
     else:
         return "Non-clone", 0
 
+
 # --- PROMPT V2 WITH STEP-BY-STEP REASONING AND EXAMPLES ---
-def rag_similarity_assessment(code1, code2, model_name):
+def rag_similarity_assessment(code1, code2, model_name, thr):
     model = lms.llm(model_name)
     prompt = f"""You are a code similarity expert. Analyze the following code pair step by step for clone detection.
 
@@ -206,52 +195,53 @@ Similar Code:
     }
     response = model.respond(prompt, response_format=schema)
     results = response.parsed
-    predicted_type, predicted_sim = determine_similarity(results)
+    predicted_type, predicted_sim = determine_similarity(results, thr)
     return results, predicted_type, predicted_sim
 
 # --- MAIN WORKFLOW ---
-all_truth = []
-all_preds = []
+for thr in thresholds:
+    all_truth = []
+    all_preds = []
+    output = f"/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/RAG_vs_CodeNet_binary_results_mistral_{thr}.csv"
+    with open(output, 'w', newline='') as outfile:
+        writer = csv.writer(outfile)
+        writer.writerow([
+            'PairID', 'File1', 'File2', 'Type-1', 'Type-2', 'Type-3', 'Type-4',
+            'PredictedType', 'PredictedSimilar', 'GroundTruthSimilar', 'ModelName'
+        ])
+        for idx, row in pairs_df.head(50).iterrows():
+            file1_path = os.path.join(DATA_DIR, row['file1'])
+            file2_path = os.path.join(DATA_DIR, row['file2'])
+            pair_id = row['pair-id']
+            try:
+                with open(file1_path, 'r', encoding='utf-8', errors='ignore') as f1, \
+                    open(file2_path, 'r', encoding='utf-8', errors='ignore') as f2:
+                    code1 = truncate_code(f1.read())
+                    code2 = truncate_code(f2.read())
+            except Exception as e:
+                print(f"Skipping pair {pair_id} due to file read error: {e}")
+                continue
 
-with open(OUTPUT_CSV, 'w', newline='') as outfile:
-    writer = csv.writer(outfile)
-    writer.writerow([
-        'PairID', 'File1', 'File2', 'Type-1', 'Type-2', 'Type-3', 'Type-4',
-        'PredictedType', 'PredictedSimilar', 'GroundTruthSimilar', 'ModelName'
-    ])
-    for idx, row in pairs_df.head(680).iterrows():
-        file1_path = os.path.join(DATA_DIR, row['file1'])
-        file2_path = os.path.join(DATA_DIR, row['file2'])
-        pair_id = row['pair-id']
-        try:
-            with open(file1_path, 'r', encoding='utf-8', errors='ignore') as f1, \
-                 open(file2_path, 'r', encoding='utf-8', errors='ignore') as f2:
-                code1 = truncate_code(f1.read())
-                code2 = truncate_code(f2.read())
-        except Exception as e:
-            print(f"Skipping pair {pair_id} due to file read error: {e}")
-            continue
+            ground_truth_sim = ground_truth_map.get(pair_id, "Unknown")
+            if ground_truth_sim == "Unknown":
+                continue
+            ground_truth_sim = int(ground_truth_sim)
+            for model_name in LLMS:
+                results, predicted_type, predicted_sim = ensemble_assessment(code1, code2, model_name, thr, n=3)
+                writer.writerow([
+                    pair_id, row['file1'], row['file2'],
+                    results['Type-1'], results['Type-2'], results['Type-3'], results['Type-4'],
+                    predicted_type, predicted_sim, ground_truth_sim, model_name
+                ])
+                all_truth.append(ground_truth_sim)
+                all_preds.append(predicted_sim)
 
-        ground_truth_sim = ground_truth_map.get(pair_id, "Unknown")
-        if ground_truth_sim == "Unknown":
-            continue
-        ground_truth_sim = int(ground_truth_sim)
-        for model_name in LLMS:
-            results, predicted_type, predicted_sim = ensemble_assessment(code1, code2, model_name, n=3)
-            writer.writerow([
-                pair_id, row['file1'], row['file2'],
-                results['Type-1'], results['Type-2'], results['Type-3'], results['Type-4'],
-                predicted_type, predicted_sim, ground_truth_sim, model_name
-            ])
-            all_truth.append(ground_truth_sim)
-            all_preds.append(predicted_sim)
-
-# --- EVALUATION METRICS ---
-if all_truth and all_preds:
-    acc = accuracy_score(all_truth, all_preds)
-    prec = precision_score(all_truth, all_preds)
-    rec = recall_score(all_truth, all_preds)
-    f1 = f1_score(all_truth, all_preds)
-    with open('/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/metricsv2.txt', 'w') as f:
-        print(f"Accuracy: {acc:.2f}, Precision: {prec:.2f}, Recall: {rec:.2f}, F1-Score: {f1:.2f}\n", file=f)
-        print(classification_report(all_truth, all_preds), file=f)
+    # --- EVALUATION METRICS ---
+    if all_truth and all_preds:
+        acc = accuracy_score(all_truth, all_preds)
+        prec = precision_score(all_truth, all_preds)
+        rec = recall_score(all_truth, all_preds)
+        f1 = f1_score(all_truth, all_preds)
+        with open(f'/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/metricsv2_{thr}.txt', 'w') as f:
+            print(f"Accuracy: {acc:.2f}, Precision: {prec:.2f}, Recall: {rec:.2f}, F1-Score: {f1:.2f}\n", file=f)
+            print(classification_report(all_truth, all_preds), file=f)
