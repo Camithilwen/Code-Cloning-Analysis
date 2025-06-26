@@ -5,6 +5,7 @@ import pandas as pd
 BASE_DIR = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing"
 
 FILENAMES = [
+    'RAG_vs_CodeNet_binary_results_mistral_0.3.csv'
     # 'RAG_vs_CodeNet_binary_results_all_ds.csv',
     # 'RAG_vs_CodeNet_binary_results_all_scoder.csv',
     # 'RAG_vs_CodeNet_binary_results_mistral1.csv',
@@ -13,7 +14,7 @@ FILENAMES = [
     # 'RAG_vs_CodeNet_binary_results_scoder11.csv',
     # 'RAG_vs_CodeNet_binary_results_scoder13.csv',
     # 'RAG_vs_CodeNet_binary_results_scoder14_all.csv',
-    'RAG_vs_CodeNet_binary_results_mistral14_all.csv',
+    # 'RAG_vs_CodeNet_binary_results_mistral14_all.csv',
     # 'RAG_vs_CodeNet_binary_results_scoder15.csv',
     # 'RAG_vs_CodeNet_binary_results_scoder21.csv'
     # '/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/visualization/sofar.csv'
@@ -39,4 +40,9 @@ for fname in FILENAMES:
         print(f"Accuracy: {acc:.2f}, Precision: {prec:.2f}, Recall: {rec:.2f}, F1-Score: {f1:.2f}\n", file=f)
         print(report, file=f)
         print('\n', file=f)
+        acc = accuracy_score(df['GroundTruthSimilar'], df['PredictedSimilar'])
+        prec = precision_score(df['GroundTruthSimilar'], df['PredictedSimilar'])
+        rec = recall_score(df['GroundTruthSimilar'], df['PredictedSimilar'])
+        f1 = f1_score(df['GroundTruthSimilar'], df['PredictedSimilar'])
+        print(f"Accuracy: {acc:.2f}, Precision: {prec:.2f}, Recall: {rec:.2f}, F1-Score: {f1:.2f}\n", file=f)
         print(classification_report(df['GroundTruthSimilar'], df['PredictedSimilar']), file=f)

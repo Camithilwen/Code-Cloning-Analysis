@@ -9,7 +9,7 @@ from sklearn.metrics import classification_report
 DATA_DIR = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/Project_CodeNet_experimentation_dataset/data"
 PAIRS_CSV = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/Project_CodeNet_experimentation_dataset/pairs.csv"
 GROUND_TRUTH_CSV = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/Project_CodeNet_experimentation_dataset/ground_truth.csv"
-OUTPUT_CSV = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/RAG_vs_CodeNet_binary_results_mistral14_all.csv"
+OUTPUT_CSV = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/RAG_vs_CodeNet_binary_results_mistral_41.csv"
 
 LLMS = [
     "mistralai/codestral-22b-v0.1"
@@ -47,27 +47,10 @@ def ensemble_assessment(code1, code2, model_name, n=3):
 
 # --- THRESHOLD-BASED SIMILARITY DECISION ---
 def determine_similarity(results):
-    # Prioritize Type-4 if high enough, then Type-1, else non-clone
-    if results['Type-1'] > 0.85:
-            return "Type-1", 1
-    elif ((results['Type-4'] + results['Type-1'] + results['Type-2'] + results['Type-3'])/4) > 0.6:
-        max = 'Type-1'
-        for tp in results:
-            if results[tp] > results[max]:
-                max = tp
-        # if results['Type-4'] > 0.7:
-        #     return "Type-4", 1
-        # elif results['Type-1'] > 0.85:
-        #     return "Type-1", 1
-        # elif results['Type-2'] > 0.85:
-        #     return 'Type-2', 1
-        # elif results['Type-3'] > 0.85:
-        #     return 'Type-3', 1
-        # else:
-        #     return 'Type-1', 1
-        return tp, 1
+    if results['Type-4'] > 0.25:
+        return 'Type-4', 1
     else:
-        return "Non-clone", 0
+        return 'Non-clone', 0
 
 # --- PROMPT V2 WITH STEP-BY-STEP REASONING AND EXAMPLES ---
 def rag_similarity_assessment(code1, code2, model_name):
@@ -100,100 +83,6 @@ Similar Code:
 {code2}
 """
 
-    # examples = """
-    # Examples:
-
-    # Type-1:
-    # Code 1: 'int a=5;'
-    # Code 2: 'int a = 5; // set a'
-
-    # Type-2:
-    # Code 1: 'int a=5;'
-    # Code 2: 'int b=5;'
-
-    # Type-3:
-    # Code 1: 'int a=5; print(a);'
-    # Code 2: 'int a=5;'
-
-    # Type-4:
-    # Code 1: 'for(int i=0;i<5;i++)sum+=i;'
-    # Code 2: 'sum = sum_of_first_n(5);'
-
-    # Additional Examples:
-
-    # Type-1:
-    # Code 1: 'for i in range(5): print(i)'
-    # Code 2: 'for i in range(5): print(i) #loop'
-
-    # Type-2:
-    # Code 1: 'def add(x, y): return x + y'
-    # Code 2: 'def sum(a, b): return a + b'
-
-    # Type-3:
-    # Code 1: 'if x > 0: print("Positive")'
-    # Code 2: 'if x >= 0: print("Positive")'
-
-    # Type-4:
-    # Code 1: 'result = [x*2 for x in lst]'
-    # Code 2: 'result = list(map(lambda x: x*2, lst))'
-
-    # Type-1:
-    # Code 1: 'while(count<10) count++;'
-    # Code 2: 'while (count < 10) count++; // loop count'
-
-    # Type-2:
-    # Code 1: 'int maxVal = 100;'
-    # Code 2: 'int max_value = 100;'
-
-    # Type-3:
-    # Code 1: 'print("Hello")'
-    # Code 2: 'print("Hello World")'
-
-    # Type-4:
-    # Code 1: 'def factorial(n): return 1 if n==0 else n*factorial(n-1)'
-    # Code 2: 'def fact(n): res=1\n for i in range(1,n+1): res*=i\n return res'
-
-    # Type-1:
-    # Code 1: 'x = 10 # set x'
-    # Code 2: 'x=10'
-
-    # Type-2:
-    # Code 1: 'String name = "Alice";'
-    # Code 2: 'String personName = "Alice";'
-
-    # Type-3:
-    # Code 1: 'a = 5\nb = 10\nprint(a+b)'
-    # Code 2: 'a = 5\nprint(a)'
-
-    # Type-4:
-    # Code 1: 'sum = 0\nfor i in range(5): sum += i'
-    # Code 2: 'sum = sum(range(5))'
-
-    # Step-by-step reasoning:
-
-    # 1. Are the outputs always identical for all inputs? (Type-4)
-    # 2. Are they identical except for whitespace/comments? (Type-1)
-    # 3. Are variable/function names changed but structure identical? (Type-2)
-    # 4. Are there statement-level edits? (Type-3)
-
-    # Explain your reasoning for each type and provide a confidence score (0-1).
-
-    # Definitions:
-
-    # - Type-1: Output-identical after removing whitespace/comments
-    # - Type-2: Identical except for variable/function names (plus Type-1 differences)
-    # - Type-3: Similar, but with some statements added/removed/modified (plus Type-2 differences)
-    # - Type-4: Syntactically different but functionally identical (same outputs for same inputs)
-
-    # Target Code:
-    # {code1}
-
-    # Similar Code:
-    # {code2}
-    # """
-
-    # prompt = examples.format(code1=code1, code2=code2)
-
     schema = {
         "type": "object",
         "properties": {
@@ -219,7 +108,7 @@ with open(OUTPUT_CSV, 'w', newline='') as outfile:
         'PairID', 'File1', 'File2', 'Type-1', 'Type-2', 'Type-3', 'Type-4',
         'PredictedType', 'PredictedSimilar', 'GroundTruthSimilar', 'ModelName'
     ])
-    for idx, row in pairs_df.head(680).iterrows():
+    for idx, row in pairs_df.head(1000).iterrows():
         file1_path = os.path.join(DATA_DIR, row['file1'])
         file2_path = os.path.join(DATA_DIR, row['file2'])
         pair_id = row['pair-id']
