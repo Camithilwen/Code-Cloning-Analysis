@@ -426,7 +426,7 @@ def clone_repositories():
     os.makedirs("./data", exist_ok=True)
 
     import csv
-    data_file = "./embed/data/main-dataset.csv"
+    data_file = "./embed/data/supplementary.csv"
 
     with open(data_file, 'r') as data:
         reader = csv.DictReader(data)
