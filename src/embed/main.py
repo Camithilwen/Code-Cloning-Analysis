@@ -4,10 +4,10 @@
 #   "torch",
 #   "transformers>=4.21.0",
 #   "sentence-transformers",
+#   "marshmallow<4.0",
 #   "setuptools==80.0",
 #   "pymilvus==2.4.8",
 #   "milvus-lite==2.4.8",
-#   "protobuf<4.0.0",
 #   "numpy",
 #   "einops",
 # ]
