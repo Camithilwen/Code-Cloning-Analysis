@@ -25,12 +25,6 @@ else
     source venv/bin/activate
 fi
 
-HF_KEY="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"
-
-# Hugging Face login
-echo "Logging into Hugging Face..."
-huggingface-cli login --token $HF_KEY
-
 # Start Ollama in background
 echo "Starting Ollama server..."
 mkdir -p ${OLLAMA_SCRATCH}/logs
@@ -39,12 +33,12 @@ OLLAMA_PID=$!
 sleep 10  # Wait for server initialization
 
 # Pull model (if not cached)
-ollama pull llama3.1:8b
+ollama pull deepseek-r1:32b
 ollama list
-# ollama run llama3.1:8b "Why is the sky blue?"
+# ollama run deepseek-r1:32b "Why is the sky blue?"
 # Run the Python script
 echo "Starting similarity analysis..."
-python working_script.py
+python working_script2.py
 
 # Cleanup
 kill $OLLAMA_PID

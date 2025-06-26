@@ -9,7 +9,7 @@ from sklearn.metrics import classification_report
 DATA_DIR = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/Project_CodeNet_experimentation_dataset/data"
 PAIRS_CSV = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/Project_CodeNet_experimentation_dataset/pairs.csv"
 GROUND_TRUTH_CSV = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/Project_CodeNet_experimentation_dataset/ground_truth.csv"
-OUTPUT_CSV = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/RAG_vs_CodeNet_binary_results_all_mistral.csv"
+OUTPUT_CSV = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/RAG_vs_CodeNet_binary_results_mistral_41.csv"
 
 LLMS = [
     "mistralai/codestral-22b-v0.1"
@@ -47,13 +47,10 @@ def ensemble_assessment(code1, code2, model_name, n=3):
 
 # --- THRESHOLD-BASED SIMILARITY DECISION ---
 def determine_similarity(results):
-    # Prioritize Type-4 if high enough, then Type-1, else non-clone
-    if results['Type-4'] > 0.7:
-        return "Type-4", 1
-    elif results['Type-1'] > 0.85:
-        return "Type-1", 1
+    if results['Type-4'] > 0.25:
+        return 'Type-4', 1
     else:
-        return "Non-clone", 0
+        return 'Non-clone', 0
 
 # --- PROMPT V2 WITH STEP-BY-STEP REASONING AND EXAMPLES ---
 def rag_similarity_assessment(code1, code2, model_name):
@@ -105,13 +102,13 @@ Similar Code:
 all_truth = []
 all_preds = []
 
-with open(OUTPUT_CSV, 'a', newline='') as outfile:
+with open(OUTPUT_CSV, 'w', newline='') as outfile:
     writer = csv.writer(outfile)
     writer.writerow([
         'PairID', 'File1', 'File2', 'Type-1', 'Type-2', 'Type-3', 'Type-4',
         'PredictedType', 'PredictedSimilar', 'GroundTruthSimilar', 'ModelName'
     ])
-    for idx, row in pairs_df.head(638).iterrows():
+    for idx, row in pairs_df.head(1000).iterrows():
         file1_path = os.path.join(DATA_DIR, row['file1'])
         file2_path = os.path.join(DATA_DIR, row['file2'])
         pair_id = row['pair-id']

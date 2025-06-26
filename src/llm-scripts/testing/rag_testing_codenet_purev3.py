@@ -52,6 +52,10 @@ def determine_similarity(results):
         return "Type-4", 1
     elif results['Type-1'] > 0.85:
         return "Type-1", 1
+    elif results['Type-2'] > 0.7:
+        return 'Type-2', 1
+    elif results['Type-3'] > 0.7:
+        return 'Type-3', 1
     else:
         return "Non-clone", 0
 
