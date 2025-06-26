@@ -4,7 +4,7 @@
 #   "torch",
 #   "transformers>=4.21.0",
 #   "sentence-transformers",
-#   "pymilvus",
+#   "pymilvus==2.5.0",
 #   "numpy",
 #   "einops",
 # ]
