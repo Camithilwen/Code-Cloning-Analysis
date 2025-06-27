@@ -1,18 +1,18 @@
 import os
 import csv
 import pandas as pd
-import lmstudio as lms
+import ollama
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn.metrics import classification_report
+import json
 
 # --- CONFIGURATION ---
-DATA_DIR = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/Project_CodeNet_experimentation_dataset/data"
-PAIRS_CSV = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/Project_CodeNet_experimentation_dataset/pairs.csv"
-GROUND_TRUTH_CSV = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/Project_CodeNet_experimentation_dataset/ground_truth.csv"
-OUTPUT_CSV = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/RAG_vs_CodeNet_binary_results_scoder_41.csv"
+DATA_DIR = "/projappl/project_2014646/shreya/data/data"
+PAIRS_CSV = "/projappl/project_2014646/shreya/pairs.csv"
+GROUND_TRUTH_CSV = "/projappl/project_2014646/shreya/ground_truth.csv"
 
 LLMS = [
-    "starcoder2-15b-instruct-v0.1"
+    "mistral-nemo:12b"# < ollama model name
 ]
 
 # --- LOAD PAIRS AND GROUND TRUTH ---
@@ -22,7 +22,7 @@ ground_truth_map = dict(zip(ground_truth_df['pair-id'], ground_truth_df['similar
 
 # --- TYPE TO BINARY SIMILARITY ---
 def type_to_binary(predicted_type):
-    return 1 if predicted_type in ["Type-1", "Type-4"] else 0
+    return 1 if predicted_type in ["Type-4"] else 0
 
 # --- CODE TRUNCATION FOR CONTEXT FITTING ---
 def truncate_code(code, max_lines=50):
@@ -54,7 +54,6 @@ def determine_similarity(results):
 
 # --- PROMPT V2 WITH STEP-BY-STEP REASONING AND EXAMPLES ---
 def rag_similarity_assessment(code1, code2, model_name):
-    model = lms.llm(model_name)
     prompt = f"""You are a code similarity expert. Analyze the following code pair step by step for clone detection.
 
 Definitions:
@@ -81,28 +80,32 @@ Target Code:
 
 Similar Code:
 {code2}
+
+Respond ONLY with a JSON object with the following keys: Type-1, Type-2, Type-3, Type-4, each with a confidence score between 0 and 1.
 """
 
-    schema = {
-        "type": "object",
-        "properties": {
-            "Type-1": {"type": "number", "minimum": 0, "maximum": 1},
-            "Type-2": {"type": "number", "minimum": 0, "maximum": 1},
-            "Type-3": {"type": "number", "minimum": 0, "maximum": 1},
-            "Type-4": {"type": "number", "minimum": 0, "maximum": 1},
-        },
-        "required": ["Type-1", "Type-2", "Type-3", "Type-4"]
-    }
-    response = model.respond(prompt, response_format=schema)
-    results = response.parsed
+    # Call Ollama to get the response
+    result = ollama.generate(
+        model=model_name,
+        prompt=prompt
+    )
+    response_text = result['response']
+
+    # Parse the response as JSON
+    try:
+        results = json.loads(response_text)
+    except Exception:
+        # Fallback: handle parsing error
+        results = {"Type-1": 0, "Type-2": 0, "Type-3": 0, "Type-4": 0}
+
     predicted_type, predicted_sim = determine_similarity(results)
     return results, predicted_type, predicted_sim
 
 # --- MAIN WORKFLOW ---
 all_truth = []
 all_preds = []
-
-with open(OUTPUT_CSV, 'w', newline='') as outfile:
+output = f"/projappl/project_2014646/shreya/results/RAG_vs_CodeNet_binary_results_mistralnemo_final2.csv"
+with open(output, 'w', newline='') as outfile:
     writer = csv.writer(outfile)
     writer.writerow([
         'PairID', 'File1', 'File2', 'Type-1', 'Type-2', 'Type-3', 'Type-4',
@@ -114,7 +117,7 @@ with open(OUTPUT_CSV, 'w', newline='') as outfile:
         pair_id = row['pair-id']
         try:
             with open(file1_path, 'r', encoding='utf-8', errors='ignore') as f1, \
-                 open(file2_path, 'r', encoding='utf-8', errors='ignore') as f2:
+                open(file2_path, 'r', encoding='utf-8', errors='ignore') as f2:
                 code1 = truncate_code(f1.read())
                 code2 = truncate_code(f2.read())
         except Exception as e:
@@ -141,6 +144,6 @@ if all_truth and all_preds:
     prec = precision_score(all_truth, all_preds)
     rec = recall_score(all_truth, all_preds)
     f1 = f1_score(all_truth, all_preds)
-    with open('/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/metricsv2.txt', 'w') as f:
+    with open(f'/projappl/project_2014646/shreya/results/metricsv2_finl2_mistralnemo.txt', 'w') as f:
         print(f"Accuracy: {acc:.2f}, Precision: {prec:.2f}, Recall: {rec:.2f}, F1-Score: {f1:.2f}\n", file=f)
         print(classification_report(all_truth, all_preds), file=f)

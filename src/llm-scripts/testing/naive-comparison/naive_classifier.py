@@ -45,13 +45,13 @@ def truncate_code(code, max_lines=50):
     lines = code.splitlines()
     return '\n'.join(lines[:max_lines]) if len(lines) > max_lines else code
 
-with open(OUTPUT_CSV, 'w', newline='') as outfile:
+with open(OUTPUT_CSV, 'a', newline='') as outfile:
     writer = csv.writer(outfile)
-    writer.writerow([
-        'PairID', 'File1', 'File2', 
-        'PredictedSimilar', 'GroundTruthSimilar',
-    ])
-    for idx, row in pairs_df.head(638).iterrows():
+    # writer.writerow([
+    #     'PairID', 'File1', 'File2', 
+    #     'PredictedSimilar', 'GroundTruthSimilar',
+    # ])
+    for idx, row in pairs_df.iloc[638:1000].iterrows():
         file1_path = os.path.join(DATA_DIR, row['file1'])
         file2_path = os.path.join(DATA_DIR, row['file2'])
         pair_id = row['pair-id']
@@ -82,6 +82,6 @@ if all_truth and all_preds:
     prec = precision_score(all_truth, all_preds)
     rec = recall_score(all_truth, all_preds)
     f1 = f1_score(all_truth, all_preds)
-    with open('/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/metricsv2.txt', 'w') as f:
+    with open('/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/naive-comparison/metricsv2.txt', 'w') as f:
         print(f"Accuracy: {acc:.2f}, Precision: {prec:.2f}, Recall: {rec:.2f}, F1-Score: {f1:.2f}\n", file=f)
         print(classification_report(all_truth, all_preds), file=f)

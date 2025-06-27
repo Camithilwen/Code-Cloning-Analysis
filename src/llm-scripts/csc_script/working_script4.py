@@ -30,10 +30,10 @@ def truncate_code(code, max_lines=50):
     return '\n'.join(lines[:max_lines]) if len(lines) > max_lines else code
 
 # --- ENSEMBLE ASSESSMENT ---
-def ensemble_assessment(code1, code2, model_name, thr, n=3):
+def ensemble_assessment(code1, code2, model_name, n=3):
     predictions = []
     for _ in range(n):
-        results, predicted_type, predicted_sim = rag_similarity_assessment(code1, code2, model_name, thr)
+        results, predicted_type, predicted_sim = rag_similarity_assessment(code1, code2, model_name)
         predictions.append((results, predicted_type, predicted_sim))
     # Majority voting on predicted_sim
     sim_votes = [pred[2] for pred in predictions]
@@ -46,14 +46,14 @@ def ensemble_assessment(code1, code2, model_name, thr, n=3):
     return avg_results, final_type, final_sim
 
 # --- THRESHOLD-BASED SIMILARITY DECISION ---
-def determine_similarity(results, min_threshold=0.1):
-    if results['Type-4'] > min_threshold:
+def determine_similarity(results):
+    if results['Type-4'] > 0.25:
         return 'Type-4', 1
     else:
         return 'Non-clone', 0
 
 # --- PROMPT V2 WITH STEP-BY-STEP REASONING AND EXAMPLES ---
-def rag_similarity_assessment(code1, code2, model_name, thr):
+def rag_similarity_assessment(code1, code2, model_name):
     prompt = f"""You are a code similarity expert. Analyze the following code pair step by step for clone detection.
 
 Definitions:
@@ -98,53 +98,52 @@ Respond ONLY with a JSON object with the following keys: Type-1, Type-2, Type-3,
         # Fallback: handle parsing error
         results = {"Type-1": 0, "Type-2": 0, "Type-3": 0, "Type-4": 0}
 
-    predicted_type, predicted_sim = determine_similarity(results, thr)
+    predicted_type, predicted_sim = determine_similarity(results)
     return results, predicted_type, predicted_sim
 
 # --- MAIN WORKFLOW ---
-for thr in thresholds:
-    all_truth = []
-    all_preds = []
-    output = f"/projappl/project_2014646/shreya/results/RAG_vs_CodeNet_binary_results_devstral_final2.csv"
-    with open(output, 'w', newline='') as outfile:
-        writer = csv.writer(outfile)
-        writer.writerow([
-            'PairID', 'File1', 'File2', 'Type-1', 'Type-2', 'Type-3', 'Type-4',
-            'PredictedType', 'PredictedSimilar', 'GroundTruthSimilar', 'ModelName'
-        ])
-        for idx, row in pairs_df.head(1000).iterrows():
-            file1_path = os.path.join(DATA_DIR, row['file1'])
-            file2_path = os.path.join(DATA_DIR, row['file2'])
-            pair_id = row['pair-id']
-            try:
-                with open(file1_path, 'r', encoding='utf-8', errors='ignore') as f1, \
-                    open(file2_path, 'r', encoding='utf-8', errors='ignore') as f2:
-                    code1 = truncate_code(f1.read())
-                    code2 = truncate_code(f2.read())
-            except Exception as e:
-                print(f"Skipping pair {pair_id} due to file read error: {e}")
-                continue
+all_truth = []
+all_preds = []
+output = f"/projappl/project_2014646/shreya/results/RAG_vs_CodeNet_binary_results_devstral_final2.csv"
+with open(output, 'w', newline='') as outfile:
+    writer = csv.writer(outfile)
+    writer.writerow([
+        'PairID', 'File1', 'File2', 'Type-1', 'Type-2', 'Type-3', 'Type-4',
+        'PredictedType', 'PredictedSimilar', 'GroundTruthSimilar', 'ModelName'
+    ])
+    for idx, row in pairs_df.head(1000).iterrows():
+        file1_path = os.path.join(DATA_DIR, row['file1'])
+        file2_path = os.path.join(DATA_DIR, row['file2'])
+        pair_id = row['pair-id']
+        try:
+            with open(file1_path, 'r', encoding='utf-8', errors='ignore') as f1, \
+                open(file2_path, 'r', encoding='utf-8', errors='ignore') as f2:
+                code1 = truncate_code(f1.read())
+                code2 = truncate_code(f2.read())
+        except Exception as e:
+            print(f"Skipping pair {pair_id} due to file read error: {e}")
+            continue
 
-            ground_truth_sim = ground_truth_map.get(pair_id, "Unknown")
-            if ground_truth_sim == "Unknown":
-                continue
-            ground_truth_sim = int(ground_truth_sim)
-            for model_name in LLMS:
-                results, predicted_type, predicted_sim = ensemble_assessment(code1, code2, model_name, thr, n=3)
-                writer.writerow([
-                    pair_id, row['file1'], row['file2'],
-                    results['Type-1'], results['Type-2'], results['Type-3'], results['Type-4'],
-                    predicted_type, predicted_sim, ground_truth_sim, model_name
-                ])
-                all_truth.append(ground_truth_sim)
-                all_preds.append(predicted_sim)
+        ground_truth_sim = ground_truth_map.get(pair_id, "Unknown")
+        if ground_truth_sim == "Unknown":
+            continue
+        ground_truth_sim = int(ground_truth_sim)
+        for model_name in LLMS:
+            results, predicted_type, predicted_sim = ensemble_assessment(code1, code2, model_name, n=3)
+            writer.writerow([
+                pair_id, row['file1'], row['file2'],
+                results['Type-1'], results['Type-2'], results['Type-3'], results['Type-4'],
+                predicted_type, predicted_sim, ground_truth_sim, model_name
+            ])
+            all_truth.append(ground_truth_sim)
+            all_preds.append(predicted_sim)
 
-    # --- EVALUATION METRICS ---
-    if all_truth and all_preds:
-        acc = accuracy_score(all_truth, all_preds)
-        prec = precision_score(all_truth, all_preds)
-        rec = recall_score(all_truth, all_preds)
-        f1 = f1_score(all_truth, all_preds)
-        with open(f'/projappl/project_2014646/shreya/results/metricsv2_finl2_devstral.txt', 'w') as f:
-            print(f"Accuracy: {acc:.2f}, Precision: {prec:.2f}, Recall: {rec:.2f}, F1-Score: {f1:.2f}\n", file=f)
-            print(classification_report(all_truth, all_preds), file=f)
+# --- EVALUATION METRICS ---
+if all_truth and all_preds:
+    acc = accuracy_score(all_truth, all_preds)
+    prec = precision_score(all_truth, all_preds)
+    rec = recall_score(all_truth, all_preds)
+    f1 = f1_score(all_truth, all_preds)
+    with open(f'/projappl/project_2014646/shreya/results/metricsv2_finl2_devstral.txt', 'w') as f:
+        print(f"Accuracy: {acc:.2f}, Precision: {prec:.2f}, Recall: {rec:.2f}, F1-Score: {f1:.2f}\n", file=f)
+        print(classification_report(all_truth, all_preds), file=f)
