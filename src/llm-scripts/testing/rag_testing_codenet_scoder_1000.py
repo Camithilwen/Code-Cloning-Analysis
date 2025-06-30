@@ -12,7 +12,7 @@ GROUND_TRUTH_CSV = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/
 OUTPUT_CSV = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/RAG_vs_CodeNet_binary_results_scoder_41.csv"
 
 LLMS = [
-    "mistralai/codestral-22b-v0.1"
+    "starcoder2-15b-instruct-v0.1"
 ]
 
 # --- LOAD PAIRS AND GROUND TRUTH ---
