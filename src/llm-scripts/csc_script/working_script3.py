@@ -12,7 +12,7 @@ PAIRS_CSV = "/projappl/project_2014646/shreya/pairs.csv"
 GROUND_TRUTH_CSV = "/projappl/project_2014646/shreya/ground_truth.csv"
 
 LLMS = [
-    "deepseek-r1:32b"# < ollama model name
+    "llama3.1:8b"# < ollama model name
 ]
 
 # --- LOAD PAIRS AND GROUND TRUTH ---
