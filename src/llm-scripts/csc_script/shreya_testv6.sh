@@ -33,12 +33,12 @@ OLLAMA_PID=$!
 sleep 10  # Wait for server initialization
 
 # Pull model (if not cached)
-ollama pull mistral-nemo:12b
+ollama pull llama2:13b
 ollama list
 # ollama run deepseek-r1:32b "Why is the sky blue?"
 # Run the Python script
 echo "Starting similarity analysis..."
-python workingscript6.py
+python working_script6.py
 
 # Cleanup
 kill $OLLAMA_PID

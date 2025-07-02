@@ -2,7 +2,7 @@ import os
 import csv
 import pandas as pd
 import ollama
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, mean_squared_error
 from sklearn.metrics import classification_report
 import json
 
@@ -12,7 +12,7 @@ PAIRS_CSV = "/projappl/project_2014646/shreya/pairs.csv"
 GROUND_TRUTH_CSV = "/projappl/project_2014646/shreya/ground_truth.csv"
 
 LLMS = [
-    "mistral-nemo:12b"# < ollama model name
+    "llama2:13b"# < ollama model name
 ]
 
 # --- LOAD PAIRS AND GROUND TRUTH ---
@@ -102,48 +102,50 @@ Respond ONLY with a JSON object with the following keys: Type-1, Type-2, Type-3,
     return results, predicted_type, predicted_sim
 
 # --- MAIN WORKFLOW ---
-all_truth = []
-all_preds = []
-output = f"/projappl/project_2014646/shreya/results/RAG_vs_CodeNet_binary_results_mistralnemo_final2.csv"
-with open(output, 'w', newline='') as outfile:
-    writer = csv.writer(outfile)
-    writer.writerow([
-        'PairID', 'File1', 'File2', 'Type-1', 'Type-2', 'Type-3', 'Type-4',
-        'PredictedType', 'PredictedSimilar', 'GroundTruthSimilar', 'ModelName'
-    ])
-    for idx, row in pairs_df.head(1000).iterrows():
-        file1_path = os.path.join(DATA_DIR, row['file1'])
-        file2_path = os.path.join(DATA_DIR, row['file2'])
-        pair_id = row['pair-id']
-        try:
-            with open(file1_path, 'r', encoding='utf-8', errors='ignore') as f1, \
-                open(file2_path, 'r', encoding='utf-8', errors='ignore') as f2:
-                code1 = truncate_code(f1.read())
-                code2 = truncate_code(f2.read())
-        except Exception as e:
-            print(f"Skipping pair {pair_id} due to file read error: {e}")
-            continue
+for iteration in range(5):
+    all_truth = []
+    all_preds = []
+    output = f"/projappl/project_2014646/shreya/results/RAG_vs_CodeNet_binary_results_llama2_13b_iteration_{iteration}.csv"
+    with open(output, 'w', newline='') as outfile:
+        writer = csv.writer(outfile)
+        writer.writerow([
+            'PairID', 'File1', 'File2', 'Type-1', 'Type-2', 'Type-3', 'Type-4',
+            'PredictedType', 'PredictedSimilar', 'GroundTruthSimilar', 'ModelName'
+        ])
+        for idx, row in pairs_df.head(1000).iterrows():
+            file1_path = os.path.join(DATA_DIR, row['file1'])
+            file2_path = os.path.join(DATA_DIR, row['file2'])
+            pair_id = row['pair-id']
+            try:
+                with open(file1_path, 'r', encoding='utf-8', errors='ignore') as f1, \
+                    open(file2_path, 'r', encoding='utf-8', errors='ignore') as f2:
+                    code1 = truncate_code(f1.read())
+                    code2 = truncate_code(f2.read())
+            except Exception as e:
+                print(f"Skipping pair {pair_id} due to file read error: {e}")
+                continue
 
-        ground_truth_sim = ground_truth_map.get(pair_id, "Unknown")
-        if ground_truth_sim == "Unknown":
-            continue
-        ground_truth_sim = int(ground_truth_sim)
-        for model_name in LLMS:
-            results, predicted_type, predicted_sim = ensemble_assessment(code1, code2, model_name, n=3)
-            writer.writerow([
-                pair_id, row['file1'], row['file2'],
-                results['Type-1'], results['Type-2'], results['Type-3'], results['Type-4'],
-                predicted_type, predicted_sim, ground_truth_sim, model_name
-            ])
-            all_truth.append(ground_truth_sim)
-            all_preds.append(predicted_sim)
+            ground_truth_sim = ground_truth_map.get(pair_id, "Unknown")
+            if ground_truth_sim == "Unknown":
+                continue
+            ground_truth_sim = int(ground_truth_sim)
+            for model_name in LLMS:
+                results, predicted_type, predicted_sim = ensemble_assessment(code1, code2, model_name, n=3)
+                writer.writerow([
+                    pair_id, row['file1'], row['file2'],
+                    results['Type-1'], results['Type-2'], results['Type-3'], results['Type-4'],
+                    predicted_type, predicted_sim, ground_truth_sim, model_name
+                ])
+                all_truth.append(ground_truth_sim)
+                all_preds.append(predicted_sim)
 
-# --- EVALUATION METRICS ---
-if all_truth and all_preds:
-    acc = accuracy_score(all_truth, all_preds)
-    prec = precision_score(all_truth, all_preds)
-    rec = recall_score(all_truth, all_preds)
-    f1 = f1_score(all_truth, all_preds)
-    with open(f'/projappl/project_2014646/shreya/results/metricsv2_finl2_mistralnemo.txt', 'w') as f:
-        print(f"Accuracy: {acc:.2f}, Precision: {prec:.2f}, Recall: {rec:.2f}, F1-Score: {f1:.2f}\n", file=f)
-        print(classification_report(all_truth, all_preds), file=f)
+    # --- EVALUATION METRICS ---
+    if all_truth and all_preds:
+        acc = accuracy_score(all_truth, all_preds)
+        prec = precision_score(all_truth, all_preds)
+        rec = recall_score(all_truth, all_preds)
+        f1 = f1_score(all_truth, all_preds)
+        mse = mean_squared_error(all_truth, all_preds)
+        with open(f'/projappl/project_2014646/shreya/results/metrics_llama2_13b_iteration_{iteration}.txt', 'w') as f:
+            print(f"Accuracy: {acc:.2f}, Precision: {prec:.2f}, Recall: {rec:.2f}, F1-Score: {f1:.2f}, MSE: {mse:.2f}\n", file=f)
+            print(classification_report(all_truth, all_preds), file=f)
