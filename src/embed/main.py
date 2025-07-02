@@ -24,32 +24,45 @@ from huggingface_hub import login
 import warnings
 warnings.filterwarnings('ignore')
 
-# Huggingface authentication
+## @var Environment Variable HF_TOKEN
+#  Huggingface authentication
 login(token=os.getenv("HF_TOKEN"))
 
-#global repository list
+## @var dictionary repos
+#  Global repository dictionary, initialized as empty.
 repos = {}
 
 class EmbeddingModelManager:
-    """
-    Enhanced embedding model manager with aggressive memory management
-    and proper error handling for P100 GPU constraints.
+    """Embedding Model Management Class
+
+    Defines, loads, manages, and cleans up the repository embedding process.
     """
 
     def __init__(self):
-        # Model configurations with corrected dimensions and trust settings
+        """!Defines embedding models and configures CUDA if a compatible GPU is present.
+        CPU will be used in lieu of an available GPU.
+
+        @param self Object pointer
+        @param self.model_configs Contains embedding model configuration in JSON format.
+        @param dimension Final size of vector embeddings.
+        @param id Locally defined short ID for each model.
+        @oaram trust_remote_code Boolean Required for the huggingface API to retrieve models with remotely defined code.
+        @param max_seq_length Sequencing variable used during data chunking.
+        @param self.current_model SentenceTransformer object containing an embedding model. Initialized to None.
+        @param self.current_model_name String holding the model name.
+        @oaram self.device cuda OR cpu"""
         self.model_configs = {
             "jinaai/jina-embeddings-v2-base-code": {
                 "dimension": 768,
                 "id": "jina",
                 "trust_remote_code": False,
-                "max_seq_length": 512  # Reduced for memory efficiency
+                "max_seq_length": 512
             },
             "nomic-ai/CodeRankEmbed": {
                 "dimension": 256,
                 "id": "sfr2br",
-                "trust_remote_code": True,  # Required for this model
-                "max_seq_length": 256      # Heavily reduced due to 2B parameters
+                "trust_remote_code": True,
+                "max_seq_length": 256
             },
             "codesage/codesage-large-v2": {
                 "dimension": 1024,
@@ -59,12 +72,11 @@ class EmbeddingModelManager:
             }
         }
 
-        # Fixed: Initialize all required attributes
+
         self.current_model = None
         self.current_model_name = None
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        # P100-specific optimizations
         if torch.cuda.is_available():
             torch.cuda.set_per_process_memory_fraction(0.85)  # Reserve 15% for system
             os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
