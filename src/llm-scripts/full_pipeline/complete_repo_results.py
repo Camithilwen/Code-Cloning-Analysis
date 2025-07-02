@@ -70,10 +70,7 @@ def determine_similarity(results):
     # results = {"Type-1": row["Type-1"], "Type-2": row["Type-2"], "Type-3": row["Type-3"], "Type-4": row["Type-4"]}
     sorted_types = sorted(results.items(), key=lambda x: (x[1], type_priority[x[0]]), reverse=True)
     max_type, max_score = sorted_types[0]
-    if max_score >= 0.85:
-        return max_type
-    else:
-        return "Non-clone"
+    return max_type
     
 
 def rag_similarity_assessment(target_code, similar_codes, model_name, target_fid, target_col, results_writer, db_name):
@@ -130,13 +127,14 @@ Similar Code:
 
 # --- MAIN WORKFLOW ---
 def main():
-    with open(f"{DIR_NAME}/milvus_rag_results_short.csv", 'w', newline='') as file:
+    # change at 
+    with open(f"{DIR_NAME}/milvus_rag_results_short.csv", 'a', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow([
-            'TargetFileID', 'SimilarFileID', 'Type-1', 'Type-2', 'Type-3', 'Type-4',
-            'PredictedType', 'ModelName', 'TargetCollection', 'SimilarCollection', 'Database'
-        ])
-        for db_name in os.listdir(DB_PATH):
+        # writer.writerow([
+        #     'TargetFileID', 'SimilarFileID', 'Type-1', 'Type-2', 'Type-3', 'Type-4',
+        #     'PredictedType', 'ModelName', 'TargetCollection', 'SimilarCollection', 'Database'
+        # ])
+        for db_name in os.listdir(DB_PATH)[7:]: # below Blog.db (exclusive) fix Non-clone with correct
             print(f'Analyzing {db_name}...')
             for col_pair in collection_pairs:
                 all_embeddings = get_all_embeddings_from_all_collections(f'{DB_PATH}/{db_name}', col_pair)

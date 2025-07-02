@@ -9,7 +9,7 @@ from sklearn.metrics import classification_report
 DATA_DIR = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/Project_CodeNet_experimentation_dataset/data"
 PAIRS_CSV = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/Project_CodeNet_experimentation_dataset/pairs.csv"
 GROUND_TRUTH_CSV = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/Project_CodeNet_experimentation_dataset/ground_truth.csv"
-OUTPUT_CSV = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/RAG_vs_CodeNet_binary_results_scoder_41.csv"
+OUTPUT_DIR = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/"
 
 LLMS = [
     "mistralai/codestral-22b-v0.1"
@@ -19,10 +19,6 @@ LLMS = [
 pairs_df = pd.read_csv(PAIRS_CSV)
 ground_truth_df = pd.read_csv(GROUND_TRUTH_CSV)
 ground_truth_map = dict(zip(ground_truth_df['pair-id'], ground_truth_df['similar']))
-
-# --- TYPE TO BINARY SIMILARITY ---
-def type_to_binary(predicted_type):
-    return 1 if predicted_type in ["Type-1", "Type-4"] else 0
 
 # --- CODE TRUNCATION FOR CONTEXT FITTING ---
 def truncate_code(code, max_lines=50):
@@ -99,48 +95,52 @@ Similar Code:
     return results, predicted_type, predicted_sim
 
 # --- MAIN WORKFLOW ---
-all_truth = []
-all_preds = []
+for iteration in range(5):
+    all_truth = []
+    all_preds = []
+    # output = f"/projappl/project_2014646/shreya/results/RAG_vs_CodeNet_binary_results_deepseek14b_iteration_{iteration}.csv"
+    output = f"{OUTPUT_DIR}/RAG_vs_CodeNet_binary_results_mistral_codestral22b_iteration_{iteration}.csv"
+    with open(output, 'w', newline='') as outfile:
+        writer = csv.writer(outfile)
+        writer.writerow([
+            'PairID', 'File1', 'File2', 'Type-1', 'Type-2', 'Type-3', 'Type-4',
+            'PredictedType', 'PredictedSimilar', 'GroundTruthSimilar', 'ModelName'
+        ])
+        for idx, row in pairs_df.head(1000).iterrows():
+            file1_path = os.path.join(DATA_DIR, row['file1'])
+            file2_path = os.path.join(DATA_DIR, row['file2'])
+            pair_id = row['pair-id']
+            try:
+                with open(file1_path, 'r', encoding='utf-8', errors='ignore') as f1, \
+                    open(file2_path, 'r', encoding='utf-8', errors='ignore') as f2:
+                    code1 = truncate_code(f1.read())
+                    code2 = truncate_code(f2.read())
+            except Exception as e:
+                print(f"Skipping pair {pair_id} due to file read error: {e}")
+                continue
 
-with open(OUTPUT_CSV, 'w', newline='') as outfile:
-    writer = csv.writer(outfile)
-    writer.writerow([
-        'PairID', 'File1', 'File2', 'Type-1', 'Type-2', 'Type-3', 'Type-4',
-        'PredictedType', 'PredictedSimilar', 'GroundTruthSimilar', 'ModelName'
-    ])
-    for idx, row in pairs_df.head(1000).iterrows():
-        file1_path = os.path.join(DATA_DIR, row['file1'])
-        file2_path = os.path.join(DATA_DIR, row['file2'])
-        pair_id = row['pair-id']
-        try:
-            with open(file1_path, 'r', encoding='utf-8', errors='ignore') as f1, \
-                 open(file2_path, 'r', encoding='utf-8', errors='ignore') as f2:
-                code1 = truncate_code(f1.read())
-                code2 = truncate_code(f2.read())
-        except Exception as e:
-            print(f"Skipping pair {pair_id} due to file read error: {e}")
-            continue
+            ground_truth_sim = ground_truth_map.get(pair_id, "Unknown")
+            if ground_truth_sim == "Unknown":
+                continue
+            ground_truth_sim = int(ground_truth_sim)
+            for model_name in LLMS:
+                results, predicted_type, predicted_sim = ensemble_assessment(code1, code2, model_name, n=3)
+                writer.writerow([
+                    pair_id, row['file1'], row['file2'],
+                    results['Type-1'], results['Type-2'], results['Type-3'], results['Type-4'],
+                    predicted_type, predicted_sim, ground_truth_sim, model_name
+                ])
+                all_truth.append(ground_truth_sim)
+                all_preds.append(predicted_sim)
 
-        ground_truth_sim = ground_truth_map.get(pair_id, "Unknown")
-        if ground_truth_sim == "Unknown":
-            continue
-        ground_truth_sim = int(ground_truth_sim)
-        for model_name in LLMS:
-            results, predicted_type, predicted_sim = ensemble_assessment(code1, code2, model_name, n=3)
-            writer.writerow([
-                pair_id, row['file1'], row['file2'],
-                results['Type-1'], results['Type-2'], results['Type-3'], results['Type-4'],
-                predicted_type, predicted_sim, ground_truth_sim, model_name
-            ])
-            all_truth.append(ground_truth_sim)
-            all_preds.append(predicted_sim)
+    # --- EVALUATION METRICS ---
+    if all_truth and all_preds:
+        acc = accuracy_score(all_truth, all_preds)
+        prec = precision_score(all_truth, all_preds)
+        rec = recall_score(all_truth, all_preds)
+        f1 = f1_score(all_truth, all_preds)
 
-# --- EVALUATION METRICS ---
-if all_truth and all_preds:
-    acc = accuracy_score(all_truth, all_preds)
-    prec = precision_score(all_truth, all_preds)
-    rec = recall_score(all_truth, all_preds)
-    f1 = f1_score(all_truth, all_preds)
-    with open('/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/metricsv2.txt', 'w') as f:
-        print(f"Accuracy: {acc:.2f}, Precision: {prec:.2f}, Recall: {rec:.2f}, F1-Score: {f1:.2f}\n", file=f)
-        print(classification_report(all_truth, all_preds), file=f)
+        # 
+        with open('/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/metricsv2.txt', 'w') as f:
+            print(f"Accuracy: {acc:.2f}, Precision: {prec:.2f}, Recall: {rec:.2f}, F1-Score: {f1:.2f}\n", file=f)
+            print(classification_report(all_truth, all_preds), file=f)

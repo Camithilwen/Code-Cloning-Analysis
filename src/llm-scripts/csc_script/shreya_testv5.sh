@@ -33,7 +33,7 @@ OLLAMA_PID=$!
 sleep 10  # Wait for server initialization
 
 # Pull model (if not cached)
-ollama pull starcoder2:15b
+ollama pull deepseek-r1:14b
 ollama list
 # ollama run deepseek-r1:32b "Why is the sky blue?"
 # Run the Python script
