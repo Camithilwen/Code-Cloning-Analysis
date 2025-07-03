@@ -2,7 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # Load your data
-df = pd.read_csv("/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/RAG_vs_CodeNet_binary_results_scoder_41.csv")
+df = pd.read_csv("/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/meanofthreess.csv")
 # df = pd.read_csv("/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/visualization/sofar.csv")
 
 # Group by GroundTruthSimilar (0: non-similar, 1: similar)
@@ -36,7 +36,7 @@ ax2.tick_params(axis='y', labelcolor='mediumpurple')
 ax2.set_ylim(0, 1)
 
 # Titles and legends
-plt.title('Number of Samples and Accuracy by CodeNet: StarCoder')
+plt.title('Number of Samples and Accuracy by CodeNet: Devstral & Mistral')
 fig.tight_layout()
-plt.savefig("starcoder_final.png")
+plt.savefig("mean_final.png")
 
