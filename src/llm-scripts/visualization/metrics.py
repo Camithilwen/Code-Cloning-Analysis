@@ -5,7 +5,8 @@ import pandas as pd
 BASE_DIR = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing"
 
 FILENAMES = [
-    'NAIVE_vs_CodeNet_binary_results_all.csv'
+    'RAG_vs_CodeNet_binary_results_scoder_41.csv'
+    # 'NAIVE_vs_CodeNet_binary_results_all.csv'
     # 'RAG_vs_CodeNet_binary_results_all_ds.csv',
     # 'RAG_vs_CodeNet_binary_results_all_scoder.csv',
     # 'RAG_vs_CodeNet_binary_results_mistral1.csv',
