@@ -76,6 +76,7 @@
               pkgs.nodePackages.pnpm
               pkgs.yarn
               pkgs.grpc
+              pkgs.doxygen_gui
               venvShellHook
               pip
               jupyter
