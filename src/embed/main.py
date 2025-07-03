@@ -86,7 +86,8 @@ class EmbeddingModelManager:
             print(f"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
 
     def aggressive_cleanup(self):
-        """Perform aggressive memory cleanup between model loads."""
+        """! Performs aggressive interpreter and torch memory cleanup between model loads.
+        """
         if self.current_model is not None:
             del self.current_model
             self.current_model = None
@@ -102,41 +103,37 @@ class EmbeddingModelManager:
         time.sleep(1)
 
     def load_model(self, model_name):
-        """
-        Load model with enhanced memory management and error handling.
+        """!
+        Loads model and verifies embedding dimensions.
+        @return An embedding model as a SentenceTransformer object.
         """
         if self.current_model_name == model_name and self.current_model is not None:
             return self.current_model
 
-        # Aggressive cleanup before loading new model
+        ## Aggressive cleanup before loading new model
         self.aggressive_cleanup()
 
         print(f"Loading model: {model_name}")
         config = self.model_configs[model_name]
 
         try:
-            # Load with specific configurations for each model
+            ## Load with specific configurations for each model
             model_kwargs = {
                 'device': self.device,
                 'trust_remote_code': config['trust_remote_code']
             }
 
-            # Special handling for problematic models
-            if "SFR-Embedding" in model_name:
-                # This model requires trust_remote_code and careful memory handling
-                model_kwargs['model_kwargs'] = {'torch_dtype': torch.float16}
-
             model = SentenceTransformer(model_name, **model_kwargs)
 
-            # Set maximum sequence length to prevent memory overflow
+            ## Set maximum sequence length to prevent memory overflow
             if hasattr(model, 'max_seq_length'):
                 model.max_seq_length = config['max_seq_length']
 
-            # Test with minimal sample to verify dimensions
+            ## Test with minimal sample to verify dimensions
             test_embedding = model.encode(["test"], show_progress_bar=False)
             actual_dim = len(test_embedding[0])
 
-            # Update dimension in config
+            ## Update dimension in config
             self.model_configs[model_name]["dimension"] = actual_dim
             print(f"Model {model_name} loaded successfully. Dimension: {actual_dim}")
 
@@ -151,44 +148,50 @@ class EmbeddingModelManager:
             return None
 
     def chunk_text(self, text, max_length=500):
-        """
-        Chunk long text files to prevent memory overflow while preserving content.
-        Uses overlapping chunks to maintain context.
+        """!
+        Chunks long text files to prevent memory overflow while preserving content.
+        @return Overlapping chunks to maintain context.
         """
         if len(text) <= max_length:
             return [text]
 
         chunks = []
-        overlap = 50  # 50 character overlap to maintain context
+        ## 50 character overlap to maintain context
+        overlap = 50
 
         for i in range(0, len(text), max_length - overlap):
             chunk = text[i:i + max_length]
-            if chunk.strip():  # Only add non-empty chunks
+            ## Only adds non-empty chunks
+            if chunk.strip():
                 chunks.append(chunk)
 
         return chunks
 
     def embed_texts(self, texts, model_name, batch_size=8):
-        """
-        Generate embeddings with aggressive memory management and chunking.
-        Reduced batch size for P100 compatibility.
+        """!
+        Generates embeddings with aggressive memory management and chunking.
+        Small batch sizes intended for use with a P100 GPU through Kaggle.
+        @return Lists containing complete embeddings and raw text metadata.
         """
         model = self.load_model(model_name)
         if model is None:
             return None
 
         try:
+            ## Total list of embeddings
             all_embeddings = []
+
+            ## List of raw text metadata
             processed_texts = []
 
-            # Process and chunk texts first
+            ## Process and chunk texts first
             for text in texts:
                 chunks = self.chunk_text(text)
                 processed_texts.extend(chunks)
 
             print(f"Processing {len(processed_texts)} text chunks (from {len(texts)} original files)")
 
-            # Process in very small batches for P100
+            ## Process in very small batches for P100
             for i in range(0, len(processed_texts), batch_size):
                 batch = processed_texts[i:i + batch_size]
 
@@ -197,11 +200,12 @@ class EmbeddingModelManager:
                         batch,
                         convert_to_numpy=True,
                         show_progress_bar=False,
-                        batch_size=min(4, len(batch))  # Even smaller internal batches
+                        ## Smaller internal batches prevent memory overrun
+                        batch_size=min(4, len(batch))
                     )
                     all_embeddings.extend(batch_embeddings)
 
-                    # Memory cleanup between batches
+                    ## Memory cleanup between batches
                     if i % (batch_size * 4) == 0:
                         gc.collect()
                         if torch.cuda.is_available():
@@ -212,7 +216,7 @@ class EmbeddingModelManager:
 
                 except Exception as e:
                     print(f"Error in batch {i}: {e}")
-                    # Skip this batch but continue processing
+                    ## Skip this batch but continue processing
                     continue
 
             return all_embeddings, processed_texts
@@ -222,18 +226,23 @@ class EmbeddingModelManager:
             return None, None
 
     def get_dimension(self, model_name):
-        """Get the embedding dimension for a specific model."""
+        """! Gets the embedding dimension for a specific model."""
         return self.model_configs.get(model_name, {}).get("dimension", 768)
 
     def cleanup(self):
-        """Clean up loaded models and free GPU memory."""
+        """! Cleans up loaded models and frees GPU memory."""
         self.aggressive_cleanup()
         print("Model cleanup completed.")
 
 class RepositoryEmbedder:
-    """
-    Enhanced repository processor with chunk-aware storage and metadata preservation.
-    Modified to handle repository pairs and separate Milvus instances.
+    """!
+    Repository processor class with chunk-aware storage and metadata preservation.
+    Handles repository pairs as separate Milvus instances.
+    @param self Object pointer.
+    @param self.repos clone of the global repository list.
+    @param self.code_extensions A set of 30 common file extensions to microservices projects.
+    @param self.models A list of github URLs for the embedding models in use.
+    @param model_manager an EmbeddingModelManager instance.
     """
 
     def __init__(self, model_manager):
@@ -256,9 +265,9 @@ class RepositoryEmbedder:
         ]
 
     def group_repositories_into_pairs(self):
-        """
+        """!
         Group repositories into primary-fork pairs based on naming convention.
-        Returns a list of tuples: (pair_name, primary_repo, fork_repo)
+        @return A list of tuples: (pair_name, primary_repo, fork_repo)
         """
         pairs = []
         processed = set()
@@ -268,8 +277,8 @@ class RepositoryEmbedder:
                 continue
 
             if repo_name.endswith('-primary'):
-                # Look for corresponding fork
-                base_name = repo_name[:-8]  # Remove '-primary'
+                ## Looks for corresponding fork
+                base_name = repo_name[:-8]
                 fork_name = f"{base_name}-fork"
 
                 if fork_name in self.repos:
@@ -281,8 +290,8 @@ class RepositoryEmbedder:
                     print(f"Warning: No fork found for {repo_name}")
 
             elif repo_name.endswith('-fork'):
-                # Look for corresponding primary
-                base_name = repo_name[:-5]  # Remove '-fork'
+                ## Looks for corresponding primary
+                base_name = repo_name[:-5]
                 primary_name = f"{base_name}-primary"
 
                 if primary_name in self.repos and primary_name not in processed:
@@ -300,35 +309,43 @@ class RepositoryEmbedder:
         return pairs
 
     def create_milvus_instance(self, pair_name):
-        """Create a separate Milvus instance for a repository pair."""
+        """! Creates a new Milvus instance for a repository pair.
+        @param the name of a repo pair as a string.
+        @return A MilvusClient object."""
         db_path = f"./embed/data/{pair_name}.db"
         return MilvusClient(uri=db_path)
 
     def setup_collections_for_pair(self, milvus_client, pair_name, primary_repo, fork_repo):
-        """Setup 6 collections for a repository pair (2 repos × 3 models)."""
+        """!
+        Sets up 6 collections for a repository pair (2 repos × 3 models).
+        @param milvus_client A MilvusClient object.
+        @param pair_name The name of a repo pair as a string.
+        @param primary_repo The name of the primary repository as a string.
+        @param fork_repo The name of the fork repository as a string.
+        @return The set of collection names"""
         collections = {}
 
         for i, model_name in enumerate(self.models, 1):
-            # Collections for primary repository
+            ## Collections for primary repository
             primary_collection = f"primary_M{i}"
             collections[primary_collection] = (primary_repo, model_name)
 
-            # Collections for fork repository
+            ## Collections for fork repository
             fork_collection = f"fork_M{i}"
             collections[fork_collection] = (fork_repo, model_name)
 
         print(f"Setting up {len(collections)} collections for pair {pair_name}...")
 
         for collection_name, (repo_name, model_name) in collections.items():
-            # Drop existing collection
+            ## Drops existing collection if present
             if milvus_client.has_collection(collection_name):
                 milvus_client.drop_collection(collection_name)
                 print(f"Dropped existing collection: {collection_name}")
 
-            # Get model dimension
+            ## Gets model dimension
             dimension = self.model_manager.get_dimension(model_name)
 
-            # Create new collection with enhanced schema
+            ## Creates new collection
             milvus_client.create_collection(
                 collection_name=collection_name,
                 dimension=dimension,
@@ -340,7 +357,9 @@ class RepositoryEmbedder:
         return collections
 
     def extract_code_files(self, dir_path):
-        """Extract code files with enhanced metadata preservation."""
+        """! Extracts code files for embedding and preservation of plain text as metadata.
+        @param dir_path A directory path as a string
+        @return A list of all files with extensions defined in self.code_extensions"""
         dir_path = Path(dir_path)
         code_files = []
 
@@ -350,7 +369,7 @@ class RepositoryEmbedder:
                     with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                         content = f.read().strip()
 
-                    if content:  # Skip empty files
+                    if content:  ## Skips empty files
                         relative_path = str(file_path.relative_to(dir_path))
                         file_stats = file_path.stat()
 
@@ -370,21 +389,25 @@ class RepositoryEmbedder:
         return code_files
 
     def process_repository(self, repo_path, collection_name, model_name, milvus_client):
-        """
-        Process repository with chunk-aware storage and complete metadata preservation.
+        """!
+        Embeds a repository with chunk-aware storage and complete metadata preservation.
+        @param repo_path A directory path as a string.
+        @param collection_name A Milvus database collection name as a string.
+        @param model_name An embedding model's name as a string
+        @param milvus_client A milvus_client instance's name as a string.
         """
         print(f"Processing repository {repo_path} with model {model_name} -> {collection_name}")
 
-        # Extract code files
+        ## Extracts code files
         code_files = self.extract_code_files(repo_path)
         if not code_files:
             print(f"No code files found in {repo_path}")
             return
 
-        # Prepare texts for embedding
+        ## Prepares texts for embedding
         texts = [file_data['content'] for file_data in code_files]
 
-        # Generate embeddings with chunking
+        ## Generates embeddings with chunking
         print(f"Generating embeddings for {len(texts)} files...")
         result = self.model_manager.embed_texts(texts, model_name)
 
@@ -394,7 +417,7 @@ class RepositoryEmbedder:
 
         embeddings, processed_chunks = result
 
-        # Map chunks back to original files
+        ## Maps chunks back to original files
         data_to_insert = []
         chunk_idx = 0
 
@@ -417,8 +440,8 @@ class RepositoryEmbedder:
                     })
                     chunk_idx += 1
 
-        # Insert into Milvus in small batches
-        batch_size = 50  # Smaller batches for stability
+        ## Inserts data into Milvus in small batches for stability
+        batch_size = 50
         for i in range(0, len(data_to_insert), batch_size):
             batch = data_to_insert[i:i + batch_size]
             try:
@@ -431,10 +454,10 @@ class RepositoryEmbedder:
         print(f"Successfully processed {len(code_files)} files into {len(data_to_insert)} chunks for {collection_name}")
 
 def clone_repositories():
-    """Clone repositories with error handling."""
+    """! Clones repositories and handles errors, if present."""
     print("Setting up repositories...")
 
-    # Create data directory
+    ## Creates data directory
     os.makedirs("./data", exist_ok=True)
 
     import csv
@@ -450,12 +473,12 @@ def clone_repositories():
     for repo_name, repo_url in repos.items():
         repo_path = f"./data/{repo_name}"
 
-        # Remove existing directory
+        ## Removes existing directory, if present
         if os.path.exists(repo_path):
             shutil.rmtree(repo_path)
             print(f"Removed existing {repo_name} directory")
 
-        # Clone repository
+        ## Clones repository
         print(f"Cloning {repo_name} repository...")
         try:
             Repo.clone_from(repo_url, repo_path)
@@ -466,44 +489,43 @@ def clone_repositories():
 
 def main():
     """
-    Main execution with separate Milvus instances for each repository pair.
+    Main execution.
     """
     model_manager = None
 
     try:
-        # Initialize components
+        ## Initializes components
         print("Initializing embedding system...")
         model_manager = EmbeddingModelManager()
 
-        # Clone repositories
+        ## Clones repositories
         clone_repositories()
 
         embedder = RepositoryEmbedder(model_manager)
 
-        # Group repositories into pairs
+        ## Groups repositories into pairs
         repo_pairs = embedder.group_repositories_into_pairs()
 
         if not repo_pairs:
             print("No repository pairs found!")
             return
 
-        # Process each repository pair with its own Milvus instance
+        ## Processes each repository pair with its own Milvus instance
         for pair_name, primary_repo, fork_repo in repo_pairs:
             print(f"\n{'='*80}")
             print(f"Processing repository pair: {pair_name}")
             print(f"Primary: {primary_repo}, Fork: {fork_repo}")
             print(f"{'='*80}")
 
-            # Create separate Milvus instance for this pair
             milvus_client = embedder.create_milvus_instance(pair_name)
 
             try:
-                # Setup collections for this pair
+                ## Sets up collections for this pair
                 collections = embedder.setup_collections_for_pair(
                     milvus_client, pair_name, primary_repo, fork_repo
                 )
 
-                # Process all collections for this pair
+                ## Processes all collections for this pair
                 for collection_name, (repo_name, model_name) in collections.items():
                     print(f"\n{'-'*60}")
                     print(f"Processing {collection_name}: {repo_name} + {model_name}")
@@ -517,7 +539,7 @@ def main():
                         print(f"Error processing {collection_name}: {e}")
                         continue
 
-                    # Cleanup between models
+                    ## Cleans up between models
                     model_manager.aggressive_cleanup()
                     time.sleep(2)
 
@@ -528,11 +550,11 @@ def main():
                 continue
 
             finally:
-                # Close Milvus client for this pair
+                ## Closes Milvus client for this pair
                 if 'milvus_client' in locals():
                     del milvus_client
 
-                # Additional cleanup between pairs
+                ## Performs additional cleanup between pairs
                 gc.collect()
                 time.sleep(3)
 
@@ -545,7 +567,7 @@ def main():
         traceback.print_exc()
 
     finally:
-        # Cleanup
+        ## Performs final cleanup
         if model_manager:
             model_manager.cleanup()
         shutil.rmtree("./data")
