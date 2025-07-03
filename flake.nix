@@ -77,6 +77,7 @@
               pkgs.yarn
               pkgs.grpc
               pkgs.doxygen_gui
+              pkgs.graphviz
               venvShellHook
               pip
               jupyter
