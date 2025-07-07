@@ -99,18 +99,18 @@ Similar Code:
     return results, predicted_type, predicted_sim
 
 # --- MAIN WORKFLOW ---
-for iteration in range(5):
+for iteration in range(4,5):
     all_truth = []
     all_preds = []
 
     output = f'{OUTPUT_DIR}/RAG_vs_CodeNet_binary_results_mistral_41_iteration_{iteration}.csv'
-    with open(output, 'w', newline='') as outfile:
+    with open(output, 'a', newline='') as outfile:
         writer = csv.writer(outfile)
-        writer.writerow([
-            'PairID', 'File1', 'File2', 'Type-1', 'Type-2', 'Type-3', 'Type-4',
-            'PredictedType', 'PredictedSimilar', 'GroundTruthSimilar', 'ModelName'
-        ])
-        for idx, row in pairs_df.iloc[:1001].iterrows():
+        # writer.writerow([
+        #     'PairID', 'File1', 'File2', 'Type-1', 'Type-2', 'Type-3', 'Type-4',
+        #     'PredictedType', 'PredictedSimilar', 'GroundTruthSimilar', 'ModelName'
+        # ])
+        for idx, row in pairs_df.iloc[180:1001].iterrows():
             file1_path = os.path.join(DATA_DIR, row['file1'])
             file2_path = os.path.join(DATA_DIR, row['file2'])
             pair_id = row['pair-id']

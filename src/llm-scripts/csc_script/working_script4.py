@@ -6,6 +6,7 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 from sklearn.metrics import classification_report
 import json
 
+## Global Variables
 # --- CONFIGURATION ---
 DATA_DIR = "/projappl/project_2014646/shreya/data/data"
 PAIRS_CSV = "/projappl/project_2014646/shreya/pairs.csv"
@@ -19,10 +20,6 @@ LLMS = [
 pairs_df = pd.read_csv(PAIRS_CSV)
 ground_truth_df = pd.read_csv(GROUND_TRUTH_CSV)
 ground_truth_map = dict(zip(ground_truth_df['pair-id'], ground_truth_df['similar']))
-
-# --- TYPE TO BINARY SIMILARITY ---
-def type_to_binary(predicted_type):
-    return 1 if predicted_type in ["Type-4"] else 0
 
 # --- CODE TRUNCATION FOR CONTEXT FITTING ---
 def truncate_code(code, max_lines=50):
