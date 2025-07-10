@@ -48,7 +48,8 @@ PROMPTS = [
     {code2}
     """,
     # Prompt 3
-    """You are a code similarity expert. Analyze the following code pair step by step for clone detection.
+    """
+You are a code similarity expert. Analyze the following code pair step by step for clone detection.
 
 Definitions:
 - Type-1: Identical except for whitespace, comments, layout.
