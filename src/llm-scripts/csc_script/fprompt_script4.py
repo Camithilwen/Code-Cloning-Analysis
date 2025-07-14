@@ -31,51 +31,7 @@ PROMPTS = [
     {code1}
     Snippet 2:
     {code2}
-    """,
-    # Prompt 2
     """
-    Definitions:
-    - Type-1: Identical except for whitespace, comments, layout.
-    - Type-2: Identical except for variable/function names (plus Type-1 differences).
-    - Type-3: Similar, but with some statements added/removed/modified (plus Type-2 differences).
-    - Type-4: Syntactically different but functionally identical (same outputs for same inputs).
-    Analyze the following two code snippets for code clone detection, regardless of the programming language. You should first report which lines of code are more similar. Then based on the
-    report, please answer whether these two codes are a clone pair. The response should be 'yes'
-    or 'no' for each Type.
-    Snippet 1:
-    {code1}
-    Snippet 2:
-    {code2}
-    """,
-    # Prompt 3
-    """
-You are a code similarity expert. Analyze the following code pair step by step for clone detection.
-
-Definitions:
-- Type-1: Identical except for whitespace, comments, layout.
-- Type-2: Identical except for variable/function names (plus Type-1 differences).
-- Type-3: Similar, but with some statements added/removed/modified (plus Type-2 differences).
-- Type-4: Syntactically different but functionally identical (same outputs for same inputs).
-
-Examples:
-Type-1: 'int a=5;' vs 'int a = 5; // set a'
-Type-2: 'int a=5;' vs 'int b=5;'
-Type-3: 'int a=5; print(a);' vs 'int a=5;'
-Type-4: 'for(int i=0;i<5;i++)sum+=i;' vs 'sum = sum_of_first_n(5);'
-
-Step-by-step:
-1. Are the outputs always identical for all inputs? (Type-4)
-2. Are they identical except for whitespace/comments? (Type-1)
-3. Are names changed but structure identical? (Type-2)
-4. Are there statement-level edits? (Type-3)
-Explain your reasoning for each type and provide a 'yes' or 'no' for each category.
-
-Target Code:
-{code1}
-
-Similar Code:
-{code2}
-"""
 ]
 
 # --- LOAD PAIRS AND GROUND TRUTH ---
@@ -155,8 +111,8 @@ def rag_similarity_assessment(code1, code2, model_name, prompt):
 # --- MAIN WORKFLOW ---
 results_by_prompt = {i: {'truth': [], 'preds': []} for i in range(len(PROMPTS))}
 
-for iteration in range(11):
-    output = f"/projappl/project_2014646/shreya/results/RAG_vs_CodeNet_prompt_results_devstral_iteration_{iteration}.csv"
+for iteration in range(1):
+    output = f"/projappl/project_2014646/shreya/results/prompt_first_results_{LLMS[0]}_iteration_{iteration}.csv"
     with open(output, 'w', newline='') as outfile:
         writer = csv.writer(outfile)
         writer.writerow([
@@ -192,7 +148,7 @@ for iteration in range(11):
                     results_by_prompt[prompt_id]['preds'].append(predicted_sim)
 
     # --- EVALUATION METRICS ---
-    metrics_output = f'/projappl/project_2014646/shreya/results/metrics_devstral_prompt_iteration_{iteration}.txt'
+    metrics_output = f'/projappl/project_2014646/shreya/results/prompt_first{LLMS[0]}_iteration_{iteration}.txt'
     with open(metrics_output, 'w') as f:
         for prompt_id in range(len(PROMPTS)):
             truth = results_by_prompt[prompt_id]['truth']

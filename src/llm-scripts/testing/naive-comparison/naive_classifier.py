@@ -14,7 +14,7 @@ os.environ['HF_DATASETS_CACHE'] = '/Users/shreyanakum/Documents/NSF@Oulu/Code-Cl
 DATA_DIR = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/Project_CodeNet_experimentation_dataset/data"
 PAIRS_CSV = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/Project_CodeNet_experimentation_dataset/pairs.csv"
 GROUND_TRUTH_CSV = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/Project_CodeNet_experimentation_dataset/ground_truth.csv"
-OUTPUT_CSV = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/NAIVE_vs_CodeNet_binary_results_all.csv"
+OUTPUT_CSV = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/naive-comparison/NAIVE_vs_CodeNet_binary_results_all.csv"
 
 # -- EMBEDDING PAIRS --
 # --- LOAD PAIRS AND GROUND TRUTH ---
@@ -51,7 +51,7 @@ with open(OUTPUT_CSV, 'a', newline='') as outfile:
     #     'PairID', 'File1', 'File2', 
     #     'PredictedSimilar', 'GroundTruthSimilar',
     # ])
-    for idx, row in pairs_df.iloc[638:1000].iterrows():
+    for idx, row in pairs_df.iloc[1001:].iterrows():
         file1_path = os.path.join(DATA_DIR, row['file1'])
         file2_path = os.path.join(DATA_DIR, row['file2'])
         pair_id = row['pair-id']
