@@ -1,19 +1,22 @@
 import os
 import csv
 import pandas as pd
-import lmstudio as lms
+from vllm import LLM, SamplingParams
+from vllm.sampling_params import GuidedDecodingParams
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, mean_squared_error
 from sklearn.metrics import classification_report
+import json
 
 # --- CONFIGURATION ---
-DATA_DIR = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/Project_CodeNet_experimentation_dataset/data"
-PAIRS_CSV = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/Project_CodeNet_experimentation_dataset/pairs.csv"
-GROUND_TRUTH_CSV = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/Project_CodeNet_experimentation_dataset/ground_truth.csv"
-OUTPUT_DIR = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/"
+DATA_DIR = "/projappl/project_2014646/shreya/data/data"
+PAIRS_CSV = "/projappl/project_2014646/shreya/pairs.csv"
+GROUND_TRUTH_CSV = "/projappl/project_2014646/shreya/ground_truth.csv"
 
 LLMS = [
-    "mistralai/codestral-22b-v0.1"
+    "microsoft/phi-4"# < vllm model name
 ]
+
+mody_name = "phi-4"
 
 # --- LOAD PAIRS AND GROUND TRUTH ---
 pairs_df = pd.read_csv(PAIRS_CSV)
@@ -50,7 +53,6 @@ def determine_similarity(results):
 
 # --- PROMPT V2 WITH STEP-BY-STEP REASONING AND EXAMPLES ---
 def rag_similarity_assessment(code1, code2, model_name):
-    model = lms.llm(model_name)
     prompt = f"""You are a code similarity expert. Analyze the following code pair step by step for clone detection.
 
 Definitions:
@@ -77,11 +79,15 @@ Target Code:
 
 Similar Code:
 {code2}
-"""
 
-    schema = {
+Respond ONLY with a JSON object with the following keys: Type-1, Type-2, Type-3, Type-4, each with a confidence score between 0 and 1.
+"""
+    
+    # Call VLLM to get the response
+    llm = LLM(model=LLMS[0])
+    guided_decoding_params = GuidedDecodingParams(json={
         "type": "object",
-        "properties": {
+        "json_schema": {
             "Type-1": {"type": "number", "minimum": 0, "maximum": 1},
             "Type-2": {"type": "number", "minimum": 0, "maximum": 1},
             "Type-3": {"type": "number", "minimum": 0, "maximum": 1},
@@ -89,25 +95,34 @@ Similar Code:
         },
         "required": ["Type-1", "Type-2", "Type-3", "Type-4"]
     }
-    response = model.respond(prompt, response_format=schema)
-    results = response.parsed
+                                                  )
+    sampling_params = SamplingParams(guided_decoding=guided_decoding_params)
+    outputs = llm.generate(
+        prompts="Classify this sentiment: vLLM is wonderful!",
+        sampling_params=sampling_params,
+    )
+    # Parse the response
+    try:
+        results = outputs[0].outputs[0].text
+    except Exception:
+        # Fallback: handle parsing error
+        results = {"Type-1": -1, "Type-2": -1, "Type-3": -1, "Type-4": -1}
+
     predicted_type, predicted_sim = determine_similarity(results)
     return results, predicted_type, predicted_sim
 
 # --- MAIN WORKFLOW ---
-for i in range(1):
-    iteration = 1
+for iteration in range(1):
     all_truth = []
     all_preds = []
-    # output = f"/projappl/project_2014646/shreya/results/RAG_vs_CodeNet_binary_results_deepseek14b_iteration_{iteration}.csv"
-    output = f"{OUTPUT_DIR}/RAG_vs_CodeNet_binary_results_mistral_codestral22b_iteration_{iteration}.csv"
-    with open(output, 'a', newline='') as outfile: # missing entry 1102
+    output = f"/projappl/project_2014646/shreya/results/RAG_vs_CodeNet_binary_results_{mody_name}iteration_{iteration}.csv"
+    with open(output, 'w', newline='') as outfile:
         writer = csv.writer(outfile)
-        # writer.writerow([
-        #     'PairID', 'File1', 'File2', 'Type-1', 'Type-2', 'Type-3', 'Type-4',
-        #     'PredictedType', 'PredictedSimilar', 'GroundTruthSimilar', 'ModelName'
-        # ])
-        for idx, row in pairs_df.iloc[3892:].iterrows():
+        writer.writerow([
+            'PairID', 'File1', 'File2', 'Type-1', 'Type-2', 'Type-3', 'Type-4',
+            'PredictedType', 'PredictedSimilar', 'GroundTruthSimilar', 'ModelName'
+        ])
+        for idx, row in pairs_df.head(10).iterrows():
             file1_path = os.path.join(DATA_DIR, row['file1'])
             file2_path = os.path.join(DATA_DIR, row['file2'])
             pair_id = row['pair-id']
@@ -141,8 +156,6 @@ for i in range(1):
         rec = recall_score(all_truth, all_preds)
         f1 = f1_score(all_truth, all_preds)
         mse = mean_squared_error(all_truth, all_preds)
-
-        # 
-        with open(f'/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/metricsv2_{iteration}.txt', 'w') as f:
+        with open(f'/projappl/project_2014646/shreya/results/metrics_{mody_name}_iteration_{iteration}.txt', 'w') as f:
             print(f"Accuracy: {acc:.2f}, Precision: {prec:.2f}, Recall: {rec:.2f}, F1-Score: {f1:.2f}, MSE: {mse:.2f}\n", file=f)
             print(classification_report(all_truth, all_preds), file=f)

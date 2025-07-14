@@ -1,7 +1,8 @@
 import os
 import csv
 import pandas as pd
-import ollama
+from vllm import LLM, SamplingParams
+from vllm.sampling_params import GuidedDecodingParams
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, mean_squared_error
 from sklearn.metrics import classification_report
 import json
@@ -12,7 +13,7 @@ PAIRS_CSV = "/projappl/project_2014646/shreya/pairs.csv"
 GROUND_TRUTH_CSV = "/projappl/project_2014646/shreya/ground_truth.csv"
 
 LLMS = [
-    "deepseek-r1:14b"# < ollama model name
+    "deepseek-r1:14b"# < vllm model name
 ]
 
 # --- LOAD PAIRS AND GROUND TRUTH ---
@@ -83,17 +84,28 @@ Similar Code:
 
 Respond ONLY with a JSON object with the following keys: Type-1, Type-2, Type-3, Type-4, each with a confidence score between 0 and 1.
 """
-
-    # Call Ollama to get the response
-    result = ollama.generate(
-        model=model_name,
-        prompt=prompt
+    
+    # Call VLLM to get the response
+    llm = LLM(model=LLMS[0])
+    guided_decoding_params = GuidedDecodingParams(json={
+        "type": "object",
+        "json_schema": {
+            "Type-1": {"type": "number", "minimum": 0, "maximum": 1},
+            "Type-2": {"type": "number", "minimum": 0, "maximum": 1},
+            "Type-3": {"type": "number", "minimum": 0, "maximum": 1},
+            "Type-4": {"type": "number", "minimum": 0, "maximum": 1},
+        },
+        "required": ["Type-1", "Type-2", "Type-3", "Type-4"]
+    }
+                                                  )
+    sampling_params = SamplingParams(guided_decoding=guided_decoding_params)
+    outputs = llm.generate(
+        prompts="Classify this sentiment: vLLM is wonderful!",
+        sampling_params=sampling_params,
     )
-    response_text = result['response']
-
-    # Parse the response as JSON
+    # Parse the response
     try:
-        results = json.loads(response_text)
+        results = outputs[0].outputs[0].text
     except Exception:
         # Fallback: handle parsing error
         results = {"Type-1": -1, "Type-2": -1, "Type-3": -1, "Type-4": -1}
