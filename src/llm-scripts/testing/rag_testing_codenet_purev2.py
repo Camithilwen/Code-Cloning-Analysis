@@ -107,7 +107,7 @@ for i in range(1):
         #     'PairID', 'File1', 'File2', 'Type-1', 'Type-2', 'Type-3', 'Type-4',
         #     'PredictedType', 'PredictedSimilar', 'GroundTruthSimilar', 'ModelName'
         # ])
-        for idx, row in pairs_df.iloc[3892:].iterrows():
+        for idx, row in pairs_df.iloc[4793:].iterrows():
             file1_path = os.path.join(DATA_DIR, row['file1'])
             file2_path = os.path.join(DATA_DIR, row['file2'])
             pair_id = row['pair-id']
