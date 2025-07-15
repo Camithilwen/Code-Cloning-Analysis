@@ -22,6 +22,7 @@ if [ ! -d "venv" ]; then
     pip install --upgrade pip
     pip install ollama pydantic pandas requests pymilvus
 else
+    pip install pymilvus
     source venv/bin/activate
 fi
 

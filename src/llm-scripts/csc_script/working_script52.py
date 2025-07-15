@@ -4,10 +4,11 @@ import pandas as pd
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, mean_squared_error
 from sklearn.metrics import classification_report
 import json
-from pydantic import BaseModel, Field
+from pydantic import Field
 from enum import Enum
 from typing import List
-from llama_index.llms.ollama import Ollama, stream_structured_predict
+from llama_index.llms.ollama import Ollama
+from llama_index.core.bridge.pydantic import BaseModel
 
 
 class Confidence(BaseModel):
@@ -96,25 +97,37 @@ Respond ONLY with a JSON object with the following keys: Type-1, Type-2, Type-3,
     
     # Call VLLM to get the response
     llm = Ollama(model="llama3.1:latest", request_timeout=120.0)
-    output = stream_structured_predict(Confidence, prompt)
-    print(f'Output: {output}\n')
-    # program = LLMTextCompletionProgram.from_defaults(
-    #     llm=llm,
-    #     output_cls=Confidence,
-    #     prompt_template_str=prompt,
-    #     verbose=True,
-    # )
-    # output = program()
-    # Parse the response
+    sllm = llm.as_structured_llm(Confidence)
+    response = sllm.complete(prompt)
+
+    print(f'Output: {response}\n')
     try:
-        results = {"Type-1": output[0][0].type1, 
-                   "Type-2": output[0][0].type2, 
-                   "Type-3": output[0][0].type3, 
-                   "Type-4": output[0][0].type4
-                   }
-    except Exception:
-        # Fallback: handle parsing error
+        # Try different parsings based on what RAW response shows
+        # Example:
+        if isinstance(response, Confidence):
+            results = {
+                "Type-1": response.type1,
+                "Type-2": response.type2,
+                "Type-3": response.type3,
+                "Type-4": response.type4,
+            }
+        elif isinstance(response, dict):
+            results = {
+                "Type-1": response.get("Type-1"),
+                "Type-2": response.get("Type-2"),
+                "Type-3": response.get("Type-3"),
+                "Type-4": response.get("Type-4"),
+            }
+        # Add more cases if needed
+        else:
+            raise ValueError("Unknown response type")
+    except Exception as e:
+        print("Parsing error:", e)
         results = {"Type-1": -1, "Type-2": -1, "Type-3": -1, "Type-4": -1}
+
+
+
+
 
     predicted_type, predicted_sim = determine_similarity(results)
     return results, predicted_type, predicted_sim
