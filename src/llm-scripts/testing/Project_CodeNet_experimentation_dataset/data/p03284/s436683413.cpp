@@ -1,0 +1,15 @@
+#include <iostream>
+
+using namespace std;
+
+int main(void) {
+  int N, K;
+  cin >> N >> K;
+
+  if(N % K == 0){
+    cout << "0" << endl;
+  }else{
+    cout << "1" << endl;
+  }
+  return 0;
+}

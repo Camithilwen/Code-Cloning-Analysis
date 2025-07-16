@@ -31,6 +31,34 @@ pairs_df = pd.read_csv(PAIRS_CSV)
 ground_truth_df = pd.read_csv(GROUND_TRUTH_CSV)
 ground_truth_map = dict(zip(ground_truth_df['pair-id'], ground_truth_df['similar']))
 
+# -- JSON MAPPER --
+def safe_parse_response(response):
+    import json
+    print(type(response))
+    if isinstance(response, Confidence):
+        print("confidence")
+        return {"Type-1": response.type1, "Type-2": response.type2, "Type-3": response.type3, "Type-4": response.type4}
+    try:
+        if isinstance(response, dict):
+            print("dict")
+            return {
+                "Type-1": response.get("Type-1") or response.get("type1"),
+                "Type-2": response.get("Type-2") or response.get("type2"),
+                "Type-3": response.get("Type-3") or response.get("type3"),
+                "Type-4": response.get("Type-4") or response.get("type4"),
+            }
+        elif isinstance(response, str):
+            data = json.loads(response)
+            return {
+                "Type-1": data.get("Type-1") or data.get("type1"),
+                "Type-2": data.get("Type-2") or data.get("type2"),
+                "Type-3": data.get("Type-3") or data.get("type3"),
+                "Type-4": data.get("Type-4") or data.get("type4"),
+            }
+    except Exception as e:
+        print("Parsing error:", e)
+    return {"Type-1": -1, "Type-2": -1, "Type-3": -1, "Type-4": -1}
+
 # --- TYPE TO BINARY SIMILARITY ---
 def type_to_binary(predicted_type):
     return 1 if predicted_type in ["Type-4"] else 0
@@ -101,33 +129,7 @@ Respond ONLY with a JSON object with the following keys: Type-1, Type-2, Type-3,
     response = sllm.complete(prompt)
 
     print(f'Output: {response}\n')
-    try:
-        # Try different parsings based on what RAW response shows
-        # Example:
-        if isinstance(response, Confidence):
-            results = {
-                "Type-1": response.type1,
-                "Type-2": response.type2,
-                "Type-3": response.type3,
-                "Type-4": response.type4,
-            }
-        elif isinstance(response, dict):
-            results = {
-                "Type-1": response.get("Type-1"),
-                "Type-2": response.get("Type-2"),
-                "Type-3": response.get("Type-3"),
-                "Type-4": response.get("Type-4"),
-            }
-        # Add more cases if needed
-        else:
-            raise ValueError("Unknown response type")
-    except Exception as e:
-        print("Parsing error:", e)
-        results = {"Type-1": -1, "Type-2": -1, "Type-3": -1, "Type-4": -1}
-
-
-
-
+    results = safe_parse_response(response)
 
     predicted_type, predicted_sim = determine_similarity(results)
     return results, predicted_type, predicted_sim
