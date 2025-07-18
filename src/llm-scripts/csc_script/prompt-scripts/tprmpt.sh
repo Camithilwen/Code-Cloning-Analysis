@@ -4,7 +4,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=10
 #SBATCH --mem=130G
-#SBATCH --time=1-12:00:00
+#SBATCH --time=0-00:15:00
 #SBATCH --gres=gpu:a100:2
 
 OLLAMA_SCRATCH=/scratch/project_2014646/shreya/ollama
@@ -16,12 +16,14 @@ export PATH=/projappl/project_2014646/shreya/bin:$PATH
 module load python-data/3.10
 
 # Set up virtual environment
-rm -rf venv
-python -m venv venv
-source venv/bin/activate
-pip install --upgrade pip
-pip install ollama pydantic pandas scikit-learn requests llama-index llama-index-llms-ollama
-python -c "import llama_index"
+if [ ! -d "venv" ]; then
+    python -m venv venv
+    source venv/bin/activate
+    pip install --upgrade pip
+    pip install ollama pydantic pandas scikit-learn requests
+else
+    source venv/bin/activate
+fi
 
 # Start Ollama in background
 echo "Starting Ollama server..."
@@ -36,7 +38,7 @@ ollama list
 # ollama run deepseek-r1:32b "Why is the sky blue?"
 # Run the Python script
 echo "Starting similarity analysis..."
-python working_script52.py
+python tprompt_script4.py
 
 # Cleanup
 kill $OLLAMA_PID

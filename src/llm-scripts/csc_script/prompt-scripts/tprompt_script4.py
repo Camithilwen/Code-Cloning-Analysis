@@ -1,43 +1,89 @@
 import os
 import csv
 import pandas as pd
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, classification_report, mean_squared_error
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, mean_squared_error
+from sklearn.metrics import classification_report
 import json
-import ollama
+from pydantic import Field
+from enum import Enum
+from typing import List
+from llama_index.llms.ollama import Ollama
+from llama_index.core.bridge.pydantic import BaseModel
 
 # --- CONFIGURATION ---
 DATA_DIR = "/projappl/project_2014646/shreya/data/data"
 PAIRS_CSV = "/projappl/project_2014646/shreya/pairs.csv"
 GROUND_TRUTH_CSV = "/projappl/project_2014646/shreya/ground_truth.csv"
-# OUTPUT_CSV = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/RAG_vs_CodeNet_binary_results_scoder_simple_prompts3-1.csv"
-# METRICS_TXT = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/metricsv2p3-1.txt"
 
 LLMS = [
-    "devstral:24b"
+    "llama3.1:latest"# < vllm model name
 ]
+
+class Confidence(BaseModel):
+    type1: str
+    type2: str
+    type3: str
+    type4: str
 
 # --- PROMPTS ---
 PROMPTS = [
-    # Prompt 1
-    """Definitions:
-    - Type-1: Identical except for whitespace, comments, layout.
-    - Type-2: Identical except for variable/function names (plus Type-1 differences).
-    - Type-3: Similar, but with some statements added/removed/modified (plus Type-2 differences).
-    - Type-4: Syntactically different but functionally identical (same outputs for same inputs).
-    Analyze the following two code snippets and determine whether they are clones, regardless of
-    the programming language. Respond with 'yes' if the code snippets are clones or 'no' if not for
-    each category of Type-1, Type-2, Type-3, and Type-4.
-    Snippet 1:
-    {code1}
-    Snippet 2:
-    {code2}
+    # Prompt 3
     """
+You are a code similarity expert. Analyze the following code pair step by step for clone detection.
+
+Definitions:
+- Type-1: Identical except for whitespace, comments, layout.
+- Type-2: Identical except for variable/function names (plus Type-1 differences).
+- Type-3: Similar, but with some statements added/removed/modified (plus Type-2 differences).
+- Type-4: Syntactically different but functionally identical (same outputs for same inputs).
+
+Examples:
+Type-1: 'int a=5;' vs 'int a = 5; // set a'
+Type-2: 'int a=5;' vs 'int b=5;'
+Type-3: 'int a=5; print(a);' vs 'int a=5;'
+Type-4: 'for(int i=0;i<5;i++)sum+=i;' vs 'sum = sum_of_first_n(5);'
+
+Step-by-step:
+1. Are the outputs always identical for all inputs? (Type-4)
+2. Are they identical except for whitespace/comments? (Type-1)
+3. Are names changed but structure identical? (Type-2)
+4. Are there statement-level edits? (Type-3)
+Explain your reasoning for each type and provide a 'yes' or 'no' for each category.
+
+Target Code:
+{code1}
+
+Similar Code:
+{code2}
+"""
 ]
 
 # --- LOAD PAIRS AND GROUND TRUTH ---
 pairs_df = pd.read_csv(PAIRS_CSV)
 ground_truth_df = pd.read_csv(GROUND_TRUTH_CSV)
 ground_truth_map = dict(zip(ground_truth_df['pair-id'], ground_truth_df['similar']))
+
+# -- JSON MAPPER --
+def safe_parse_response(response):
+    import json
+    print(type(response))
+    json_response = json.loads(response.text)
+    print(f'json: {json_response}')
+    pdantic_results = response.raw
+    print(f'pydantic: {pdantic_results}')
+    try:
+        results = {"Type-1": pdantic_results.type1, "Type-2": pdantic_results.type2, 
+                "Type-3": pdantic_results.type3, "Type-4": pdantic_results.type4}
+        return results
+    except Exception as e:
+        print("Parsing error 1: ", e)
+        try:
+            results = {"Type-1": json_response["type1"], "Type-2": json_response["type2"], 
+                "Type-3": json_response["type3"], "Type-4": json_response["type4"]}
+            return results
+        except Exception as e:
+            print("Parsing error 2: ", e)
+            return {"Type-1": "no", "Type-2": "no", "Type-3": "no", "Type-4": "no"} 
 
 # --- ENSEMBLE ASSESSMENT ---
 def ensemble_assessment(code1, code2, model_name, prompt, n=3):
@@ -48,16 +94,20 @@ def ensemble_assessment(code1, code2, model_name, prompt, n=3):
     # Majority voting on predicted_sim
     sim_votes = [pred[2] for pred in predictions]
     final_sim = max(set(sim_votes), key=sim_votes.count)
+    print("sim votes: ", sim_votes)
+    print("final_sim: ", final_sim)
     # Most frequent predicted_type
     type_votes = [pred[1] for pred in predictions]
     final_type = max(set(type_votes), key=type_votes.count)
+    print("type_votes: ", type_votes)
+    print("final_type: ", final_type)
     # Average results for reporting
     average_res = dict()
     for t in ["Type-1", "Type-2", "Type-3", "Type-4"]:
         sum_yes = 0
         for pred in predictions:
             n = pred[0][t]
-            print(f'n: {n}')
+            # print(f'n: {n}')
             if n == 'yes' or n=='Yes' or 'yes' in n or 'Yes' in n:
                 n = 1
             else:
@@ -67,6 +117,13 @@ def ensemble_assessment(code1, code2, model_name, prompt, n=3):
             average_res[t] = sum_yes / n
         except ZeroDivisionError:
             average_res[t] = 0
+    print("average res", average_res)
+    for key, value in average_res.items():
+        if value == 0:
+            average_res[key] = "no"
+        else:
+            average_res[key] = "yes"
+    print("average res", average_res)
     return average_res, final_type, final_sim
 
 # --- THRESHOLD-BASED SIMILARITY DECISION ---
@@ -83,36 +140,24 @@ def determine_similarity(results):
 def rag_similarity_assessment(code1, code2, model_name, prompt):
     # Format the prompt with the code snippets
     prompt_filled = prompt.format(code1=code1, code2=code2)
-    schema = {
-    "type": "object",
-    "properties": {
-        "Type-1": {"type": "string", "enum": ["yes", "no"]},
-        "Type-2": {"type": "string", "enum": ["yes", "no"]},
-        "Type-3": {"type": "string", "enum": ["yes", "no"]},
-        "Type-4": {"type": "string", "enum": ["yes", "no"]}
-    },
-    "required": ["Type-1", "Type-2", "Type-3", "Type-4"]
-}
 
-    # Call Ollama to get the response
-    result = ollama.generate(
-        model=model_name,
-        prompt=prompt
-    )
-    response_text = result['response']
-    try:
-        results = json.loads(response_text)
-    except Exception:
-        # Fallback: handle parsing error
-        results = {"Type-1": "no", "Type-2": "no", "Type-3": "no", "Type-4": "no"}
+    llm = Ollama(model="llama3.1:latest", request_timeout=120.0)
+    sllm = llm.as_structured_llm(Confidence)
+    response = sllm.complete(prompt)
+
+    print(f'Output: {response}\n')
+    results = safe_parse_response(response)
+    print('results:', results)
+
     predicted_type, predicted_sim = determine_similarity(results)
+    print("preds: ", predicted_type, predicted_sim)
     return results, predicted_type, predicted_sim
 
 # --- MAIN WORKFLOW ---
 results_by_prompt = {i: {'truth': [], 'preds': []} for i in range(len(PROMPTS))}
 
 for iteration in range(1):
-    output = f"/projappl/project_2014646/shreya/results/prompt_first_results_{LLMS[0]}_iteration_{iteration}.csv"
+    output = f"/projappl/project_2014646/shreya/results/prompt_third_results_{LLMS[0]}_iteration_{iteration}.csv"
     with open(output, 'w', newline='') as outfile:
         writer = csv.writer(outfile)
         writer.writerow([
@@ -148,7 +193,7 @@ for iteration in range(1):
                     results_by_prompt[prompt_id]['preds'].append(predicted_sim)
 
     # --- EVALUATION METRICS ---
-    metrics_output = f'/projappl/project_2014646/shreya/results/prompt_first{LLMS[0]}_iteration_{iteration}.txt'
+    metrics_output = f'/projappl/project_2014646/shreya/results/prompt_third_{LLMS[0]}_iteration_{iteration}.txt'
     with open(metrics_output, 'w') as f:
         for prompt_id in range(len(PROMPTS)):
             truth = results_by_prompt[prompt_id]['truth']
