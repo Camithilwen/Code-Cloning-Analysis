@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --account=project_2014646
-#SBATCH --partition=gpumedium
+#SBATCH --partition=gpusmall
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=10
 #SBATCH --mem=130G
-#SBATCH --time=1-01:00:00
-#SBATCH --gres=gpu:a100:4
+#SBATCH --time=0-1:00:00
+#SBATCH --gres=gpu:a100:2
 
 OLLAMA_SCRATCH=/scratch/project_2014646/shreya/ollama
 export OLLAMA_MODELS=${OLLAMA_SCRATCH}/models
@@ -16,15 +16,12 @@ export PATH=/projappl/project_2014646/shreya/bin:$PATH
 module load python-data/3.10
 
 # Set up virtual environment
-if [ ! -d "venv" ]; then
-    python -m venv venv
-    source venv/bin/activate
-    pip install --upgrade pip
-    pip install ollama pydantic pandas requests pymilvus
-else
-    pip install pymilvus
-    source venv/bin/activate
-fi
+rm -rf venv
+python -m venv venv
+source venv/bin/activate
+pip install --upgrade pip
+pip install ollama pydantic pandas requests pymilvus
+python -c "import pymilvus"
 
 # Start Ollama in background
 echo "Starting Ollama server..."
