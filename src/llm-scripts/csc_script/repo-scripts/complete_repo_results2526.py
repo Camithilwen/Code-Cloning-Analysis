@@ -5,16 +5,24 @@ import csv
 import pandas as pd
 import os
 import json
+import time
+
+start = time.time()
 
 # --- CONFIGURATION ---
+DONE = ['Micro-demo.db', 'Spring-netflix.db', 'qbike.db', 'Micro-ewolff.db']
+FILE_NAMES = ['Google-demo.db', 'paulc4-demo.db', 'Micro-ref.db', 
+               'jaeger.db', 'Spring-movie.db', 'Blog.db', 'Lakeside.db', 'Micro-consul.db', 
+              'apollo.db', 'Robot-shop.db', 'sitewhere.db', 'E-commerce.db', 'Spring-micro.db', 'Micro-comp.db', 
+              'Ftgo-application.db', 'eShop.db', 'Cqrs.db', 'MusicStore.db', 'piggymetrics.db']
 MAX_TARGET_FILE_ID = 10000
 TOP_K = 1
 RUN_NUM = 1
 DIR_NAME = "/projappl/project_2014646/shreya/repo_results"
 DB_PATH = "/projappl/project_2014646/shreya/DB_Paths"
-FILES_MIN = 11
-FILES_MAX = 12
-FILES = f'{FILES_MIN}{FILES_MAX}'
+FILES_MIN = 12
+FILES_MAX = 13
+FILES = f'{FILE_NAMES[FILES_MIN]}_{FILE_NAMES[FILES_MAX]}'
 LLMS = [
     "devstral:24b",
 ]
@@ -138,9 +146,7 @@ def main():
             'TargetFileID', 'SimilarFileID', 'Type-1', 'Type-2', 'Type-3', 'Type-4',
             'PredictedType', 'ModelName', 'TargetCollection', 'SimilarCollection', 'Database'
         ])
-        for db_name in os.listdir(DB_PATH)[FILES_MIN:FILES_MAX+1]:
-            if ".lock" in db_name:
-                continue
+        for db_name in FILE_NAMES[FILES_MIN:FILES_MAX+1]:
             print(f'Analyzing {db_name}...')
             for col_pair in collection_pairs:
                 all_embeddings = get_all_embeddings_from_all_collections(f'{DB_PATH}/{db_name}', col_pair)
@@ -158,3 +164,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+    end = time.time()
+    print(end - start)
