@@ -8,7 +8,7 @@ library(dplyr)
 library(pheatmap)
 
 # Load the dataset from the CSV file
-dataset_og <- read_csv("/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/full_pipeline/milvus_rag_results_12.csv")
+dataset_og <- read_csv("/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/full_pipeline/milvus_complete.csv")
 
 # Display the first few rows of the dataset
 head(dataset_og)
@@ -47,6 +47,8 @@ print(round(expected_counts, 2))
 # Pearson residuals
 pearson_residuals <- chi_square_test$residuals
 print(round(pearson_residuals, 2))
+
+
 
 # p value is less than alpha = 2.2e-16, which means that our results are statistically
 # significant.
