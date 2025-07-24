@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 # --- DISTRUBTION OF TYPES PLOT ---
-df_og = pd.read_csv("/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/full_pipeline/milvus_rag_results_12.csv")
+df_og = pd.read_csv("/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/full_pipeline/milvus_complete.csv")
 
 df = df_og[(df_og['Type-1']!=-1) & 
               (df_og['Type-2']!=-1) &
@@ -31,4 +31,4 @@ plt.xlabel('Type')
 plt.ylabel('Count')
 plt.legend(title='Collection')
 plt.tight_layout()
-plt.savefig("./distribution12col.svg")
+plt.savefig("./distribution12910col.png")
