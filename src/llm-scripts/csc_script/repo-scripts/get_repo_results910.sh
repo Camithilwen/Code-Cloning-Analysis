@@ -16,11 +16,11 @@ export PATH=/projappl/project_2014646/shreya/bin:$PATH
 module load python-data/3.10
 
 # Set up virtual environment
-# rm -rf venv
-# python -m venv venv
+rm -rf venv
+python -m venv venv
 source venv/bin/activate
 pip install --upgrade pip
-pip install ollama pydantic pandas requests pymilvus
+pip install ollama pydantic pandas requests pymilvus numpy
 python -c "import pymilvus"
 
 # Start Ollama in background
@@ -36,7 +36,7 @@ ollama list
 # ollama run deepseek-r1:32b "Why is the sky blue?"
 # Run the Python script
 echo "Getting repository resutls..."
-python 24repores.py
+python complete_repo_results910.py
 
 # Cleanup
 kill $OLLAMA_PID

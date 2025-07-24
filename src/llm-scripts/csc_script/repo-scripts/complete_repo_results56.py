@@ -5,6 +5,10 @@ import csv
 import pandas as pd
 import os
 import json
+import time
+
+start = time.time()
+
 
 # --- CONFIGURATION ---
 MAX_TARGET_FILE_ID = 10000
@@ -12,7 +16,9 @@ TOP_K = 1
 RUN_NUM = 1
 DIR_NAME = "/projappl/project_2014646/shreya/repo_results"
 DB_PATH = "/projappl/project_2014646/shreya/DB_Paths"
-files = 45
+FILES_MIN = 5
+FILES_MAX = 6
+FILES = f'{FILES_MIN}{FILES_MAX}'
 LLMS = [
     "devstral:24b",
 ]
@@ -115,7 +121,7 @@ Respond ONLY with a JSON object with the following keys: Type-1, Type-2, Type-3,
             results = json.loads(response_text)
         except Exception:
             # Fallback: handle parsing error
-            results = {"Type-1": 0, "Type-2": 0, "Type-3": 0, "Type-4": 0}
+            results = {"Type-1": -1, "Type-2": -1, "Type-3": -1, "Type-4": -1}
         return results
     
     results = assess_pair(target_code, similar_codes[2], model_name)
@@ -130,13 +136,13 @@ Respond ONLY with a JSON object with the following keys: Type-1, Type-2, Type-3,
 # --- MAIN WORKFLOW ---
 def main():
     # change at 
-    with open(f"{DIR_NAME}/milvus_rag_results_{files}.csv", '2', newline='') as file:
+    with open(f"{DIR_NAME}/milvus_rag_results_{FILES}.csv", 'w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow([
             'TargetFileID', 'SimilarFileID', 'Type-1', 'Type-2', 'Type-3', 'Type-4',
             'PredictedType', 'ModelName', 'TargetCollection', 'SimilarCollection', 'Database'
         ])
-        for db_name in os.listdir(DB_PATH)[4:6]:
+        for db_name in os.listdir(DB_PATH)[FILES_MIN:FILES_MAX+1]:
             print(f'Analyzing {db_name}...')
             for col_pair in collection_pairs:
                 all_embeddings = get_all_embeddings_from_all_collections(f'{DB_PATH}/{db_name}', col_pair)
@@ -154,3 +160,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+    end = time.time()
+    print(end - start)
