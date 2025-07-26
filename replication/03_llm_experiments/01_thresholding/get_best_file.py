@@ -1,13 +1,28 @@
+# /// script
+# ///
+
 import os
 import re
 import math
 import glob
 
+# /**
+#  * @brief Extracts the second occurrence of evaluation metrics from a file.
+#  * 
+#  * This function searches for lines in the format:
+#  * "Accuracy: ..., Precision: ..., Recall: ..., F1-Score: ..."
+#  * and extracts the second such occurrence (if it exists) from the file.
+#  *
+#  * @param file_path The path to the text file to parse.
+#  * @return A dictionary containing the second block of metrics with keys:
+#  *         'file', 'accuracy', 'precision', 'recall', 'f1_score', or
+#  *         None if the second block is not found.
+#  */
 def extract_second_metrics_from_file(file_path):
     with open(file_path, 'r') as f:
         content = f.read()
 
-        # Match all "Accuracy: ..., Precision: ..., Recall: ..., F1-Score: ..." lines
+        # Match all metric blocks
         matches = re.findall(
             r'Accuracy\s*:\s*([0-9.]+|nan)\s*,\s*'
             r'Precision\s*:\s*([0-9.]+|nan)\s*,\s*'
@@ -16,7 +31,7 @@ def extract_second_metrics_from_file(file_path):
             content, re.IGNORECASE
         )
 
-        # Only use the second match if it exists
+        # Return the second set of metrics if available
         if len(matches) >= 2:
             accuracy, precision, recall, f1 = matches[1]
             return {
@@ -27,8 +42,18 @@ def extract_second_metrics_from_file(file_path):
                 'f1_score': float(f1) if f1 != 'nan' else float('nan')
             }
         else:
-            return None  # Skip files without 2 blocks
+            return None  # Not enough metric blocks found
 
+# /**
+#  * @brief Finds the file with the best metric value in a directory.
+#  * 
+#  * Iterates over all .txt files in the specified directory and uses
+#  * the second block of metrics for comparison.
+#  *
+#  * @param directory The directory containing the result files.
+#  * @param metric The metric to optimize ('accuracy', 'precision', 'recall', or 'f1_score').
+#  * @return A dictionary with the file path and best metric values, or None if no valid files found.
+#  */
 def find_best_file_by_metric(directory, metric='f1_score'):
     all_metrics = []
 
@@ -43,10 +68,10 @@ def find_best_file_by_metric(directory, metric='f1_score'):
     best = max(all_metrics, key=lambda x: x[metric])
     return best
 
-# Example usage
+# /// Example usage
 if __name__ == "__main__":
     directory_path = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/best_threshold/ITER4.2"
-    best_result = find_best_file_by_metric(directory_path, metric='accuracy')  # or 'accuracy'
+    best_result = find_best_file_by_metric(directory_path, metric='accuracy')  # Change metric as needed
 
     if best_result:
         print(f"Best file (based on second metric block): {best_result['file']}")
