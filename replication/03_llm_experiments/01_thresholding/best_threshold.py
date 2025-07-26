@@ -1,3 +1,12 @@
+# /// script
+# dependencies = [
+#   "GitPython",
+#   "pandas",
+#   "lmstudio",
+#   "scikit-learn",
+# ]
+# ///
+
 import os
 import csv
 import pandas as pd
@@ -6,49 +15,83 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 from sklearn.metrics import classification_report
 
 # --- CONFIGURATION ---
+## @var DATA_DIR
+#  @brief Path to the directory containing code files for similarity comparison.
 DATA_DIR = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/Project_CodeNet_experimentation_dataset/data"
+
+## @var PAIRS_CSV
+#  @brief CSV file containing file pairs to compare.
 PAIRS_CSV = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/Project_CodeNet_experimentation_dataset/pairs.csv"
+
+## @var GROUND_TRUTH_CSV
+#  @brief CSV file containing ground truth similarity labels for file pairs.
 GROUND_TRUTH_CSV = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/Project_CodeNet_experimentation_dataset/ground_truth.csv"
 
+## @var LLMS
+#  @brief List of model names to use for clone detection.
 LLMS = [
     "mistralai/codestral-22b-v0.1"
 ]
 
+## @var thresholds
+#  @brief List of similarity score thresholds to test.
 thresholds = [0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]
 
-# --- LOAD PAIRS AND GROUND TRUTH ---
+# --- LOAD DATA ---
+## @var pairs_df
+#  @brief DataFrame of file pairs to compare.
 pairs_df = pd.read_csv(PAIRS_CSV)
+
+## @var ground_truth_df
+#  @brief DataFrame containing ground truth similarity labels.
 ground_truth_df = pd.read_csv(GROUND_TRUTH_CSV)
+
+## @var ground_truth_map
+#  @brief Dictionary mapping pair IDs to binary similarity values.
 ground_truth_map = dict(zip(ground_truth_df['pair-id'], ground_truth_df['similar']))
 
-# --- TYPE TO BINARY SIMILARITY ---
+## @fn type_to_binary(predicted_type)
+#  @brief Convert predicted clone type to binary similarity label.
+#  @param predicted_type The predicted clone type (e.g., "Type-4").
+#  @return 1 if Type-4 clone, else 0.
 def type_to_binary(predicted_type):
     return 1 if predicted_type in ["Type-4"] else 0
 
-# --- CODE TRUNCATION FOR CONTEXT FITTING ---
+## @fn truncate_code(code, max_lines=50)
+#  @brief Truncates code to a limited number of lines for prompt fitting.
+#  @param code Full code string.
+#  @param max_lines Maximum number of lines to retain.
+#  @return Truncated code string.
 def truncate_code(code, max_lines=50):
     lines = code.splitlines()
     return '\n'.join(lines[:max_lines]) if len(lines) > max_lines else code
 
-# --- ENSEMBLE ASSESSMENT ---
+## @fn ensemble_assessment(code1, code2, model_name, thr, n=3)
+#  @brief Performs multiple assessments and aggregates predictions using voting.
+#  @param code1 First code string.
+#  @param code2 Second code string.
+#  @param model_name The name of the LLM model to use.
+#  @param thr Threshold for similarity.
+#  @param n Number of repeated assessments for ensemble.
+#  @return Tuple of (average type scores, majority predicted type, majority binary similarity).
 def ensemble_assessment(code1, code2, model_name, thr, n=3):
     predictions = []
     for _ in range(n):
         results, predicted_type, predicted_sim = rag_similarity_assessment(code1, code2, model_name, thr)
         predictions.append((results, predicted_type, predicted_sim))
-    # Majority voting on predicted_sim
     sim_votes = [pred[2] for pred in predictions]
     final_sim = max(set(sim_votes), key=sim_votes.count)
-    # Most frequent predicted_type
     type_votes = [pred[1] for pred in predictions]
     final_type = max(set(type_votes), key=type_votes.count)
-    # Average results for reporting
     avg_results = {t: sum(pred[0][t] for pred in predictions) / n for t in ["Type-1", "Type-2", "Type-3", "Type-4"]}
     return avg_results, final_type, final_sim
 
-# --- THRESHOLD-BASED SIMILARITY DECISION ---
+## @fn determine_similarity(results, min_threshold=0.1)
+#  @brief Determines the predicted type and binary similarity from score dictionary.
+#  @param results Dictionary mapping clone types to similarity scores.
+#  @param min_threshold Minimum similarity score to consider as a valid clone.
+#  @return Tuple of (predicted type, binary similarity: 1 if above threshold, else 0).
 def determine_similarity(results, min_threshold=0.1):
-    # Sort by score, then by type severity
     type_priority = {"Type-4": 4, "Type-3": 3, "Type-2": 2, "Type-1": 1}
     sorted_types = sorted(results.items(), key=lambda x: (x[1], type_priority[x[0]]), reverse=True)
     max_type, max_score = sorted_types[0]
@@ -57,8 +100,13 @@ def determine_similarity(results, min_threshold=0.1):
     else:
         return "Non-clone", 0
 
-
-# --- PROMPT V2 WITH STEP-BY-STEP REASONING AND EXAMPLES ---
+## @fn rag_similarity_assessment(code1, code2, model_name, thr)
+#  @brief Sends a prompt to the LLM to classify clone type and score similarities.
+#  @param code1 First code snippet to evaluate.
+#  @param code2 Second code snippet to evaluate.
+#  @param model_name Name of the language model to query.
+#  @param thr Threshold for determining clone similarity.
+#  @return Tuple of (type score dictionary, predicted type, binary similarity).
 def rag_similarity_assessment(code1, code2, model_name, thr):
     model = lms.llm(model_name)
     prompt = f"""You are a code similarity expert. Analyze the following code pair step by step for clone detection.
@@ -88,101 +136,6 @@ Target Code:
 Similar Code:
 {code2}
 """
-
-    # examples = """
-    # Examples:
-
-    # Type-1:
-    # Code 1: 'int a=5;'
-    # Code 2: 'int a = 5; // set a'
-
-    # Type-2:
-    # Code 1: 'int a=5;'
-    # Code 2: 'int b=5;'
-
-    # Type-3:
-    # Code 1: 'int a=5; print(a);'
-    # Code 2: 'int a=5;'
-
-    # Type-4:
-    # Code 1: 'for(int i=0;i<5;i++)sum+=i;'
-    # Code 2: 'sum = sum_of_first_n(5);'
-
-    # Additional Examples:
-
-    # Type-1:
-    # Code 1: 'for i in range(5): print(i)'
-    # Code 2: 'for i in range(5): print(i) #loop'
-
-    # Type-2:
-    # Code 1: 'def add(x, y): return x + y'
-    # Code 2: 'def sum(a, b): return a + b'
-
-    # Type-3:
-    # Code 1: 'if x > 0: print("Positive")'
-    # Code 2: 'if x >= 0: print("Positive")'
-
-    # Type-4:
-    # Code 1: 'result = [x*2 for x in lst]'
-    # Code 2: 'result = list(map(lambda x: x*2, lst))'
-
-    # Type-1:
-    # Code 1: 'while(count<10) count++;'
-    # Code 2: 'while (count < 10) count++; // loop count'
-
-    # Type-2:
-    # Code 1: 'int maxVal = 100;'
-    # Code 2: 'int max_value = 100;'
-
-    # Type-3:
-    # Code 1: 'print("Hello")'
-    # Code 2: 'print("Hello World")'
-
-    # Type-4:
-    # Code 1: 'def factorial(n): return 1 if n==0 else n*factorial(n-1)'
-    # Code 2: 'def fact(n): res=1\n for i in range(1,n+1): res*=i\n return res'
-
-    # Type-1:
-    # Code 1: 'x = 10 # set x'
-    # Code 2: 'x=10'
-
-    # Type-2:
-    # Code 1: 'String name = "Alice";'
-    # Code 2: 'String personName = "Alice";'
-
-    # Type-3:
-    # Code 1: 'a = 5\nb = 10\nprint(a+b)'
-    # Code 2: 'a = 5\nprint(a)'
-
-    # Type-4:
-    # Code 1: 'sum = 0\nfor i in range(5): sum += i'
-    # Code 2: 'sum = sum(range(5))'
-
-    # Step-by-step reasoning:
-
-    # 1. Are the outputs always identical for all inputs? (Type-4)
-    # 2. Are they identical except for whitespace/comments? (Type-1)
-    # 3. Are variable/function names changed but structure identical? (Type-2)
-    # 4. Are there statement-level edits? (Type-3)
-
-    # Explain your reasoning for each type and provide a confidence score (0-1).
-
-    # Definitions:
-
-    # - Type-1: Output-identical after removing whitespace/comments
-    # - Type-2: Identical except for variable/function names (plus Type-1 differences)
-    # - Type-3: Similar, but with some statements added/removed/modified (plus Type-2 differences)
-    # - Type-4: Syntactically different but functionally identical (same outputs for same inputs)
-
-    # Target Code:
-    # {code1}
-
-    # Similar Code:
-    # {code2}
-    # """
-
-    # prompt = examples.format(code1=code1, code2=code2)
-
     schema = {
         "type": "object",
         "properties": {
@@ -198,7 +151,8 @@ Similar Code:
     predicted_type, predicted_sim = determine_similarity(results, thr)
     return results, predicted_type, predicted_sim
 
-# --- MAIN WORKFLOW ---
+# --- MAIN LOOP ---
+## @brief Executes evaluation over thresholds and saves results and metrics.
 for thr in thresholds:
     all_truth = []
     all_preds = []
@@ -215,7 +169,7 @@ for thr in thresholds:
             pair_id = row['pair-id']
             try:
                 with open(file1_path, 'r', encoding='utf-8', errors='ignore') as f1, \
-                    open(file2_path, 'r', encoding='utf-8', errors='ignore') as f2:
+                     open(file2_path, 'r', encoding='utf-8', errors='ignore') as f2:
                     code1 = truncate_code(f1.read())
                     code2 = truncate_code(f2.read())
             except Exception as e:
@@ -236,7 +190,7 @@ for thr in thresholds:
                 all_truth.append(ground_truth_sim)
                 all_preds.append(predicted_sim)
 
-    # --- EVALUATION METRICS ---
+    ## @brief Calculate and write evaluation metrics for the threshold.
     if all_truth and all_preds:
         acc = accuracy_score(all_truth, all_preds)
         prec = precision_score(all_truth, all_preds)
