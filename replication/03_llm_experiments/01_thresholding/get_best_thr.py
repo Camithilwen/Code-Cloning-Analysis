@@ -1,27 +1,41 @@
-from sklearn.metrics import classification_report, precision_recall_fscore_support
+# /// script
+# dependencies = [
+#   "pandas",
+#   "scikit-learn",
+# ]
+# ///
+
+from sklearn.metrics import classification_report
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 import pandas as pd
 
-df = pd.read_csv("play_data/RAG_vs_CodeNet_binary_results_all_ds.csv")
-ITER = 4.2
-results = []
-# -- stuff --
+## @var df
+#  @brief Dataframe containing the CSV with CodeNet results.
+df = pd.read_csv("RAG_vs_CodeNet_binary_results_all_ds.csv")
 
+## @var ITER
+#  @brief Holder for file name.
+ITER = 4.2
+
+## @var min_threshold
+#  @brief List of thresholds.
 for min_threshold in [0.0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.9, 1.0]:
-    # for min_threshold2 in [0.0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.9, 1.0]:
+    ## @var preds_tp
+    #  @brief The list that will hold all predicted values.
     preds_tp = []
+    ## @var preds_v
+    #  @brief The list that will hold all code/non-clone values where 0=non-clonea and 1=Type-4.
     preds_v = []
 
     for idx, row in df.iterrows():
         results = {"Type-1": row["Type-1"], "Type-2": row["Type-2"], "Type-3": row["Type-3"], "Type-4": row["Type-4"]}
-        ## -- THRESH METHOD --
+        # @brief Replace this area with your thresholding method.
         if results['Type-4'] > min_threshold:
             preds_tp.append('Type-4')
             preds_v.append(1)
         else:
             preds_tp.append("Non-clone")
             preds_v.append(0)
-        ## -- METHOD ENDS --
 
     df[f'PredictedSim{ITER}'] = preds_v
     df[f'PredictedType{ITER}'] = preds_tp
@@ -30,15 +44,8 @@ for min_threshold in [0.0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5
     predsimcolname = f"PredictedSim{ITER}"
 
 
-    # -- RESULTS --
+    # @brief This outputs all metrics based on the thresholding function provided. 
     with open(f'ITER{ITER}/ITER{ITER}_THR{min_threshold}.txt', 'w') as f:
-        try:
-            acc0 = accuracy_score(df.loc[(df['GroundTruthSimilar']==0), 'GroundTruthSimilar'], df.loc[(df['GroundTruthSimilar']==0), predsimcolname])
-            acc1 = accuracy_score(df.loc[(df['GroundTruthSimilar']==1) & (df[predtpcolname]=="Type-4"), 'GroundTruthSimilar'], df.loc[(df['GroundTruthSimilar']==1) & (df[predtpcolname]=="Type-4"), predsimcolname])
-            print(f"Accuracy0: {acc0:.2f}, Accuracy1: {acc1:.2f}\n", file=f)
-        except ValueError:
-            pass
-        
         try:
             report = classification_report(df.loc[df[predtpcolname]=="Type-4", 'GroundTruthSimilar'], df.loc[df[predtpcolname]=="Type-4", predsimcolname])
             truths = df.loc[(df[predtpcolname]=="Type-4"), 'GroundTruthSimilar']

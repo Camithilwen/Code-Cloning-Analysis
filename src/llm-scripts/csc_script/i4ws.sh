@@ -20,7 +20,7 @@ rm -rf venv
 python -m venv venv
 source venv/bin/activate
 pip install --upgrade pip
-pip install ollama pydantic pandas scikit-learn requests llama-index llama-index-llms-ollama
+pip install ollama pydantic pandas scikit-learn requests llama-index llama-index-llms-ollama numpy
 python -c "import llama_index"
 
 # Start Ollama in background

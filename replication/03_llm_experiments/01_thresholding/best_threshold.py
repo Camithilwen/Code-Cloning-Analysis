@@ -50,13 +50,6 @@ ground_truth_df = pd.read_csv(GROUND_TRUTH_CSV)
 #  @brief Dictionary mapping pair IDs to binary similarity values.
 ground_truth_map = dict(zip(ground_truth_df['pair-id'], ground_truth_df['similar']))
 
-## @fn type_to_binary(predicted_type)
-#  @brief Convert predicted clone type to binary similarity label.
-#  @param predicted_type The predicted clone type (e.g., "Type-4").
-#  @return 1 if Type-4 clone, else 0.
-def type_to_binary(predicted_type):
-    return 1 if predicted_type in ["Type-4"] else 0
-
 ## @fn truncate_code(code, max_lines=50)
 #  @brief Truncates code to a limited number of lines for prompt fitting.
 #  @param code Full code string.
