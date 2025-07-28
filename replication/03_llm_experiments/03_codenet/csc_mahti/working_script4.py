@@ -13,7 +13,7 @@ PAIRS_CSV = "/projappl/project_2014646/shreya/pairs.csv"
 GROUND_TRUTH_CSV = "/projappl/project_2014646/shreya/ground_truth.csv"
 
 LLMS = [
-    "devstral:24b"# < ollama model name
+    "devstral:24b"
 ]
 
 # --- LOAD PAIRS AND GROUND TRUTH ---

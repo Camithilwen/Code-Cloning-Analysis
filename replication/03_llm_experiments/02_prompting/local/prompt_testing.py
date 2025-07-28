@@ -1,3 +1,11 @@
+# /// script
+# dependencies = [
+#   "pandas",
+#   "scikit-learn",
+#   "lmstudio",
+# ]
+# ///
+
 import os
 import csv
 import pandas as pd
@@ -5,17 +13,34 @@ import lmstudio as lms
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, classification_report
 
 # --- CONFIGURATION ---
-DATA_DIR = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/Project_CodeNet_experimentation_dataset/data"
-PAIRS_CSV = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/Project_CodeNet_experimentation_dataset/pairs.csv"
-GROUND_TRUTH_CSV = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/Project_CodeNet_experimentation_dataset/ground_truth.csv"
-OUTPUT_CSV = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/RAG_vs_CodeNet_binary_results_scoder_simple_prompts3-1.csv"
-METRICS_TXT = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/metricsv2p3-1.txt"
+## @var DATA_DIR
+#  @brief Path to the directory containing code files for similarity comparison.
+DATA_DIR = "./Project_CodeNet_experimentation_dataset/data"
 
+## @var PAIRS_CSV
+#  @brief CSV file containing file pairs to compare.
+PAIRS_CSV = "./Project_CodeNet_experimentation_dataset/pairs.csv"
+
+## @var GROUND_TRUTH_CSV
+#  @brief CSV file containing ground truth similarity labels for file pairs.
+GROUND_TRUTH_CSV = "./Project_CodeNet_experimentation_dataset/ground_truth.csv"
+
+## @var OUTPUT_CSV
+# @brief The output CSV name.
+OUTPUT_CSV = "./RAG_vs_CodeNet_binary_results_scoder_simple_prompts3-1.csv"
+
+## @var METRICS_TXT
+# @brief The metrics file name.
+METRICS_TXT = "./metricsv2p3-1.txt"
+
+## @var LLMS
+#  @brief List of model names to use for clone detection.
 LLMS = [
     "starcoder2-15b-instruct-v0.1"
 ]
 
-# --- PROMPTS ---
+##@var PROMPTS
+# @brief Name of all prompts to be tested on.
 PROMPTS = [
     # Prompt 1
     """Definitions:
@@ -76,12 +101,28 @@ Similar Code:
 """
 ]
 
-# --- LOAD PAIRS AND GROUND TRUTH ---
+# --- LOAD DATA ---
+## @var pairs_df
+#  @brief DataFrame of file pairs to compare.
 pairs_df = pd.read_csv(PAIRS_CSV)
+
+## @var ground_truth_df
+#  @brief DataFrame containing ground truth similarity labels.
 ground_truth_df = pd.read_csv(GROUND_TRUTH_CSV)
+
+## @var ground_truth_map
+#  @brief Dictionary mapping pair IDs to binary similarity values.
 ground_truth_map = dict(zip(ground_truth_df['pair-id'], ground_truth_df['similar']))
 
 # --- ENSEMBLE ASSESSMENT ---
+## @fn ensemble_assessment(code1, code2, model_name, thr, n=3)
+#  @brief Performs multiple assessments and aggregates predictions using voting.
+#  @param code1 First code string.
+#  @param code2 Second code string.
+#  @param model_name The name of the LLM model to use.
+#  @param thr Threshold for similarity.
+#  @param n Number of repeated assessments for ensemble.
+#  @return Tuple of (average type scores, majority predicted type, majority binary similarity).
 def ensemble_assessment(code1, code2, model_name, prompt, n=3):
     predictions = []
     for _ in range(n):
@@ -112,6 +153,11 @@ def ensemble_assessment(code1, code2, model_name, prompt, n=3):
     return average_res, final_type, final_sim
 
 # --- THRESHOLD-BASED SIMILARITY DECISION ---
+## @fn determine_similarity(results, min_threshold=0.1)
+#  @brief Determines the predicted type and binary similarity from score dictionary.
+#  @param results Dictionary mapping clone types to similarity scores.
+#  @param min_threshold Minimum similarity score to consider as a valid clone.
+#  @return Tuple of (predicted type, binary similarity: 1 if above threshold, else 0).
 def determine_similarity(results):
     if 'yes' in list(results.values()):
         if list(results.keys())[list(results.values()).index('yes')] == 'Type-4':
@@ -122,6 +168,13 @@ def determine_similarity(results):
         return 'Non-clone', 0
 
 # --- PROMPT-AWARE ASSESSMENT ---
+## @fn rag_similarity_assessment(code1, code2, model_name, thr)
+#  @brief Sends a prompt to the LLM to classify clone type and score similarities.
+#  @param code1 First code snippet to evaluate.
+#  @param code2 Second code snippet to evaluate.
+#  @param model_name Name of the language model to query.
+#  @param thr Threshold for determining clone similarity.
+#  @return Tuple of (type score dictionary, predicted type, binary similarity).
 def rag_similarity_assessment(code1, code2, model_name, prompt):
     model = lms.llm(model_name)
     # Format the prompt with the code snippets
@@ -143,6 +196,7 @@ def rag_similarity_assessment(code1, code2, model_name, prompt):
     return results, predicted_type, predicted_sim
 
 # --- MAIN WORKFLOW ---
+## @brief Executes evaluation over prompts and saves results and metrics.
 results_by_prompt = {i: {'truth': [], 'preds': []} for i in range(len(PROMPTS))}
 
 with open(OUTPUT_CSV, 'w', newline='') as outfile:
@@ -153,6 +207,8 @@ with open(OUTPUT_CSV, 'w', newline='') as outfile:
     ])
     for prompt_id, prompt in enumerate(PROMPTS):
         print(f"Processing Prompt {prompt_id+1}...")
+        ## @brief The value in .head() is the number of rows that will be gone over. I 
+        # recommend 60 if you have under 30 minutes and 1000 if you leave it on over night.
         for idx, row in pairs_df.head(60).iterrows():
             file1_path = os.path.join(DATA_DIR, row['file1'])
             file2_path = os.path.join(DATA_DIR, row['file2'])
@@ -180,6 +236,7 @@ with open(OUTPUT_CSV, 'w', newline='') as outfile:
                 results_by_prompt[prompt_id]['preds'].append(predicted_sim)
 
 # --- EVALUATION METRICS ---
+## @brief Calculate and write evaluation metrics for the prompt.
 with open(METRICS_TXT, 'w') as f:
     for prompt_id in range(len(PROMPTS)):
         truth = results_by_prompt[prompt_id]['truth']
