@@ -1,3 +1,12 @@
+# /// script
+# dependencies = [
+#   "pandas",
+#   "scikit-learn",
+#   "pydantic",
+#   "ollama",
+# ]
+# ///
+
 import os
 import csv
 import pandas as pd
@@ -10,7 +19,7 @@ from typing import List
 from llama_index.llms.ollama import Ollama
 from llama_index.core.bridge.pydantic import BaseModel
 
-
+## @brief Defines the Confidence class, which is used to determine the structured ouput. 
 class Confidence(BaseModel):
     type1: float = Field(None, ge=0, le=1)
     type2: float = Field(None, ge=0, le=1)
@@ -27,11 +36,22 @@ LLMS = [
 ]
 
 # --- LOAD PAIRS AND GROUND TRUTH ---
+## @var pairs_df
+#  @brief DataFrame of file pairs to compare.
 pairs_df = pd.read_csv(PAIRS_CSV)
+
+## @var ground_truth_df
+#  @brief DataFrame containing ground truth similarity labels.
 ground_truth_df = pd.read_csv(GROUND_TRUTH_CSV)
+
+## @var ground_truth_map
+#  @brief Dictionary mapping pair IDs to binary similarity values.
 ground_truth_map = dict(zip(ground_truth_df['pair-id'], ground_truth_df['similar']))
 
 # -- JSON MAPPER --
+## @fn safe_parse_response(response)
+#  @brief Translates the given response from the model into the proper dictionary format.
+#  @param response The RAG output.
 def safe_parse_response(response):
     import json
     print(type(response))
@@ -53,16 +73,25 @@ def safe_parse_response(response):
             print("Parsing error 2: ", e)
             return {"Type-1": -1, "Type-2": -1, "Type-3": -1, "Type-4": -1} 
 
-# --- TYPE TO BINARY SIMILARITY ---
-def type_to_binary(predicted_type):
-    return 1 if predicted_type in ["Type-4"] else 0
-
 # --- CODE TRUNCATION FOR CONTEXT FITTING ---
+## @fn truncate_code(code, max_lines=50)
+#  @brief Truncates code to a limited number of lines for prompt fitting.
+#  @param code Full code string.
+#  @param max_lines Maximum number of lines to retain.
+#  @return Truncated code string.
 def truncate_code(code, max_lines=50):
     lines = code.splitlines()
     return '\n'.join(lines[:max_lines]) if len(lines) > max_lines else code
 
 # --- ENSEMBLE ASSESSMENT ---
+## @fn ensemble_assessment(code1, code2, model_name, thr, n=3)
+#  @brief Performs multiple assessments and aggregates predictions using voting.
+#  @param code1 First code string.
+#  @param code2 Second code string.
+#  @param model_name The name of the LLM model to use.
+#  @param thr Threshold for similarity.
+#  @param n Number of repeated assessments for ensemble.
+#  @return Tuple of (average type scores, majority predicted type, majority binary similarity).
 def ensemble_assessment(code1, code2, model_name, n=3):
     predictions = []
     for _ in range(n):
@@ -79,13 +108,24 @@ def ensemble_assessment(code1, code2, model_name, n=3):
     return avg_results, final_type, final_sim
 
 # --- THRESHOLD-BASED SIMILARITY DECISION ---
+## @fn determine_similarity(results, min_threshold=0.1)
+#  @brief Determines the predicted type and binary similarity from score dictionary.
+#  @param results Dictionary mapping clone types to similarity scores.
+#  @return Tuple of (predicted type, binary similarity: 1 if above threshold, else 0).
 def determine_similarity(results):
     if results['Type-4'] > 0.25:
         return 'Type-4', 1
     else:
         return 'Non-clone', 0
 
-# --- PROMPT V2 WITH STEP-BY-STEP REASONING AND EXAMPLES ---
+# --- PROMPT-AWARE ASSESSMENT ---
+## @fn rag_similarity_assessment(code1, code2, model_name, thr)
+#  @brief Sends a prompt to the LLM to classify clone type and score similarities.
+#  @param code1 First code snippet to evaluate.
+#  @param code2 Second code snippet to evaluate.
+#  @param model_name Name of the language model to query.
+#  @param thr Threshold for determining clone similarity.
+#  @return Tuple of (type score dictionary, predicted type, binary similarity).
 def rag_similarity_assessment(code1, code2, model_name):
     prompt = f"""You are a code similarity expert. Analyze the following code pair step by step for clone detection.
 
@@ -129,6 +169,9 @@ Respond ONLY with a JSON object with the following keys: Type-1, Type-2, Type-3,
     return results, predicted_type, predicted_sim
 
 # --- MAIN WORKFLOW ---
+## @brief Executes evaluation over prompts and saves results and metrics.
+## @var iteration
+# @brief This is the number of times you want to run the testing.
 for iteration in range(1):
     all_truth = []
     all_preds = []
@@ -167,6 +210,7 @@ for iteration in range(1):
                 all_preds.append(predicted_sim)
 
     # --- EVALUATION METRICS ---
+    ## @brief Calculate and write evaluation metrics for the threshold.
     if all_truth and all_preds:
         acc = accuracy_score(all_truth, all_preds)
         prec = precision_score(all_truth, all_preds)

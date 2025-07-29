@@ -1,15 +1,21 @@
+# /// script
+# dependencies = [
+#   "pandas",
+# ]
+# ///
+
 import pandas as pd
 
 df_og = pd.read_csv('/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/full_pipeline/milvus_complete.csv')
 
+## @brief Remove all errors in reading due to embedding model not understanding the code language
 df = df_og[(df_og['Type-1']!=-1) & 
               (df_og['Type-2']!=-1) &
               (df_og['Type-3']!=-1) &
               (df_og['Type-4']!=-1)
               ]
 
-dbs = ['Blog.db', 'Micro-ewolff.db']
-
+## @brief Goes through each one of the databases you want to and prints how many instances are Type-1 through Type-4
 df_blog = df[(df['Database']=='Blog.db')]
 print(len(df_og[(df_og['Database']=='Spring-movie.db') & (df_og['TargetCollection']=='fork_M1')]))
 

@@ -8,10 +8,8 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 
 jina_accs = [0.54, 0.54, 0.54, 0.54, 0.54, 0.54]
 
-devstral_accs = [0.63, 0.63, 0.62
-                 , 0.64, 0.62, 0.64]
-llama_accs = [0.53, 0.54, 0.54
-              , 0.53, 0.50, 0.51]
+devstral_accs = [0.63, 0.63, 0.62, 0.63, 0.62, 0.63]
+llama_accs = [0.53, 0.54, 0.56 ,0.54, 0.54, 0.54]
 codestral_accs = [0.71, 0.72, 0.68, 0.68, 0.68, 0.68]
 
 metrics = {"devstral": devstral_accs, "llama": llama_accs, "codestral": codestral_accs,

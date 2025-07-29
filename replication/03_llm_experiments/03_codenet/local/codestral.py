@@ -1,19 +1,28 @@
+# /// script
+# dependencies = [
+#   "pandas",
+#   "scikit-learn",
+#   "lmstudio",
+# ]
+# ///
+
 import os
 import csv
 import pandas as pd
-import ollama
+import lmstudio as lms
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, mean_squared_error
 from sklearn.metrics import classification_report
-import json
 
-## Global Variables
 # --- CONFIGURATION ---
-DATA_DIR = "/projappl/project_2014646/shreya/data/data"
-PAIRS_CSV = "/projappl/project_2014646/shreya/pairs.csv"
-GROUND_TRUTH_CSV = "/projappl/project_2014646/shreya/ground_truth.csv"
+DATA_DIR = "./Project_CodeNet_experimentation_dataset/data"
+PAIRS_CSV = "./Project_CodeNet_experimentation_dataset/pairs.csv"
+GROUND_TRUTH_CSV = "./Project_CodeNet_experimentation_dataset/ground_truth.csv"
+OUTPUT_DIR = "./"
 
+## @var LLMS
+#  @brief List of model names to use for clone detection.
 LLMS = [
-    "devstral:24b"
+    "mistralai/codestral-22b-v0.1"
 ]
 
 # --- LOAD PAIRS AND GROUND TRUTH ---
@@ -22,11 +31,24 @@ ground_truth_df = pd.read_csv(GROUND_TRUTH_CSV)
 ground_truth_map = dict(zip(ground_truth_df['pair-id'], ground_truth_df['similar']))
 
 # --- CODE TRUNCATION FOR CONTEXT FITTING ---
+## @fn truncate_code(code, max_lines=50)
+#  @brief Truncates code to a limited number of lines for prompt fitting.
+#  @param code Full code string.
+#  @param max_lines Maximum number of lines to retain.
+#  @return Truncated code string.
 def truncate_code(code, max_lines=50):
     lines = code.splitlines()
     return '\n'.join(lines[:max_lines]) if len(lines) > max_lines else code
 
 # --- ENSEMBLE ASSESSMENT ---
+## @fn ensemble_assessment(code1, code2, model_name, thr, n=3)
+#  @brief Performs multiple assessments and aggregates predictions using voting.
+#  @param code1 First code string.
+#  @param code2 Second code string.
+#  @param model_name The name of the LLM model to use.
+#  @param thr Threshold for similarity.
+#  @param n Number of repeated assessments for ensemble.
+#  @return Tuple of (average type scores, majority predicted type, majority binary similarity).
 def ensemble_assessment(code1, code2, model_name, n=3):
     predictions = []
     for _ in range(n):
@@ -43,14 +65,26 @@ def ensemble_assessment(code1, code2, model_name, n=3):
     return avg_results, final_type, final_sim
 
 # --- THRESHOLD-BASED SIMILARITY DECISION ---
+## @fn determine_similarity(results, min_threshold=0.1)
+#  @brief Determines the predicted type and binary similarity from score dictionary.
+#  @param results Dictionary mapping clone types to similarity scores.
+#  @return Tuple of (predicted type, binary similarity: 1 if above threshold, else 0).
 def determine_similarity(results):
     if results['Type-4'] > 0.25:
         return 'Type-4', 1
     else:
         return 'Non-clone', 0
 
-# --- PROMPT V2 WITH STEP-BY-STEP REASONING AND EXAMPLES ---
+# --- PROMPT-AWARE ASSESSMENT ---
+## @fn rag_similarity_assessment(code1, code2, model_name, thr)
+#  @brief Sends a prompt to the LLM to classify clone type and score similarities.
+#  @param code1 First code snippet to evaluate.
+#  @param code2 Second code snippet to evaluate.
+#  @param model_name Name of the language model to query.
+#  @param thr Threshold for determining clone similarity.
+#  @return Tuple of (type score dictionary, predicted type, binary similarity).
 def rag_similarity_assessment(code1, code2, model_name):
+    model = lms.llm(model_name)
     prompt = f"""You are a code similarity expert. Analyze the following code pair step by step for clone detection.
 
 Definitions:
@@ -77,39 +111,39 @@ Target Code:
 
 Similar Code:
 {code2}
-
-Respond ONLY with a JSON object with the following keys: Type-1, Type-2, Type-3, Type-4, each with a confidence score between 0 and 1.
 """
 
-    # Call Ollama to get the response
-    result = ollama.generate(
-        model=model_name,
-        prompt=prompt
-    )
-    response_text = result['response']
-
-    # Parse the response as JSON
-    try:
-        results = json.loads(response_text)
-    except Exception:
-        # Fallback: handle parsing error
-        results = {"Type-1": 0, "Type-2": 0, "Type-3": 0, "Type-4": 0}
-
+    schema = {
+        "type": "object",
+        "properties": {
+            "Type-1": {"type": "number", "minimum": 0, "maximum": 1},
+            "Type-2": {"type": "number", "minimum": 0, "maximum": 1},
+            "Type-3": {"type": "number", "minimum": 0, "maximum": 1},
+            "Type-4": {"type": "number", "minimum": 0, "maximum": 1},
+        },
+        "required": ["Type-1", "Type-2", "Type-3", "Type-4"]
+    }
+    response = model.respond(prompt, response_format=schema)
+    results = response.parsed
     predicted_type, predicted_sim = determine_similarity(results)
     return results, predicted_type, predicted_sim
 
 # --- MAIN WORKFLOW ---
-for iteration in range(5):
+## @brief Executes evaluation over prompts and saves results and metrics.
+## @var iteration
+# @brief This is the number of times you want to run the testing.
+for i in range(1):
+    iteration = 1
     all_truth = []
     all_preds = []
-    output = f"/projappl/project_2014646/shreya/results/RAG_vs_CodeNet_binary_results_devstral_iteration_{iteration}.csv"
+    output = f"{OUTPUT_DIR}/RAG_vs_CodeNet_binary_results_mistral_codestral22b_iteration_{iteration}.csv"
     with open(output, 'w', newline='') as outfile:
         writer = csv.writer(outfile)
         writer.writerow([
             'PairID', 'File1', 'File2', 'Type-1', 'Type-2', 'Type-3', 'Type-4',
             'PredictedType', 'PredictedSimilar', 'GroundTruthSimilar', 'ModelName'
         ])
-        for idx, row in pairs_df.head(1000).iterrows():
+        for idx, row in pairs_df.iloc[8320:].iterrows():
             file1_path = os.path.join(DATA_DIR, row['file1'])
             file2_path = os.path.join(DATA_DIR, row['file2'])
             pair_id = row['pair-id']
@@ -137,12 +171,15 @@ for iteration in range(5):
                 all_preds.append(predicted_sim)
 
     # --- EVALUATION METRICS ---
+    ## @brief Calculate and write evaluation metrics for the threshold.
     if all_truth and all_preds:
         acc = accuracy_score(all_truth, all_preds)
         prec = precision_score(all_truth, all_preds)
         rec = recall_score(all_truth, all_preds)
         f1 = f1_score(all_truth, all_preds)
         mse = mean_squared_error(all_truth, all_preds)
-        with open(f'/projappl/project_2014646/shreya/results/metrics_devstral_iteration_{iteration}.txt', 'w') as f:
+
+        # 
+        with open(f'./metricsv2_{iteration}.txt', 'w') as f:
             print(f"Accuracy: {acc:.2f}, Precision: {prec:.2f}, Recall: {rec:.2f}, F1-Score: {f1:.2f}, MSE: {mse:.2f}\n", file=f)
             print(classification_report(all_truth, all_preds), file=f)
