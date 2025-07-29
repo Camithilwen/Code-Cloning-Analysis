@@ -30,7 +30,7 @@ for fname in FILENAMES:
     #     df = pd.read_csv(f"{BASE_DIR}/{fname}")
 
     # report = classification_report(df.loc[df['PredictedType']=="Type-4", 'GroundTruthSimilar'], df.loc[df['PredictedType']=="Type-4", 'PredictedSimilar'])
-    with open(f'comp_mistral.txt', 'w') as f:
+    with open(f'metrics_mistral_iteration_1.txt', 'w') as f:
         # acc0 = accuracy_score(df.loc[(df['GroundTruthSimilar']==0), 'GroundTruthSimilar'], df.loc[(df['GroundTruthSimilar']==0), 'PredictedSimilar'])
         # acc1 = accuracy_score(df.loc[(df['GroundTruthSimilar']==1) & (df['PredictedType']=="Type-4"), 'GroundTruthSimilar'], df.loc[(df['GroundTruthSimilar']==1) & (df['PredictedType']=="Type-4"), 'PredictedSimilar'])
         # print(f"Accuracy0: {acc0:.2f}, Accuracy1: {acc1:.2f}\n", file=f)
