@@ -1,3 +1,12 @@
+# /// script
+# dependencies = [
+#   "pandas",
+#   "lmstudio",
+#   "numpy",
+#   "pymilvus",
+# ]
+# ///
+
 import numpy as np
 from pymilvus import Collection, MilvusClient
 import lmstudio as lms
@@ -6,19 +15,33 @@ import pandas as pd
 import os
 
 # --- CONFIGURATION ---
-MAX_TARGET_FILE_ID = 300
+## @var TOP_K
+# @brief Number of cosine similar files to look at
 TOP_K = 1
-RUN_NUM = 1
-DIR_NAME = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/full_pipeline"
-DB_PATH = "/Users/shreyanakum/Documents/NSF@Oulu/EmbeddingResults"
 
+## @var DIR_NAME
+# @brief Output directory name
+DIR_NAME = "./full_pipeline"
+
+## @var DB_PATH
+# @brief Directory name that holds all Milvus databases
+DB_PATH = "./EmbeddingResults"
+
+## @var LLMS
+# @brief List of LLMs to be used
 LLMS = [
     "mistralai/codestral-22b-v0.1",
 ]
 
+## @var collection_pairs
+# @brief List of collection names
 collection_pairs = [["fork_M1", "primary_M1"], ["fork_M2", "primary_M2"], ["fork_M3", "primary_M3"]]
 
 # --- MILVUS EXTRACTION ---
+## @fn get_all_embeddings_from_all_collections(db_path, col_pair)
+#  @brief Gets all embeddings from database given the primary and forked collection names
+#  @param db_path Path of database
+#  @param db_path Collection pair (fork, primary)
 def get_all_embeddings_from_all_collections(db_path, col_pair):
     try:
         client = MilvusClient(uri=db_path)  # Use parameter db_path
@@ -50,6 +73,13 @@ def get_code_and_embedding_by_id(all_embeddings, file_id):
     raise ValueError(f"File ID {file_id} not found in any collection.")
 
 # --- SIMILARITY SEARCH ---
+## @fn find_top_k_similar(target_embedding, all_embeddings, target_file_id, target_collection, top_k)
+#  @brief Gets the most cosine similar file from primary (its match)
+#  @param target_embedding Target embedding
+#  @param all_embeddings All embeddings from collection
+#  @param target_file_id File ID you're finding the pri similar to 
+#  @param target_collection Collection where the target_file_id is located
+#  @param top_k Same as the global variable TOP_K
 def find_top_k_similar(target_embedding, all_embeddings, target_file_id, target_collection, top_k):
     similarities = []
     for file_id, code, emb, collection_name in all_embeddings:
@@ -61,10 +91,12 @@ def find_top_k_similar(target_embedding, all_embeddings, target_file_id, target_
     for sims in similarities:
         if 'pri' in sims[3]:
             return sims
-    # return similarities[:top_k]
 
 # --- LLM RAG ASSESSMENT & COMPARISON ---
-
+## @fn determine_similarity(results, min_threshold=0.1)
+#  @brief Determines the predicted type and binary similarity from score dictionary.
+#  @param results Dictionary mapping clone types to similarity scores.
+#  @return Tuple of (predicted type, binary similarity: 1 if above threshold, else 0).
 def determine_similarity(results):
     type_priority = {"Type-4": 4, "Type-3": 3, "Type-2": 2, "Type-1": 1}
     # results = {"Type-1": row["Type-1"], "Type-2": row["Type-2"], "Type-3": row["Type-3"], "Type-4": row["Type-4"]}
@@ -72,7 +104,14 @@ def determine_similarity(results):
     max_type, max_score = sorted_types[0]
     return max_type
     
-
+# --- PROMPT-AWARE ASSESSMENT ---
+## @fn rag_similarity_assessment(code1, code2, model_name, thr)
+#  @brief Sends a prompt to the LLM to classify clone type and score similarities.
+#  @param code1 First code snippet to evaluate.
+#  @param code2 Second code snippet to evaluate.
+#  @param model_name Name of the language model to query.
+#  @param thr Threshold for determining clone similarity.
+#  @return Tuple of (type score dictionary, predicted type, binary similarity).
 def rag_similarity_assessment(target_code, similar_codes, model_name, target_fid, target_col, results_writer, db_name):
     def assess_pair(code1, code2, model_name):
         model = lms.llm(model_name)
@@ -126,15 +165,16 @@ Similar Code:
     ])
 
 # --- MAIN WORKFLOW ---
+## @fn main()
+#  @brief The entire program that runs through the database and saves prediction results in a CSV.
 def main():
-    # change at 
-    with open(f"{DIR_NAME}/milvus_rag_results_short.csv", 'a', newline='') as file:
+    with open(f"{DIR_NAME}/milvus_rag_results.csv", 'w', newline='') as file:
         writer = csv.writer(file)
-        # writer.writerow([
-        #     'TargetFileID', 'SimilarFileID', 'Type-1', 'Type-2', 'Type-3', 'Type-4',
-        #     'PredictedType', 'ModelName', 'TargetCollection', 'SimilarCollection', 'Database'
-        # ])
-        for db_name in os.listdir(DB_PATH)[7:]: # below Blog.db (exclusive) fix Non-clone with correct
+        writer.writerow([
+            'TargetFileID', 'SimilarFileID', 'Type-1', 'Type-2', 'Type-3', 'Type-4',
+            'PredictedType', 'ModelName', 'TargetCollection', 'SimilarCollection', 'Database'
+        ])
+        for db_name in os.listdir(DB_PATH):
             print(f'Analyzing {db_name}...')
             for col_pair in collection_pairs:
                 all_embeddings = get_all_embeddings_from_all_collections(f'{DB_PATH}/{db_name}', col_pair)
