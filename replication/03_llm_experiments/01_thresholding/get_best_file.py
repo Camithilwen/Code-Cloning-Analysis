@@ -44,17 +44,14 @@ def extract_second_metrics_from_file(file_path):
         else:
             return None  # Not enough metric blocks found
 
-# /**
-#  * @brief Finds the file with the best metric value in a directory.
-#  * 
-#  * Iterates over all .txt files in the specified directory and uses
-#  * the second block of metrics for comparison.
-#  *
-#  * @param directory The directory containing the result files.
-#  * @param metric The metric to optimize ('accuracy', 'precision', 'recall', or 'f1_score').
-#  * @return A dictionary with the file path and best metric values, or None if no valid files found.
-#  */
 def find_best_file_by_metric(directory, metric='f1_score'):
+    '''! Finds the file with the best metric value in a directory.
+    Iterates over all .txt files in the specified directory and uses the second block of metrics for comparison.
+    @param directory The directory containing the result files.
+    @param metric The metric to optimize ('accuracy', 'precision', 'recall', or 'f1_score').
+    @return A dictionary with the file path and best metric values, or None if no valid files found.
+    '''
+     
     all_metrics = []
 
     for file_path in glob.glob(os.path.join(directory, '*.txt')):
@@ -68,7 +65,6 @@ def find_best_file_by_metric(directory, metric='f1_score'):
     best = max(all_metrics, key=lambda x: x[metric])
     return best
 
-# /// Example usage
 if __name__ == "__main__":
     directory_path = "/Users/shreyanakum/Documents/NSF@Oulu/Code-Cloning-Analysis/src/llm-scripts/testing/best_threshold/ITER4.2"
     best_result = find_best_file_by_metric(directory_path, metric='accuracy')  # Change metric as needed
