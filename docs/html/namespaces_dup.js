@@ -17,6 +17,9 @@ var namespaces_dup =
       [ "thresholds", "d5/de3/namespacebest__threshold.html#a3f80afe36c3aa47afcae0ad6fcdf4495", null ]
     ] ],
     [ "codestral", "dc/d60/namespacecodestral.html", [
+      [ "determine_similarity", "dc/d60/namespacecodestral.html#a3670c765c778b56324660099823955b3", null ],
+      [ "ensemble_assessment", "dc/d60/namespacecodestral.html#a77244f325626d0b90b39847e230c3a28", null ],
+      [ "rag_similarity_assessment", "dc/d60/namespacecodestral.html#a464ef314ddecd27fb3288798e941526d", null ],
       [ "truncate_code", "dc/d60/namespacecodestral.html#ab341965dcc5d4d57491e21b6113acaee", null ],
       [ "acc", "dc/d60/namespacecodestral.html#a8c3c05fa0143577dd246d461cb90fecb", null ],
       [ "iteration", "dc/d60/namespacecodestral.html#adba72d34b93894ccf353b161ae978bef", null ],
@@ -28,9 +31,11 @@ var namespaces_dup =
       [ "df_og", "d5/da9/namespacecol__and__db__distribution.html#a4244023312096dcd7ca3e98545078887", null ]
     ] ],
     [ "complete_repo_results", "d4/d34/namespacecomplete__repo__results.html", [
+      [ "determine_similarity", "d4/d34/namespacecomplete__repo__results.html#a63439912c9211b9631f736dc7e2f88af", null ],
       [ "find_top_k_similar", "d4/d34/namespacecomplete__repo__results.html#a7f76af0ed7ea4ab90d5c369ca1df6693", null ],
       [ "get_all_embeddings_from_all_collections", "d4/d34/namespacecomplete__repo__results.html#a511e5c331d5e95c1e36f57e3cf1fa37d", null ],
       [ "main", "d4/d34/namespacecomplete__repo__results.html#a228256cbb23da3dd43d06b827cfd0b1a", null ],
+      [ "rag_similarity_assessment", "d4/d34/namespacecomplete__repo__results.html#ad9bae30b604848c19f7facb8121a8038", null ],
       [ "collection_pairs", "d4/d34/namespacecomplete__repo__results.html#aa460fc92186a80aeaed3bf4f1f677956", null ],
       [ "DB_PATH", "d4/d34/namespacecomplete__repo__results.html#a584c70bb97df1a77ad838dd0af22e976", null ],
       [ "DIR_NAME", "d4/d34/namespacecomplete__repo__results.html#a1a8af6f1a3f27a38e4751273e007f9bb", null ],
@@ -41,6 +46,9 @@ var namespaces_dup =
       [ "df_l", "dd/de2/namespaceconfusion__matrix.html#a9404683cf351940a306e4c746b425eb4", null ]
     ] ],
     [ "devstral", "d8/da3/namespacedevstral.html", [
+      [ "determine_similarity", "d8/da3/namespacedevstral.html#afc9c4d92a75efcdfe333fd916183fb27", null ],
+      [ "ensemble_assessment", "d8/da3/namespacedevstral.html#a02cf827f3ce916e3bb96e68699b8e51b", null ],
+      [ "rag_similarity_assessment", "d8/da3/namespacedevstral.html#a2209c08def61c23eeb6405d43d16276e", null ],
       [ "truncate_code", "d8/da3/namespacedevstral.html#aa66d195282a9f35c36aebffc0745e77b", null ],
       [ "acc", "d8/da3/namespacedevstral.html#af7b174204d81ec290c85d2a8c38cf0e3", null ],
       [ "DATA_DIR", "d8/da3/namespacedevstral.html#aa7db14aefd659f999bd7734a3e399253", null ],
@@ -52,7 +60,9 @@ var namespaces_dup =
       [ "pairs_df", "d8/da3/namespacedevstral.html#ac79892a9a3c38e016071f9cc4531d772", null ]
     ] ],
     [ "first_prompt", "df/df4/namespacefirst__prompt.html", "df/df4/namespacefirst__prompt" ],
-    [ "get_best_file", "df/d1b/namespaceget__best__file.html", null ],
+    [ "get_best_file", "df/d1b/namespaceget__best__file.html", [
+      [ "find_best_file_by_metric", "df/d1b/namespaceget__best__file.html#a860416583b4aaea0a11e55355c018023", null ]
+    ] ],
     [ "get_best_thr", "d7/d46/namespaceget__best__thr.html", [
       [ "df", "d7/d46/namespaceget__best__thr.html#a42c7f255898c2a1ea092fe5ac079a37f", null ],
       [ "ITER", "d7/d46/namespaceget__best__thr.html#a05a4f9841b2b3d1fba6c6e6c16a2aa86", null ],
@@ -69,6 +79,7 @@ var namespaces_dup =
     [ "llama", "d6/d95/namespacellama.html", "d6/d95/namespacellama" ],
     [ "main", "d2/dc1/namespacemain.html", "d2/dc1/namespacemain" ],
     [ "prompt_testing", "d7/d43/namespaceprompt__testing.html", [
+      [ "determine_similarity", "d7/d43/namespaceprompt__testing.html#ad2009881a12392bb3274bf0c4aa0eefc", null ],
       [ "ensemble_assessment", "d7/d43/namespaceprompt__testing.html#a50978ff716b60d54a3f1c5591b4ea2b0", null ],
       [ "rag_similarity_assessment", "d7/d43/namespaceprompt__testing.html#a30a54e5ed3e069c8e66056696d4ffa57", null ],
       [ "DATA_DIR", "d7/d43/namespaceprompt__testing.html#ae38ce7c8c5f01f4877f20cf79f45b801", null ],

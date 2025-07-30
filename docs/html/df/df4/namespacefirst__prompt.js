@@ -1,6 +1,7 @@
 var namespacefirst__prompt =
 [
     [ "Confidence", "d6/d93/classfirst__prompt_1_1Confidence.html", null ],
+    [ "determine_similarity", "df/df4/namespacefirst__prompt.html#a144f7931c0af467dfecf31810b5ed2a4", null ],
     [ "ensemble_assessment", "df/df4/namespacefirst__prompt.html#ad336164cab986788f6d3f81a5e160ccd", null ],
     [ "rag_similarity_assessment", "df/df4/namespacefirst__prompt.html#ad4de437a211469acedacf78084d6c75f", null ],
     [ "safe_parse_response", "df/df4/namespacefirst__prompt.html#a8ce3c2e118ceb9eaff425b72eceaa592", null ],

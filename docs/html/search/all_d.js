@@ -1,5 +1,4 @@
 var searchData=
 [
-  ['references_0',['References',['../index.html#autotoc_md4',1,'']]],
-  ['repositoryembedder_1',['RepositoryEmbedder',['../d5/d06/classmain_1_1RepositoryEmbedder.html',1,'main']]]
+  ['nakum_20jamie_20kemman_0',['Shreya Nakum, Jamie Kemman',['../index.html#autotoc_md1',1,'']]]
 ];
