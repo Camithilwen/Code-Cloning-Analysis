@@ -50,24 +50,26 @@ ground_truth_df = pd.read_csv(GROUND_TRUTH_CSV)
 #  @brief Dictionary mapping pair IDs to binary similarity values.
 ground_truth_map = dict(zip(ground_truth_df['pair-id'], ground_truth_df['similar']))
 
-## @fn truncate_code(code, max_lines=50)
-#  @brief Truncates code to a limited number of lines for prompt fitting.
-#  @param code Full code string.
-#  @param max_lines Maximum number of lines to retain.
-#  @return Truncated code string.
 def truncate_code(code, max_lines=50):
+    '''! Truncates code to a limited number of lines for prompt fitting.
+
+   @param code Full code string.
+   @param max_lines Maximum number of lines to retain.
+   @return Truncated code string.
+    '''
     lines = code.splitlines()
     return '\n'.join(lines[:max_lines]) if len(lines) > max_lines else code
 
-## @fn ensemble_assessment(code1, code2, model_name, thr, n=3)
-#  @brief Performs multiple assessments and aggregates predictions using voting.
-#  @param code1 First code string.
-#  @param code2 Second code string.
-#  @param model_name The name of the LLM model to use.
-#  @param thr Threshold for similarity.
-#  @param n Number of repeated assessments for ensemble.
-#  @return Tuple of (average type scores, majority predicted type, majority binary similarity).
 def ensemble_assessment(code1, code2, model_name, thr, n=3):
+    '''! Performs multiple assessments and aggregates predictions using voting.
+
+ @param code1 First code string.
+ @param code2 Second code string.
+ @param model_name The name of the LLM model to use.
+ @param thr Threshold for similarity.
+ @param n Number of repeated assessments for ensemble.
+ @return Tuple of (average type scores, majority predicted type, majority binary similarity).
+    '''
     predictions = []
     for _ in range(n):
         results, predicted_type, predicted_sim = rag_similarity_assessment(code1, code2, model_name, thr)
@@ -79,12 +81,12 @@ def ensemble_assessment(code1, code2, model_name, thr, n=3):
     avg_results = {t: sum(pred[0][t] for pred in predictions) / n for t in ["Type-1", "Type-2", "Type-3", "Type-4"]}
     return avg_results, final_type, final_sim
 
-## @fn determine_similarity(results, min_threshold=0.1)
-#  @brief Determines the predicted type and binary similarity from score dictionary.
-#  @param results Dictionary mapping clone types to similarity scores.
-#  @param min_threshold Minimum similarity score to consider as a valid clone.
-#  @return Tuple of (predicted type, binary similarity: 1 if above threshold, else 0).
 def determine_similarity(results, min_threshold=0.1):
+    '''!  Determines the predicted type and binary similarity from score dictionary.
+
+ @param results Dictionary mapping clone types to similarity scores.
+ @param min_threshold Minimum similarity score to consider as a valid clone.
+ @return Tuple of (predicted type, binary similarity: 1 if above threshold, else 0).'''
     type_priority = {"Type-4": 4, "Type-3": 3, "Type-2": 2, "Type-1": 1}
     sorted_types = sorted(results.items(), key=lambda x: (x[1], type_priority[x[0]]), reverse=True)
     max_type, max_score = sorted_types[0]
@@ -93,14 +95,14 @@ def determine_similarity(results, min_threshold=0.1):
     else:
         return "Non-clone", 0
 
-## @fn rag_similarity_assessment(code1, code2, model_name, thr)
-#  @brief Sends a prompt to the LLM to classify clone type and score similarities.
-#  @param code1 First code snippet to evaluate.
-#  @param code2 Second code snippet to evaluate.
-#  @param model_name Name of the language model to query.
-#  @param thr Threshold for determining clone similarity.
-#  @return Tuple of (type score dictionary, predicted type, binary similarity).
 def rag_similarity_assessment(code1, code2, model_name, thr):
+    '''!  Sends a prompt to the LLM to classify clone type and score similarities.
+ @param code1 First code snippet to evaluate.
+ @param code2 Second code snippet to evaluate.
+ @param model_name Name of the language model to query.
+ @param thr Threshold for determining clone similarity.
+ @return Tuple of (type score dictionary, predicted type, binary similarity).
+ '''
     model = lms.llm(model_name)
     prompt = f"""You are a code similarity expert. Analyze the following code pair step by step for clone detection.
 
