@@ -1,0 +1,374 @@
+\doxysection{texmanager.\+py}
+\hypertarget{texmanager_8py_source}{}\label{texmanager_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/matplotlib/texmanager.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/matplotlib/texmanager.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00001}\mbox{\hyperlink{namespacematplotlib_1_1texmanager}{00001}}\ \textcolor{stringliteral}{r"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00002}00002\ \textcolor{stringliteral}{Support\ for\ embedded\ TeX\ expressions\ in\ Matplotlib.}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00003}00003\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00004}00004\ \textcolor{stringliteral}{Requirements:}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00005}00005\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00006}00006\ \textcolor{stringliteral}{*\ LaTeX.}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00007}00007\ \textcolor{stringliteral}{*\ \(\backslash\)*Agg\ backends:\ dvipng>=1.6.}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00008}00008\ \textcolor{stringliteral}{*\ PS\ backend:\ PSfrag,\ dvips,\ and\ Ghostscript>=9.0.}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00009}00009\ \textcolor{stringliteral}{*\ PDF\ and\ SVG\ backends:\ if\ LuaTeX\ is\ present,\ it\ will\ be\ used\ to\ speed\ up\ some}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00010}00010\ \textcolor{stringliteral}{\ \ post-\/processing\ steps,\ but\ note\ that\ it\ is\ not\ used\ to\ parse\ the\ TeX\ string}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00011}00011\ \textcolor{stringliteral}{\ \ itself\ (only\ LaTeX\ is\ supported).}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00012}00012\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00013}00013\ \textcolor{stringliteral}{To\ enable\ TeX\ rendering\ of\ all\ text\ in\ your\ Matplotlib\ figure,\ set}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00014}00014\ \textcolor{stringliteral}{:rc:\`{}text.usetex\`{}\ to\ True.}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00015}00015\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00016}00016\ \textcolor{stringliteral}{TeX\ and\ dvipng/dvips\ processing\ results\ are\ cached}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00017}00017\ \textcolor{stringliteral}{in\ \string~/.matplotlib/tex.cache\ for\ reuse\ between\ sessions.}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00018}00018\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00019}00019\ \textcolor{stringliteral}{\`{}TexManager.get\_rgba\`{}\ can\ also\ be\ used\ to\ directly\ obtain\ raster\ output\ as\ RGBA}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00020}00020\ \textcolor{stringliteral}{NumPy\ arrays.}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00021}00021\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00022}00022\ }
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00023}00023\ \textcolor{keyword}{import}\ functools}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00024}00024\ \textcolor{keyword}{import}\ hashlib}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00025}00025\ \textcolor{keyword}{import}\ logging}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00026}00026\ \textcolor{keyword}{import}\ os}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00027}00027\ \textcolor{keyword}{from}\ pathlib\ \textcolor{keyword}{import}\ Path}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00028}00028\ \textcolor{keyword}{import}\ subprocess}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00029}00029\ \textcolor{keyword}{from}\ tempfile\ \textcolor{keyword}{import}\ TemporaryDirectory}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00030}00030\ }
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00031}00031\ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00032}00032\ }
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00033}00033\ \textcolor{keyword}{import}\ matplotlib\ \textcolor{keyword}{as}\ mpl}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00034}00034\ \textcolor{keyword}{from}\ matplotlib\ \textcolor{keyword}{import}\ cbook,\ dviread}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00035}00035\ }
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00036}00036\ \_log\ =\ logging.getLogger(\_\_name\_\_)}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00037}00037\ }
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00038}00038\ }
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00039}\mbox{\hyperlink{namespacematplotlib_1_1texmanager_a7384d9d936e0992d5de4170a9f30bede}{00039}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacematplotlib_1_1texmanager_a7384d9d936e0992d5de4170a9f30bede}{\_usepackage\_if\_not\_loaded}}(package,\ *,\ option=None):}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00040}00040\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00041}00041\ \textcolor{stringliteral}{\ \ \ \ Output\ LaTeX\ code\ that\ loads\ a\ package\ (possibly\ with\ an\ option)\ if\ it}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00042}00042\ \textcolor{stringliteral}{\ \ \ \ hasn't\ been\ loaded\ yet.}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00043}00043\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00044}00044\ \textcolor{stringliteral}{\ \ \ \ LaTeX\ cannot\ load\ twice\ a\ package\ with\ different\ options,\ so\ this\ helper}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00045}00045\ \textcolor{stringliteral}{\ \ \ \ can\ be\ used\ to\ protect\ against\ users\ loading\ arbitrary\ packages/options\ in}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00046}00046\ \textcolor{stringliteral}{\ \ \ \ their\ custom\ preamble.}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00047}00047\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00048}00048\ \ \ \ \ option\ =\ f\textcolor{stringliteral}{"{}[\{option\}]"{}}\ \textcolor{keywordflow}{if}\ option\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{else}\ \textcolor{stringliteral}{"{}"{}}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00049}00049\ \ \ \ \ \textcolor{keywordflow}{return}\ (}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00050}00050\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)makeatletter"{}}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00051}00051\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)@ifpackageloaded\{\%(package)s\}\{\}\{\(\backslash\)usepackage\%(option)s\{\%(package)s\}\}"{}}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00052}00052\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)makeatother"{}}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00053}00053\ \ \ \ \ )\ \%\ \{\textcolor{stringliteral}{"{}package"{}}:\ package,\ \textcolor{stringliteral}{"{}option"{}}:\ option\}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00054}00054\ }
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00055}00055\ }
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00056}\mbox{\hyperlink{classmatplotlib_1_1texmanager_1_1TexManager}{00056}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classmatplotlib_1_1texmanager_1_1TexManager}{TexManager}}:}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00057}00057\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00058}00058\ \textcolor{stringliteral}{\ \ \ \ Convert\ strings\ to\ dvi\ files\ using\ TeX,\ caching\ the\ results\ to\ a\ directory.}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00059}00059\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00060}00060\ \textcolor{stringliteral}{\ \ \ \ The\ cache\ directory\ is\ called\ \`{}\`{}tex.cache\`{}\`{}\ and\ is\ located\ in\ the\ directory}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00061}00061\ \textcolor{stringliteral}{\ \ \ \ returned\ by\ \`{}.get\_cachedir\`{}.}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00062}00062\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00063}00063\ \textcolor{stringliteral}{\ \ \ \ Repeated\ calls\ to\ this\ constructor\ always\ return\ the\ same\ instance.}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00064}00064\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00065}00065\ }
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00066}00066\ \ \ \ \ \_texcache\ =\ os.path.join(mpl.get\_cachedir(),\ \textcolor{stringliteral}{'tex.cache'})}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00067}00067\ \ \ \ \ \_grey\_arrayd\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00068}00068\ }
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00069}00069\ \ \ \ \ \_font\_families\ =\ (\textcolor{stringliteral}{'serif'},\ \textcolor{stringliteral}{'sans-\/serif'},\ \textcolor{stringliteral}{'cursive'},\ \textcolor{stringliteral}{'monospace'})}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00070}00070\ \ \ \ \ \_font\_preambles\ =\ \{}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00071}00071\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'new\ century\ schoolbook'}:\ \textcolor{stringliteral}{r'\(\backslash\)renewcommand\{\(\backslash\)rmdefault\}\{pnc\}'},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00072}00072\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'bookman'}:\ \textcolor{stringliteral}{r'\(\backslash\)renewcommand\{\(\backslash\)rmdefault\}\{pbk\}'},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00073}00073\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'times'}:\ \textcolor{stringliteral}{r'\(\backslash\)usepackage\{mathptmx\}'},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00074}00074\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'palatino'}:\ \textcolor{stringliteral}{r'\(\backslash\)usepackage\{mathpazo\}'},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00075}00075\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'zapf\ chancery'}:\ \textcolor{stringliteral}{r'\(\backslash\)usepackage\{chancery\}'},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00076}00076\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'cursive'}:\ \textcolor{stringliteral}{r'\(\backslash\)usepackage\{chancery\}'},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00077}00077\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'charter'}:\ \textcolor{stringliteral}{r'\(\backslash\)usepackage\{charter\}'},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00078}00078\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'serif'}:\ \textcolor{stringliteral}{''},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00079}00079\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'sans-\/serif'}:\ \textcolor{stringliteral}{''},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00080}00080\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'helvetica'}:\ \textcolor{stringliteral}{r'\(\backslash\)usepackage\{helvet\}'},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00081}00081\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'avant\ garde'}:\ \textcolor{stringliteral}{r'\(\backslash\)usepackage\{avant\}'},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00082}00082\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'courier'}:\ \textcolor{stringliteral}{r'\(\backslash\)usepackage\{courier\}'},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00083}00083\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Loading\ the\ type1ec\ package\ ensures\ that\ cm-\/super\ is\ installed,\ which}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00084}00084\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ is\ necessary\ for\ Unicode\ computer\ modern.\ \ (It\ also\ allows\ the\ use\ of}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00085}00085\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ computer\ modern\ at\ arbitrary\ sizes,\ but\ that's\ just\ a\ side\ effect.)}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00086}00086\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'monospace'}:\ \textcolor{stringliteral}{r'\(\backslash\)usepackage\{type1ec\}'},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00087}00087\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'computer\ modern\ roman'}:\ \textcolor{stringliteral}{r'\(\backslash\)usepackage\{type1ec\}'},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00088}00088\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'computer\ modern\ sans\ serif'}:\ \textcolor{stringliteral}{r'\(\backslash\)usepackage\{type1ec\}'},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00089}00089\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'computer\ modern\ typewriter'}:\ \textcolor{stringliteral}{r'\(\backslash\)usepackage\{type1ec\}'},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00090}00090\ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00091}00091\ \ \ \ \ \_font\_types\ =\ \{}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00092}00092\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'new\ century\ schoolbook'}:\ \textcolor{stringliteral}{'serif'},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00093}00093\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'bookman'}:\ \textcolor{stringliteral}{'serif'},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00094}00094\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'times'}:\ \textcolor{stringliteral}{'serif'},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00095}00095\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'palatino'}:\ \textcolor{stringliteral}{'serif'},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00096}00096\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'zapf\ chancery'}:\ \textcolor{stringliteral}{'cursive'},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00097}00097\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'charter'}:\ \textcolor{stringliteral}{'serif'},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00098}00098\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'helvetica'}:\ \textcolor{stringliteral}{'sans-\/serif'},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00099}00099\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'avant\ garde'}:\ \textcolor{stringliteral}{'sans-\/serif'},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00100}00100\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'courier'}:\ \textcolor{stringliteral}{'monospace'},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00101}00101\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'computer\ modern\ roman'}:\ \textcolor{stringliteral}{'serif'},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00102}00102\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'computer\ modern\ sans\ serif'}:\ \textcolor{stringliteral}{'sans-\/serif'},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00103}00103\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'computer\ modern\ typewriter'}:\ \textcolor{stringliteral}{'monospace'},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00104}00104\ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00105}00105\ }
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00106}00106\ \ \ \ \ \textcolor{preprocessor}{@functools.lru\_cache}\ \ \textcolor{comment}{\#\ Always\ return\ the\ same\ instance.}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00107}00107\ \ \ \ \ \textcolor{keyword}{def\ }\_\_new\_\_(cls):}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00108}00108\ \ \ \ \ \ \ \ \ Path(cls.\mbox{\hyperlink{classmatplotlib_1_1texmanager_1_1TexManager_ab4459f8b0ee65779df056ae74c750687}{\_texcache}}).mkdir(parents=\textcolor{keyword}{True},\ exist\_ok=\textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00109}00109\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ object.\_\_new\_\_(cls)}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00110}00110\ }
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00111}00111\ \ \ \ \ \textcolor{preprocessor}{@classmethod}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00112}00112\ \ \ \ \ \textcolor{keyword}{def\ }\_get\_font\_family\_and\_reduced(cls):}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00113}00113\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Return\ the\ font\ family\ name\ and\ whether\ the\ font\ is\ reduced."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00114}00114\ \ \ \ \ \ \ \ \ ff\ =\ mpl.rcParams[\textcolor{stringliteral}{'font.family'}]}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00115}00115\ \ \ \ \ \ \ \ \ ff\_val\ =\ ff[0].lower()\ \textcolor{keywordflow}{if}\ len(ff)\ ==\ 1\ \textcolor{keywordflow}{else}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00116}00116\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(ff)\ ==\ 1\ \textcolor{keywordflow}{and}\ ff\_val\ \textcolor{keywordflow}{in}\ cls.\mbox{\hyperlink{classmatplotlib_1_1texmanager_1_1TexManager_aef6966934e3677e0a3d24ab4c895ef3a}{\_font\_families}}:}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00117}00117\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ ff\_val,\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00118}00118\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ len(ff)\ ==\ 1\ \textcolor{keywordflow}{and}\ ff\_val\ \textcolor{keywordflow}{in}\ cls.\_font\_preambles:}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00119}00119\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ cls.\_font\_types[ff\_val],\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00120}00120\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00121}00121\ \ \ \ \ \ \ \ \ \ \ \ \ \_log.info(\textcolor{stringliteral}{'font.family\ must\ be\ one\ of\ (\%s)\ when\ text.usetex\ is\ '}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00122}00122\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'True.\ serif\ will\ be\ used\ by\ default.'},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00123}00123\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{',\ '}.join(cls.\mbox{\hyperlink{classmatplotlib_1_1texmanager_1_1TexManager_aef6966934e3677e0a3d24ab4c895ef3a}{\_font\_families}}))}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00124}00124\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{stringliteral}{'serif'},\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00125}00125\ }
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00126}00126\ \ \ \ \ \textcolor{preprocessor}{@classmethod}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00127}00127\ \ \ \ \ \textcolor{keyword}{def\ }\_get\_font\_preamble\_and\_command(cls):}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00128}00128\ \ \ \ \ \ \ \ \ requested\_family,\ is\_reduced\_font\ =\ cls.\_get\_font\_family\_and\_reduced()}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00129}00129\ }
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00130}00130\ \ \ \ \ \ \ \ \ preambles\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00131}00131\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ font\_family\ \textcolor{keywordflow}{in}\ cls.\mbox{\hyperlink{classmatplotlib_1_1texmanager_1_1TexManager_aef6966934e3677e0a3d24ab4c895ef3a}{\_font\_families}}:}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00132}00132\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ is\_reduced\_font\ \textcolor{keywordflow}{and}\ font\_family\ ==\ requested\_family:}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00133}00133\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ preambles[font\_family]\ =\ cls.\_font\_preambles[}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00134}00134\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ mpl.rcParams[\textcolor{stringliteral}{'font.family'}][0].lower()]}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00135}00135\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00136}00136\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ rcfonts\ =\ mpl.rcParams[f\textcolor{stringliteral}{"{}font.\{font\_family\}"{}}]}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00137}00137\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ i,\ font\ \textcolor{keywordflow}{in}\ enumerate(map(str.lower,\ rcfonts)):}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00138}00138\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ font\ \textcolor{keywordflow}{in}\ cls.\_font\_preambles:}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00139}00139\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ preambles[font\_family]\ =\ cls.\_font\_preambles[font]}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00140}00140\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_log.debug(}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00141}00141\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'family:\ \%s,\ package:\ \%s,\ font:\ \%s,\ skipped:\ \%s'},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00142}00142\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ font\_family,\ cls.\_font\_preambles[font],\ rcfonts[i],}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00143}00143\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{',\ '}.join(rcfonts[:i]),}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00144}00144\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00145}00145\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00146}00146\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00147}00147\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_log.info(\textcolor{stringliteral}{'No\ LaTeX-\/compatible\ font\ found\ for\ the\ \%s\ font'}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00148}00148\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'family\ in\ rcParams.\ Using\ default.'},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00149}00149\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ font\_family)}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00150}00150\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ preambles[font\_family]\ =\ cls.\_font\_preambles[font\_family]}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00151}00151\ }
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00152}00152\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ following\ packages\ and\ commands\ need\ to\ be\ included\ in\ the\ latex}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00153}00153\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ file's\ preamble:}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00154}00154\ \ \ \ \ \ \ \ \ cmd\ =\ \{preambles[family]}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00155}00155\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ family\ \textcolor{keywordflow}{in}\ [\textcolor{stringliteral}{'serif'},\ \textcolor{stringliteral}{'sans-\/serif'},\ \textcolor{stringliteral}{'monospace'}]\}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00156}00156\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ requested\_family\ ==\ \textcolor{stringliteral}{'cursive'}:}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00157}00157\ \ \ \ \ \ \ \ \ \ \ \ \ cmd.add(preambles[\textcolor{stringliteral}{'cursive'}])}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00158}00158\ \ \ \ \ \ \ \ \ cmd.add(\textcolor{stringliteral}{r'\(\backslash\)usepackage\{type1cm\}'})}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00159}00159\ \ \ \ \ \ \ \ \ preamble\ =\ \textcolor{stringliteral}{'\(\backslash\)n'}.join(sorted(cmd))}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00160}00160\ \ \ \ \ \ \ \ \ fontcmd\ =\ (\textcolor{stringliteral}{r'\(\backslash\)sffamily'}\ \textcolor{keywordflow}{if}\ requested\_family\ ==\ \textcolor{stringliteral}{'sans-\/serif'}\ \textcolor{keywordflow}{else}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00161}00161\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r'\(\backslash\)ttfamily'}\ \textcolor{keywordflow}{if}\ requested\_family\ ==\ \textcolor{stringliteral}{'monospace'}\ \textcolor{keywordflow}{else}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00162}00162\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r'\(\backslash\)rmfamily'})}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00163}00163\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ preamble,\ fontcmd}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00164}00164\ }
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00165}00165\ \ \ \ \ \textcolor{preprocessor}{@classmethod}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00166}00166\ \ \ \ \ \textcolor{keyword}{def\ }get\_basefile(cls,\ tex,\ fontsize,\ dpi=None):}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00167}00167\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00168}00168\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Return\ a\ filename\ based\ on\ a\ hash\ of\ the\ string,\ fontsize,\ and\ dpi.}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00169}00169\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00170}00170\ \ \ \ \ \ \ \ \ src\ =\ cls.\_get\_tex\_source(tex,\ fontsize)\ +\ str(dpi)}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00171}00171\ \ \ \ \ \ \ \ \ filehash\ =\ hashlib.sha256(}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00172}00172\ \ \ \ \ \ \ \ \ \ \ \ \ src.encode(\textcolor{stringliteral}{'utf-\/8'}),}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00173}00173\ \ \ \ \ \ \ \ \ \ \ \ \ usedforsecurity=\textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00174}00174\ \ \ \ \ \ \ \ \ ).hexdigest()}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00175}00175\ \ \ \ \ \ \ \ \ filepath\ =\ Path(cls.\mbox{\hyperlink{classmatplotlib_1_1texmanager_1_1TexManager_ab4459f8b0ee65779df056ae74c750687}{\_texcache}})}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00176}00176\ }
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00177}00177\ \ \ \ \ \ \ \ \ num\_letters,\ num\_levels\ =\ 2,\ 2}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00178}00178\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(0,\ num\_letters*num\_levels,\ num\_letters):}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00179}00179\ \ \ \ \ \ \ \ \ \ \ \ \ filepath\ =\ filepath\ /\ Path(filehash[i:i+2])}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00180}00180\ }
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00181}00181\ \ \ \ \ \ \ \ \ filepath.mkdir(parents=\textcolor{keyword}{True},\ exist\_ok=\textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00182}00182\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ os.path.join(filepath,\ filehash)}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00183}00183\ }
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00184}00184\ \ \ \ \ \textcolor{preprocessor}{@classmethod}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00185}00185\ \ \ \ \ \textcolor{keyword}{def\ }get\_font\_preamble(cls):}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00186}00186\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00187}00187\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Return\ a\ string\ containing\ font\ configuration\ for\ the\ tex\ preamble.}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00188}00188\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00189}00189\ \ \ \ \ \ \ \ \ font\_preamble,\ command\ =\ cls.\_get\_font\_preamble\_and\_command()}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00190}00190\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ font\_preamble}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00191}00191\ }
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00192}00192\ \ \ \ \ \textcolor{preprocessor}{@classmethod}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00193}00193\ \ \ \ \ \textcolor{keyword}{def\ }get\_custom\_preamble(cls):}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00194}00194\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Return\ a\ string\ containing\ user\ additions\ to\ the\ tex\ preamble."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00195}00195\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ mpl.rcParams[\textcolor{stringliteral}{'text.latex.preamble'}]}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00196}00196\ }
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00197}00197\ \ \ \ \ \textcolor{preprocessor}{@classmethod}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00198}00198\ \ \ \ \ \textcolor{keyword}{def\ }\_get\_tex\_source(cls,\ tex,\ fontsize):}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00199}00199\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Return\ the\ complete\ TeX\ source\ for\ processing\ a\ TeX\ string."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00200}00200\ \ \ \ \ \ \ \ \ font\_preamble,\ fontcmd\ =\ cls.\_get\_font\_preamble\_and\_command()}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00201}00201\ \ \ \ \ \ \ \ \ baselineskip\ =\ 1.25\ *\ fontsize}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00202}00202\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{stringliteral}{"{}\(\backslash\)n"{}}.join([}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00203}00203\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)documentclass\{article\}"{}},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00204}00204\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\%\ Pass-\/through\ \(\backslash\)mathdefault,\ which\ is\ used\ in\ non-\/usetex\ mode"{}},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00205}00205\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\%\ to\ use\ the\ default\ text\ font\ but\ was\ historically\ suppressed"{}},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00206}00206\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\%\ in\ usetex\ mode."{}},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00207}00207\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)newcommand\{\(\backslash\)mathdefault\}[1]\{\#1\}"{}},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00208}00208\ \ \ \ \ \ \ \ \ \ \ \ \ font\_preamble,}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00209}00209\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)usepackage[utf8]\{inputenc\}"{}},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00210}00210\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)DeclareUnicodeCharacter\{2212\}\{\(\backslash\)ensuremath\{-\/\}\}"{}},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00211}00211\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\%\ geometry\ is\ loaded\ before\ the\ custom\ preamble\ as\ "{}},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00212}00212\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\%\ convert\_psfrags\ relies\ on\ a\ custom\ preamble\ to\ change\ the\ "{}},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00213}00213\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\%\ geometry."{}},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00214}00214\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)usepackage[papersize=72in,\ margin=1in]\{geometry\}"{}},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00215}00215\ \ \ \ \ \ \ \ \ \ \ \ \ cls.get\_custom\_preamble(),}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00216}00216\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\%\ Use\ \`{}underscore`\ package\ to\ take\ care\ of\ underscores\ in\ text."{}},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00217}00217\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\%\ The\ [strings]\ option\ allows\ to\ use\ underscores\ in\ file\ names."{}},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00218}00218\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{namespacematplotlib_1_1texmanager_a7384d9d936e0992d5de4170a9f30bede}{\_usepackage\_if\_not\_loaded}}(\textcolor{stringliteral}{"{}underscore"{}},\ option=\textcolor{stringliteral}{"{}strings"{}}),}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00219}00219\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\%\ Custom\ packages\ (e.g.\ newtxtext)\ may\ already\ have\ loaded\ "{}},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00220}00220\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\%\ textcomp\ with\ different\ options."{}},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00221}00221\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{namespacematplotlib_1_1texmanager_a7384d9d936e0992d5de4170a9f30bede}{\_usepackage\_if\_not\_loaded}}(\textcolor{stringliteral}{"{}textcomp"{}}),}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00222}00222\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)pagestyle\{empty\}"{}},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00223}00223\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)begin\{document\}"{}},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00224}00224\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\%\ The\ empty\ hbox\ ensures\ that\ a\ page\ is\ printed\ even\ for\ empty"{}},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00225}00225\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\%\ inputs,\ except\ when\ using\ psfrag\ which\ gets\ confused\ by\ it."{}},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00226}00226\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\%\ matplotlibbaselinemarker\ is\ used\ by\ dviread\ to\ detect\ the"{}},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00227}00227\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\%\ last\ line's\ baseline."{}},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00228}00228\ \ \ \ \ \ \ \ \ \ \ \ \ rf\textcolor{stringliteral}{"{}\(\backslash\)fontsize\{\{\{fontsize\}\}\}\{\{\{baselineskip\}\}\}\%"{}},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00229}00229\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)ifdefined\(\backslash\)psfrag\(\backslash\)else\(\backslash\)hbox\{\}\(\backslash\)fi\%"{}},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00230}00230\ \ \ \ \ \ \ \ \ \ \ \ \ rf\textcolor{stringliteral}{"{}\{\{\{fontcmd\}\ \{tex\}\}\}\%"{}},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00231}00231\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)end\{document\}"{}},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00232}00232\ \ \ \ \ \ \ \ \ ])}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00233}00233\ }
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00234}00234\ \ \ \ \ \textcolor{preprocessor}{@classmethod}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00235}00235\ \ \ \ \ \textcolor{keyword}{def\ }make\_tex(cls,\ tex,\ fontsize):}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00236}00236\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00237}00237\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Generate\ a\ tex\ file\ to\ render\ the\ tex\ string\ at\ a\ specific\ font\ size.}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00238}00238\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00239}00239\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Return\ the\ file\ name.}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00240}00240\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00241}00241\ \ \ \ \ \ \ \ \ texfile\ =\ cls.get\_basefile(tex,\ fontsize)\ +\ \textcolor{stringliteral}{"{}.tex"{}}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00242}00242\ \ \ \ \ \ \ \ \ Path(texfile).write\_text(cls.\_get\_tex\_source(tex,\ fontsize),}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00243}00243\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ encoding=\textcolor{stringliteral}{'utf-\/8'})}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00244}00244\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ texfile}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00245}00245\ }
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00246}00246\ \ \ \ \ \textcolor{preprocessor}{@classmethod}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00247}00247\ \ \ \ \ \textcolor{keyword}{def\ }\_run\_checked\_subprocess(cls,\ command,\ tex,\ *,\ cwd=None):}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00248}00248\ \ \ \ \ \ \ \ \ \_log.debug(cbook.\_pformat\_subprocess(command))}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00249}00249\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00250}00250\ \ \ \ \ \ \ \ \ \ \ \ \ report\ =\ subprocess.check\_output(}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00251}00251\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ command,\ cwd=cwd\ \textcolor{keywordflow}{if}\ cwd\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{else}\ cls.\mbox{\hyperlink{classmatplotlib_1_1texmanager_1_1TexManager_ab4459f8b0ee65779df056ae74c750687}{\_texcache}},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00252}00252\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ stderr=subprocess.STDOUT)}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00253}00253\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ FileNotFoundError\ \textcolor{keyword}{as}\ exc:}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00254}00254\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classRuntimeError}{RuntimeError}}(}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00255}00255\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{'Failed\ to\ process\ string\ with\ tex\ because\ \{command[0]\}\ '}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00256}00256\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'could\ not\ be\ found'})\ \textcolor{keyword}{from}\ exc}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00257}00257\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ subprocess.CalledProcessError\ \textcolor{keyword}{as}\ exc:}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00258}00258\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classRuntimeError}{RuntimeError}}(}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00259}00259\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'\{prog\}\ was\ not\ able\ to\ process\ the\ following\ string:\(\backslash\)n'}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00260}00260\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'\{tex!r\}\(\backslash\)n\(\backslash\)n'}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00261}00261\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'Here\ is\ the\ full\ command\ invocation\ and\ its\ output:\(\backslash\)n\(\backslash\)n'}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00262}00262\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'\{format\_command\}\(\backslash\)n\(\backslash\)n'}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00263}00263\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'\{exc\}\(\backslash\)n\(\backslash\)n'}.format(}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00264}00264\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ prog=command[0],}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00265}00265\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ format\_command=cbook.\_pformat\_subprocess(command),}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00266}00266\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ tex=tex.encode(\textcolor{stringliteral}{'unicode\_escape'}),}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00267}00267\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ exc=exc.output.decode(\textcolor{stringliteral}{'utf-\/8'},\ \textcolor{stringliteral}{'backslashreplace'}))}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00268}00268\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )\ \textcolor{keyword}{from}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00269}00269\ \ \ \ \ \ \ \ \ \_log.debug(report)}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00270}00270\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ report}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00271}00271\ }
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00272}00272\ \ \ \ \ \textcolor{preprocessor}{@classmethod}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00273}00273\ \ \ \ \ \textcolor{keyword}{def\ }make\_dvi(cls,\ tex,\ fontsize):}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00274}00274\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00275}00275\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Generate\ a\ dvi\ file\ containing\ latex's\ layout\ of\ tex\ string.}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00276}00276\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00277}00277\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Return\ the\ file\ name.}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00278}00278\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00279}00279\ \ \ \ \ \ \ \ \ basefile\ =\ cls.get\_basefile(tex,\ fontsize)}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00280}00280\ \ \ \ \ \ \ \ \ dvifile\ =\ \textcolor{stringliteral}{'\%s.dvi'}\ \%\ basefile}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00281}00281\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ os.path.exists(dvifile):}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00282}00282\ \ \ \ \ \ \ \ \ \ \ \ \ texfile\ =\ Path(cls.make\_tex(tex,\ fontsize))}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00283}00283\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Generate\ the\ dvi\ in\ a\ temporary\ directory\ to\ avoid\ race}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00284}00284\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ conditions\ e.g.\ if\ multiple\ processes\ try\ to\ process\ the\ same\ tex}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00285}00285\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ string\ at\ the\ same\ time.\ \ Having\ tmpdir\ be\ a\ subdirectory\ of\ the}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00286}00286\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ final\ output\ dir\ ensures\ that\ they\ are\ on\ the\ same\ filesystem,}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00287}00287\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ and\ thus\ replace()\ works\ atomically.\ \ It\ also\ allows\ referring\ to}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00288}00288\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ the\ texfile\ with\ a\ relative\ path\ (for\ pathological\ MPLCONFIGDIRs,}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00289}00289\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ the\ absolute\ path\ may\ contain\ characters\ (e.g.\ \string~)\ that\ TeX\ does}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00290}00290\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ not\ support;\ n.b.\ relative\ paths\ cannot\ traverse\ parents,\ or\ it}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00291}00291\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ will\ be\ blocked\ when\ \`{}openin\_any\ =\ p`\ in\ texmf.cnf).}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00292}00292\ \ \ \ \ \ \ \ \ \ \ \ \ cwd\ =\ Path(dvifile).parent}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00293}00293\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ TemporaryDirectory(dir=cwd)\ \textcolor{keyword}{as}\ tmpdir:}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00294}00294\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ tmppath\ =\ Path(tmpdir)}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00295}00295\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ cls.\_run\_checked\_subprocess(}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00296}00296\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ [\textcolor{stringliteral}{"{}latex"{}},\ \textcolor{stringliteral}{"{}-\/interaction=nonstopmode"{}},\ \textcolor{stringliteral}{"{}-\/-\/halt-\/on-\/error"{}},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00297}00297\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}-\/-\/output-\/directory=\{tmppath.name\}"{}},}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00298}00298\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\{texfile.name\}"{}}],\ tex,\ cwd=cwd)}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00299}00299\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (tmppath\ /\ Path(dvifile).name).replace(dvifile)}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00300}00300\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ dvifile}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00301}00301\ }
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00302}00302\ \ \ \ \ \textcolor{preprocessor}{@classmethod}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00303}00303\ \ \ \ \ \textcolor{keyword}{def\ }make\_png(cls,\ tex,\ fontsize,\ dpi):}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00304}00304\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00305}00305\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Generate\ a\ png\ file\ containing\ latex's\ rendering\ of\ tex\ string.}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00306}00306\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00307}00307\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Return\ the\ file\ name.}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00308}00308\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00309}00309\ \ \ \ \ \ \ \ \ basefile\ =\ cls.get\_basefile(tex,\ fontsize,\ dpi)}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00310}00310\ \ \ \ \ \ \ \ \ pngfile\ =\ \textcolor{stringliteral}{'\%s.png'}\ \%\ basefile}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00311}00311\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ see\ get\_rgba\ for\ a\ discussion\ of\ the\ background}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00312}00312\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ os.path.exists(pngfile):}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00313}00313\ \ \ \ \ \ \ \ \ \ \ \ \ dvifile\ =\ cls.make\_dvi(tex,\ fontsize)}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00314}00314\ \ \ \ \ \ \ \ \ \ \ \ \ cmd\ =\ [\textcolor{stringliteral}{"{}dvipng"{}},\ \textcolor{stringliteral}{"{}-\/bg"{}},\ \textcolor{stringliteral}{"{}Transparent"{}},\ \textcolor{stringliteral}{"{}-\/D"{}},\ str(dpi),}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00315}00315\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}-\/T"{}},\ \textcolor{stringliteral}{"{}tight"{}},\ \textcolor{stringliteral}{"{}-\/o"{}},\ pngfile,\ dvifile]}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00316}00316\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ When\ testing,\ disable\ FreeType\ rendering\ for\ reproducibility;\ but}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00317}00317\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ dvipng\ 1.16\ has\ a\ bug\ (fixed\ in\ f3ff241)\ that\ breaks\ -\/-\/freetype0}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00318}00318\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ mode,\ so\ for\ it\ we\ keep\ FreeType\ enabled;\ the\ image\ will\ be}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00319}00319\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ slightly\ off.}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00320}00320\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (getattr(mpl,\ \textcolor{stringliteral}{"{}\_called\_from\_pytest"{}},\ \textcolor{keyword}{False})\ \textcolor{keywordflow}{and}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00321}00321\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ mpl.\_get\_executable\_info(\textcolor{stringliteral}{"{}dvipng"{}}).raw\_version\ !=\ \textcolor{stringliteral}{"{}1.16"{}}):}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00322}00322\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ cmd.insert(1,\ \textcolor{stringliteral}{"{}-\/-\/freetype0"{}})}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00323}00323\ \ \ \ \ \ \ \ \ \ \ \ \ cls.\_run\_checked\_subprocess(cmd,\ tex)}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00324}00324\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ pngfile}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00325}00325\ }
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00326}00326\ \ \ \ \ \textcolor{preprocessor}{@classmethod}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00327}00327\ \ \ \ \ \textcolor{keyword}{def\ }get\_grey(cls,\ tex,\ fontsize=None,\ dpi=None):}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00328}00328\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Return\ the\ alpha\ channel."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00329}00329\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ fontsize:}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00330}00330\ \ \ \ \ \ \ \ \ \ \ \ \ fontsize\ =\ mpl.rcParams[\textcolor{stringliteral}{'font.size'}]}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00331}00331\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ dpi:}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00332}00332\ \ \ \ \ \ \ \ \ \ \ \ \ dpi\ =\ mpl.rcParams[\textcolor{stringliteral}{'savefig.dpi'}]}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00333}00333\ \ \ \ \ \ \ \ \ key\ =\ cls.\_get\_tex\_source(tex,\ fontsize),\ dpi}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00334}00334\ \ \ \ \ \ \ \ \ alpha\ =\ cls.\mbox{\hyperlink{classmatplotlib_1_1texmanager_1_1TexManager_ade003ee2a1a2092a57a445f7feb5bd4a}{\_grey\_arrayd}}.get(key)}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00335}00335\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ alpha\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00336}00336\ \ \ \ \ \ \ \ \ \ \ \ \ pngfile\ =\ cls.make\_png(tex,\ fontsize,\ dpi)}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00337}00337\ \ \ \ \ \ \ \ \ \ \ \ \ rgba\ =\ mpl.image.imread(os.path.join(cls.\mbox{\hyperlink{classmatplotlib_1_1texmanager_1_1TexManager_ab4459f8b0ee65779df056ae74c750687}{\_texcache}},\ pngfile))}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00338}00338\ \ \ \ \ \ \ \ \ \ \ \ \ cls.\mbox{\hyperlink{classmatplotlib_1_1texmanager_1_1TexManager_ade003ee2a1a2092a57a445f7feb5bd4a}{\_grey\_arrayd}}[key]\ =\ alpha\ =\ rgba[:,\ :,\ -\/1]}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00339}00339\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ alpha}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00340}00340\ }
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00341}00341\ \ \ \ \ \textcolor{preprocessor}{@classmethod}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00342}00342\ \ \ \ \ \textcolor{keyword}{def\ }get\_rgba(cls,\ tex,\ fontsize=None,\ dpi=None,\ rgb=(0,\ 0,\ 0)):}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00343}00343\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00344}00344\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Return\ latex's\ rendering\ of\ the\ tex\ string\ as\ an\ RGBA\ array.}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00345}00345\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00346}00346\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00347}00347\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00348}00348\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ texmanager\ =\ TexManager()}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00349}00349\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ s\ =\ r"{}\(\backslash\)TeX\(\backslash\)\ is\ \$\(\backslash\)displaystyle\(\backslash\)sum\_n\(\backslash\)frac\{-\/e\string^\{i\(\backslash\)pi\}\}\{2\string^n\}\$!"{}}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00350}00350\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ Z\ =\ texmanager.get\_rgba(s,\ fontsize=12,\ dpi=80,\ rgb=(1,\ 0,\ 0))}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00351}00351\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00352}00352\ \ \ \ \ \ \ \ \ alpha\ =\ cls.get\_grey(tex,\ fontsize,\ dpi)}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00353}00353\ \ \ \ \ \ \ \ \ rgba\ =\ np.empty((*alpha.shape,\ 4))}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00354}00354\ \ \ \ \ \ \ \ \ rgba[...,\ :3]\ =\ mpl.colors.to\_rgb(rgb)}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00355}00355\ \ \ \ \ \ \ \ \ rgba[...,\ -\/1]\ =\ alpha}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00356}00356\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ rgba}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00357}00357\ }
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00358}00358\ \ \ \ \ \textcolor{preprocessor}{@classmethod}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00359}00359\ \ \ \ \ \textcolor{keyword}{def\ }get\_text\_width\_height\_descent(cls,\ tex,\ fontsize,\ renderer=None):}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00360}00360\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Return\ width,\ height\ and\ descent\ of\ the\ text."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00361}00361\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ tex.strip()\ ==\ \textcolor{stringliteral}{''}:}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00362}00362\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ 0,\ 0,\ 0}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00363}00363\ \ \ \ \ \ \ \ \ dvifile\ =\ cls.make\_dvi(tex,\ fontsize)}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00364}00364\ \ \ \ \ \ \ \ \ dpi\_fraction\ =\ renderer.points\_to\_pixels(1.)\ \textcolor{keywordflow}{if}\ renderer\ \textcolor{keywordflow}{else}\ 1}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00365}00365\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ \mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi}{dviread.Dvi}}(dvifile,\ 72\ *\ dpi\_fraction)\ \textcolor{keyword}{as}\ dvi:}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00366}00366\ \ \ \ \ \ \ \ \ \ \ \ \ page,\ =\ dvi}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00367}00367\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ A\ total\ height\ (including\ the\ descent)\ needs\ to\ be\ returned.}}
+\DoxyCodeLine{\Hypertarget{texmanager_8py_source_l00368}00368\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ page.width,\ page.height\ +\ page.descent,\ page.descent}
+
+\end{DoxyCode}

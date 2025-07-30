@@ -1,0 +1,27 @@
+var classmatplotlib_1_1backend__bases_1_1NavigationToolbar2 =
+[
+    [ "_update_cursor", "dc/d0d/classmatplotlib_1_1backend__bases_1_1NavigationToolbar2.html#a1bd7ddc638a6c82c4c77f030215197a2", null ],
+    [ "_update_view", "dc/d0d/classmatplotlib_1_1backend__bases_1_1NavigationToolbar2.html#a374634490fed9ae405182161d34da304", null ],
+    [ "_wait_cursor_for_draw_cm", "dc/d0d/classmatplotlib_1_1backend__bases_1_1NavigationToolbar2.html#a73f639f7c70d18cfe6ce1f906c9f5a75", null ],
+    [ "back", "dc/d0d/classmatplotlib_1_1backend__bases_1_1NavigationToolbar2.html#a122f663fd2541849cb303fee60729639", null ],
+    [ "drag_pan", "dc/d0d/classmatplotlib_1_1backend__bases_1_1NavigationToolbar2.html#a05d0e973848f9b99703c5493fccf4f10", null ],
+    [ "drag_zoom", "dc/d0d/classmatplotlib_1_1backend__bases_1_1NavigationToolbar2.html#aeee092e7682c6da76f7dbb51fb20d9cf", null ],
+    [ "draw_rubberband", "dc/d0d/classmatplotlib_1_1backend__bases_1_1NavigationToolbar2.html#a5d2ca66bdda6c279bdfb758d490c86df", null ],
+    [ "forward", "dc/d0d/classmatplotlib_1_1backend__bases_1_1NavigationToolbar2.html#ae9d7b75175ad9218327d9b772cbec081", null ],
+    [ "home", "dc/d0d/classmatplotlib_1_1backend__bases_1_1NavigationToolbar2.html#ae9c682069dc40f8e7e8dba6335c6f863", null ],
+    [ "pan", "dc/d0d/classmatplotlib_1_1backend__bases_1_1NavigationToolbar2.html#aef4400517ec8190fa6835ff87fa54203", null ],
+    [ "press_pan", "dc/d0d/classmatplotlib_1_1backend__bases_1_1NavigationToolbar2.html#a795dc0915533c77eb5c762f03998fe6b", null ],
+    [ "press_zoom", "dc/d0d/classmatplotlib_1_1backend__bases_1_1NavigationToolbar2.html#ac7a87c9f9da44e78e514b195e4e2ec57", null ],
+    [ "push_current", "dc/d0d/classmatplotlib_1_1backend__bases_1_1NavigationToolbar2.html#a08b011a6065b0e1f39631b5d1e27f498", null ],
+    [ "release_pan", "dc/d0d/classmatplotlib_1_1backend__bases_1_1NavigationToolbar2.html#a6c6e41584e4209e0f1606e3e6e94b8a5", null ],
+    [ "release_zoom", "dc/d0d/classmatplotlib_1_1backend__bases_1_1NavigationToolbar2.html#aef22fa705fe71435e9eab680f08d4b7d", null ],
+    [ "remove_rubberband", "dc/d0d/classmatplotlib_1_1backend__bases_1_1NavigationToolbar2.html#ab7df65efa74262f4796e42b9844d7b51", null ],
+    [ "save_figure", "dc/d0d/classmatplotlib_1_1backend__bases_1_1NavigationToolbar2.html#aabb9c271e6637aa8682ae8954aebb9d3", null ],
+    [ "set_history_buttons", "dc/d0d/classmatplotlib_1_1backend__bases_1_1NavigationToolbar2.html#a7ac2e9ef328babf67e07cee14169a9a0", null ],
+    [ "set_message", "dc/d0d/classmatplotlib_1_1backend__bases_1_1NavigationToolbar2.html#aeac6a289e8afdb0a0eeb093bdaf275a5", null ],
+    [ "update", "dc/d0d/classmatplotlib_1_1backend__bases_1_1NavigationToolbar2.html#ad47f1f15e11d2d8e286e98863df68960", null ],
+    [ "_draw_time", "dc/d0d/classmatplotlib_1_1backend__bases_1_1NavigationToolbar2.html#a0e58b09e1534e4b3e54af06096ff060a", null ],
+    [ "_id_drag", "dc/d0d/classmatplotlib_1_1backend__bases_1_1NavigationToolbar2.html#a3882dae80aa401354763838069322658", null ],
+    [ "_pan_info", "dc/d0d/classmatplotlib_1_1backend__bases_1_1NavigationToolbar2.html#a1637438b19a716c61e7211b13fbe621a", null ],
+    [ "mode", "dc/d0d/classmatplotlib_1_1backend__bases_1_1NavigationToolbar2.html#a6bf38bfe5efa8669f93a3866b13af66a", null ]
+];

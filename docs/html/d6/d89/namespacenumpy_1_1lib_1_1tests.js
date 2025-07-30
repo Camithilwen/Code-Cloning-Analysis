@@ -1,0 +1,28 @@
+var namespacenumpy_1_1lib_1_1tests =
+[
+    [ "test__datasource", "dc/dc1/namespacenumpy_1_1lib_1_1tests_1_1test____datasource.html", "dc/dc1/namespacenumpy_1_1lib_1_1tests_1_1test____datasource" ],
+    [ "test__iotools", "d2/dac/namespacenumpy_1_1lib_1_1tests_1_1test____iotools.html", "d2/dac/namespacenumpy_1_1lib_1_1tests_1_1test____iotools" ],
+    [ "test__version", "d8/d1b/namespacenumpy_1_1lib_1_1tests_1_1test____version.html", null ],
+    [ "test_arraypad", "d9/dbb/namespacenumpy_1_1lib_1_1tests_1_1test__arraypad.html", "d9/dbb/namespacenumpy_1_1lib_1_1tests_1_1test__arraypad" ],
+    [ "test_arraysetops", "d4/d04/namespacenumpy_1_1lib_1_1tests_1_1test__arraysetops.html", "d4/d04/namespacenumpy_1_1lib_1_1tests_1_1test__arraysetops" ],
+    [ "test_arrayterator", "d4/dde/namespacenumpy_1_1lib_1_1tests_1_1test__arrayterator.html", null ],
+    [ "test_financial_expired", "d3/da5/namespacenumpy_1_1lib_1_1tests_1_1test__financial__expired.html", null ],
+    [ "test_format", "d6/dcd/namespacenumpy_1_1lib_1_1tests_1_1test__format.html", "d6/dcd/namespacenumpy_1_1lib_1_1tests_1_1test__format" ],
+    [ "test_function_base", "d1/d07/namespacenumpy_1_1lib_1_1tests_1_1test__function__base.html", "d1/d07/namespacenumpy_1_1lib_1_1tests_1_1test__function__base" ],
+    [ "test_histograms", "d5/d15/namespacenumpy_1_1lib_1_1tests_1_1test__histograms.html", "d5/d15/namespacenumpy_1_1lib_1_1tests_1_1test__histograms" ],
+    [ "test_index_tricks", "df/d73/namespacenumpy_1_1lib_1_1tests_1_1test__index__tricks.html", "df/d73/namespacenumpy_1_1lib_1_1tests_1_1test__index__tricks" ],
+    [ "test_io", "dc/d4c/namespacenumpy_1_1lib_1_1tests_1_1test__io.html", "dc/d4c/namespacenumpy_1_1lib_1_1tests_1_1test__io" ],
+    [ "test_loadtxt", "d2/dd6/namespacenumpy_1_1lib_1_1tests_1_1test__loadtxt.html", "d2/dd6/namespacenumpy_1_1lib_1_1tests_1_1test__loadtxt" ],
+    [ "test_mixins", "d1/d6b/namespacenumpy_1_1lib_1_1tests_1_1test__mixins.html", "d1/d6b/namespacenumpy_1_1lib_1_1tests_1_1test__mixins" ],
+    [ "test_nanfunctions", "d6/d03/namespacenumpy_1_1lib_1_1tests_1_1test__nanfunctions.html", "d6/d03/namespacenumpy_1_1lib_1_1tests_1_1test__nanfunctions" ],
+    [ "test_packbits", "dc/d65/namespacenumpy_1_1lib_1_1tests_1_1test__packbits.html", "dc/d65/namespacenumpy_1_1lib_1_1tests_1_1test__packbits" ],
+    [ "test_polynomial", "d3/d4e/namespacenumpy_1_1lib_1_1tests_1_1test__polynomial.html", "d3/d4e/namespacenumpy_1_1lib_1_1tests_1_1test__polynomial" ],
+    [ "test_recfunctions", "d6/da1/namespacenumpy_1_1lib_1_1tests_1_1test__recfunctions.html", "d6/da1/namespacenumpy_1_1lib_1_1tests_1_1test__recfunctions" ],
+    [ "test_regression", "d0/db7/namespacenumpy_1_1lib_1_1tests_1_1test__regression.html", "d0/db7/namespacenumpy_1_1lib_1_1tests_1_1test__regression" ],
+    [ "test_shape_base", "d0/d1e/namespacenumpy_1_1lib_1_1tests_1_1test__shape__base.html", "d0/d1e/namespacenumpy_1_1lib_1_1tests_1_1test__shape__base" ],
+    [ "test_stride_tricks", "d3/dd8/namespacenumpy_1_1lib_1_1tests_1_1test__stride__tricks.html", "d3/dd8/namespacenumpy_1_1lib_1_1tests_1_1test__stride__tricks" ],
+    [ "test_twodim_base", "dc/d32/namespacenumpy_1_1lib_1_1tests_1_1test__twodim__base.html", "dc/d32/namespacenumpy_1_1lib_1_1tests_1_1test__twodim__base" ],
+    [ "test_type_check", "d6/de0/namespacenumpy_1_1lib_1_1tests_1_1test__type__check.html", "d6/de0/namespacenumpy_1_1lib_1_1tests_1_1test__type__check" ],
+    [ "test_ufunclike", "df/da0/namespacenumpy_1_1lib_1_1tests_1_1test__ufunclike.html", "df/da0/namespacenumpy_1_1lib_1_1tests_1_1test__ufunclike" ],
+    [ "test_utils", "d0/ddd/namespacenumpy_1_1lib_1_1tests_1_1test__utils.html", "d0/ddd/namespacenumpy_1_1lib_1_1tests_1_1test__utils" ]
+];

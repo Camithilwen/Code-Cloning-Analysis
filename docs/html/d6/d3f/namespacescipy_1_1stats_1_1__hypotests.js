@@ -1,0 +1,27 @@
+var namespacescipy_1_1stats_1_1__hypotests =
+[
+    [ "BarnardExactResult", "d7/d38/classscipy_1_1stats_1_1__hypotests_1_1BarnardExactResult.html", null ],
+    [ "BoschlooExactResult", "dd/dd0/classscipy_1_1stats_1_1__hypotests_1_1BoschlooExactResult.html", null ],
+    [ "CramerVonMisesResult", "d8/dc6/classscipy_1_1stats_1_1__hypotests_1_1CramerVonMisesResult.html", null ],
+    [ "SomersDResult", "db/d0a/classscipy_1_1stats_1_1__hypotests_1_1SomersDResult.html", null ],
+    [ "TukeyHSDResult", "dc/d29/classscipy_1_1stats_1_1__hypotests_1_1TukeyHSDResult.html", "dc/d29/classscipy_1_1stats_1_1__hypotests_1_1TukeyHSDResult" ],
+    [ "_all_partitions", "d6/d3f/namespacescipy_1_1stats_1_1__hypotests.html#abe6e1ec1b838cc5aa94f5763ef4d6c73", null ],
+    [ "_cdf_cvm", "d6/d3f/namespacescipy_1_1stats_1_1__hypotests.html#ab962c6513bc9f7e9c531a919d16d395e", null ],
+    [ "_cdf_cvm_inf", "d6/d3f/namespacescipy_1_1stats_1_1__hypotests.html#aa2f7dc7ca6455ba7e757166a2a0b6341", null ],
+    [ "_compute_log_combinations", "d6/d3f/namespacescipy_1_1stats_1_1__hypotests.html#a049da303b8d2e7ca77354273262dfce1", null ],
+    [ "_get_binomial_log_p_value_with_nuisance_param", "d6/d3f/namespacescipy_1_1stats_1_1__hypotests.html#a23f38a1f93c7b64e0f8a84998c5bf773", null ],
+    [ "_get_wilcoxon_distr", "d6/d3f/namespacescipy_1_1stats_1_1__hypotests.html#ae8a3a0780c9647797a3f4c8a912f8644", null ],
+    [ "_get_wilcoxon_distr2", "d6/d3f/namespacescipy_1_1stats_1_1__hypotests.html#ab6216edb11e21a8e7a16f786314eb354", null ],
+    [ "_psi1_mod", "d6/d3f/namespacescipy_1_1stats_1_1__hypotests.html#a959d606f29bc461a5f200a7afed53515", null ],
+    [ "_pval_cvm_2samp_exact", "d6/d3f/namespacescipy_1_1stats_1_1__hypotests.html#a6c8d7ac7c7e4125a1c020c32af0786c6", null ],
+    [ "_somers_d", "d6/d3f/namespacescipy_1_1stats_1_1__hypotests.html#a074f0b90d49d817a98c595d8828c8285", null ],
+    [ "_tau_b", "d6/d3f/namespacescipy_1_1stats_1_1__hypotests.html#ab402ca584d555bd7801ecda854f4fe26", null ],
+    [ "barnard_exact", "d6/d3f/namespacescipy_1_1stats_1_1__hypotests.html#aaf3a3f656d72cd4dd010f781d4adfd3b", null ],
+    [ "boschloo_exact", "d6/d3f/namespacescipy_1_1stats_1_1__hypotests.html#a052b6fccc61a5edda7e687af88f5306f", null ],
+    [ "cramervonmises", "d6/d3f/namespacescipy_1_1stats_1_1__hypotests.html#ab7f83ced89d2318a8a9e56ec9870f069", null ],
+    [ "cramervonmises_2samp", "d6/d3f/namespacescipy_1_1stats_1_1__hypotests.html#aa1e4adb733eee8e9bb9fff1aca50ccea", null ],
+    [ "epps_singleton_2samp", "d6/d3f/namespacescipy_1_1stats_1_1__hypotests.html#ade49f50bc7740c5eed78e17309590a3c", null ],
+    [ "poisson_means_test", "d6/d3f/namespacescipy_1_1stats_1_1__hypotests.html#a5a05df89434485a5109f0c52119aea1d", null ],
+    [ "somersd", "d6/d3f/namespacescipy_1_1stats_1_1__hypotests.html#a30dc3c3fcba32b99672684269768e0ad", null ],
+    [ "tukey_hsd", "d6/d3f/namespacescipy_1_1stats_1_1__hypotests.html#a4607ea9d99c9f1c317fc3eb75e234953", null ]
+];

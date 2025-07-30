@@ -1,0 +1,1145 @@
+\doxysection{dviread.\+py}
+\hypertarget{dviread_8py_source}{}\label{dviread_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/matplotlib/dviread.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/matplotlib/dviread.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00001}\mbox{\hyperlink{namespacematplotlib_1_1dviread}{00001}}\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00002}00002\ \textcolor{stringliteral}{A\ module\ for\ reading\ dvi\ files\ output\ by\ TeX.\ Several\ limitations\ make}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00003}00003\ \textcolor{stringliteral}{this\ not\ (currently)\ useful\ as\ a\ general-\/purpose\ dvi\ preprocessor,\ but}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00004}00004\ \textcolor{stringliteral}{it\ is\ currently\ used\ by\ the\ pdf\ backend\ for\ processing\ usetex\ text.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00005}00005\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00006}00006\ \textcolor{stringliteral}{Interface::}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00007}00007\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00008}00008\ \textcolor{stringliteral}{\ \ with\ Dvi(filename,\ 72)\ as\ dvi:}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00009}00009\ \textcolor{stringliteral}{\ \ \ \ \ \ \#\ iterate\ over\ pages:}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00010}00010\ \textcolor{stringliteral}{\ \ \ \ \ \ for\ page\ in\ dvi:}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00011}00011\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ w,\ h,\ d\ =\ page.width,\ page.height,\ page.descent}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00012}00012\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ for\ x,\ y,\ font,\ glyph,\ width\ in\ page.text:}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00013}00013\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ fontname\ =\ font.texname}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00014}00014\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ pointsize\ =\ font.size}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00015}00015\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ ...}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00016}00016\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ for\ x,\ y,\ height,\ width\ in\ page.boxes:}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00017}00017\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ ...}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00018}00018\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00019}00019\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00020}00020\ \textcolor{keyword}{from}\ collections\ \textcolor{keyword}{import}\ namedtuple}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00021}00021\ \textcolor{keyword}{import}\ enum}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00022}00022\ \textcolor{keyword}{from}\ functools\ \textcolor{keyword}{import}\ lru\_cache,\ partial,\ wraps}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00023}00023\ \textcolor{keyword}{import}\ logging}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00024}00024\ \textcolor{keyword}{import}\ os}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00025}00025\ \textcolor{keyword}{from}\ pathlib\ \textcolor{keyword}{import}\ Path}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00026}00026\ \textcolor{keyword}{import}\ re}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00027}00027\ \textcolor{keyword}{import}\ struct}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00028}00028\ \textcolor{keyword}{import}\ subprocess}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00029}00029\ \textcolor{keyword}{import}\ sys}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00030}00030\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00031}00031\ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00032}00032\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00033}00033\ \textcolor{keyword}{from}\ matplotlib\ \textcolor{keyword}{import}\ \_api,\ cbook}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00034}00034\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00035}00035\ \_log\ =\ logging.getLogger(\_\_name\_\_)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00036}00036\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00037}00037\ \textcolor{comment}{\#\ Many\ dvi\ related\ files\ are\ looked\ for\ by\ external\ processes,\ require}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00038}00038\ \textcolor{comment}{\#\ additional\ parsing,\ and\ are\ used\ many\ times\ per\ rendering,\ which\ is\ why\ they}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00039}00039\ \textcolor{comment}{\#\ are\ cached\ using\ lru\_cache().}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00040}00040\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00041}00041\ \textcolor{comment}{\#\ Dvi\ is\ a\ bytecode\ format\ documented\ in}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00042}00042\ \textcolor{comment}{\#\ https://ctan.org/pkg/dvitype}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00043}00043\ \textcolor{comment}{\#\ https://texdoc.org/serve/dvitype.pdf/0}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00044}00044\ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00045}00045\ \textcolor{comment}{\#\ The\ file\ consists\ of\ a\ preamble,\ some\ number\ of\ pages,\ a\ postamble,}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00046}00046\ \textcolor{comment}{\#\ and\ a\ finale.\ Different\ opcodes\ are\ allowed\ in\ different\ contexts,}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00047}00047\ \textcolor{comment}{\#\ so\ the\ Dvi\ object\ has\ a\ parser\ state:}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00048}00048\ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00049}00049\ \textcolor{comment}{\#\ \ \ pre:\ \ \ \ \ \ \ expecting\ the\ preamble}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00050}00050\ \textcolor{comment}{\#\ \ \ outer:\ \ \ \ \ between\ pages\ (followed\ by\ a\ page\ or\ the\ postamble,}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00051}00051\ \textcolor{comment}{\#\ \ \ \ \ \ \ \ \ \ \ \ \ \ also\ e.g.\ font\ definitions\ are\ allowed)}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00052}00052\ \textcolor{comment}{\#\ \ \ page:\ \ \ \ \ \ processing\ a\ page}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00053}00053\ \textcolor{comment}{\#\ \ \ post\_post:\ state\ after\ the\ postamble\ (our\ current\ implementation}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00054}00054\ \textcolor{comment}{\#\ \ \ \ \ \ \ \ \ \ \ \ \ \ just\ stops\ reading)}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00055}00055\ \textcolor{comment}{\#\ \ \ finale:\ \ \ \ the\ finale\ (unimplemented\ in\ our\ current\ implementation)}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00056}00056\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00057}00057\ \_dvistate\ =\ enum.Enum(\textcolor{stringliteral}{'DviState'},\ \textcolor{stringliteral}{'pre\ outer\ inpage\ post\_post\ finale'})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00058}00058\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00059}00059\ \textcolor{comment}{\#\ The\ marks\ on\ a\ page\ consist\ of\ text\ and\ boxes.\ A\ page\ also\ has\ dimensions.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00060}00060\ Page\ =\ \mbox{\hyperlink{classnamedtuple}{namedtuple}}(\textcolor{stringliteral}{'Page'},\ \textcolor{stringliteral}{'text\ boxes\ height\ width\ descent'})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00061}00061\ Box\ =\ \mbox{\hyperlink{classnamedtuple}{namedtuple}}(\textcolor{stringliteral}{'Box'},\ \textcolor{stringliteral}{'x\ y\ height\ width'})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00062}00062\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00063}00063\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00064}00064\ \textcolor{comment}{\#\ Also\ a\ namedtuple,\ for\ backcompat.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00065}\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Text}{00065}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Text}{Text}}(\mbox{\hyperlink{classnamedtuple}{namedtuple}}(\textcolor{stringliteral}{'Text'},\ \textcolor{stringliteral}{'x\ y\ font\ glyph\ width'})):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00066}00066\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00067}00067\ \textcolor{stringliteral}{\ \ \ \ A\ glyph\ in\ the\ dvi\ file.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00068}00068\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00069}00069\ \textcolor{stringliteral}{\ \ \ \ The\ *x*\ and\ *y*\ attributes\ directly\ position\ the\ glyph.\ \ The\ *font*,}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00070}00070\ \textcolor{stringliteral}{\ \ \ \ *glyph*,\ and\ *width*\ attributes\ are\ kept\ public\ for\ back-\/compatibility,}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00071}00071\ \textcolor{stringliteral}{\ \ \ \ but\ users\ wanting\ to\ draw\ the\ glyph\ themselves\ are\ encouraged\ to\ instead}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00072}00072\ \textcolor{stringliteral}{\ \ \ \ load\ the\ font\ specified\ by\ \`{}font\_path\`{}\ at\ \`{}font\_size\`{},\ warp\ it\ with\ the}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00073}00073\ \textcolor{stringliteral}{\ \ \ \ effects\ specified\ by\ \`{}font\_effects\`{},\ and\ load\ the\ glyph\ specified\ by}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00074}00074\ \textcolor{stringliteral}{\ \ \ \ \`{}glyph\_name\_or\_index\`{}.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00075}00075\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00076}00076\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00077}00077\ \ \ \ \ \textcolor{keyword}{def\ }\_get\_pdftexmap\_entry(self):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00078}00078\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classmatplotlib_1_1dviread_1_1PsfontsMap}{PsfontsMap}}(\mbox{\hyperlink{namespacematplotlib_1_1dviread_a9c9a86abfad17941d667418e4f74290a}{find\_tex\_file}}(\textcolor{stringliteral}{"{}pdftex.map"{}}))[self.font.texname]}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00079}00079\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00080}00080\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00081}\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Text_ad2bef420a6f47395b6447e95cf957bdc}{00081}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Text_ad2bef420a6f47395b6447e95cf957bdc}{font\_path}}(self):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00082}00082\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}The\ \`{}\string~pathlib.Path\`{}\ to\ the\ font\ for\ this\ glyph."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00083}00083\ \ \ \ \ \ \ \ \ psfont\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Text_a38c67a5c7219097f48b79ed123ac2d27}{\_get\_pdftexmap\_entry}}()}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00084}00084\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ psfont.filename\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00085}00085\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}No\ usable\ font\ file\ found\ for\ \{\}\ (\{\});\ "{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00086}00086\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}the\ font\ may\ lack\ a\ Type-\/1\ version"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00087}00087\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ .format(psfont.psname.decode(\textcolor{stringliteral}{"{}ascii"{}}),}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00088}00088\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ psfont.texname.decode(\textcolor{stringliteral}{"{}ascii"{}})))}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00089}00089\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ Path(psfont.filename)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00090}00090\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00091}00091\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00092}\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Text_a9e04a3ef9ae4cfb761ee271e50087491}{00092}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Text_a9e04a3ef9ae4cfb761ee271e50087491}{font\_size}}(self):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00093}00093\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}The\ font\ size."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00094}00094\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.font.size}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00095}00095\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00096}00096\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00097}\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Text_a1540ad40969f34acc7af5883110d7d3b}{00097}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Text_a1540ad40969f34acc7af5883110d7d3b}{font\_effects}}(self):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00098}00098\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00099}00099\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ "{}font\ effects"{}\ dict\ for\ this\ glyph.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00100}00100\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00101}00101\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ This\ dict\ contains\ the\ values\ for\ this\ glyph\ of\ SlantFont\ and}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00102}00102\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ExtendFont\ (if\ any),\ read\ off\ :file:\`{}pdftex.map\`{}.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00103}00103\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00104}00104\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Text_a38c67a5c7219097f48b79ed123ac2d27}{\_get\_pdftexmap\_entry}}().effects}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00105}00105\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00106}00106\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00107}\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Text_a14abd97a710b5de2ec0f43c4285ac1f5}{00107}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Text_a14abd97a710b5de2ec0f43c4285ac1f5}{glyph\_name\_or\_index}}(self):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00108}00108\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00109}00109\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Either\ the\ glyph\ name\ or\ the\ native\ charmap\ glyph\ index.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00110}00110\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00111}00111\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ :file:\`{}pdftex.map\`{}\ specifies\ an\ encoding\ for\ this\ glyph's\ font,\ that}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00112}00112\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ is\ a\ mapping\ of\ glyph\ indices\ to\ Adobe\ glyph\ names;\ use\ it\ to\ convert}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00113}00113\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ dvi\ indices\ to\ glyph\ names.\ \ Callers\ can\ then\ convert\ glyph\ names\ to}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00114}00114\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ glyph\ indices\ (with\ FT\_Get\_Name\_Index/get\_name\_index),\ and\ load\ the}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00115}00115\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ glyph\ using\ FT\_Load\_Glyph/load\_glyph.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00116}00116\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00117}00117\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ :file:\`{}pdftex.map\`{}\ specifies\ no\ encoding,\ the\ indices\ directly\ map}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00118}00118\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ to\ the\ font's\ "{}native"{}\ charmap;\ glyphs\ should\ directly\ load\ using}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00119}00119\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ FT\_Load\_Char/load\_char\ after\ selecting\ the\ native\ charmap.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00120}00120\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00121}00121\ \ \ \ \ \ \ \ \ entry\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Text_a38c67a5c7219097f48b79ed123ac2d27}{\_get\_pdftexmap\_entry}}()}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00122}00122\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ (\mbox{\hyperlink{namespacematplotlib_1_1dviread_a8b49ae59a99fabd0d76af8e8f709d055}{\_parse\_enc}}(entry.encoding)[self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Text_a550f5d13c023a9feefe570d1afdfd42b}{glyph}}]}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00123}00123\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ entry.encoding\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{else}\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Text_a550f5d13c023a9feefe570d1afdfd42b}{glyph}})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00124}00124\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00125}00125\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00126}00126\ \textcolor{comment}{\#\ Opcode\ argument\ parsing}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00127}00127\ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00128}00128\ \textcolor{comment}{\#\ Each\ of\ the\ following\ functions\ takes\ a\ Dvi\ object\ and\ delta,\ which\ is\ the}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00129}00129\ \textcolor{comment}{\#\ difference\ between\ the\ opcode\ and\ the\ minimum\ opcode\ with\ the\ same\ meaning.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00130}00130\ \textcolor{comment}{\#\ Dvi\ opcodes\ often\ encode\ the\ number\ of\ argument\ bytes\ in\ this\ delta.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00131}00131\ \_arg\_mapping\ =\ dict(}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00132}00132\ \ \ \ \ \textcolor{comment}{\#\ raw:\ Return\ delta\ as\ is.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00133}00133\ \ \ \ \ raw=\textcolor{keyword}{lambda}\ dvi,\ delta:\ delta,}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00134}00134\ \ \ \ \ \textcolor{comment}{\#\ u1:\ Read\ 1\ byte\ as\ an\ unsigned\ number.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00135}00135\ \ \ \ \ u1=\textcolor{keyword}{lambda}\ dvi,\ delta:\ dvi.\_read\_arg(1,\ signed=\textcolor{keyword}{False}),}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00136}00136\ \ \ \ \ \textcolor{comment}{\#\ u4:\ Read\ 4\ bytes\ as\ an\ unsigned\ number.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00137}00137\ \ \ \ \ u4=\textcolor{keyword}{lambda}\ dvi,\ delta:\ dvi.\_read\_arg(4,\ signed=\textcolor{keyword}{False}),}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00138}00138\ \ \ \ \ \textcolor{comment}{\#\ s4:\ Read\ 4\ bytes\ as\ a\ signed\ number.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00139}00139\ \ \ \ \ s4=\textcolor{keyword}{lambda}\ dvi,\ delta:\ dvi.\_read\_arg(4,\ signed=\textcolor{keyword}{True}),}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00140}00140\ \ \ \ \ \textcolor{comment}{\#\ slen:\ Read\ delta\ bytes\ as\ a\ signed\ number,\ or\ None\ if\ delta\ is\ None.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00141}00141\ \ \ \ \ slen=\textcolor{keyword}{lambda}\ dvi,\ delta:\ dvi.\_read\_arg(delta,\ signed=\textcolor{keyword}{True})\ \textcolor{keywordflow}{if}\ delta\ \textcolor{keywordflow}{else}\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00142}00142\ \ \ \ \ \textcolor{comment}{\#\ slen1:\ Read\ (delta\ +\ 1)\ bytes\ as\ a\ signed\ number.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00143}00143\ \ \ \ \ slen1=\textcolor{keyword}{lambda}\ dvi,\ delta:\ dvi.\_read\_arg(delta\ +\ 1,\ signed=\textcolor{keyword}{True}),}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00144}00144\ \ \ \ \ \textcolor{comment}{\#\ ulen1:\ Read\ (delta\ +\ 1)\ bytes\ as\ an\ unsigned\ number.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00145}00145\ \ \ \ \ ulen1=\textcolor{keyword}{lambda}\ dvi,\ delta:\ dvi.\_read\_arg(delta\ +\ 1,\ signed=\textcolor{keyword}{False}),}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00146}00146\ \ \ \ \ \textcolor{comment}{\#\ olen1:\ Read\ (delta\ +\ 1)\ bytes\ as\ an\ unsigned\ number\ if\ less\ than\ 4\ bytes,}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00147}00147\ \ \ \ \ \textcolor{comment}{\#\ as\ a\ signed\ number\ if\ 4\ bytes.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00148}00148\ \ \ \ \ olen1=\textcolor{keyword}{lambda}\ dvi,\ delta:\ dvi.\_read\_arg(delta\ +\ 1,\ signed=(delta\ ==\ 3)),}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00149}00149\ )}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00150}00150\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00151}00151\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00152}\mbox{\hyperlink{namespacematplotlib_1_1dviread_a22a55d91523bf137676aef8f0c5ff4c0}{00152}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacematplotlib_1_1dviread_a22a55d91523bf137676aef8f0c5ff4c0}{\_dispatch}}(table,\ min,\ max=None,\ state=None,\ args=(\textcolor{stringliteral}{'raw'},)):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00153}00153\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00154}00154\ \textcolor{stringliteral}{\ \ \ \ Decorator\ for\ dispatch\ by\ opcode.\ Sets\ the\ values\ in\ *table*}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00155}00155\ \textcolor{stringliteral}{\ \ \ \ from\ *min*\ to\ *max*\ to\ this\ method,\ adds\ a\ check\ that\ the\ Dvi\ state}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00156}00156\ \textcolor{stringliteral}{\ \ \ \ matches\ *state*\ if\ not\ None,\ reads\ arguments\ from\ the\ file\ according}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00157}00157\ \textcolor{stringliteral}{\ \ \ \ to\ *args*.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00158}00158\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00159}00159\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00160}00160\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00161}00161\ \textcolor{stringliteral}{\ \ \ \ table\ :\ dict[int,\ callable]}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00162}00162\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ dispatch\ table\ to\ be\ filled\ in.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00163}00163\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00164}00164\ \textcolor{stringliteral}{\ \ \ \ min,\ max\ :\ int}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00165}00165\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Range\ of\ opcodes\ that\ calls\ the\ registered\ function;\ *max*\ defaults\ to}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00166}00166\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ *min*.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00167}00167\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00168}00168\ \textcolor{stringliteral}{\ \ \ \ state\ :\ \_dvistate,\ optional}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00169}00169\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ State\ of\ the\ Dvi\ object\ in\ which\ these\ opcodes\ are\ allowed.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00170}00170\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00171}00171\ \textcolor{stringliteral}{\ \ \ \ args\ :\ list[str],\ default:\ ['raw']}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00172}00172\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Sequence\ of\ argument\ specifications:}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00173}00173\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00174}00174\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ 'raw':\ opcode\ minus\ minimum}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00175}00175\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ 'u1':\ read\ one\ unsigned\ byte}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00176}00176\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ 'u4':\ read\ four\ bytes,\ treat\ as\ an\ unsigned\ number}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00177}00177\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ 's4':\ read\ four\ bytes,\ treat\ as\ a\ signed\ number}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00178}00178\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ 'slen':\ read\ (opcode\ -\/\ minimum)\ bytes,\ treat\ as\ signed}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00179}00179\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ 'slen1':\ read\ (opcode\ -\/\ minimum\ +\ 1)\ bytes,\ treat\ as\ signed}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00180}00180\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ 'ulen1':\ read\ (opcode\ -\/\ minimum\ +\ 1)\ bytes,\ treat\ as\ unsigned}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00181}00181\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ 'olen1':\ read\ (opcode\ -\/\ minimum\ +\ 1)\ bytes,\ treat\ as\ unsigned}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00182}00182\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ if\ under\ four\ bytes,\ signed\ if\ four\ bytes}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00183}00183\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00184}00184\ \ \ \ \ \textcolor{keyword}{def\ }decorate(method):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00185}00185\ \ \ \ \ \ \ \ \ get\_args\ =\ [\_arg\_mapping[x]\ \textcolor{keywordflow}{for}\ x\ \textcolor{keywordflow}{in}\ args]}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00186}00186\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00187}00187\ \ \ \ \ \ \ \ \ \textcolor{preprocessor}{@wraps(method)}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00188}00188\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }wrapper(self,\ byte):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00189}00189\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ state\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{and}\ self.state\ !=\ state:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00190}00190\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}state\ precondition\ failed"{}})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00191}00191\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ method(self,\ *[f(self,\ byte-\/min)\ \textcolor{keywordflow}{for}\ f\ \textcolor{keywordflow}{in}\ get\_args])}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00192}00192\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ max\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00193}00193\ \ \ \ \ \ \ \ \ \ \ \ \ table[min]\ =\ wrapper}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00194}00194\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00195}00195\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(min,\ max+1):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00196}00196\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ table[i]\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00197}00197\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ table[i]\ =\ wrapper}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00198}00198\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ wrapper}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00199}00199\ \ \ \ \ \textcolor{keywordflow}{return}\ decorate}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00200}00200\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00201}00201\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00202}\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi}{00202}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi}{Dvi}}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00203}00203\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00204}00204\ \textcolor{stringliteral}{\ \ \ \ A\ reader\ for\ a\ dvi\ ("{}device-\/independent"{})\ file,\ as\ produced\ by\ TeX.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00205}00205\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00206}00206\ \textcolor{stringliteral}{\ \ \ \ The\ current\ implementation\ can\ only\ iterate\ through\ pages\ in\ order,}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00207}00207\ \textcolor{stringliteral}{\ \ \ \ and\ does\ not\ even\ attempt\ to\ verify\ the\ postamble.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00208}00208\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00209}00209\ \textcolor{stringliteral}{\ \ \ \ This\ class\ can\ be\ used\ as\ a\ context\ manager\ to\ close\ the\ underlying}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00210}00210\ \textcolor{stringliteral}{\ \ \ \ file\ upon\ exit.\ Pages\ can\ be\ read\ via\ iteration.\ Here\ is\ an\ overly}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00211}00211\ \textcolor{stringliteral}{\ \ \ \ simple\ way\ to\ extract\ text\ without\ trying\ to\ detect\ whitespace::}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00212}00212\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00213}00213\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ with\ matplotlib.dviread.Dvi('input.dvi',\ 72)\ as\ dvi:}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00214}00214\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ...\ \ \ \ \ for\ page\ in\ dvi:}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00215}00215\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ...\ \ \ \ \ \ \ \ \ print(''.join(chr(t.glyph)\ for\ t\ in\ page.text))}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00216}00216\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00217}00217\ \ \ \ \ \textcolor{comment}{\#\ dispatch\ table}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00218}00218\ \ \ \ \ \_dtable\ =\ [\textcolor{keywordtype}{None}]\ *\ 256}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00219}00219\ \ \ \ \ \_dispatch\ =\ partial(\_dispatch,\ \_dtable)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00220}00220\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00221}\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_aed6609e533ca0bbc38a36cdf0305d04a}{00221}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_aed6609e533ca0bbc38a36cdf0305d04a}{\_\_init\_\_}}(self,\ filename,\ dpi):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00222}00222\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00223}00223\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Read\ the\ data\ from\ the\ file\ named\ *filename*\ and\ convert}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00224}00224\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ TeX's\ internal\ units\ to\ units\ of\ *dpi*\ per\ inch.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00225}00225\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ *dpi*\ only\ sets\ the\ units\ and\ does\ not\ limit\ the\ resolution.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00226}00226\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Use\ None\ to\ return\ TeX's\ internal\ units.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00227}00227\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00228}00228\ \ \ \ \ \ \ \ \ \_log.debug(\textcolor{stringliteral}{'Dvi:\ \%s'},\ filename)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00229}00229\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_aa9559a88edd1f9ca0403477c2b15f069}{file}}\ =\ open(filename,\ \textcolor{stringliteral}{'rb'})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00230}00230\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a4780c17da3c32da700aa7858d29562f6}{dpi}}\ =\ dpi}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00231}00231\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_ac8f17dfb2cd08b8334a1e3723039c8d0}{fonts}}\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00232}00232\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a87ef35c6e9fb51513b57a8720a1410c4}{state}}\ =\ \_dvistate.pre}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00233}00233\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a7adf4ecd6e43ae6b432039cb9225e60c}{\_missing\_font}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00234}00234\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00235}\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_ada78e6c24ed76f9508f3a3de19870fe0}{00235}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_ada78e6c24ed76f9508f3a3de19870fe0}{\_\_enter\_\_}}(self):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00236}00236\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Context\ manager\ enter\ method,\ does\ nothing."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00237}00237\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00238}00238\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00239}\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_af0929f0c046e586b467c4cafe4ae878f}{00239}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_af0929f0c046e586b467c4cafe4ae878f}{\_\_exit\_\_}}(self,\ etype,\ evalue,\ etrace):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00240}00240\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00241}00241\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Context\ manager\ exit\ method,\ closes\ the\ underlying\ file\ if\ it\ is\ open.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00242}00242\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00243}00243\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a190ce10338438308389d7f502f0bf7f1}{close}}()}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00244}00244\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00245}\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a09b59c949dc97d8c2c87916e890a4410}{00245}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a09b59c949dc97d8c2c87916e890a4410}{\_\_iter\_\_}}(self):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00246}00246\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00247}00247\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Iterate\ through\ the\ pages\ of\ the\ file.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00248}00248\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00249}00249\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Yields}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00250}00250\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00251}00251\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Page}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00252}00252\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Details\ of\ all\ the\ text\ and\ box\ objects\ on\ the\ page.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00253}00253\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ Page\ tuple\ contains\ lists\ of\ Text\ and\ Box\ tuples\ and}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00254}00254\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ the\ page\ dimensions,\ and\ the\ Text\ and\ Box\ tuples\ contain}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00255}00255\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ coordinates\ transformed\ into\ a\ standard\ Cartesian}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00256}00256\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ coordinate\ system\ at\ the\ dpi\ value\ given\ when\ initializing.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00257}00257\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ coordinates\ are\ floating\ point\ numbers,\ but\ otherwise}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00258}00258\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ precision\ is\ not\ lost\ and\ coordinate\ values\ are\ not\ clipped\ to}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00259}00259\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ integers.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00260}00260\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00261}00261\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{while}\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a7b9de70b4dc3e3c680f959f0db789976}{\_read}}():}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00262}00262\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{yield}\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a3953951c9d8abfd9328fe9785659b4dd}{\_output}}()}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00263}00263\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00264}\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a190ce10338438308389d7f502f0bf7f1}{00264}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a190ce10338438308389d7f502f0bf7f1}{close}}(self):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00265}00265\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Close\ the\ underlying\ file\ if\ it\ is\ open."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00266}00266\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_aa9559a88edd1f9ca0403477c2b15f069}{file}}.closed:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00267}00267\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_aa9559a88edd1f9ca0403477c2b15f069}{file}}.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a190ce10338438308389d7f502f0bf7f1}{close}}()}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00268}00268\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00269}\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a3953951c9d8abfd9328fe9785659b4dd}{00269}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a3953951c9d8abfd9328fe9785659b4dd}{\_output}}(self):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00270}00270\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00271}00271\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Output\ the\ text\ and\ boxes\ belonging\ to\ the\ most\ recent\ page.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00272}00272\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ page\ =\ dvi.\_output()}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00273}00273\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00274}00274\ \ \ \ \ \ \ \ \ minx\ =\ miny\ =\ np.inf}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00275}00275\ \ \ \ \ \ \ \ \ maxx\ =\ maxy\ =\ -\/np.inf}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00276}00276\ \ \ \ \ \ \ \ \ maxy\_pure\ =\ -\/np.inf}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00277}00277\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ elt\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a7424a32803da30eda1d77ffdb1f41097}{text}}\ +\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_af109792737e9d762ab10250552695570}{boxes}}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00278}00278\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(elt,\ Box):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00279}00279\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ x,\ y,\ h,\ w\ =\ elt}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00280}00280\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ e\ =\ 0\ \ \textcolor{comment}{\#\ zero\ depth}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00281}00281\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:\ \ \textcolor{comment}{\#\ glyph}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00282}00282\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ x,\ y,\ font,\ g,\ w\ =\ elt}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00283}00283\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ h,\ e\ =\ font.\_height\_depth\_of(g)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00284}00284\ \ \ \ \ \ \ \ \ \ \ \ \ minx\ =\ min(minx,\ x)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00285}00285\ \ \ \ \ \ \ \ \ \ \ \ \ miny\ =\ min(miny,\ y\ -\/\ h)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00286}00286\ \ \ \ \ \ \ \ \ \ \ \ \ maxx\ =\ max(maxx,\ x\ +\ w)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00287}00287\ \ \ \ \ \ \ \ \ \ \ \ \ maxy\ =\ max(maxy,\ y\ +\ e)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00288}00288\ \ \ \ \ \ \ \ \ \ \ \ \ maxy\_pure\ =\ max(maxy\_pure,\ y)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00289}00289\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a5b733b1430296003f5ca8c3a9d438548}{\_baseline\_v}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00290}00290\ \ \ \ \ \ \ \ \ \ \ \ \ maxy\_pure\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a5b733b1430296003f5ca8c3a9d438548}{\_baseline\_v}}\ \ \textcolor{comment}{\#\ This\ should\ normally\ be\ the\ case.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00291}00291\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a5b733b1430296003f5ca8c3a9d438548}{\_baseline\_v}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00292}00292\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00293}00293\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a7424a32803da30eda1d77ffdb1f41097}{text}}\ \textcolor{keywordflow}{and}\ \textcolor{keywordflow}{not}\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_af109792737e9d762ab10250552695570}{boxes}}:\ \ \textcolor{comment}{\#\ Avoid\ infs/nans\ from\ inf+/-\/inf.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00294}00294\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ Page(text=[],\ boxes=[],\ width=0,\ height=0,\ descent=0)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00295}00295\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00296}00296\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a4780c17da3c32da700aa7858d29562f6}{dpi}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00297}00297\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ special\ case\ for\ ease\ of\ debugging:\ output\ raw\ dvi\ coordinates}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00298}00298\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ Page(text=self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a7424a32803da30eda1d77ffdb1f41097}{text}},\ boxes=self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_af109792737e9d762ab10250552695570}{boxes}},}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00299}00299\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ width=maxx-\/minx,\ height=maxy\_pure-\/miny,}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00300}00300\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ descent=maxy-\/maxy\_pure)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00301}00301\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00302}00302\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ convert\ from\ TeX's\ "{}scaled\ points"{}\ to\ dpi\ units}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00303}00303\ \ \ \ \ \ \ \ \ d\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a4780c17da3c32da700aa7858d29562f6}{dpi}}\ /\ (72.27\ *\ 2**16)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00304}00304\ \ \ \ \ \ \ \ \ descent\ =\ (maxy\ -\/\ maxy\_pure)\ *\ d}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00305}00305\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00306}00306\ \ \ \ \ \ \ \ \ text\ =\ [\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Text}{Text}}((x-\/minx)*d,\ (maxy-\/y)*d\ -\/\ descent,\ f,\ g,\ w*d)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00307}00307\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (x,\ y,\ f,\ g,\ w)\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a7424a32803da30eda1d77ffdb1f41097}{text}}]}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00308}00308\ \ \ \ \ \ \ \ \ boxes\ =\ [Box((x-\/minx)*d,\ (maxy-\/y)*d\ -\/\ descent,\ h*d,\ w*d)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00309}00309\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (x,\ y,\ h,\ w)\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_af109792737e9d762ab10250552695570}{boxes}}]}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00310}00310\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00311}00311\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ Page(text=text,\ boxes=boxes,\ width=(maxx-\/minx)*d,}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00312}00312\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ height=(maxy\_pure-\/miny)*d,\ descent=descent)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00313}00313\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00314}\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a7b9de70b4dc3e3c680f959f0db789976}{00314}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a7b9de70b4dc3e3c680f959f0db789976}{\_read}}(self):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00315}00315\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00316}00316\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Read\ one\ page\ from\ the\ file.\ Return\ True\ if\ successful,}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00317}00317\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ False\ if\ there\ were\ no\ more\ pages.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00318}00318\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00319}00319\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Pages\ appear\ to\ start\ with\ the\ sequence}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00320}00320\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ bop\ (begin\ of\ page)}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00321}00321\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ xxx\ comment}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00322}00322\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ <push,\ ...,\ pop>\ \ \#\ if\ using\ chemformula}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00323}00323\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ down}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00324}00324\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ push}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00325}00325\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ \ down}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00326}00326\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ \ <push,\ push,\ xxx,\ right,\ xxx,\ pop,\ pop>\ \ \#\ if\ using\ xcolor}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00327}00327\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ \ down}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00328}00328\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ \ push}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00329}00329\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ \ \ \ down\ (possibly\ multiple)}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00330}00330\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ \ \ \ push\ \ <=\ \ here,\ v\ is\ the\ baseline\ position.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00331}00331\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ \ \ \ \ \ etc.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00332}00332\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ (dviasm\ is\ useful\ to\ explore\ this\ structure.)}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00333}00333\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Thus,\ we\ use\ the\ vertical\ position\ at\ the\ first\ time\ the\ stack\ depth}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00334}00334\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ reaches\ 3,\ while\ at\ least\ three\ "{}downs"{}\ have\ been\ executed\ (excluding}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00335}00335\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ those\ popped\ out\ (corresponding\ to\ the\ chemformula\ preamble)),\ as\ the}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00336}00336\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ baseline\ (the\ "{}down"{}\ count\ is\ necessary\ to\ handle\ xcolor).}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00337}00337\ \ \ \ \ \ \ \ \ down\_stack\ =\ [0]}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00338}00338\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a5b733b1430296003f5ca8c3a9d438548}{\_baseline\_v}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00339}00339\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{while}\ \textcolor{keyword}{True}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00340}00340\ \ \ \ \ \ \ \ \ \ \ \ \ byte\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_aa9559a88edd1f9ca0403477c2b15f069}{file}}.read(1)[0]}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00341}00341\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a39a34f8799952fa360423e37d959997d}{\_dtable}}[byte](self,\ byte)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00342}00342\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a7adf4ecd6e43ae6b432039cb9225e60c}{\_missing\_font}}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00343}00343\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a7adf4ecd6e43ae6b432039cb9225e60c}{\_missing\_font}}.to\_exception()}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00344}00344\ \ \ \ \ \ \ \ \ \ \ \ \ name\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a39a34f8799952fa360423e37d959997d}{\_dtable}}[byte].\_\_name\_\_}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00345}00345\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ name\ ==\ \textcolor{stringliteral}{"{}\_push"{}}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00346}00346\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ down\_stack.append(down\_stack[-\/1])}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00347}00347\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ name\ ==\ \textcolor{stringliteral}{"{}\_pop"{}}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00348}00348\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ down\_stack.pop()}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00349}00349\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ name\ ==\ \textcolor{stringliteral}{"{}\_down"{}}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00350}00350\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ down\_stack[-\/1]\ +=\ 1}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00351}00351\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a5b733b1430296003f5ca8c3a9d438548}{\_baseline\_v}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00352}00352\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}\ len(getattr(self,\ \textcolor{stringliteral}{"{}stack"{}},\ []))\ ==\ 3}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00353}00353\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}\ down\_stack[-\/1]\ >=\ 4):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00354}00354\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a5b733b1430296003f5ca8c3a9d438548}{\_baseline\_v}}\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_aad93164b4070f2fc5bc14bd4c4f67d86}{v}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00355}00355\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ byte\ ==\ 140:\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ end\ of\ page}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00356}00356\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00357}00357\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a87ef35c6e9fb51513b57a8720a1410c4}{state}}\ \textcolor{keywordflow}{is}\ \_dvistate.post\_post:\ \ \ \textcolor{comment}{\#\ end\ of\ file}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00358}00358\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a190ce10338438308389d7f502f0bf7f1}{close}}()}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00359}00359\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00360}00360\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00361}\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a3c5d5c1faf31cf256271d34b1b6debb6}{00361}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a3c5d5c1faf31cf256271d34b1b6debb6}{\_read\_arg}}(self,\ nbytes,\ signed=False):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00362}00362\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00363}00363\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Read\ and\ return\ a\ big-\/endian\ integer\ *nbytes*\ long.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00364}00364\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Signedness\ is\ determined\ by\ the\ *signed*\ keyword.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00365}00365\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00366}00366\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ int.from\_bytes(self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_aa9559a88edd1f9ca0403477c2b15f069}{file}}.read(nbytes),\ \textcolor{stringliteral}{"{}big"{}},\ signed=signed)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00367}00367\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00368}00368\ \ \ \ \ \textcolor{preprocessor}{@\_dispatch(min=0,\ max=127,\ state=\_dvistate.inpage)}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00369}00369\ \ \ \ \ \textcolor{keyword}{def\ }\_set\_char\_immediate(self,\ char):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00370}00370\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a3c2956dacfa2df3513bfd3028206bb4d}{\_put\_char\_real}}(char)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00371}00371\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_ac8f17dfb2cd08b8334a1e3723039c8d0}{fonts}}[self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a5d15875c6457044db341a78f8380310f}{f}}],\ \mbox{\hyperlink{classmatplotlib_1_1cbook_1_1__ExceptionInfo}{cbook.\_ExceptionInfo}}):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00372}00372\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00373}00373\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a6471c8f59dbf76e587458ca6febc1de5}{h}}\ +=\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_ac8f17dfb2cd08b8334a1e3723039c8d0}{fonts}}[self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a5d15875c6457044db341a78f8380310f}{f}}].\_width\_of(char)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00374}00374\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00375}00375\ \ \ \ \ \textcolor{preprocessor}{@\_dispatch(min=128,\ max=131,\ state=\_dvistate.inpage,\ args=('olen1',)})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00376}00376\ \ \ \ \ \textcolor{keyword}{def\ }\_set\_char(self,\ char):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00377}00377\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a3c2956dacfa2df3513bfd3028206bb4d}{\_put\_char\_real}}(char)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00378}00378\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_ac8f17dfb2cd08b8334a1e3723039c8d0}{fonts}}[self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a5d15875c6457044db341a78f8380310f}{f}}],\ \mbox{\hyperlink{classmatplotlib_1_1cbook_1_1__ExceptionInfo}{cbook.\_ExceptionInfo}}):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00379}00379\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00380}00380\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a6471c8f59dbf76e587458ca6febc1de5}{h}}\ +=\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_ac8f17dfb2cd08b8334a1e3723039c8d0}{fonts}}[self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a5d15875c6457044db341a78f8380310f}{f}}].\_width\_of(char)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00381}00381\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00382}00382\ \ \ \ \ \textcolor{preprocessor}{@\_dispatch(132,\ state=\_dvistate.inpage,\ args=('s4',\ 's4')})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00383}00383\ \ \ \ \ \textcolor{keyword}{def\ }\_set\_rule(self,\ a,\ b):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00384}00384\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a080a705d5170585c1b65e00c6751a1b1}{\_put\_rule\_real}}(a,\ b)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00385}00385\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a6471c8f59dbf76e587458ca6febc1de5}{h}}\ +=\ b}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00386}00386\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00387}00387\ \ \ \ \ \textcolor{preprocessor}{@\_dispatch(min=133,\ max=136,\ state=\_dvistate.inpage,\ args=('olen1',)})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00388}00388\ \ \ \ \ \textcolor{keyword}{def\ }\_put\_char(self,\ char):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00389}00389\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a3c2956dacfa2df3513bfd3028206bb4d}{\_put\_char\_real}}(char)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00390}00390\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00391}00391\ \ \ \ \ \textcolor{keyword}{def\ }\_put\_char\_real(self,\ char):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00392}00392\ \ \ \ \ \ \ \ \ font\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_ac8f17dfb2cd08b8334a1e3723039c8d0}{fonts}}[self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a5d15875c6457044db341a78f8380310f}{f}}]}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00393}00393\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(font,\ \mbox{\hyperlink{classmatplotlib_1_1cbook_1_1__ExceptionInfo}{cbook.\_ExceptionInfo}}):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00394}00394\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a7adf4ecd6e43ae6b432039cb9225e60c}{\_missing\_font}}\ =\ font}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00395}00395\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ font.\_vf\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00396}00396\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a7424a32803da30eda1d77ffdb1f41097}{text}}.append(\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Text}{Text}}(self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a6471c8f59dbf76e587458ca6febc1de5}{h}},\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_aad93164b4070f2fc5bc14bd4c4f67d86}{v}},\ font,\ char,}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00397}00397\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ font.\_width\_of(char)))}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00398}00398\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00399}00399\ \ \ \ \ \ \ \ \ \ \ \ \ scale\ =\ font.\_scale}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00400}00400\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ x,\ y,\ f,\ g,\ w\ \textcolor{keywordflow}{in}\ font.\_vf[char].text:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00401}00401\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ newf\ =\ \mbox{\hyperlink{classmatplotlib_1_1dviread_1_1DviFont}{DviFont}}(scale=\mbox{\hyperlink{namespacematplotlib_1_1dviread_a939f247a9bb884591d25de04e2f90ebf}{\_mul2012}}(scale,\ f.\_scale),}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00402}00402\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ tfm=f.\_tfm,\ texname=f.texname,\ vf=f.\_vf)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00403}00403\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a7424a32803da30eda1d77ffdb1f41097}{text}}.append(\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Text}{Text}}(self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a6471c8f59dbf76e587458ca6febc1de5}{h}}\ +\ \mbox{\hyperlink{namespacematplotlib_1_1dviread_a939f247a9bb884591d25de04e2f90ebf}{\_mul2012}}(x,\ scale),}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00404}00404\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_aad93164b4070f2fc5bc14bd4c4f67d86}{v}}\ +\ \mbox{\hyperlink{namespacematplotlib_1_1dviread_a939f247a9bb884591d25de04e2f90ebf}{\_mul2012}}(y,\ scale),}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00405}00405\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ newf,\ g,\ newf.\_width\_of(g)))}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00406}00406\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_af109792737e9d762ab10250552695570}{boxes}}.extend([Box(self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a6471c8f59dbf76e587458ca6febc1de5}{h}}\ +\ \mbox{\hyperlink{namespacematplotlib_1_1dviread_a939f247a9bb884591d25de04e2f90ebf}{\_mul2012}}(x,\ scale),}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00407}00407\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_aad93164b4070f2fc5bc14bd4c4f67d86}{v}}\ +\ \mbox{\hyperlink{namespacematplotlib_1_1dviread_a939f247a9bb884591d25de04e2f90ebf}{\_mul2012}}(y,\ scale),}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00408}00408\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{namespacematplotlib_1_1dviread_a939f247a9bb884591d25de04e2f90ebf}{\_mul2012}}(a,\ scale),\ \mbox{\hyperlink{namespacematplotlib_1_1dviread_a939f247a9bb884591d25de04e2f90ebf}{\_mul2012}}(b,\ scale))}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00409}00409\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ x,\ y,\ a,\ b\ \textcolor{keywordflow}{in}\ font.\_vf[char].boxes])}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00410}00410\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00411}00411\ \ \ \ \ \textcolor{preprocessor}{@\_dispatch(137,\ state=\_dvistate.inpage,\ args=('s4',\ 's4')})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00412}00412\ \ \ \ \ \textcolor{keyword}{def\ }\_put\_rule(self,\ a,\ b):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00413}00413\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a080a705d5170585c1b65e00c6751a1b1}{\_put\_rule\_real}}(a,\ b)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00414}00414\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00415}00415\ \ \ \ \ \textcolor{keyword}{def\ }\_put\_rule\_real(self,\ a,\ b):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00416}00416\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ a\ >\ 0\ \textcolor{keywordflow}{and}\ b\ >\ 0:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00417}00417\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_af109792737e9d762ab10250552695570}{boxes}}.append(Box(self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a6471c8f59dbf76e587458ca6febc1de5}{h}},\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_aad93164b4070f2fc5bc14bd4c4f67d86}{v}},\ a,\ b))}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00418}00418\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00419}00419\ \ \ \ \ \textcolor{preprocessor}{@\_dispatch(138)}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00420}00420\ \ \ \ \ \textcolor{keyword}{def\ }\_nop(self,\ \_):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00421}00421\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{pass}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00422}00422\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00423}00423\ \ \ \ \ \textcolor{preprocessor}{@\_dispatch(139,\ state=\_dvistate.outer,\ args=('s4',)}*11)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00424}00424\ \ \ \ \ \textcolor{keyword}{def\ }\_bop(self,\ c0,\ c1,\ c2,\ c3,\ c4,\ c5,\ c6,\ c7,\ c8,\ c9,\ p):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00425}00425\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a87ef35c6e9fb51513b57a8720a1410c4}{state}}\ =\ \_dvistate.inpage}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00426}00426\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a6471c8f59dbf76e587458ca6febc1de5}{h}}\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_aad93164b4070f2fc5bc14bd4c4f67d86}{v}}\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_aca4d5c297a37eb8390125a599f0da6c6}{w}}\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a785a2f22c28527b55865450e33857b88}{x}}\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a897b9041ab58796a8fb89e62b3667d38}{y}}\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a293a84f008cf738af2ac75ede5e96893}{z}}\ =\ 0}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00427}00427\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a223324350036822d57a07213ee6adddd}{stack}}\ =\ []}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00428}00428\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a7424a32803da30eda1d77ffdb1f41097}{text}}\ =\ []\ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ list\ of\ Text\ objects}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00429}00429\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_af109792737e9d762ab10250552695570}{boxes}}\ =\ []\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ list\ of\ Box\ objects}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00430}00430\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00431}00431\ \ \ \ \ \textcolor{preprocessor}{@\_dispatch(140,\ state=\_dvistate.inpage)}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00432}00432\ \ \ \ \ \textcolor{keyword}{def\ }\_eop(self,\ \_):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00433}00433\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a87ef35c6e9fb51513b57a8720a1410c4}{state}}\ =\ \_dvistate.outer}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00434}00434\ \ \ \ \ \ \ \ \ del\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a6471c8f59dbf76e587458ca6febc1de5}{h}},\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_aad93164b4070f2fc5bc14bd4c4f67d86}{v}},\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_aca4d5c297a37eb8390125a599f0da6c6}{w}},\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a785a2f22c28527b55865450e33857b88}{x}},\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a897b9041ab58796a8fb89e62b3667d38}{y}},\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a293a84f008cf738af2ac75ede5e96893}{z}},\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a223324350036822d57a07213ee6adddd}{stack}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00435}00435\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00436}00436\ \ \ \ \ \textcolor{preprocessor}{@\_dispatch(141,\ state=\_dvistate.inpage)}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00437}00437\ \ \ \ \ \textcolor{keyword}{def\ }\_push(self,\ \_):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00438}00438\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a223324350036822d57a07213ee6adddd}{stack}}.append((self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a6471c8f59dbf76e587458ca6febc1de5}{h}},\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_aad93164b4070f2fc5bc14bd4c4f67d86}{v}},\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_aca4d5c297a37eb8390125a599f0da6c6}{w}},\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a785a2f22c28527b55865450e33857b88}{x}},\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a897b9041ab58796a8fb89e62b3667d38}{y}},\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a293a84f008cf738af2ac75ede5e96893}{z}}))}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00439}00439\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00440}00440\ \ \ \ \ \textcolor{preprocessor}{@\_dispatch(142,\ state=\_dvistate.inpage)}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00441}00441\ \ \ \ \ \textcolor{keyword}{def\ }\_pop(self,\ \_):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00442}00442\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a6471c8f59dbf76e587458ca6febc1de5}{h}},\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_aad93164b4070f2fc5bc14bd4c4f67d86}{v}},\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_aca4d5c297a37eb8390125a599f0da6c6}{w}},\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a785a2f22c28527b55865450e33857b88}{x}},\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a897b9041ab58796a8fb89e62b3667d38}{y}},\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a293a84f008cf738af2ac75ede5e96893}{z}}\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a223324350036822d57a07213ee6adddd}{stack}}.pop()}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00443}00443\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00444}00444\ \ \ \ \ \textcolor{preprocessor}{@\_dispatch(min=143,\ max=146,\ state=\_dvistate.inpage,\ args=('slen1',)})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00445}00445\ \ \ \ \ \textcolor{keyword}{def\ }\_right(self,\ b):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00446}00446\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a6471c8f59dbf76e587458ca6febc1de5}{h}}\ +=\ b}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00447}00447\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00448}00448\ \ \ \ \ \textcolor{preprocessor}{@\_dispatch(min=147,\ max=151,\ state=\_dvistate.inpage,\ args=('slen',)})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00449}00449\ \ \ \ \ \textcolor{keyword}{def\ }\_right\_w(self,\ new\_w):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00450}00450\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ new\_w\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00451}00451\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_aca4d5c297a37eb8390125a599f0da6c6}{w}}\ =\ new\_w}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00452}00452\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a6471c8f59dbf76e587458ca6febc1de5}{h}}\ +=\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_aca4d5c297a37eb8390125a599f0da6c6}{w}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00453}00453\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00454}00454\ \ \ \ \ \textcolor{preprocessor}{@\_dispatch(min=152,\ max=156,\ state=\_dvistate.inpage,\ args=('slen',)})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00455}00455\ \ \ \ \ \textcolor{keyword}{def\ }\_right\_x(self,\ new\_x):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00456}00456\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ new\_x\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00457}00457\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a785a2f22c28527b55865450e33857b88}{x}}\ =\ new\_x}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00458}00458\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a6471c8f59dbf76e587458ca6febc1de5}{h}}\ +=\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a785a2f22c28527b55865450e33857b88}{x}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00459}00459\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00460}00460\ \ \ \ \ \textcolor{preprocessor}{@\_dispatch(min=157,\ max=160,\ state=\_dvistate.inpage,\ args=('slen1',)})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00461}00461\ \ \ \ \ \textcolor{keyword}{def\ }\_down(self,\ a):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00462}00462\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_aad93164b4070f2fc5bc14bd4c4f67d86}{v}}\ +=\ a}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00463}00463\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00464}00464\ \ \ \ \ \textcolor{preprocessor}{@\_dispatch(min=161,\ max=165,\ state=\_dvistate.inpage,\ args=('slen',)})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00465}00465\ \ \ \ \ \textcolor{keyword}{def\ }\_down\_y(self,\ new\_y):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00466}00466\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ new\_y\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00467}00467\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a897b9041ab58796a8fb89e62b3667d38}{y}}\ =\ new\_y}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00468}00468\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_aad93164b4070f2fc5bc14bd4c4f67d86}{v}}\ +=\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a897b9041ab58796a8fb89e62b3667d38}{y}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00469}00469\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00470}00470\ \ \ \ \ \textcolor{preprocessor}{@\_dispatch(min=166,\ max=170,\ state=\_dvistate.inpage,\ args=('slen',)})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00471}00471\ \ \ \ \ \textcolor{keyword}{def\ }\_down\_z(self,\ new\_z):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00472}00472\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ new\_z\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00473}00473\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a293a84f008cf738af2ac75ede5e96893}{z}}\ =\ new\_z}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00474}00474\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_aad93164b4070f2fc5bc14bd4c4f67d86}{v}}\ +=\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a293a84f008cf738af2ac75ede5e96893}{z}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00475}00475\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00476}00476\ \ \ \ \ \textcolor{preprocessor}{@\_dispatch(min=171,\ max=234,\ state=\_dvistate.inpage)}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00477}00477\ \ \ \ \ \textcolor{keyword}{def\ }\_fnt\_num\_immediate(self,\ k):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00478}00478\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a5d15875c6457044db341a78f8380310f}{f}}\ =\ k}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00479}00479\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00480}00480\ \ \ \ \ \textcolor{preprocessor}{@\_dispatch(min=235,\ max=238,\ state=\_dvistate.inpage,\ args=('olen1',)})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00481}00481\ \ \ \ \ \textcolor{keyword}{def\ }\_fnt\_num(self,\ new\_f):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00482}00482\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a5d15875c6457044db341a78f8380310f}{f}}\ =\ new\_f}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00483}00483\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00484}00484\ \ \ \ \ \textcolor{preprocessor}{@\_dispatch(min=239,\ max=242,\ args=('ulen1',)})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00485}00485\ \ \ \ \ \textcolor{keyword}{def\ }\_xxx(self,\ datalen):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00486}00486\ \ \ \ \ \ \ \ \ special\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_aa9559a88edd1f9ca0403477c2b15f069}{file}}.read(datalen)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00487}00487\ \ \ \ \ \ \ \ \ \_log.debug(}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00488}00488\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'Dvi.\_xxx:\ encountered\ special:\ \%s'},}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00489}00489\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{''}.join([chr(ch)\ \textcolor{keywordflow}{if}\ 32\ <=\ ch\ <\ 127\ \textcolor{keywordflow}{else}\ \textcolor{stringliteral}{'<\%02x>'}\ \%\ ch}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00490}00490\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ ch\ \textcolor{keywordflow}{in}\ special]))}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00491}00491\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00492}00492\ \ \ \ \ \textcolor{preprocessor}{@\_dispatch(min=243,\ max=246,\ args=('olen1',\ 'u4',\ 'u4',\ 'u4',\ 'u1',\ 'u1')})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00493}00493\ \ \ \ \ \textcolor{keyword}{def\ }\_fnt\_def(self,\ k,\ c,\ s,\ d,\ a,\ l):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00494}00494\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a02ab8d72f6dc4502648e7d503145224d}{\_fnt\_def\_real}}(k,\ c,\ s,\ d,\ a,\ l)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00495}00495\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00496}00496\ \ \ \ \ \textcolor{keyword}{def\ }\_fnt\_def\_real(self,\ k,\ c,\ s,\ d,\ a,\ l):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00497}00497\ \ \ \ \ \ \ \ \ n\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_aa9559a88edd1f9ca0403477c2b15f069}{file}}.read(a\ +\ l)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00498}00498\ \ \ \ \ \ \ \ \ fontname\ =\ n[-\/l:].decode(\textcolor{stringliteral}{'ascii'})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00499}00499\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00500}00500\ \ \ \ \ \ \ \ \ \ \ \ \ tfm\ =\ \_tfmfile(fontname)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00501}00501\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ FileNotFoundError\ \textcolor{keyword}{as}\ exc:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00502}00502\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Explicitly\ allow\ defining\ missing\ fonts\ for\ Vf\ support;\ we\ only}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00503}00503\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ register\ an\ error\ when\ trying\ to\ load\ a\ glyph\ from\ a\ missing\ font}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00504}00504\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ and\ throw\ that\ error\ in\ Dvi.\_read.\ \ For\ Vf,\ \_finalize\_packet}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00505}00505\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ checks\ whether\ a\ missing\ glyph\ has\ been\ used,\ and\ in\ that\ case}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00506}00506\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ skips\ the\ glyph\ definition.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00507}00507\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_ac8f17dfb2cd08b8334a1e3723039c8d0}{fonts}}[k]\ =\ cbook.\_ExceptionInfo.from\_exception(exc)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00508}00508\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00509}00509\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ c\ !=\ 0\ \textcolor{keywordflow}{and}\ tfm.checksum\ !=\ 0\ \textcolor{keywordflow}{and}\ c\ !=\ tfm.checksum:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00510}00510\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(f\textcolor{stringliteral}{'tfm\ checksum\ mismatch:\ \{n\}'})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00511}00511\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00512}00512\ \ \ \ \ \ \ \ \ \ \ \ \ vf\ =\ \_vffile(fontname)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00513}00513\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ FileNotFoundError:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00514}00514\ \ \ \ \ \ \ \ \ \ \ \ \ vf\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00515}00515\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_ac8f17dfb2cd08b8334a1e3723039c8d0}{fonts}}[k]\ =\ \mbox{\hyperlink{classmatplotlib_1_1dviread_1_1DviFont}{DviFont}}(scale=s,\ tfm=tfm,\ texname=n,\ vf=vf)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00516}00516\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00517}00517\ \ \ \ \ \textcolor{preprocessor}{@\_dispatch(247,\ state=\_dvistate.pre,\ args=('u1',\ 'u4',\ 'u4',\ 'u4',\ 'u1')})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00518}00518\ \ \ \ \ \textcolor{keyword}{def\ }\_pre(self,\ i,\ num,\ den,\ mag,\ k):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00519}00519\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_aa9559a88edd1f9ca0403477c2b15f069}{file}}.read(k)\ \ \textcolor{comment}{\#\ comment\ in\ the\ dvi\ file}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00520}00520\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ i\ !=\ 2:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00521}00521\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(f\textcolor{stringliteral}{"{}Unknown\ dvi\ format\ \{i\}"{}})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00522}00522\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ num\ !=\ 25400000\ \textcolor{keywordflow}{or}\ den\ !=\ 7227\ *\ 2**16:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00523}00523\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}Nonstandard\ units\ in\ dvi\ file"{}})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00524}00524\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ meaning:\ TeX\ always\ uses\ those\ exact\ values,\ so\ it}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00525}00525\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ should\ be\ enough\ for\ us\ to\ support\ those}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00526}00526\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ (There\ are\ 72.27\ pt\ to\ an\ inch\ so\ 7227\ pt\ =}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00527}00527\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ 7227\ *\ 2**16\ sp\ to\ 100\ in.\ The\ numerator\ is\ multiplied}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00528}00528\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ by\ 10\string^5\ to\ get\ units\ of\ 10**-\/7\ meters.)}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00529}00529\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ mag\ !=\ 1000:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00530}00530\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}Nonstandard\ magnification\ in\ dvi\ file"{}})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00531}00531\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ meaning:\ LaTeX\ seems\ to\ frown\ on\ setting\ \(\backslash\)mag,\ so}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00532}00532\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ I\ think\ we\ can\ assume\ this\ is\ constant}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00533}00533\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a87ef35c6e9fb51513b57a8720a1410c4}{state}}\ =\ \_dvistate.outer}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00534}00534\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00535}00535\ \ \ \ \ \textcolor{preprocessor}{@\_dispatch(248,\ state=\_dvistate.outer)}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00536}00536\ \ \ \ \ \textcolor{keyword}{def\ }\_post(self,\ \_):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00537}00537\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a87ef35c6e9fb51513b57a8720a1410c4}{state}}\ =\ \_dvistate.post\_post}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00538}00538\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ TODO:\ actually\ read\ the\ postamble\ and\ finale?}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00539}00539\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ currently\ post\_post\ just\ triggers\ closing\ the\ file}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00540}00540\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00541}00541\ \ \ \ \ \textcolor{preprocessor}{@\_dispatch(249)}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00542}00542\ \ \ \ \ \textcolor{keyword}{def\ }\_post\_post(self,\ \_):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00543}00543\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ NotImplementedError}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00544}00544\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00545}00545\ \ \ \ \ \textcolor{preprocessor}{@\_dispatch(min=250,\ max=255)}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00546}00546\ \ \ \ \ \textcolor{keyword}{def\ }\_malformed(self,\ offset):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00547}00547\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(f\textcolor{stringliteral}{"{}unknown\ command:\ byte\ \{250\ +\ offset\}"{}})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00548}00548\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00549}00549\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00550}\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1DviFont}{00550}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1DviFont}{DviFont}}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00551}00551\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00552}00552\ \textcolor{stringliteral}{\ \ \ \ Encapsulation\ of\ a\ font\ that\ a\ DVI\ file\ can\ refer\ to.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00553}00553\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00554}00554\ \textcolor{stringliteral}{\ \ \ \ This\ class\ holds\ a\ font's\ texname\ and\ size,\ supports\ comparison,}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00555}00555\ \textcolor{stringliteral}{\ \ \ \ and\ knows\ the\ widths\ of\ glyphs\ in\ the\ same\ units\ as\ the\ AFM\ file.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00556}00556\ \textcolor{stringliteral}{\ \ \ \ There\ are\ also\ internal\ attributes\ (for\ use\ by\ dviread.py)\ that}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00557}00557\ \textcolor{stringliteral}{\ \ \ \ are\ *not*\ used\ for\ comparison.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00558}00558\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00559}00559\ \textcolor{stringliteral}{\ \ \ \ The\ size\ is\ in\ Adobe\ points\ (converted\ from\ TeX\ points).}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00560}00560\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00561}00561\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00562}00562\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00563}00563\ \textcolor{stringliteral}{\ \ \ \ scale\ :\ float}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00564}00564\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Factor\ by\ which\ the\ font\ is\ scaled\ from\ its\ natural\ size.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00565}00565\ \textcolor{stringliteral}{\ \ \ \ tfm\ :\ Tfm}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00566}00566\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ TeX\ font\ metrics\ for\ this\ font}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00567}00567\ \textcolor{stringliteral}{\ \ \ \ texname\ :\ bytes}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00568}00568\ \textcolor{stringliteral}{\ \ \ \ \ \ \ Name\ of\ the\ font\ as\ used\ internally\ by\ TeX\ and\ friends,\ as\ an\ ASCII}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00569}00569\ \textcolor{stringliteral}{\ \ \ \ \ \ \ bytestring.\ \ This\ is\ usually\ very\ different\ from\ any\ external\ font}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00570}00570\ \textcolor{stringliteral}{\ \ \ \ \ \ \ names;\ \`{}PsfontsMap\`{}\ can\ be\ used\ to\ find\ the\ external\ name\ of\ the\ font.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00571}00571\ \textcolor{stringliteral}{\ \ \ \ vf\ :\ Vf}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00572}00572\ \textcolor{stringliteral}{\ \ \ \ \ \ \ A\ TeX\ "{}virtual\ font"{}\ file,\ or\ None\ if\ this\ font\ is\ not\ virtual.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00573}00573\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00574}00574\ \textcolor{stringliteral}{\ \ \ \ Attributes}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00575}00575\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00576}00576\ \textcolor{stringliteral}{\ \ \ \ texname\ :\ bytes}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00577}00577\ \textcolor{stringliteral}{\ \ \ \ size\ :\ float}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00578}00578\ \textcolor{stringliteral}{\ \ \ \ \ \ \ Size\ of\ the\ font\ in\ Adobe\ points,\ converted\ from\ the\ slightly}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00579}00579\ \textcolor{stringliteral}{\ \ \ \ \ \ \ smaller\ TeX\ points.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00580}00580\ \textcolor{stringliteral}{\ \ \ \ widths\ :\ list}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00581}00581\ \textcolor{stringliteral}{\ \ \ \ \ \ \ Widths\ of\ glyphs\ in\ glyph-\/space\ units,\ typically\ 1/1000ths\ of}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00582}00582\ \textcolor{stringliteral}{\ \ \ \ \ \ \ the\ point\ size.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00583}00583\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00584}00584\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00585}00585\ \ \ \ \ \_\_slots\_\_\ =\ (\textcolor{stringliteral}{'texname'},\ \textcolor{stringliteral}{'size'},\ \textcolor{stringliteral}{'widths'},\ \textcolor{stringliteral}{'\_scale'},\ \textcolor{stringliteral}{'\_vf'},\ \textcolor{stringliteral}{'\_tfm'})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00586}00586\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00587}00587\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ scale,\ tfm,\ texname,\ vf):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00588}00588\ \ \ \ \ \ \ \ \ \_api.check\_isinstance(bytes,\ texname=texname)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00589}00589\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1DviFont_a85b18d33b207bcec5adb55065af4b637}{\_scale}}\ =\ scale}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00590}00590\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1DviFont_ae424c977224873997c20d7cdd433ecfb}{\_tfm}}\ =\ tfm}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00591}00591\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1DviFont_afbc7a99318167fe9ae5782a0f2015625}{texname}}\ =\ texname}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00592}00592\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1DviFont_a2b4e8389cfdf538f5838831632d62d47}{\_vf}}\ =\ vf}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00593}00593\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1DviFont_a35c7010921a38812047da7c1c77c90e6}{size}}\ =\ scale\ *\ (72.0\ /\ (72.27\ *\ 2**16))}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00594}00594\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00595}00595\ \ \ \ \ \ \ \ \ \ \ \ \ nchars\ =\ max(tfm.width)\ +\ 1}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00596}00596\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ ValueError:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00597}00597\ \ \ \ \ \ \ \ \ \ \ \ \ nchars\ =\ 0}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00598}00598\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1DviFont_a137a3536d6f43574a3a6b645577f4012}{widths}}\ =\ [(1000*tfm.width.get(char,\ 0))\ >>\ 20}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00599}00599\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ char\ \textcolor{keywordflow}{in}\ range(nchars)]}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00600}00600\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00601}00601\ \ \ \ \ \textcolor{keyword}{def\ }\_\_eq\_\_(self,\ other):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00602}00602\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ (type(self)\ \textcolor{keywordflow}{is}\ type(other)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00603}00603\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1DviFont_afbc7a99318167fe9ae5782a0f2015625}{texname}}\ ==\ other.texname\ \textcolor{keywordflow}{and}\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1DviFont_a35c7010921a38812047da7c1c77c90e6}{size}}\ ==\ other.size)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00604}00604\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00605}00605\ \ \ \ \ \textcolor{keyword}{def\ }\_\_ne\_\_(self,\ other):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00606}00606\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keywordflow}{not}\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1DviFont_a9e78eed2bf8ec13bdd2495e677d4105f}{\_\_eq\_\_}}(other)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00607}00607\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00608}00608\ \ \ \ \ \textcolor{keyword}{def\ }\_\_repr\_\_(self):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00609}00609\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ f\textcolor{stringliteral}{"{}<\{type(self).\_\_name\_\_\}:\ \{self.texname\}>"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00610}00610\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00611}\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1DviFont_ad8f5a5cedf3c12df00bfef7af1eda027}{00611}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1DviFont_ad8f5a5cedf3c12df00bfef7af1eda027}{\_width\_of}}(self,\ char):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00612}00612\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Width\ of\ char\ in\ dvi\ units."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00613}00613\ \ \ \ \ \ \ \ \ width\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1DviFont_ae424c977224873997c20d7cdd433ecfb}{\_tfm}}.width.get(char,\ \textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00614}00614\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ width\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00615}00615\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{namespacematplotlib_1_1dviread_a939f247a9bb884591d25de04e2f90ebf}{\_mul2012}}(width,\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1DviFont_a85b18d33b207bcec5adb55065af4b637}{\_scale}})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00616}00616\ \ \ \ \ \ \ \ \ \_log.debug(\textcolor{stringliteral}{'No\ width\ for\ char\ \%d\ in\ font\ \%s.'},\ char,\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1DviFont_afbc7a99318167fe9ae5782a0f2015625}{texname}})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00617}00617\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ 0}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00618}00618\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00619}\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1DviFont_a0c531ef66e8420fe907ed46ba43daf0e}{00619}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1DviFont_a0c531ef66e8420fe907ed46ba43daf0e}{\_height\_depth\_of}}(self,\ char):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00620}00620\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Height\ and\ depth\ of\ char\ in\ dvi\ units."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00621}00621\ \ \ \ \ \ \ \ \ result\ =\ []}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00622}00622\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ metric,\ name\ \textcolor{keywordflow}{in}\ ((self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1DviFont_ae424c977224873997c20d7cdd433ecfb}{\_tfm}}.height,\ \textcolor{stringliteral}{"{}height"{}}),}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00623}00623\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1DviFont_ae424c977224873997c20d7cdd433ecfb}{\_tfm}}.depth,\ \textcolor{stringliteral}{"{}depth"{}})):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00624}00624\ \ \ \ \ \ \ \ \ \ \ \ \ value\ =\ metric.get(char,\ \textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00625}00625\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ value\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00626}00626\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_log.debug(\textcolor{stringliteral}{'No\ \%s\ for\ char\ \%d\ in\ font\ \%s'},}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00627}00627\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ name,\ char,\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1DviFont_afbc7a99318167fe9ae5782a0f2015625}{texname}})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00628}00628\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ result.append(0)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00629}00629\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00630}00630\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ result.append(\mbox{\hyperlink{namespacematplotlib_1_1dviread_a939f247a9bb884591d25de04e2f90ebf}{\_mul2012}}(value,\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1DviFont_a85b18d33b207bcec5adb55065af4b637}{\_scale}}))}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00631}00631\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ cmsyXX\ (symbols\ font)\ glyph\ 0\ ("{}minus"{})\ has\ a\ nonzero\ descent}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00632}00632\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ so\ that\ TeX\ aligns\ equations\ properly}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00633}00633\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ (https://tex.stackexchange.com/q/526103/)}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00634}00634\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ but\ we\ actually\ care\ about\ the\ rasterization\ depth\ to\ align}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00635}00635\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ the\ dvipng-\/generated\ images.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00636}00636\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ re.match(br\textcolor{stringliteral}{'\string^cmsy\(\backslash\)d+\$'},\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1DviFont_afbc7a99318167fe9ae5782a0f2015625}{texname}})\ \textcolor{keywordflow}{and}\ char\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00637}00637\ \ \ \ \ \ \ \ \ \ \ \ \ result[-\/1]\ =\ 0}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00638}00638\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ result}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00639}00639\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00640}00640\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00641}\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Vf}{00641}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Vf}{Vf}}(\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi}{Dvi}}):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00642}00642\ \ \ \ \ \textcolor{stringliteral}{r"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00643}00643\ \textcolor{stringliteral}{\ \ \ \ A\ virtual\ font\ (\(\backslash\)*.vf\ file)\ containing\ subroutines\ for\ dvi\ files.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00644}00644\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00645}00645\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00646}00646\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00647}00647\ \textcolor{stringliteral}{\ \ \ \ filename\ :\ str\ or\ path-\/like}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00648}00648\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00649}00649\ \textcolor{stringliteral}{\ \ \ \ Notes}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00650}00650\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00651}00651\ \textcolor{stringliteral}{\ \ \ \ The\ virtual\ font\ format\ is\ a\ derivative\ of\ dvi:}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00652}00652\ \textcolor{stringliteral}{\ \ \ \ http://mirrors.ctan.org/info/knuth/virtual-\/fonts}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00653}00653\ \textcolor{stringliteral}{\ \ \ \ This\ class\ reuses\ some\ of\ the\ machinery\ of\ \`{}Dvi\`{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00654}00654\ \textcolor{stringliteral}{\ \ \ \ but\ replaces\ the\ \`{}\_read\`{}\ loop\ and\ dispatch\ mechanism.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00655}00655\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00656}00656\ \textcolor{stringliteral}{\ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00657}00657\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00658}00658\ \textcolor{stringliteral}{\ \ \ \ ::}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00659}00659\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00660}00660\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ vf\ =\ Vf(filename)}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00661}00661\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ glyph\ =\ vf[code]}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00662}00662\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ glyph.text,\ glyph.boxes,\ glyph.width}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00663}00663\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00664}00664\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00665}00665\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ filename):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00666}00666\ \ \ \ \ \ \ \ \ super().\_\_init\_\_(filename,\ 0)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00667}00667\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00668}00668\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Vf_acb7828ed7252d1e9cea32b4d6c09b4b2}{\_first\_font}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00669}00669\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Vf_a4319af1dc920f703d2db7dc4860ca72f}{\_chars}}\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00670}00670\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a7b9de70b4dc3e3c680f959f0db789976}{\_read}}()}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00671}00671\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{finally}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00672}00672\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a190ce10338438308389d7f502f0bf7f1}{close}}()}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00673}00673\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00674}00674\ \ \ \ \ \textcolor{keyword}{def\ }\_\_getitem\_\_(self,\ code):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00675}00675\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Vf_a4319af1dc920f703d2db7dc4860ca72f}{\_chars}}[code]}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00676}00676\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00677}\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Vf_a08a2a25593a341ac1371f66aceea0e7d}{00677}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Vf_a08a2a25593a341ac1371f66aceea0e7d}{\_read}}(self):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00678}00678\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00679}00679\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Read\ one\ page\ from\ the\ file.\ Return\ True\ if\ successful,}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00680}00680\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ False\ if\ there\ were\ no\ more\ pages.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00681}00681\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00682}00682\ \ \ \ \ \ \ \ \ packet\_char\ =\ packet\_ends\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00683}00683\ \ \ \ \ \ \ \ \ packet\_len\ =\ packet\_width\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00684}00684\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{while}\ \textcolor{keyword}{True}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00685}00685\ \ \ \ \ \ \ \ \ \ \ \ \ byte\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_aa9559a88edd1f9ca0403477c2b15f069}{file}}.read(1)[0]}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00686}00686\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ If\ we\ are\ in\ a\ packet,\ execute\ the\ dvi\ instructions}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00687}00687\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a87ef35c6e9fb51513b57a8720a1410c4}{state}}\ \textcolor{keywordflow}{is}\ \_dvistate.inpage:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00688}00688\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ byte\_at\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_aa9559a88edd1f9ca0403477c2b15f069}{file}}.tell()-\/1}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00689}00689\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ byte\_at\ ==\ packet\_ends:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00690}00690\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Vf_ad817f95953b485a7ca972564dec3a28d}{\_finalize\_packet}}(packet\_char,\ packet\_width)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00691}00691\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ packet\_len\ =\ packet\_char\ =\ packet\_width\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00692}00692\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ fall\ through\ to\ out-\/of-\/packet\ code}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00693}00693\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ byte\_at\ >\ packet\_ends:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00694}00694\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}Packet\ length\ mismatch\ in\ vf\ file"{}})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00695}00695\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00696}00696\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ byte\ \textcolor{keywordflow}{in}\ (139,\ 140)\ \textcolor{keywordflow}{or}\ byte\ >=\ 243:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00697}00697\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(f\textcolor{stringliteral}{"{}Inappropriate\ opcode\ \{byte\}\ in\ vf\ file"{}})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00698}00698\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ Dvi.\_dtable[byte](self,\ byte)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00699}00699\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00700}00700\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00701}00701\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ We\ are\ outside\ a\ packet}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00702}00702\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ byte\ <\ 242:\ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ a\ short\ packet\ (length\ given\ by\ byte)}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00703}00703\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ packet\_len\ =\ byte}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00704}00704\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ packet\_char\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a3c5d5c1faf31cf256271d34b1b6debb6}{\_read\_arg}}(1)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00705}00705\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ packet\_width\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a3c5d5c1faf31cf256271d34b1b6debb6}{\_read\_arg}}(3)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00706}00706\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ packet\_ends\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Vf_afba2ade05d01798f43b44588ce1e9290}{\_init\_packet}}(byte)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00707}00707\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a87ef35c6e9fb51513b57a8720a1410c4}{state}}\ =\ \_dvistate.inpage}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00708}00708\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ byte\ ==\ 242:\ \ \ \ \ \ \ \textcolor{comment}{\#\ a\ long\ packet}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00709}00709\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ packet\_len\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a3c5d5c1faf31cf256271d34b1b6debb6}{\_read\_arg}}(4)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00710}00710\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ packet\_char\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a3c5d5c1faf31cf256271d34b1b6debb6}{\_read\_arg}}(4)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00711}00711\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ packet\_width\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a3c5d5c1faf31cf256271d34b1b6debb6}{\_read\_arg}}(4)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00712}00712\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Vf_afba2ade05d01798f43b44588ce1e9290}{\_init\_packet}}(packet\_len)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00713}00713\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ 243\ <=\ byte\ <=\ 246:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00714}00714\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ k\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a3c5d5c1faf31cf256271d34b1b6debb6}{\_read\_arg}}(byte\ -\/\ 242,\ byte\ ==\ 246)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00715}00715\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ c\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a3c5d5c1faf31cf256271d34b1b6debb6}{\_read\_arg}}(4)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00716}00716\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ s\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a3c5d5c1faf31cf256271d34b1b6debb6}{\_read\_arg}}(4)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00717}00717\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ d\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a3c5d5c1faf31cf256271d34b1b6debb6}{\_read\_arg}}(4)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00718}00718\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ a\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a3c5d5c1faf31cf256271d34b1b6debb6}{\_read\_arg}}(1)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00719}00719\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ l\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a3c5d5c1faf31cf256271d34b1b6debb6}{\_read\_arg}}(1)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00720}00720\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a02ab8d72f6dc4502648e7d503145224d}{\_fnt\_def\_real}}(k,\ c,\ s,\ d,\ a,\ l)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00721}00721\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Vf_acb7828ed7252d1e9cea32b4d6c09b4b2}{\_first\_font}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00722}00722\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Vf_acb7828ed7252d1e9cea32b4d6c09b4b2}{\_first\_font}}\ =\ k}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00723}00723\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ byte\ ==\ 247:\ \ \ \ \ \ \ \textcolor{comment}{\#\ preamble}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00724}00724\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ i\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a3c5d5c1faf31cf256271d34b1b6debb6}{\_read\_arg}}(1)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00725}00725\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ k\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a3c5d5c1faf31cf256271d34b1b6debb6}{\_read\_arg}}(1)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00726}00726\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ x\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_aa9559a88edd1f9ca0403477c2b15f069}{file}}.read(k)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00727}00727\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ cs\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a3c5d5c1faf31cf256271d34b1b6debb6}{\_read\_arg}}(4)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00728}00728\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ds\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a3c5d5c1faf31cf256271d34b1b6debb6}{\_read\_arg}}(4)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00729}00729\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_aa1ed69b0353aa00439a9c2f69803b41a}{\_pre}}(i,\ x,\ cs,\ ds)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00730}00730\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ byte\ ==\ 248:\ \ \ \ \ \ \ \textcolor{comment}{\#\ postamble\ (just\ some\ number\ of\ 248s)}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00731}00731\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00732}00732\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00733}00733\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(f\textcolor{stringliteral}{"{}Unknown\ vf\ opcode\ \{byte\}"{}})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00734}00734\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00735}00735\ \ \ \ \ \textcolor{keyword}{def\ }\_init\_packet(self,\ pl):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00736}00736\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a87ef35c6e9fb51513b57a8720a1410c4}{state}}\ !=\ \_dvistate.outer:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00737}00737\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}Misplaced\ packet\ in\ vf\ file"{}})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00738}00738\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a6471c8f59dbf76e587458ca6febc1de5}{h}}\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_aad93164b4070f2fc5bc14bd4c4f67d86}{v}}\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_aca4d5c297a37eb8390125a599f0da6c6}{w}}\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a785a2f22c28527b55865450e33857b88}{x}}\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a897b9041ab58796a8fb89e62b3667d38}{y}}\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a293a84f008cf738af2ac75ede5e96893}{z}}\ =\ 0}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00739}00739\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a223324350036822d57a07213ee6adddd}{stack}}\ =\ []}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00740}00740\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a7424a32803da30eda1d77ffdb1f41097}{text}}\ =\ []}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00741}00741\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_af109792737e9d762ab10250552695570}{boxes}}\ =\ []}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00742}00742\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a5d15875c6457044db341a78f8380310f}{f}}\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Vf_acb7828ed7252d1e9cea32b4d6c09b4b2}{\_first\_font}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00743}00743\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a7adf4ecd6e43ae6b432039cb9225e60c}{\_missing\_font}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00744}00744\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_aa9559a88edd1f9ca0403477c2b15f069}{file}}.tell()\ +\ pl}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00745}00745\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00746}00746\ \ \ \ \ \textcolor{keyword}{def\ }\_finalize\_packet(self,\ packet\_char,\ packet\_width):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00747}00747\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a7adf4ecd6e43ae6b432039cb9225e60c}{\_missing\_font}}:\ \ \textcolor{comment}{\#\ Otherwise\ we\ don't\ have\ full\ glyph\ definition.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00748}00748\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Vf_a4319af1dc920f703d2db7dc4860ca72f}{\_chars}}[packet\_char]\ =\ Page(}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00749}00749\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ text=self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a7424a32803da30eda1d77ffdb1f41097}{text}},\ boxes=self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_af109792737e9d762ab10250552695570}{boxes}},\ width=packet\_width,}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00750}00750\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ height=\textcolor{keywordtype}{None},\ descent=\textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00751}00751\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a87ef35c6e9fb51513b57a8720a1410c4}{state}}\ =\ \_dvistate.outer}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00752}00752\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00753}00753\ \ \ \ \ \textcolor{keyword}{def\ }\_pre(self,\ i,\ x,\ cs,\ ds):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00754}00754\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a87ef35c6e9fb51513b57a8720a1410c4}{state}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \_dvistate.pre:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00755}00755\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}pre\ command\ in\ middle\ of\ vf\ file"{}})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00756}00756\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ i\ !=\ 202:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00757}00757\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(f\textcolor{stringliteral}{"{}Unknown\ vf\ format\ \{i\}"{}})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00758}00758\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(x):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00759}00759\ \ \ \ \ \ \ \ \ \ \ \ \ \_log.debug(\textcolor{stringliteral}{'vf\ file\ comment:\ \%s'},\ x)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00760}00760\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi_a87ef35c6e9fb51513b57a8720a1410c4}{state}}\ =\ \_dvistate.outer}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00761}00761\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ cs\ =\ checksum,\ ds\ =\ design\ size}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00762}00762\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00763}00763\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00764}\mbox{\hyperlink{namespacematplotlib_1_1dviread_a939f247a9bb884591d25de04e2f90ebf}{00764}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacematplotlib_1_1dviread_a939f247a9bb884591d25de04e2f90ebf}{\_mul2012}}(num1,\ num2):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00765}00765\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Multiply\ two\ numbers\ in\ 20.12\ fixed\ point\ format."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00766}00766\ \ \ \ \ \textcolor{comment}{\#\ Separated\ into\ a\ function\ because\ >>\ has\ surprising\ precedence}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00767}00767\ \ \ \ \ \textcolor{keywordflow}{return}\ (num1*num2)\ >>\ 20}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00768}00768\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00769}00769\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00770}\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Tfm}{00770}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Tfm}{Tfm}}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00771}00771\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00772}00772\ \textcolor{stringliteral}{\ \ \ \ A\ TeX\ Font\ Metric\ file.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00773}00773\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00774}00774\ \textcolor{stringliteral}{\ \ \ \ This\ implementation\ covers\ only\ the\ bare\ minimum\ needed\ by\ the\ Dvi\ class.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00775}00775\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00776}00776\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00777}00777\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00778}00778\ \textcolor{stringliteral}{\ \ \ \ filename\ :\ str\ or\ path-\/like}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00779}00779\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00780}00780\ \textcolor{stringliteral}{\ \ \ \ Attributes}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00781}00781\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00782}00782\ \textcolor{stringliteral}{\ \ \ \ checksum\ :\ int}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00783}00783\ \textcolor{stringliteral}{\ \ \ \ \ \ \ Used\ for\ verifying\ against\ the\ dvi\ file.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00784}00784\ \textcolor{stringliteral}{\ \ \ \ design\_size\ :\ int}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00785}00785\ \textcolor{stringliteral}{\ \ \ \ \ \ \ Design\ size\ of\ the\ font\ (unknown\ units)}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00786}00786\ \textcolor{stringliteral}{\ \ \ \ width,\ height,\ depth\ :\ dict}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00787}00787\ \textcolor{stringliteral}{\ \ \ \ \ \ \ Dimensions\ of\ each\ character,\ need\ to\ be\ scaled\ by\ the\ factor}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00788}00788\ \textcolor{stringliteral}{\ \ \ \ \ \ \ specified\ in\ the\ dvi\ file.\ These\ are\ dicts\ because\ indexing\ may}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00789}00789\ \textcolor{stringliteral}{\ \ \ \ \ \ \ not\ start\ from\ 0.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00790}00790\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00791}00791\ \ \ \ \ \_\_slots\_\_\ =\ (\textcolor{stringliteral}{'checksum'},\ \textcolor{stringliteral}{'design\_size'},\ \textcolor{stringliteral}{'width'},\ \textcolor{stringliteral}{'height'},\ \textcolor{stringliteral}{'depth'})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00792}00792\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00793}00793\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ filename):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00794}00794\ \ \ \ \ \ \ \ \ \_log.debug(\textcolor{stringliteral}{'opening\ tfm\ file\ \%s'},\ filename)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00795}00795\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ open(filename,\ \textcolor{stringliteral}{'rb'})\ \textcolor{keyword}{as}\ file:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00796}00796\ \ \ \ \ \ \ \ \ \ \ \ \ header1\ =\ file.read(24)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00797}00797\ \ \ \ \ \ \ \ \ \ \ \ \ lh,\ bc,\ ec,\ nw,\ nh,\ nd\ =\ struct.unpack(\textcolor{stringliteral}{'!6H'},\ header1[2:14])}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00798}00798\ \ \ \ \ \ \ \ \ \ \ \ \ \_log.debug(\textcolor{stringliteral}{'lh=\%d,\ bc=\%d,\ ec=\%d,\ nw=\%d,\ nh=\%d,\ nd=\%d'},}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00799}00799\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ lh,\ bc,\ ec,\ nw,\ nh,\ nd)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00800}00800\ \ \ \ \ \ \ \ \ \ \ \ \ header2\ =\ file.read(4*lh)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00801}00801\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Tfm_a8fba3e16ca215747e97f9d31e68c103b}{checksum}},\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Tfm_a283e26b9669ee08c83c0bf512d92f751}{design\_size}}\ =\ struct.unpack(\textcolor{stringliteral}{'!2I'},\ header2[:8])}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00802}00802\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ there\ is\ also\ encoding\ information\ etc.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00803}00803\ \ \ \ \ \ \ \ \ \ \ \ \ char\_info\ =\ file.read(4*(ec-\/bc+1))}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00804}00804\ \ \ \ \ \ \ \ \ \ \ \ \ widths\ =\ struct.unpack(f\textcolor{stringliteral}{'!\{nw\}i'},\ file.read(4*nw))}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00805}00805\ \ \ \ \ \ \ \ \ \ \ \ \ heights\ =\ struct.unpack(f\textcolor{stringliteral}{'!\{nh\}i'},\ file.read(4*nh))}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00806}00806\ \ \ \ \ \ \ \ \ \ \ \ \ depths\ =\ struct.unpack(f\textcolor{stringliteral}{'!\{nd\}i'},\ file.read(4*nd))}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00807}00807\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Tfm_ac4b1c11fd3cea239d653d0a34111febf}{width}}\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00808}00808\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Tfm_aca9e5b4f37b7e570d7cb2f8269ef4fef}{height}}\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00809}00809\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Tfm_a4630c9516e26abbea2d5075ee07c1f14}{depth}}\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00810}00810\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ idx,\ char\ \textcolor{keywordflow}{in}\ enumerate(range(bc,\ ec+1)):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00811}00811\ \ \ \ \ \ \ \ \ \ \ \ \ byte0\ =\ char\_info[4*idx]}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00812}00812\ \ \ \ \ \ \ \ \ \ \ \ \ byte1\ =\ char\_info[4*idx+1]}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00813}00813\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Tfm_ac4b1c11fd3cea239d653d0a34111febf}{width}}[char]\ =\ widths[byte0]}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00814}00814\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Tfm_aca9e5b4f37b7e570d7cb2f8269ef4fef}{height}}[char]\ =\ heights[byte1\ >>\ 4]}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00815}00815\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Tfm_a4630c9516e26abbea2d5075ee07c1f14}{depth}}[char]\ =\ depths[byte1\ \&\ 0xf]}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00816}00816\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00817}00817\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00818}00818\ PsFont\ =\ \mbox{\hyperlink{classnamedtuple}{namedtuple}}(\textcolor{stringliteral}{'PsFont'},\ \textcolor{stringliteral}{'texname\ psname\ effects\ encoding\ filename'})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00819}00819\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00820}00820\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00821}\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1PsfontsMap}{00821}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1PsfontsMap}{PsfontsMap}}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00822}00822\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00823}00823\ \textcolor{stringliteral}{\ \ \ \ A\ psfonts.map\ formatted\ file,\ mapping\ TeX\ fonts\ to\ PS\ fonts.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00824}00824\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00825}00825\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00826}00826\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00827}00827\ \textcolor{stringliteral}{\ \ \ \ filename\ :\ str\ or\ path-\/like}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00828}00828\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00829}00829\ \textcolor{stringliteral}{\ \ \ \ Notes}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00830}00830\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00831}00831\ \textcolor{stringliteral}{\ \ \ \ For\ historical\ reasons,\ TeX\ knows\ many\ Type-\/1\ fonts\ by\ different}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00832}00832\ \textcolor{stringliteral}{\ \ \ \ names\ than\ the\ outside\ world.\ (For\ one\ thing,\ the\ names\ have\ to}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00833}00833\ \textcolor{stringliteral}{\ \ \ \ fit\ in\ eight\ characters.)\ Also,\ TeX's\ native\ fonts\ are\ not\ Type-\/1}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00834}00834\ \textcolor{stringliteral}{\ \ \ \ but\ Metafont,\ which\ is\ nontrivial\ to\ convert\ to\ PostScript\ except}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00835}00835\ \textcolor{stringliteral}{\ \ \ \ as\ a\ bitmap.\ While\ high-\/quality\ conversions\ to\ Type-\/1\ format\ exist}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00836}00836\ \textcolor{stringliteral}{\ \ \ \ and\ are\ shipped\ with\ modern\ TeX\ distributions,\ we\ need\ to\ know}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00837}00837\ \textcolor{stringliteral}{\ \ \ \ which\ Type-\/1\ fonts\ are\ the\ counterparts\ of\ which\ native\ fonts.\ For}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00838}00838\ \textcolor{stringliteral}{\ \ \ \ these\ reasons\ a\ mapping\ is\ needed\ from\ internal\ font\ names\ to\ font}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00839}00839\ \textcolor{stringliteral}{\ \ \ \ file\ names.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00840}00840\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00841}00841\ \textcolor{stringliteral}{\ \ \ \ A\ texmf\ tree\ typically\ includes\ mapping\ files\ called\ e.g.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00842}00842\ \textcolor{stringliteral}{\ \ \ \ :file:\`{}psfonts.map\`{},\ :file:\`{}pdftex.map\`{},\ or\ :file:\`{}dvipdfm.map\`{}.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00843}00843\ \textcolor{stringliteral}{\ \ \ \ The\ file\ :file:\`{}psfonts.map\`{}\ is\ used\ by\ :program:\`{}dvips\`{},}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00844}00844\ \textcolor{stringliteral}{\ \ \ \ :file:\`{}pdftex.map\`{}\ by\ :program:\`{}pdfTeX\`{},\ and\ :file:\`{}dvipdfm.map\`{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00845}00845\ \textcolor{stringliteral}{\ \ \ \ by\ :program:\`{}dvipdfm\`{}.\ :file:\`{}psfonts.map\`{}\ might\ avoid\ embedding}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00846}00846\ \textcolor{stringliteral}{\ \ \ \ the\ 35\ PostScript\ fonts\ (i.e.,\ have\ no\ filename\ for\ them,\ as\ in}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00847}00847\ \textcolor{stringliteral}{\ \ \ \ the\ Times-\/Bold\ example\ above),\ while\ the\ pdf-\/related\ files\ perhaps}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00848}00848\ \textcolor{stringliteral}{\ \ \ \ only\ avoid\ the\ "{}Base\ 14"{}\ pdf\ fonts.\ But\ the\ user\ may\ have}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00849}00849\ \textcolor{stringliteral}{\ \ \ \ configured\ these\ files\ differently.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00850}00850\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00851}00851\ \textcolor{stringliteral}{\ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00852}00852\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00853}00853\ \textcolor{stringliteral}{\ \ \ \ >>>\ map\ =\ PsfontsMap(find\_tex\_file('pdftex.map'))}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00854}00854\ \textcolor{stringliteral}{\ \ \ \ >>>\ entry\ =\ map[b'ptmbo8r']}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00855}00855\ \textcolor{stringliteral}{\ \ \ \ >>>\ entry.texname}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00856}00856\ \textcolor{stringliteral}{\ \ \ \ b'ptmbo8r'}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00857}00857\ \textcolor{stringliteral}{\ \ \ \ >>>\ entry.psname}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00858}00858\ \textcolor{stringliteral}{\ \ \ \ b'Times-\/Bold'}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00859}00859\ \textcolor{stringliteral}{\ \ \ \ >>>\ entry.encoding}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00860}00860\ \textcolor{stringliteral}{\ \ \ \ '/usr/local/texlive/2008/texmf-\/dist/fonts/enc/dvips/base/8r.enc'}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00861}00861\ \textcolor{stringliteral}{\ \ \ \ >>>\ entry.effects}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00862}00862\ \textcolor{stringliteral}{\ \ \ \ \{'slant':\ 0.16700000000000001\}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00863}00863\ \textcolor{stringliteral}{\ \ \ \ >>>\ entry.filename}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00864}00864\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00865}00865\ \ \ \ \ \_\_slots\_\_\ =\ (\textcolor{stringliteral}{'\_filename'},\ \textcolor{stringliteral}{'\_unparsed'},\ \textcolor{stringliteral}{'\_parsed'})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00866}00866\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00867}00867\ \ \ \ \ \textcolor{comment}{\#\ Create\ a\ filename\ -\/>\ PsfontsMap\ cache,\ so\ that\ calling}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00868}00868\ \ \ \ \ \textcolor{comment}{\#\ \`{}PsfontsMap(filename)`\ with\ the\ same\ filename\ a\ second\ time\ immediately}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00869}00869\ \ \ \ \ \textcolor{comment}{\#\ returns\ the\ same\ object.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00870}00870\ \ \ \ \ \textcolor{preprocessor}{@lru\_cache}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00871}00871\ \ \ \ \ \textcolor{keyword}{def\ }\_\_new\_\_(cls,\ filename):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00872}00872\ \ \ \ \ \ \ \ \ self\ =\ object.\_\_new\_\_(cls)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00873}00873\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1PsfontsMap_a1375255f5ee9f6eac4579630a7bc7cfc}{\_filename}}\ =\ os.fsdecode(filename)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00874}00874\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Some\ TeX\ distributions\ have\ enormous\ pdftex.map\ files\ which\ would}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00875}00875\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ take\ hundreds\ of\ milliseconds\ to\ parse,\ but\ it\ is\ easy\ enough\ to\ just}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00876}00876\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ store\ the\ unparsed\ lines\ (keyed\ by\ the\ first\ word,\ which\ is\ the}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00877}00877\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ texname)\ and\ parse\ them\ on-\/demand.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00878}00878\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ open(filename,\ \textcolor{stringliteral}{'rb'})\ \textcolor{keyword}{as}\ file:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00879}00879\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1PsfontsMap_aeb19f7fd2c0ee764cb6595419c0b0c29}{\_unparsed}}\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00880}00880\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ line\ \textcolor{keywordflow}{in}\ file:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00881}00881\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ tfmname\ =\ line.split(b\textcolor{stringliteral}{'\ '},\ 1)[0]}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00882}00882\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1PsfontsMap_aeb19f7fd2c0ee764cb6595419c0b0c29}{\_unparsed}}.setdefault(tfmname,\ []).append(line)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00883}00883\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1PsfontsMap_a9ff629a02d256311767f2ebbabba07f1}{\_parsed}}\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00884}00884\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00885}00885\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00886}00886\ \ \ \ \ \textcolor{keyword}{def\ }\_\_getitem\_\_(self,\ texname):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00887}00887\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ isinstance(texname,\ bytes)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00888}00888\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ texname\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1PsfontsMap_aeb19f7fd2c0ee764cb6595419c0b0c29}{\_unparsed}}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00889}00889\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ line\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1PsfontsMap_aeb19f7fd2c0ee764cb6595419c0b0c29}{\_unparsed}}.pop(texname):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00890}00890\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1PsfontsMap_af02eb3b0850015fb6e49041bc3afb7ae}{\_parse\_and\_cache\_line}}(line):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00891}00891\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00892}00892\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00893}00893\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1PsfontsMap_a9ff629a02d256311767f2ebbabba07f1}{\_parsed}}[texname]}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00894}00894\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ KeyError:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00895}00895\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ LookupError(}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00896}00896\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}An\ associated\ PostScript\ font\ (required\ by\ Matplotlib)\ "{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00897}00897\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}could\ not\ be\ found\ for\ TeX\ font\ \{texname.decode('ascii')!r\}\ "{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00898}00898\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}in\ \{self.\_filename!r\};\ this\ problem\ can\ often\ be\ solved\ by\ "{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00899}00899\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}installing\ a\ suitable\ PostScript\ font\ package\ in\ your\ TeX\ "{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00900}00900\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}package\ manager"{}})\ \textcolor{keyword}{from}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00901}00901\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00902}\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1PsfontsMap_af02eb3b0850015fb6e49041bc3afb7ae}{00902}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1PsfontsMap_af02eb3b0850015fb6e49041bc3afb7ae}{\_parse\_and\_cache\_line}}(self,\ line):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00903}00903\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00904}00904\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parse\ a\ line\ in\ the\ font\ mapping\ file.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00905}00905\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00906}00906\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ format\ is\ (partially)\ documented\ at}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00907}00907\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ http://mirrors.ctan.org/systems/doc/pdftex/manual/pdftex-\/a.pdf}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00908}00908\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ https://tug.org/texinfohtml/dvips.html\#psfonts\_002emap}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00909}00909\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Each\ line\ can\ have\ the\ following\ fields:}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00910}00910\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00911}00911\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ tfmname\ (first,\ only\ required\ field),}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00912}00912\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ psname\ (defaults\ to\ tfmname,\ must\ come\ immediately\ after\ tfmname\ if}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00913}00913\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ present),}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00914}00914\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ fontflags\ (integer,\ must\ come\ immediately\ after\ psname\ if\ present,}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00915}00915\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ ignored\ by\ us),}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00916}00916\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ special\ (SlantFont\ and\ ExtendFont,\ only\ field\ that\ is\ double-\/quoted),}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00917}00917\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ fontfile,\ encodingfile\ (optional,\ prefixed\ by\ <,\ <<,\ or\ <[;\ <<\ always}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00918}00918\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ precedes\ a\ font,\ <[\ always\ precedes\ an\ encoding,\ <\ can\ precede\ either}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00919}00919\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ but\ then\ an\ encoding\ file\ must\ have\ extension\ .enc;\ <\ and\ <<\ also}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00920}00920\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ request\ different\ font\ subsetting\ behaviors\ but\ we\ ignore\ that;\ <\ can}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00921}00921\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ be\ separated\ from\ the\ filename\ by\ whitespace).}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00922}00922\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00923}00923\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ special,\ fontfile,\ and\ encodingfile\ can\ appear\ in\ any\ order.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00924}00924\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00925}00925\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ If\ the\ map\ file\ specifies\ multiple\ encodings\ for\ a\ font,\ we}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00926}00926\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ follow\ pdfTeX\ in\ choosing\ the\ last\ one\ specified.\ Such}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00927}00927\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ entries\ are\ probably\ mistakes\ but\ they\ have\ occurred.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00928}00928\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ https://tex.stackexchange.com/q/10826/}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00929}00929\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00930}00930\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ line\ \textcolor{keywordflow}{or}\ line.startswith((b\textcolor{stringliteral}{"{}\ "{}},\ b\textcolor{stringliteral}{"{}\%"{}},\ b\textcolor{stringliteral}{"{}*"{}},\ b\textcolor{stringliteral}{"{};"{}},\ b\textcolor{stringliteral}{"{}\#"{}})):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00931}00931\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00932}00932\ \ \ \ \ \ \ \ \ tfmname\ =\ basename\ =\ special\ =\ encodingfile\ =\ fontfile\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00933}00933\ \ \ \ \ \ \ \ \ is\_subsetted\ =\ is\_t1\ =\ is\_truetype\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00934}00934\ \ \ \ \ \ \ \ \ matches\ =\ re.finditer(br\textcolor{stringliteral}{'"{}([\string^"{}]*)(?:"{}|\$)|(\(\backslash\)S+)'},\ line)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00935}00935\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ match\ \textcolor{keywordflow}{in}\ matches:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00936}00936\ \ \ \ \ \ \ \ \ \ \ \ \ quoted,\ unquoted\ =\ match.groups()}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00937}00937\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ unquoted:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00938}00938\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ unquoted.startswith(b\textcolor{stringliteral}{"{}<<"{}}):\ \ \textcolor{comment}{\#\ font}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00939}00939\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ fontfile\ =\ unquoted[2:]}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00940}00940\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ unquoted.startswith(b\textcolor{stringliteral}{"{}<["{}}):\ \ \textcolor{comment}{\#\ encoding}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00941}00941\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ encodingfile\ =\ unquoted[2:]}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00942}00942\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ unquoted.startswith(b\textcolor{stringliteral}{"{}<"{}}):\ \ \textcolor{comment}{\#\ font\ or\ encoding}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00943}00943\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ word\ =\ (}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00944}00944\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ <foo\ =>\ foo}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00945}00945\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ unquoted[1:]}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00946}00946\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ <\ by\ itself\ =>\ read\ the\ next\ word}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00947}00947\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{or}\ next(filter(\textcolor{keywordtype}{None},\ next(matches).groups())))}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00948}00948\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ word.endswith(b\textcolor{stringliteral}{"{}.enc"{}}):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00949}00949\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ encodingfile\ =\ word}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00950}00950\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00951}00951\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ fontfile\ =\ word}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00952}00952\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ is\_subsetted\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00953}00953\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ tfmname\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00954}00954\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ tfmname\ =\ unquoted}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00955}00955\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ basename\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00956}00956\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ basename\ =\ unquoted}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00957}00957\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ quoted:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00958}00958\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ special\ =\ quoted}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00959}00959\ \ \ \ \ \ \ \ \ effects\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00960}00960\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ special:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00961}00961\ \ \ \ \ \ \ \ \ \ \ \ \ words\ =\ reversed(special.split())}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00962}00962\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ word\ \textcolor{keywordflow}{in}\ words:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00963}00963\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ word\ ==\ b\textcolor{stringliteral}{"{}SlantFont"{}}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00964}00964\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ effects[\textcolor{stringliteral}{"{}slant"{}}]\ =\ float(next(words))}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00965}00965\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ word\ ==\ b\textcolor{stringliteral}{"{}ExtendFont"{}}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00966}00966\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ effects[\textcolor{stringliteral}{"{}extend"{}}]\ =\ float(next(words))}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00967}00967\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00968}00968\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Verify\ some\ properties\ of\ the\ line\ that\ would\ cause\ it\ to\ be\ ignored}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00969}00969\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ otherwise.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00970}00970\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ fontfile\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00971}00971\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ fontfile.endswith((b\textcolor{stringliteral}{"{}.ttf"{}},\ b\textcolor{stringliteral}{"{}.ttc"{}})):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00972}00972\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ is\_truetype\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00973}00973\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ \textcolor{keywordflow}{not}\ fontfile.endswith(b\textcolor{stringliteral}{"{}.otf"{}}):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00974}00974\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ is\_t1\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00975}00975\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ basename\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00976}00976\ \ \ \ \ \ \ \ \ \ \ \ \ is\_t1\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00977}00977\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ is\_truetype\ \textcolor{keywordflow}{and}\ is\_subsetted\ \textcolor{keywordflow}{and}\ encodingfile\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00978}00978\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00979}00979\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ is\_t1\ \textcolor{keywordflow}{and}\ (\textcolor{stringliteral}{"{}slant"{}}\ \textcolor{keywordflow}{in}\ effects\ \textcolor{keywordflow}{or}\ \textcolor{stringliteral}{"{}extend"{}}\ \textcolor{keywordflow}{in}\ effects):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00980}00980\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00981}00981\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ abs(effects.get(\textcolor{stringliteral}{"{}slant"{}},\ 0))\ >\ 1:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00982}00982\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00983}00983\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ abs(effects.get(\textcolor{stringliteral}{"{}extend"{}},\ 0))\ >\ 2:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00984}00984\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00985}00985\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00986}00986\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ basename\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00987}00987\ \ \ \ \ \ \ \ \ \ \ \ \ basename\ =\ tfmname}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00988}00988\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ encodingfile\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00989}00989\ \ \ \ \ \ \ \ \ \ \ \ \ encodingfile\ =\ \mbox{\hyperlink{namespacematplotlib_1_1dviread_a9c9a86abfad17941d667418e4f74290a}{find\_tex\_file}}(encodingfile)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00990}00990\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ fontfile\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00991}00991\ \ \ \ \ \ \ \ \ \ \ \ \ fontfile\ =\ \mbox{\hyperlink{namespacematplotlib_1_1dviread_a9c9a86abfad17941d667418e4f74290a}{find\_tex\_file}}(fontfile)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00992}00992\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1PsfontsMap_a9ff629a02d256311767f2ebbabba07f1}{\_parsed}}[tfmname]\ =\ PsFont(}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00993}00993\ \ \ \ \ \ \ \ \ \ \ \ \ texname=tfmname,\ psname=basename,\ effects=effects,}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00994}00994\ \ \ \ \ \ \ \ \ \ \ \ \ encoding=encodingfile,\ filename=fontfile)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00995}00995\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00996}00996\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00997}00997\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00998}\mbox{\hyperlink{namespacematplotlib_1_1dviread_a8b49ae59a99fabd0d76af8e8f709d055}{00998}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacematplotlib_1_1dviread_a8b49ae59a99fabd0d76af8e8f709d055}{\_parse\_enc}}(path):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l00999}00999\ \ \ \ \ \textcolor{stringliteral}{r"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01000}01000\ \textcolor{stringliteral}{\ \ \ \ Parse\ a\ \(\backslash\)*.enc\ file\ referenced\ from\ a\ psfonts.map\ style\ file.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01001}01001\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01002}01002\ \textcolor{stringliteral}{\ \ \ \ The\ format\ supported\ by\ this\ function\ is\ a\ tiny\ subset\ of\ PostScript.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01003}01003\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01004}01004\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01005}01005\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01006}01006\ \textcolor{stringliteral}{\ \ \ \ path\ :\ \`{}os.PathLike\`{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01007}01007\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01008}01008\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01009}01009\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01010}01010\ \textcolor{stringliteral}{\ \ \ \ list}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01011}01011\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ nth\ entry\ of\ the\ list\ is\ the\ PostScript\ glyph\ name\ of\ the\ nth}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01012}01012\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ glyph.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01013}01013\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01014}01014\ \ \ \ \ no\_comments\ =\ re.sub(\textcolor{stringliteral}{"{}\%.*"{}},\ \textcolor{stringliteral}{"{}"{}},\ Path(path).read\_text(encoding=\textcolor{stringliteral}{"{}ascii"{}}))}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01015}01015\ \ \ \ \ array\ =\ re.search(\textcolor{stringliteral}{r"{}(?s)\(\backslash\)[(.*)\(\backslash\)]"{}},\ no\_comments).group(1)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01016}01016\ \ \ \ \ lines\ =\ [line\ \textcolor{keywordflow}{for}\ line\ \textcolor{keywordflow}{in}\ array.split()\ \textcolor{keywordflow}{if}\ line]}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01017}01017\ \ \ \ \ \textcolor{keywordflow}{if}\ all(line.startswith(\textcolor{stringliteral}{"{}/"{}})\ \textcolor{keywordflow}{for}\ line\ \textcolor{keywordflow}{in}\ lines):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01018}01018\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ [line[1:]\ \textcolor{keywordflow}{for}\ line\ \textcolor{keywordflow}{in}\ lines]}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01019}01019\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01020}01020\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(f\textcolor{stringliteral}{"{}Failed\ to\ parse\ \{path\}\ as\ Postscript\ encoding"{}})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01021}01021\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01022}01022\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01023}\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1__LuatexKpsewhich}{01023}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1__LuatexKpsewhich}{\_LuatexKpsewhich}}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01024}01024\ \ \ \ \ \textcolor{preprocessor}{@lru\_cache}\ \ \textcolor{comment}{\#\ A\ singleton.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01025}01025\ \ \ \ \ \textcolor{keyword}{def\ }\_\_new\_\_(cls):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01026}01026\ \ \ \ \ \ \ \ \ self\ =\ object.\_\_new\_\_(cls)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01027}01027\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1__LuatexKpsewhich_a215b0ff1c33e2024bc491d3ff129ca2f}{\_proc}}\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1__LuatexKpsewhich_ab0bc505bdc4c37a4de95abc28071e7a9}{\_new\_proc}}()}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01028}01028\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01029}01029\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01030}01030\ \ \ \ \ \textcolor{keyword}{def\ }\_new\_proc(self):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01031}01031\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ subprocess.Popen(}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01032}01032\ \ \ \ \ \ \ \ \ \ \ \ \ [\textcolor{stringliteral}{"{}luatex"{}},\ \textcolor{stringliteral}{"{}-\/-\/luaonly"{}},}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01033}01033\ \ \ \ \ \ \ \ \ \ \ \ \ \ str(cbook.\_get\_data\_path(\textcolor{stringliteral}{"{}kpsewhich.lua"{}}))],}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01034}01034\ \ \ \ \ \ \ \ \ \ \ \ \ stdin=subprocess.PIPE,\ stdout=subprocess.PIPE)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01035}01035\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01036}01036\ \ \ \ \ \textcolor{keyword}{def\ }search(self,\ filename):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01037}01037\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1__LuatexKpsewhich_a215b0ff1c33e2024bc491d3ff129ca2f}{\_proc}}.poll()\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:\ \ \textcolor{comment}{\#\ Dead,\ restart\ it.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01038}01038\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1__LuatexKpsewhich_a215b0ff1c33e2024bc491d3ff129ca2f}{\_proc}}\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1__LuatexKpsewhich_ab0bc505bdc4c37a4de95abc28071e7a9}{\_new\_proc}}()}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01039}01039\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1__LuatexKpsewhich_a215b0ff1c33e2024bc491d3ff129ca2f}{\_proc}}.stdin.write(os.fsencode(filename)\ +\ b\textcolor{stringliteral}{"{}\(\backslash\)n"{}})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01040}01040\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1__LuatexKpsewhich_a215b0ff1c33e2024bc491d3ff129ca2f}{\_proc}}.stdin.flush()}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01041}01041\ \ \ \ \ \ \ \ \ out\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1dviread_1_1__LuatexKpsewhich_a215b0ff1c33e2024bc491d3ff129ca2f}{\_proc}}.stdout.readline().rstrip()}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01042}01042\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{if}\ out\ ==\ b\textcolor{stringliteral}{"{}nil"{}}\ \textcolor{keywordflow}{else}\ os.fsdecode(out)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01043}01043\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01044}01044\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01045}01045\ \textcolor{preprocessor}{@lru\_cache}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01046}\mbox{\hyperlink{namespacematplotlib_1_1dviread_a9c9a86abfad17941d667418e4f74290a}{01046}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacematplotlib_1_1dviread_a9c9a86abfad17941d667418e4f74290a}{find\_tex\_file}}(filename):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01047}01047\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01048}01048\ \textcolor{stringliteral}{\ \ \ \ Find\ a\ file\ in\ the\ texmf\ tree\ using\ kpathsea\_.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01049}01049\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01050}01050\ \textcolor{stringliteral}{\ \ \ \ The\ kpathsea\ library,\ provided\ by\ most\ existing\ TeX\ distributions,\ both}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01051}01051\ \textcolor{stringliteral}{\ \ \ \ on\ Unix-\/like\ systems\ and\ on\ Windows\ (MikTeX),\ is\ invoked\ via\ a\ long-\/lived}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01052}01052\ \textcolor{stringliteral}{\ \ \ \ luatex\ process\ if\ luatex\ is\ installed,\ or\ via\ kpsewhich\ otherwise.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01053}01053\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01054}01054\ \textcolor{stringliteral}{\ \ \ \ ..\ \_kpathsea:\ https://www.tug.org/kpathsea/}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01055}01055\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01056}01056\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01057}01057\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01058}01058\ \textcolor{stringliteral}{\ \ \ \ filename\ :\ str\ or\ path-\/like}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01059}01059\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01060}01060\ \textcolor{stringliteral}{\ \ \ \ Raises}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01061}01061\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01062}01062\ \textcolor{stringliteral}{\ \ \ \ FileNotFoundError}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01063}01063\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ the\ file\ is\ not\ found.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01064}01064\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01065}01065\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01066}01066\ \ \ \ \ \textcolor{comment}{\#\ we\ expect\ these\ to\ always\ be\ ascii\ encoded,\ but\ use\ utf-\/8}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01067}01067\ \ \ \ \ \textcolor{comment}{\#\ out\ of\ caution}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01068}01068\ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(filename,\ bytes):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01069}01069\ \ \ \ \ \ \ \ \ filename\ =\ filename.decode(\textcolor{stringliteral}{'utf-\/8'},\ errors=\textcolor{stringliteral}{'replace'})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01070}01070\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01071}01071\ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01072}01072\ \ \ \ \ \ \ \ \ lk\ =\ \mbox{\hyperlink{classmatplotlib_1_1dviread_1_1__LuatexKpsewhich}{\_LuatexKpsewhich}}()}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01073}01073\ \ \ \ \ \textcolor{keywordflow}{except}\ FileNotFoundError:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01074}01074\ \ \ \ \ \ \ \ \ lk\ =\ \textcolor{keywordtype}{None}\ \ \textcolor{comment}{\#\ Fallback\ to\ directly\ calling\ kpsewhich,\ as\ below.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01075}01075\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01076}01076\ \ \ \ \ \textcolor{keywordflow}{if}\ lk:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01077}01077\ \ \ \ \ \ \ \ \ path\ =\ lk.search(filename)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01078}01078\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01079}01079\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ sys.platform\ ==\ \textcolor{stringliteral}{'win32'}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01080}01080\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ On\ Windows\ only,\ kpathsea\ can\ use\ utf-\/8\ for\ cmd\ args\ and\ output.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01081}01081\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ \`{}command\_line\_encoding`\ environment\ variable\ is\ set\ to\ force}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01082}01082\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ it\ to\ always\ use\ utf-\/8\ encoding.\ \ See\ Matplotlib\ issue\ \#11848.}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01083}01083\ \ \ \ \ \ \ \ \ \ \ \ \ kwargs\ =\ \{\textcolor{stringliteral}{'env'}:\ \{**os.environ,\ \textcolor{stringliteral}{'command\_line\_encoding'}:\ \textcolor{stringliteral}{'utf-\/8'}\},}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01084}01084\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'encoding'}:\ \textcolor{stringliteral}{'utf-\/8'}\}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01085}01085\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:\ \ \textcolor{comment}{\#\ On\ POSIX,\ run\ through\ the\ equivalent\ of\ os.fsdecode().}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01086}01086\ \ \ \ \ \ \ \ \ \ \ \ \ kwargs\ =\ \{\textcolor{stringliteral}{'encoding'}:\ sys.getfilesystemencoding(),}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01087}01087\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'errors'}:\ \textcolor{stringliteral}{'surrogateescape'}\}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01088}01088\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01089}01089\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01090}01090\ \ \ \ \ \ \ \ \ \ \ \ \ path\ =\ (cbook.\_check\_and\_log\_subprocess([\textcolor{stringliteral}{'kpsewhich'},\ filename],}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01091}01091\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_log,\ **kwargs)}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01092}01092\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ .rstrip(\textcolor{stringliteral}{'\(\backslash\)n'}))}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01093}01093\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ (FileNotFoundError,\ RuntimeError):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01094}01094\ \ \ \ \ \ \ \ \ \ \ \ \ path\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01095}01095\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01096}01096\ \ \ \ \ \textcolor{keywordflow}{if}\ path:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01097}01097\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ path}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01098}01098\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01099}01099\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classFileNotFoundError}{FileNotFoundError}}(}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01100}01100\ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}Matplotlib's\ TeX\ implementation\ searched\ for\ a\ file\ named\ "{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01101}01101\ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\{filename!r\}\ in\ your\ texmf\ tree,\ but\ could\ not\ find\ it"{}})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01102}01102\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01103}01103\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01104}01104\ \textcolor{preprocessor}{@lru\_cache}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01105}01105\ \textcolor{keyword}{def\ }\_fontfile(cls,\ suffix,\ texname):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01106}01106\ \ \ \ \ \textcolor{keywordflow}{return}\ cls(\mbox{\hyperlink{namespacematplotlib_1_1dviread_a9c9a86abfad17941d667418e4f74290a}{find\_tex\_file}}(texname\ +\ suffix))}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01107}01107\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01108}01108\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01109}01109\ \_tfmfile\ =\ partial(\_fontfile,\ Tfm,\ \textcolor{stringliteral}{"{}.tfm"{}})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01110}01110\ \_vffile\ =\ partial(\_fontfile,\ Vf,\ \textcolor{stringliteral}{"{}.vf"{}})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01111}01111\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01112}01112\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01113}01113\ \textcolor{keywordflow}{if}\ \_\_name\_\_\ ==\ \textcolor{stringliteral}{'\_\_main\_\_'}:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01114}01114\ \ \ \ \ \textcolor{keyword}{from}\ argparse\ \textcolor{keyword}{import}\ ArgumentParser}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01115}01115\ \ \ \ \ \textcolor{keyword}{import}\ itertools}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01116}01116\ }
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01117}01117\ \ \ \ \ parser\ =\ ArgumentParser()}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01118}01118\ \ \ \ \ parser.add\_argument(\textcolor{stringliteral}{"{}filename"{}})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01119}01119\ \ \ \ \ parser.add\_argument(\textcolor{stringliteral}{"{}dpi"{}},\ nargs=\textcolor{stringliteral}{"{}?"{}},\ type=float,\ default=\textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01120}01120\ \ \ \ \ args\ =\ parser.parse\_args()}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01121}01121\ \ \ \ \ \textcolor{keyword}{with}\ \mbox{\hyperlink{classmatplotlib_1_1dviread_1_1Dvi}{Dvi}}(args.filename,\ args.dpi)\ \textcolor{keyword}{as}\ dvi:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01122}01122\ \ \ \ \ \ \ \ \ fontmap\ =\ \mbox{\hyperlink{classmatplotlib_1_1dviread_1_1PsfontsMap}{PsfontsMap}}(\mbox{\hyperlink{namespacematplotlib_1_1dviread_a9c9a86abfad17941d667418e4f74290a}{find\_tex\_file}}(\textcolor{stringliteral}{'pdftex.map'}))}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01123}01123\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ page\ \textcolor{keywordflow}{in}\ dvi:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01124}01124\ \ \ \ \ \ \ \ \ \ \ \ \ print(f\textcolor{stringliteral}{"{}===\ new\ page\ ===\ "{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01125}01125\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}(w:\ \{page.width\},\ h:\ \{page.height\},\ d:\ \{page.descent\})"{}})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01126}01126\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ font,\ group\ \textcolor{keywordflow}{in}\ itertools.groupby(}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01127}01127\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ page.text,\ \textcolor{keyword}{lambda}\ text:\ text.font):}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01128}01128\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(f\textcolor{stringliteral}{"{}font:\ \{font.texname.decode('latin-\/1')!r\}\(\backslash\)t"{}}}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01129}01129\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}scale:\ \{font.\_scale\ /\ 2\ **\ 20\}"{}})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01130}01130\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(\textcolor{stringliteral}{"{}x"{}},\ \textcolor{stringliteral}{"{}y"{}},\ \textcolor{stringliteral}{"{}glyph"{}},\ \textcolor{stringliteral}{"{}chr"{}},\ \textcolor{stringliteral}{"{}w"{}},\ \textcolor{stringliteral}{"{}(glyphs)"{}},\ sep=\textcolor{stringliteral}{"{}\(\backslash\)t"{}})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01131}01131\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ text\ \textcolor{keywordflow}{in}\ group:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01132}01132\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(text.x,\ text.y,\ text.glyph,}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01133}01133\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ chr(text.glyph)\ \textcolor{keywordflow}{if}\ chr(text.glyph).isprintable()}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01134}01134\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}\ \textcolor{stringliteral}{"{}."{}},}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01135}01135\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ text.width,\ sep=\textcolor{stringliteral}{"{}\(\backslash\)t"{}})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01136}01136\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ page.boxes:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01137}01137\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(\textcolor{stringliteral}{"{}x"{}},\ \textcolor{stringliteral}{"{}y"{}},\ \textcolor{stringliteral}{"{}h"{}},\ \textcolor{stringliteral}{"{}w"{}},\ \textcolor{stringliteral}{"{}"{}},\ \textcolor{stringliteral}{"{}(boxes)"{}},\ sep=\textcolor{stringliteral}{"{}\(\backslash\)t"{}})}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01138}01138\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ box\ \textcolor{keywordflow}{in}\ page.boxes:}
+\DoxyCodeLine{\Hypertarget{dviread_8py_source_l01139}01139\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(box.x,\ box.y,\ box.height,\ box.width,\ sep=\textcolor{stringliteral}{"{}\(\backslash\)t"{}})}
+
+\end{DoxyCode}

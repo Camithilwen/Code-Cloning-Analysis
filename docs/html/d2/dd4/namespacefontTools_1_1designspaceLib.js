@@ -1,0 +1,36 @@
+var namespacefontTools_1_1designspaceLib =
+[
+    [ "__main__", "db/df4/namespacefontTools_1_1designspaceLib_1_1____main____.html", null ],
+    [ "split", "dc/dd1/namespacefontTools_1_1designspaceLib_1_1split.html", [
+      [ "convert5to4", "dc/dd1/namespacefontTools_1_1designspaceLib_1_1split.html#a300a41cfba93917b9568d50adeb67685", null ],
+      [ "defaultMakeInstanceFilename", "dc/dd1/namespacefontTools_1_1designspaceLib_1_1split.html#a0c12f749fea4ca22291723a809aee7e2", null ],
+      [ "splitInterpolable", "dc/dd1/namespacefontTools_1_1designspaceLib_1_1split.html#a86ea6c1fd5f2ea3f3e135cd6f5c07184", null ],
+      [ "splitVariableFonts", "dc/dd1/namespacefontTools_1_1designspaceLib_1_1split.html#ae291ffc7b2d69a656315e06670a2f02a", null ]
+    ] ],
+    [ "statNames", "d7/d1d/namespacefontTools_1_1designspaceLib_1_1statNames.html", "d7/d1d/namespacefontTools_1_1designspaceLib_1_1statNames" ],
+    [ "types", "d5/d5d/namespacefontTools_1_1designspaceLib_1_1types.html", "d5/d5d/namespacefontTools_1_1designspaceLib_1_1types" ],
+    [ "AbstractAxisDescriptor", "de/d12/classfontTools_1_1designspaceLib_1_1AbstractAxisDescriptor.html", null ],
+    [ "AsDictMixin", "d2/da4/classfontTools_1_1designspaceLib_1_1AsDictMixin.html", null ],
+    [ "AxisDescriptor", "df/dc2/classfontTools_1_1designspaceLib_1_1AxisDescriptor.html", "df/dc2/classfontTools_1_1designspaceLib_1_1AxisDescriptor" ],
+    [ "AxisLabelDescriptor", "d2/d9c/classfontTools_1_1designspaceLib_1_1AxisLabelDescriptor.html", "d2/d9c/classfontTools_1_1designspaceLib_1_1AxisLabelDescriptor" ],
+    [ "AxisMappingDescriptor", "d3/daf/classfontTools_1_1designspaceLib_1_1AxisMappingDescriptor.html", null ],
+    [ "BaseDocReader", "d5/d11/classfontTools_1_1designspaceLib_1_1BaseDocReader.html", "d5/d11/classfontTools_1_1designspaceLib_1_1BaseDocReader" ],
+    [ "BaseDocWriter", "d2/d61/classfontTools_1_1designspaceLib_1_1BaseDocWriter.html", "d2/d61/classfontTools_1_1designspaceLib_1_1BaseDocWriter" ],
+    [ "DesignSpaceDocument", "dc/d41/classfontTools_1_1designspaceLib_1_1DesignSpaceDocument.html", "dc/d41/classfontTools_1_1designspaceLib_1_1DesignSpaceDocument" ],
+    [ "DesignSpaceDocumentError", "de/dfa/classfontTools_1_1designspaceLib_1_1DesignSpaceDocumentError.html", null ],
+    [ "DiscreteAxisDescriptor", "dd/d4a/classfontTools_1_1designspaceLib_1_1DiscreteAxisDescriptor.html", "dd/d4a/classfontTools_1_1designspaceLib_1_1DiscreteAxisDescriptor" ],
+    [ "InstanceDescriptor", "d0/d8f/classfontTools_1_1designspaceLib_1_1InstanceDescriptor.html", "d0/d8f/classfontTools_1_1designspaceLib_1_1InstanceDescriptor" ],
+    [ "LocationLabelDescriptor", "dd/d1d/classfontTools_1_1designspaceLib_1_1LocationLabelDescriptor.html", "dd/d1d/classfontTools_1_1designspaceLib_1_1LocationLabelDescriptor" ],
+    [ "RangeAxisSubsetDescriptor", "d6/db1/classfontTools_1_1designspaceLib_1_1RangeAxisSubsetDescriptor.html", null ],
+    [ "RuleDescriptor", "da/dfe/classfontTools_1_1designspaceLib_1_1RuleDescriptor.html", null ],
+    [ "SimpleDescriptor", "dd/d21/classfontTools_1_1designspaceLib_1_1SimpleDescriptor.html", null ],
+    [ "SourceDescriptor", "d6/d04/classfontTools_1_1designspaceLib_1_1SourceDescriptor.html", "d6/d04/classfontTools_1_1designspaceLib_1_1SourceDescriptor" ],
+    [ "ValueAxisSubsetDescriptor", "d2/d98/classfontTools_1_1designspaceLib_1_1ValueAxisSubsetDescriptor.html", null ],
+    [ "VariableFontDescriptor", "d3/da7/classfontTools_1_1designspaceLib_1_1VariableFontDescriptor.html", null ],
+    [ "evaluateConditions", "d2/dd4/namespacefontTools_1_1designspaceLib.html#abb70c58143cd235de030a5102bfcd824", null ],
+    [ "evaluateRule", "d2/dd4/namespacefontTools_1_1designspaceLib.html#a13ed8f2457bbaf04f8f9c32dc40e42c1", null ],
+    [ "main", "d2/dd4/namespacefontTools_1_1designspaceLib.html#ad25dbd5643bfedca9e0ff0df7a9924a2", null ],
+    [ "posix", "d2/dd4/namespacefontTools_1_1designspaceLib.html#a896375bb1ac3083deb48314ec39806a4", null ],
+    [ "posixpath_property", "d2/dd4/namespacefontTools_1_1designspaceLib.html#af913539b95a1bfcdb291ff9e75ed53f1", null ],
+    [ "processRules", "d2/dd4/namespacefontTools_1_1designspaceLib.html#ab7b28e93a8ee343a641fec2c65505bf8", null ]
+];

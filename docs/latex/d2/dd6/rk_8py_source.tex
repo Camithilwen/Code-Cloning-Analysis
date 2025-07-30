@@ -1,0 +1,605 @@
+\doxysection{rk.\+py}
+\hypertarget{rk_8py_source}{}\label{rk_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/scipy/integrate/\_ivp/rk.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/scipy/integrate/\_ivp/rk.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00001}\mbox{\hyperlink{namespacescipy_1_1integrate_1_1__ivp_1_1rk}{00001}}\ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00002}00002\ \textcolor{keyword}{from}\ .base\ \textcolor{keyword}{import}\ OdeSolver,\ DenseOutput}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00003}00003\ \textcolor{keyword}{from}\ .common\ \textcolor{keyword}{import}\ (validate\_max\_step,\ validate\_tol,\ select\_initial\_step,}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00004}00004\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ norm,\ warn\_extraneous,\ validate\_first\_step)}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00005}00005\ \textcolor{keyword}{from}\ .\ \textcolor{keyword}{import}\ dop853\_coefficients}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00006}00006\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00007}00007\ \textcolor{comment}{\#\ Multiply\ steps\ computed\ from\ asymptotic\ behaviour\ of\ errors\ by\ this.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00008}00008\ SAFETY\ =\ 0.9}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00009}00009\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00010}00010\ MIN\_FACTOR\ =\ 0.2\ \ \textcolor{comment}{\#\ Minimum\ allowed\ decrease\ in\ a\ step\ size.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00011}00011\ MAX\_FACTOR\ =\ 10\ \ \textcolor{comment}{\#\ Maximum\ allowed\ increase\ in\ a\ step\ size.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00012}00012\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00013}00013\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00014}\mbox{\hyperlink{namespacescipy_1_1integrate_1_1__ivp_1_1rk_ac767bfdfd0f67e44e6c9bf6abb8228d8}{00014}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacescipy_1_1integrate_1_1__ivp_1_1rk_ac767bfdfd0f67e44e6c9bf6abb8228d8}{rk\_step}}(fun,\ t,\ y,\ f,\ h,\ A,\ B,\ C,\ K):}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00015}00015\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Perform\ a\ single\ Runge-\/Kutta\ step.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00016}00016\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00017}00017\ \textcolor{stringliteral}{\ \ \ \ This\ function\ computes\ a\ prediction\ of\ an\ explicit\ Runge-\/Kutta\ method\ and}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00018}00018\ \textcolor{stringliteral}{\ \ \ \ also\ estimates\ the\ error\ of\ a\ less\ accurate\ method.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00019}00019\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00020}00020\ \textcolor{stringliteral}{\ \ \ \ Notation\ for\ Butcher\ tableau\ is\ as\ in\ [1]\_.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00021}00021\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00022}00022\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00023}00023\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00024}00024\ \textcolor{stringliteral}{\ \ \ \ fun\ :\ callable}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00025}00025\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Right-\/hand\ side\ of\ the\ system.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00026}00026\ \textcolor{stringliteral}{\ \ \ \ t\ :\ float}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00027}00027\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Current\ time.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00028}00028\ \textcolor{stringliteral}{\ \ \ \ y\ :\ ndarray,\ shape\ (n,)}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00029}00029\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Current\ state.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00030}00030\ \textcolor{stringliteral}{\ \ \ \ f\ :\ ndarray,\ shape\ (n,)}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00031}00031\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Current\ value\ of\ the\ derivative,\ i.e.,\ \`{}\`{}fun(x,\ y)\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00032}00032\ \textcolor{stringliteral}{\ \ \ \ h\ :\ float}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00033}00033\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Step\ to\ use.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00034}00034\ \textcolor{stringliteral}{\ \ \ \ A\ :\ ndarray,\ shape\ (n\_stages,\ n\_stages)}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00035}00035\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Coefficients\ for\ combining\ previous\ RK\ stages\ to\ compute\ the\ next}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00036}00036\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ stage.\ For\ explicit\ methods\ the\ coefficients\ at\ and\ above\ the\ main}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00037}00037\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ diagonal\ are\ zeros.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00038}00038\ \textcolor{stringliteral}{\ \ \ \ B\ :\ ndarray,\ shape\ (n\_stages,)}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00039}00039\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Coefficients\ for\ combining\ RK\ stages\ for\ computing\ the\ final}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00040}00040\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ prediction.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00041}00041\ \textcolor{stringliteral}{\ \ \ \ C\ :\ ndarray,\ shape\ (n\_stages,)}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00042}00042\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Coefficients\ for\ incrementing\ time\ for\ consecutive\ RK\ stages.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00043}00043\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ value\ for\ the\ first\ stage\ is\ always\ zero.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00044}00044\ \textcolor{stringliteral}{\ \ \ \ K\ :\ ndarray,\ shape\ (n\_stages\ +\ 1,\ n)}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00045}00045\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Storage\ array\ for\ putting\ RK\ stages\ here.\ Stages\ are\ stored\ in\ rows.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00046}00046\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ last\ row\ is\ a\ linear\ combination\ of\ the\ previous\ rows\ with}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00047}00047\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ coefficients}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00048}00048\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00049}00049\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00050}00050\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00051}00051\ \textcolor{stringliteral}{\ \ \ \ y\_new\ :\ ndarray,\ shape\ (n,)}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00052}00052\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Solution\ at\ t\ +\ h\ computed\ with\ a\ higher\ accuracy.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00053}00053\ \textcolor{stringliteral}{\ \ \ \ f\_new\ :\ ndarray,\ shape\ (n,)}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00054}00054\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Derivative\ \`{}\`{}fun(t\ +\ h,\ y\_new)\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00055}00055\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00056}00056\ \textcolor{stringliteral}{\ \ \ \ References}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00057}00057\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00058}00058\ \textcolor{stringliteral}{\ \ \ \ ..\ [1]\ E.\ Hairer,\ S.\ P.\ Norsett\ G.\ Wanner,\ "{}Solving\ Ordinary\ Differential}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00059}00059\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ Equations\ I:\ Nonstiff\ Problems"{},\ Sec.\ II.4.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00060}00060\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00061}00061\ \ \ \ \ K[0]\ =\ f}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00062}00062\ \ \ \ \ \textcolor{keywordflow}{for}\ s,\ (a,\ c)\ \textcolor{keywordflow}{in}\ enumerate(zip(A[1:],\ C[1:]),\ start=1):}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00063}00063\ \ \ \ \ \ \ \ \ dy\ =\ np.dot(K[:s].T,\ a[:s])\ *\ h}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00064}00064\ \ \ \ \ \ \ \ \ K[s]\ =\ fun(t\ +\ c\ *\ h,\ y\ +\ dy)}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00065}00065\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00066}00066\ \ \ \ \ y\_new\ =\ y\ +\ h\ *\ np.dot(K[:-\/1].T,\ B)}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00067}00067\ \ \ \ \ f\_new\ =\ fun(t\ +\ h,\ y\_new)}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00068}00068\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00069}00069\ \ \ \ \ K[-\/1]\ =\ f\_new}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00070}00070\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00071}00071\ \ \ \ \ \textcolor{keywordflow}{return}\ y\_new,\ f\_new}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00072}00072\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00073}00073\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00074}\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta}{00074}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta}{RungeKutta}}(\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1base_1_1OdeSolver}{OdeSolver}}):}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00075}00075\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Base\ class\ for\ explicit\ Runge-\/Kutta\ methods."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00076}00076\ \ \ \ \ C:\ np.ndarray\ =\ NotImplemented}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00077}00077\ \ \ \ \ A:\ np.ndarray\ =\ NotImplemented}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00078}00078\ \ \ \ \ B:\ np.ndarray\ =\ NotImplemented}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00079}00079\ \ \ \ \ E:\ np.ndarray\ =\ NotImplemented}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00080}00080\ \ \ \ \ P:\ np.ndarray\ =\ NotImplemented}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00081}00081\ \ \ \ \ order:\ int\ =\ NotImplemented}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00082}00082\ \ \ \ \ error\_estimator\_order:\ int\ =\ NotImplemented}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00083}00083\ \ \ \ \ n\_stages:\ int\ =\ NotImplemented}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00084}00084\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00085}00085\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ fun,\ t0,\ y0,\ t\_bound,\ max\_step=np.inf,}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00086}00086\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ rtol=1e-\/3,\ atol=1e-\/6,\ vectorized=False,}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00087}00087\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ first\_step=None,\ **extraneous):}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00088}00088\ \ \ \ \ \ \ \ \ warn\_extraneous(extraneous)}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00089}00089\ \ \ \ \ \ \ \ \ super().\_\_init\_\_(fun,\ t0,\ y0,\ t\_bound,\ vectorized,}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00090}00090\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ support\_complex=\textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00091}00091\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_aeb360a04e664bb5375f844d61817df26}{y\_old}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00092}00092\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_aa01f6f7b9d53e52c626f3ba0ae715d84}{max\_step}}\ =\ validate\_max\_step(max\_step)}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00093}00093\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_ae2646960d732d73a9bebe4e0e5ae81cb}{rtol}},\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_a92e797721c07e4bf036729b6d87507a0}{atol}}\ =\ validate\_tol(rtol,\ atol,\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1base_1_1OdeSolver_a460d321a92662254b1865e733dc5ef41}{n}})}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00094}00094\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_adb9e6b713a883daf3b28358e2777e557}{f}}\ =\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1base_1_1OdeSolver_a197e81c9751b393b77e31dd57a5414ea}{fun}}(self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1base_1_1OdeSolver_a02ce7b1a63b6eacc3a0c086d333cd0db}{t}},\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1base_1_1OdeSolver_a81f6cc865069df46b578ecc69cd0bdb5}{y}})}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00095}00095\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ first\_step\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00096}00096\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_a8df14b05fbfe7610ac299145b7949e39}{h\_abs}}\ =\ select\_initial\_step(}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00097}00097\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1base_1_1OdeSolver_a197e81c9751b393b77e31dd57a5414ea}{fun}},\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1base_1_1OdeSolver_a02ce7b1a63b6eacc3a0c086d333cd0db}{t}},\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1base_1_1OdeSolver_a81f6cc865069df46b578ecc69cd0bdb5}{y}},\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_adb9e6b713a883daf3b28358e2777e557}{f}},\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1base_1_1OdeSolver_a2c02a611e2ee66d727085e4f3540e615}{direction}},}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00098}00098\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_a358e23dee7ab0e65ab5ee6401c0e07fe}{error\_estimator\_order}},\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_ae2646960d732d73a9bebe4e0e5ae81cb}{rtol}},\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_a92e797721c07e4bf036729b6d87507a0}{atol}})}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00099}00099\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00100}00100\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_a8df14b05fbfe7610ac299145b7949e39}{h\_abs}}\ =\ validate\_first\_step(first\_step,\ t0,\ t\_bound)}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00101}00101\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_ab7c0cc1b8a4a51f26c99342f6e397537}{K}}\ =\ np.empty((self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_af5e02d6cddacc8f6aed8529bcf302d12}{n\_stages}}\ +\ 1,\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1base_1_1OdeSolver_a460d321a92662254b1865e733dc5ef41}{n}}),\ dtype=self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1base_1_1OdeSolver_a81f6cc865069df46b578ecc69cd0bdb5}{y}}.dtype)}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00102}00102\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_a9a2f058828d8e55b354ee3b2db6a827a}{error\_exponent}}\ =\ -\/1\ /\ (self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_a358e23dee7ab0e65ab5ee6401c0e07fe}{error\_estimator\_order}}\ +\ 1)}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00103}00103\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_a3f05151e676c567ec620c1cc38669547}{h\_previous}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00104}00104\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00105}00105\ \ \ \ \ \textcolor{keyword}{def\ }\_estimate\_error(self,\ K,\ h):}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00106}00106\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ np.dot(K.T,\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_a0fd5876b2764d021f71f4fb75b8ae5de}{E}})\ *\ h}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00107}00107\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00108}00108\ \ \ \ \ \textcolor{keyword}{def\ }\_estimate\_error\_norm(self,\ K,\ h,\ scale):}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00109}00109\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ norm(self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_acadee80ba7867846a4909ed5ea2897b7}{\_estimate\_error}}(K,\ h)\ /\ scale)}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00110}00110\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00111}00111\ \ \ \ \ \textcolor{keyword}{def\ }\_step\_impl(self):}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00112}00112\ \ \ \ \ \ \ \ \ t\ =\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1base_1_1OdeSolver_a02ce7b1a63b6eacc3a0c086d333cd0db}{t}}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00113}00113\ \ \ \ \ \ \ \ \ y\ =\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1base_1_1OdeSolver_a81f6cc865069df46b578ecc69cd0bdb5}{y}}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00114}00114\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00115}00115\ \ \ \ \ \ \ \ \ max\_step\ =\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_aa01f6f7b9d53e52c626f3ba0ae715d84}{max\_step}}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00116}00116\ \ \ \ \ \ \ \ \ rtol\ =\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_ae2646960d732d73a9bebe4e0e5ae81cb}{rtol}}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00117}00117\ \ \ \ \ \ \ \ \ atol\ =\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_a92e797721c07e4bf036729b6d87507a0}{atol}}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00118}00118\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00119}00119\ \ \ \ \ \ \ \ \ min\_step\ =\ 10\ *\ np.abs(np.nextafter(t,\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1base_1_1OdeSolver_a2c02a611e2ee66d727085e4f3540e615}{direction}}\ *\ np.inf)\ -\/\ t)}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00120}00120\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00121}00121\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_a8df14b05fbfe7610ac299145b7949e39}{h\_abs}}\ >\ max\_step:}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00122}00122\ \ \ \ \ \ \ \ \ \ \ \ \ h\_abs\ =\ max\_step}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00123}00123\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_a8df14b05fbfe7610ac299145b7949e39}{h\_abs}}\ <\ min\_step:}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00124}00124\ \ \ \ \ \ \ \ \ \ \ \ \ h\_abs\ =\ min\_step}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00125}00125\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00126}00126\ \ \ \ \ \ \ \ \ \ \ \ \ h\_abs\ =\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_a8df14b05fbfe7610ac299145b7949e39}{h\_abs}}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00127}00127\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00128}00128\ \ \ \ \ \ \ \ \ step\_accepted\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00129}00129\ \ \ \ \ \ \ \ \ step\_rejected\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00130}00130\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00131}00131\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{while}\ \textcolor{keywordflow}{not}\ step\_accepted:}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00132}00132\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ h\_abs\ <\ min\_step:}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00133}00133\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False},\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1base_1_1OdeSolver_a7a9a9882986196f149c96085ea3dd708}{TOO\_SMALL\_STEP}}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00134}00134\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00135}00135\ \ \ \ \ \ \ \ \ \ \ \ \ h\ =\ h\_abs\ *\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1base_1_1OdeSolver_a2c02a611e2ee66d727085e4f3540e615}{direction}}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00136}00136\ \ \ \ \ \ \ \ \ \ \ \ \ t\_new\ =\ t\ +\ h}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00137}00137\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00138}00138\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1base_1_1OdeSolver_a2c02a611e2ee66d727085e4f3540e615}{direction}}\ *\ (t\_new\ -\/\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1base_1_1OdeSolver_adfc08e37d36be687b59ac3ac6bd441c1}{t\_bound}})\ >\ 0:}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00139}00139\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ t\_new\ =\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1base_1_1OdeSolver_adfc08e37d36be687b59ac3ac6bd441c1}{t\_bound}}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00140}00140\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00141}00141\ \ \ \ \ \ \ \ \ \ \ \ \ h\ =\ t\_new\ -\/\ t}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00142}00142\ \ \ \ \ \ \ \ \ \ \ \ \ h\_abs\ =\ np.abs(h)}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00143}00143\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00144}00144\ \ \ \ \ \ \ \ \ \ \ \ \ y\_new,\ f\_new\ =\ \mbox{\hyperlink{namespacescipy_1_1integrate_1_1__ivp_1_1rk_ac767bfdfd0f67e44e6c9bf6abb8228d8}{rk\_step}}(self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1base_1_1OdeSolver_a197e81c9751b393b77e31dd57a5414ea}{fun}},\ t,\ y,\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_adb9e6b713a883daf3b28358e2777e557}{f}},\ h,\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_a0eea6e8d42d2de4c054c858fc073888a}{A}},}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00145}00145\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_aece92898c4751c5e91b06baf7b2217a1}{B}},\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_a19adf0d3fb8fe9456afbc0e462effadc}{C}},\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_ab7c0cc1b8a4a51f26c99342f6e397537}{K}})}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00146}00146\ \ \ \ \ \ \ \ \ \ \ \ \ scale\ =\ atol\ +\ np.maximum(np.abs(y),\ np.abs(y\_new))\ *\ rtol}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00147}00147\ \ \ \ \ \ \ \ \ \ \ \ \ error\_norm\ =\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_a279cc5c8838b33c19e69fe25617678ad}{\_estimate\_error\_norm}}(self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_ab7c0cc1b8a4a51f26c99342f6e397537}{K}},\ h,\ scale)}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00148}00148\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00149}00149\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ error\_norm\ <\ 1:}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00150}00150\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ error\_norm\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00151}00151\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ factor\ =\ MAX\_FACTOR}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00152}00152\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00153}00153\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ factor\ =\ min(MAX\_FACTOR,}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00154}00154\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ SAFETY\ *\ error\_norm\ **\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_a9a2f058828d8e55b354ee3b2db6a827a}{error\_exponent}})}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00155}00155\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00156}00156\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ step\_rejected:}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00157}00157\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ factor\ =\ min(1,\ factor)}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00158}00158\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00159}00159\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ h\_abs\ *=\ factor}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00160}00160\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00161}00161\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ step\_accepted\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00162}00162\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00163}00163\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ h\_abs\ *=\ max(MIN\_FACTOR,}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00164}00164\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ SAFETY\ *\ error\_norm\ **\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_a9a2f058828d8e55b354ee3b2db6a827a}{error\_exponent}})}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00165}00165\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ step\_rejected\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00166}00166\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00167}00167\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_a3f05151e676c567ec620c1cc38669547}{h\_previous}}\ =\ h}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00168}00168\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_aeb360a04e664bb5375f844d61817df26}{y\_old}}\ =\ y}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00169}00169\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00170}00170\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1base_1_1OdeSolver_a02ce7b1a63b6eacc3a0c086d333cd0db}{t}}\ =\ t\_new}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00171}00171\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1base_1_1OdeSolver_a81f6cc865069df46b578ecc69cd0bdb5}{y}}\ =\ y\_new}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00172}00172\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00173}00173\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_a8df14b05fbfe7610ac299145b7949e39}{h\_abs}}\ =\ h\_abs}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00174}00174\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_adb9e6b713a883daf3b28358e2777e557}{f}}\ =\ f\_new}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00175}00175\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00176}00176\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{True},\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00177}00177\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00178}00178\ \ \ \ \ \textcolor{keyword}{def\ }\_dense\_output\_impl(self):}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00179}00179\ \ \ \ \ \ \ \ \ Q\ =\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_ab7c0cc1b8a4a51f26c99342f6e397537}{K}}.T.dot(self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_ab02169e84472a3714c0923f6e0b9b2ca}{P}})}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00180}00180\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RkDenseOutput}{RkDenseOutput}}(self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1base_1_1OdeSolver_a0093ec62c6c9dd41131f2d867bcf67c4}{t\_old}},\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1base_1_1OdeSolver_a02ce7b1a63b6eacc3a0c086d333cd0db}{t}},\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_aeb360a04e664bb5375f844d61817df26}{y\_old}},\ Q)}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00181}00181\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00182}00182\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00183}\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RK23}{00183}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RK23}{RK23}}(\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta}{RungeKutta}}):}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00184}00184\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Explicit\ Runge-\/Kutta\ method\ of\ order\ 3(2).}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00185}00185\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00186}00186\ \textcolor{stringliteral}{\ \ \ \ This\ uses\ the\ Bogacki-\/Shampine\ pair\ of\ formulas\ [1]\_.\ The\ error\ is\ controlled}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00187}00187\ \textcolor{stringliteral}{\ \ \ \ assuming\ accuracy\ of\ the\ second-\/order\ method,\ but\ steps\ are\ taken\ using\ the}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00188}00188\ \textcolor{stringliteral}{\ \ \ \ third-\/order\ accurate\ formula\ (local\ extrapolation\ is\ done).\ A\ cubic\ Hermite}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00189}00189\ \textcolor{stringliteral}{\ \ \ \ polynomial\ is\ used\ for\ the\ dense\ output.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00190}00190\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00191}00191\ \textcolor{stringliteral}{\ \ \ \ Can\ be\ applied\ in\ the\ complex\ domain.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00192}00192\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00193}00193\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00194}00194\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00195}00195\ \textcolor{stringliteral}{\ \ \ \ fun\ :\ callable}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00196}00196\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Right-\/hand\ side\ of\ the\ system:\ the\ time\ derivative\ of\ the\ state\ \`{}\`{}y\`{}\`{}}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00197}00197\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ at\ time\ \`{}\`{}t\`{}\`{}.\ The\ calling\ signature\ is\ \`{}\`{}fun(t,\ y)\`{}\`{},\ where\ \`{}\`{}t\`{}\`{}\ is\ a}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00198}00198\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ scalar\ and\ \`{}\`{}y\`{}\`{}\ is\ an\ ndarray\ with\ \`{}\`{}len(y)\ =\ len(y0)\`{}\`{}.\ \`{}\`{}fun\`{}\`{}\ must}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00199}00199\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ return\ an\ array\ of\ the\ same\ shape\ as\ \`{}\`{}y\`{}\`{}.\ See\ \`{}vectorized\`{}\ for\ more}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00200}00200\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ information.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00201}00201\ \textcolor{stringliteral}{\ \ \ \ t0\ :\ float}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00202}00202\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Initial\ time.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00203}00203\ \textcolor{stringliteral}{\ \ \ \ y0\ :\ array\_like,\ shape\ (n,)}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00204}00204\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Initial\ state.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00205}00205\ \textcolor{stringliteral}{\ \ \ \ t\_bound\ :\ float}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00206}00206\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Boundary\ time\ -\/\ the\ integration\ won't\ continue\ beyond\ it.\ It\ also}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00207}00207\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ determines\ the\ direction\ of\ the\ integration.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00208}00208\ \textcolor{stringliteral}{\ \ \ \ first\_step\ :\ float\ or\ None,\ optional}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00209}00209\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Initial\ step\ size.\ Default\ is\ \`{}\`{}None\`{}\`{}\ which\ means\ that\ the\ algorithm}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00210}00210\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ should\ choose.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00211}00211\ \textcolor{stringliteral}{\ \ \ \ max\_step\ :\ float,\ optional}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00212}00212\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Maximum\ allowed\ step\ size.\ Default\ is\ np.inf,\ i.e.,\ the\ step\ size\ is\ not}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00213}00213\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ bounded\ and\ determined\ solely\ by\ the\ solver.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00214}00214\ \textcolor{stringliteral}{\ \ \ \ rtol,\ atol\ :\ float\ and\ array\_like,\ optional}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00215}00215\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Relative\ and\ absolute\ tolerances.\ The\ solver\ keeps\ the\ local\ error}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00216}00216\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ estimates\ less\ than\ \`{}\`{}atol\ +\ rtol\ *\ abs(y)\`{}\`{}.\ Here\ \`{}rtol\`{}\ controls\ a}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00217}00217\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ relative\ accuracy\ (number\ of\ correct\ digits),\ while\ \`{}atol\`{}\ controls}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00218}00218\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ absolute\ accuracy\ (number\ of\ correct\ decimal\ places).\ To\ achieve\ the}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00219}00219\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ desired\ \`{}rtol\`{},\ set\ \`{}atol\`{}\ to\ be\ smaller\ than\ the\ smallest\ value\ that}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00220}00220\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ can\ be\ expected\ from\ \`{}\`{}rtol\ *\ abs(y)\`{}\`{}\ so\ that\ \`{}rtol\`{}\ dominates\ the}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00221}00221\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ allowable\ error.\ If\ \`{}atol\`{}\ is\ larger\ than\ \`{}\`{}rtol\ *\ abs(y)\`{}\`{}\ the}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00222}00222\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ number\ of\ correct\ digits\ is\ not\ guaranteed.\ Conversely,\ to\ achieve\ the}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00223}00223\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ desired\ \`{}atol\`{}\ set\ \`{}rtol\`{}\ such\ that\ \`{}\`{}rtol\ *\ abs(y)\`{}\`{}\ is\ always\ smaller}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00224}00224\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ than\ \`{}atol\`{}.\ If\ components\ of\ y\ have\ different\ scales,\ it\ might\ be}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00225}00225\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ beneficial\ to\ set\ different\ \`{}atol\`{}\ values\ for\ different\ components\ by}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00226}00226\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ passing\ array\_like\ with\ shape\ (n,)\ for\ \`{}atol\`{}.\ Default\ values\ are}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00227}00227\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 1e-\/3\ for\ \`{}rtol\`{}\ and\ 1e-\/6\ for\ \`{}atol\`{}.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00228}00228\ \textcolor{stringliteral}{\ \ \ \ vectorized\ :\ bool,\ optional}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00229}00229\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Whether\ \`{}fun\`{}\ may\ be\ called\ in\ a\ vectorized\ fashion.\ False\ (default)}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00230}00230\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ is\ recommended\ for\ this\ solver.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00231}00231\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00232}00232\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ \`{}\`{}vectorized\`{}\`{}\ is\ False,\ \`{}fun\`{}\ will\ always\ be\ called\ with\ \`{}\`{}y\`{}\`{}\ of}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00233}00233\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ shape\ \`{}\`{}(n,)\`{}\`{},\ where\ \`{}\`{}n\ =\ len(y0)\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00234}00234\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00235}00235\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ \`{}\`{}vectorized\`{}\`{}\ is\ True,\ \`{}fun\`{}\ may\ be\ called\ with\ \`{}\`{}y\`{}\`{}\ of\ shape}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00236}00236\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}(n,\ k)\`{}\`{},\ where\ \`{}\`{}k\`{}\`{}\ is\ an\ integer.\ In\ this\ case,\ \`{}fun\`{}\ must\ behave}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00237}00237\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ such\ that\ \`{}\`{}fun(t,\ y)[:,\ i]\ ==\ fun(t,\ y[:,\ i])\`{}\`{}\ (i.e.\ each\ column\ of}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00238}00238\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ returned\ array\ is\ the\ time\ derivative\ of\ the\ state\ corresponding}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00239}00239\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ with\ a\ column\ of\ \`{}\`{}y\`{}\`{}).}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00240}00240\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00241}00241\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Setting\ \`{}\`{}vectorized=True\`{}\`{}\ allows\ for\ faster\ finite\ difference}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00242}00242\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ approximation\ of\ the\ Jacobian\ by\ methods\ 'Radau'\ and\ 'BDF',\ but}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00243}00243\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ will\ result\ in\ slower\ execution\ for\ this\ solver.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00244}00244\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00245}00245\ \textcolor{stringliteral}{\ \ \ \ Attributes}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00246}00246\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00247}00247\ \textcolor{stringliteral}{\ \ \ \ n\ :\ int}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00248}00248\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ equations.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00249}00249\ \textcolor{stringliteral}{\ \ \ \ status\ :\ string}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00250}00250\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Current\ status\ of\ the\ solver:\ 'running',\ 'finished'\ or\ 'failed'.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00251}00251\ \textcolor{stringliteral}{\ \ \ \ t\_bound\ :\ float}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00252}00252\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Boundary\ time.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00253}00253\ \textcolor{stringliteral}{\ \ \ \ direction\ :\ float}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00254}00254\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Integration\ direction:\ +1\ or\ -\/1.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00255}00255\ \textcolor{stringliteral}{\ \ \ \ t\ :\ float}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00256}00256\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Current\ time.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00257}00257\ \textcolor{stringliteral}{\ \ \ \ y\ :\ ndarray}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00258}00258\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Current\ state.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00259}00259\ \textcolor{stringliteral}{\ \ \ \ t\_old\ :\ float}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00260}00260\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Previous\ time.\ None\ if\ no\ steps\ were\ made\ yet.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00261}00261\ \textcolor{stringliteral}{\ \ \ \ step\_size\ :\ float}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00262}00262\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Size\ of\ the\ last\ successful\ step.\ None\ if\ no\ steps\ were\ made\ yet.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00263}00263\ \textcolor{stringliteral}{\ \ \ \ nfev\ :\ int}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00264}00264\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ evaluations\ of\ the\ system's\ right-\/hand\ side.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00265}00265\ \textcolor{stringliteral}{\ \ \ \ njev\ :\ int}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00266}00266\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ evaluations\ of\ the\ Jacobian.\ Is\ always\ 0\ for\ this\ solver\ as\ it\ does\ not\ use\ the\ Jacobian.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00267}00267\ \textcolor{stringliteral}{\ \ \ \ nlu\ :\ int}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00268}00268\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ LU\ decompositions.\ Is\ always\ 0\ for\ this\ solver.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00269}00269\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00270}00270\ \textcolor{stringliteral}{\ \ \ \ References}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00271}00271\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00272}00272\ \textcolor{stringliteral}{\ \ \ \ ..\ [1]\ P.\ Bogacki,\ L.F.\ Shampine,\ "{}A\ 3(2)\ Pair\ of\ Runge-\/Kutta\ Formulas"{},}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00273}00273\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ Appl.\ Math.\ Lett.\ Vol.\ 2,\ No.\ 4.\ pp.\ 321-\/325,\ 1989.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00274}00274\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00275}00275\ \ \ \ \ order\ =\ 3}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00276}00276\ \ \ \ \ error\_estimator\_order\ =\ 2}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00277}00277\ \ \ \ \ n\_stages\ =\ 3}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00278}00278\ \ \ \ \ C\ =\ np.array([0,\ 1/2,\ 3/4])}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00279}00279\ \ \ \ \ A\ =\ np.array([}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00280}00280\ \ \ \ \ \ \ \ \ [0,\ 0,\ 0],}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00281}00281\ \ \ \ \ \ \ \ \ [1/2,\ 0,\ 0],}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00282}00282\ \ \ \ \ \ \ \ \ [0,\ 3/4,\ 0]}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00283}00283\ \ \ \ \ ])}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00284}00284\ \ \ \ \ B\ =\ np.array([2/9,\ 1/3,\ 4/9])}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00285}00285\ \ \ \ \ E\ =\ np.array([5/72,\ -\/1/12,\ -\/1/9,\ 1/8])}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00286}00286\ \ \ \ \ P\ =\ np.array([[1,\ -\/4\ /\ 3,\ 5\ /\ 9],}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00287}00287\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ [0,\ 1,\ -\/2/3],}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00288}00288\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ [0,\ 4/3,\ -\/8/9],}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00289}00289\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ [0,\ -\/1,\ 1]])}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00290}00290\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00291}00291\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00292}\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RK45}{00292}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RK45}{RK45}}(\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta}{RungeKutta}}):}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00293}00293\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Explicit\ Runge-\/Kutta\ method\ of\ order\ 5(4).}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00294}00294\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00295}00295\ \textcolor{stringliteral}{\ \ \ \ This\ uses\ the\ Dormand-\/Prince\ pair\ of\ formulas\ [1]\_.\ The\ error\ is\ controlled}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00296}00296\ \textcolor{stringliteral}{\ \ \ \ assuming\ accuracy\ of\ the\ fourth-\/order\ method\ accuracy,\ but\ steps\ are\ taken}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00297}00297\ \textcolor{stringliteral}{\ \ \ \ using\ the\ fifth-\/order\ accurate\ formula\ (local\ extrapolation\ is\ done).}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00298}00298\ \textcolor{stringliteral}{\ \ \ \ A\ quartic\ interpolation\ polynomial\ is\ used\ for\ the\ dense\ output\ [2]\_.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00299}00299\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00300}00300\ \textcolor{stringliteral}{\ \ \ \ Can\ be\ applied\ in\ the\ complex\ domain.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00301}00301\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00302}00302\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00303}00303\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00304}00304\ \textcolor{stringliteral}{\ \ \ \ fun\ :\ callable}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00305}00305\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Right-\/hand\ side\ of\ the\ system.\ The\ calling\ signature\ is\ \`{}\`{}fun(t,\ y)\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00306}00306\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Here\ \`{}\`{}t\`{}\`{}\ is\ a\ scalar,\ and\ there\ are\ two\ options\ for\ the\ ndarray\ \`{}\`{}y\`{}\`{}:}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00307}00307\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ It\ can\ either\ have\ shape\ (n,);\ then\ \`{}\`{}fun\`{}\`{}\ must\ return\ array\_like\ with}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00308}00308\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ shape\ (n,).\ Alternatively\ it\ can\ have\ shape\ (n,\ k);\ then\ \`{}\`{}fun\`{}\`{}}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00309}00309\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ must\ return\ an\ array\_like\ with\ shape\ (n,\ k),\ i.e.,\ each\ column}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00310}00310\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ corresponds\ to\ a\ single\ column\ in\ \`{}\`{}y\`{}\`{}.\ The\ choice\ between\ the\ two}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00311}00311\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ options\ is\ determined\ by\ \`{}vectorized\`{}\ argument\ (see\ below).}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00312}00312\ \textcolor{stringliteral}{\ \ \ \ t0\ :\ float}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00313}00313\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Initial\ time.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00314}00314\ \textcolor{stringliteral}{\ \ \ \ y0\ :\ array\_like,\ shape\ (n,)}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00315}00315\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Initial\ state.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00316}00316\ \textcolor{stringliteral}{\ \ \ \ t\_bound\ :\ float}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00317}00317\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Boundary\ time\ -\/\ the\ integration\ won't\ continue\ beyond\ it.\ It\ also}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00318}00318\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ determines\ the\ direction\ of\ the\ integration.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00319}00319\ \textcolor{stringliteral}{\ \ \ \ first\_step\ :\ float\ or\ None,\ optional}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00320}00320\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Initial\ step\ size.\ Default\ is\ \`{}\`{}None\`{}\`{}\ which\ means\ that\ the\ algorithm}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00321}00321\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ should\ choose.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00322}00322\ \textcolor{stringliteral}{\ \ \ \ max\_step\ :\ float,\ optional}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00323}00323\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Maximum\ allowed\ step\ size.\ Default\ is\ np.inf,\ i.e.,\ the\ step\ size\ is\ not}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00324}00324\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ bounded\ and\ determined\ solely\ by\ the\ solver.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00325}00325\ \textcolor{stringliteral}{\ \ \ \ rtol,\ atol\ :\ float\ and\ array\_like,\ optional}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00326}00326\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Relative\ and\ absolute\ tolerances.\ The\ solver\ keeps\ the\ local\ error}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00327}00327\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ estimates\ less\ than\ \`{}\`{}atol\ +\ rtol\ *\ abs(y)\`{}\`{}.\ Here\ \`{}rtol\`{}\ controls\ a}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00328}00328\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ relative\ accuracy\ (number\ of\ correct\ digits),\ while\ \`{}atol\`{}\ controls}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00329}00329\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ absolute\ accuracy\ (number\ of\ correct\ decimal\ places).\ To\ achieve\ the}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00330}00330\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ desired\ \`{}rtol\`{},\ set\ \`{}atol\`{}\ to\ be\ smaller\ than\ the\ smallest\ value\ that}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00331}00331\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ can\ be\ expected\ from\ \`{}\`{}rtol\ *\ abs(y)\`{}\`{}\ so\ that\ \`{}rtol\`{}\ dominates\ the}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00332}00332\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ allowable\ error.\ If\ \`{}atol\`{}\ is\ larger\ than\ \`{}\`{}rtol\ *\ abs(y)\`{}\`{}\ the}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00333}00333\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ number\ of\ correct\ digits\ is\ not\ guaranteed.\ Conversely,\ to\ achieve\ the}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00334}00334\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ desired\ \`{}atol\`{}\ set\ \`{}rtol\`{}\ such\ that\ \`{}\`{}rtol\ *\ abs(y)\`{}\`{}\ is\ always\ smaller}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00335}00335\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ than\ \`{}atol\`{}.\ If\ components\ of\ y\ have\ different\ scales,\ it\ might\ be}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00336}00336\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ beneficial\ to\ set\ different\ \`{}atol\`{}\ values\ for\ different\ components\ by}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00337}00337\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ passing\ array\_like\ with\ shape\ (n,)\ for\ \`{}atol\`{}.\ Default\ values\ are}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00338}00338\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 1e-\/3\ for\ \`{}rtol\`{}\ and\ 1e-\/6\ for\ \`{}atol\`{}.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00339}00339\ \textcolor{stringliteral}{\ \ \ \ vectorized\ :\ bool,\ optional}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00340}00340\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Whether\ \`{}fun\`{}\ is\ implemented\ in\ a\ vectorized\ fashion.\ Default\ is\ False.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00341}00341\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00342}00342\ \textcolor{stringliteral}{\ \ \ \ Attributes}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00343}00343\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00344}00344\ \textcolor{stringliteral}{\ \ \ \ n\ :\ int}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00345}00345\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ equations.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00346}00346\ \textcolor{stringliteral}{\ \ \ \ status\ :\ string}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00347}00347\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Current\ status\ of\ the\ solver:\ 'running',\ 'finished'\ or\ 'failed'.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00348}00348\ \textcolor{stringliteral}{\ \ \ \ t\_bound\ :\ float}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00349}00349\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Boundary\ time.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00350}00350\ \textcolor{stringliteral}{\ \ \ \ direction\ :\ float}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00351}00351\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Integration\ direction:\ +1\ or\ -\/1.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00352}00352\ \textcolor{stringliteral}{\ \ \ \ t\ :\ float}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00353}00353\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Current\ time.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00354}00354\ \textcolor{stringliteral}{\ \ \ \ y\ :\ ndarray}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00355}00355\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Current\ state.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00356}00356\ \textcolor{stringliteral}{\ \ \ \ t\_old\ :\ float}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00357}00357\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Previous\ time.\ None\ if\ no\ steps\ were\ made\ yet.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00358}00358\ \textcolor{stringliteral}{\ \ \ \ step\_size\ :\ float}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00359}00359\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Size\ of\ the\ last\ successful\ step.\ None\ if\ no\ steps\ were\ made\ yet.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00360}00360\ \textcolor{stringliteral}{\ \ \ \ nfev\ :\ int}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00361}00361\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ evaluations\ of\ the\ system's\ right-\/hand\ side.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00362}00362\ \textcolor{stringliteral}{\ \ \ \ njev\ :\ int}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00363}00363\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ evaluations\ of\ the\ Jacobian.\ Is\ always\ 0\ for\ this\ solver\ as\ it\ does\ not\ use\ the\ Jacobian.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00364}00364\ \textcolor{stringliteral}{\ \ \ \ nlu\ :\ int}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00365}00365\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ LU\ decompositions.\ Is\ always\ 0\ for\ this\ solver.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00366}00366\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00367}00367\ \textcolor{stringliteral}{\ \ \ \ References}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00368}00368\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00369}00369\ \textcolor{stringliteral}{\ \ \ \ ..\ [1]\ J.\ R.\ Dormand,\ P.\ J.\ Prince,\ "{}A\ family\ of\ embedded\ Runge-\/Kutta}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00370}00370\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ formulae"{},\ Journal\ of\ Computational\ and\ Applied\ Mathematics,\ Vol.\ 6,}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00371}00371\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ No.\ 1,\ pp.\ 19-\/26,\ 1980.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00372}00372\ \textcolor{stringliteral}{\ \ \ \ ..\ [2]\ L.\ W.\ Shampine,\ "{}Some\ Practical\ Runge-\/Kutta\ Formulas"{},\ Mathematics}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00373}00373\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ of\ Computation,,\ Vol.\ 46,\ No.\ 173,\ pp.\ 135-\/150,\ 1986.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00374}00374\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00375}00375\ \ \ \ \ order\ =\ 5}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00376}00376\ \ \ \ \ error\_estimator\_order\ =\ 4}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00377}00377\ \ \ \ \ n\_stages\ =\ 6}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00378}00378\ \ \ \ \ C\ =\ np.array([0,\ 1/5,\ 3/10,\ 4/5,\ 8/9,\ 1])}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00379}00379\ \ \ \ \ A\ =\ np.array([}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00380}00380\ \ \ \ \ \ \ \ \ [0,\ 0,\ 0,\ 0,\ 0],}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00381}00381\ \ \ \ \ \ \ \ \ [1/5,\ 0,\ 0,\ 0,\ 0],}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00382}00382\ \ \ \ \ \ \ \ \ [3/40,\ 9/40,\ 0,\ 0,\ 0],}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00383}00383\ \ \ \ \ \ \ \ \ [44/45,\ -\/56/15,\ 32/9,\ 0,\ 0],}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00384}00384\ \ \ \ \ \ \ \ \ [19372/6561,\ -\/25360/2187,\ 64448/6561,\ -\/212/729,\ 0],}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00385}00385\ \ \ \ \ \ \ \ \ [9017/3168,\ -\/355/33,\ 46732/5247,\ 49/176,\ -\/5103/18656]}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00386}00386\ \ \ \ \ ])}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00387}00387\ \ \ \ \ B\ =\ np.array([35/384,\ 0,\ 500/1113,\ 125/192,\ -\/2187/6784,\ 11/84])}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00388}00388\ \ \ \ \ E\ =\ np.array([-\/71/57600,\ 0,\ 71/16695,\ -\/71/1920,\ 17253/339200,\ -\/22/525,}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00389}00389\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ 1/40])}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00390}00390\ \ \ \ \ \textcolor{comment}{\#\ Corresponds\ to\ the\ optimum\ value\ of\ c\_6\ from\ [2]\_.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00391}00391\ \ \ \ \ P\ =\ np.array([}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00392}00392\ \ \ \ \ \ \ \ \ [1,\ -\/8048581381/2820520608,\ 8663915743/2820520608,}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00393}00393\ \ \ \ \ \ \ \ \ \ -\/12715105075/11282082432],}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00394}00394\ \ \ \ \ \ \ \ \ [0,\ 0,\ 0,\ 0],}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00395}00395\ \ \ \ \ \ \ \ \ [0,\ 131558114200/32700410799,\ -\/68118460800/10900136933,}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00396}00396\ \ \ \ \ \ \ \ \ \ 87487479700/32700410799],}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00397}00397\ \ \ \ \ \ \ \ \ [0,\ -\/1754552775/470086768,\ 14199869525/1410260304,}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00398}00398\ \ \ \ \ \ \ \ \ \ -\/10690763975/1880347072],}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00399}00399\ \ \ \ \ \ \ \ \ [0,\ 127303824393/49829197408,\ -\/318862633887/49829197408,}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00400}00400\ \ \ \ \ \ \ \ \ \ 701980252875\ /\ 199316789632],}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00401}00401\ \ \ \ \ \ \ \ \ [0,\ -\/282668133/205662961,\ 2019193451/616988883,\ -\/1453857185/822651844],}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00402}00402\ \ \ \ \ \ \ \ \ [0,\ 40617522/29380423,\ -\/110615467/29380423,\ 69997945/29380423]])}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00403}00403\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00404}00404\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00405}\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1DOP853}{00405}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1DOP853}{DOP853}}(\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta}{RungeKutta}}):}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00406}00406\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Explicit\ Runge-\/Kutta\ method\ of\ order\ 8.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00407}00407\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00408}00408\ \textcolor{stringliteral}{\ \ \ \ This\ is\ a\ Python\ implementation\ of\ "{}DOP853"{}\ algorithm\ originally\ written}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00409}00409\ \textcolor{stringliteral}{\ \ \ \ in\ Fortran\ [1]\_,\ [2]\_.\ Note\ that\ this\ is\ not\ a\ literate\ translation,\ but}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00410}00410\ \textcolor{stringliteral}{\ \ \ \ the\ algorithmic\ core\ and\ coefficients\ are\ the\ same.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00411}00411\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00412}00412\ \textcolor{stringliteral}{\ \ \ \ Can\ be\ applied\ in\ the\ complex\ domain.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00413}00413\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00414}00414\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00415}00415\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00416}00416\ \textcolor{stringliteral}{\ \ \ \ fun\ :\ callable}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00417}00417\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Right-\/hand\ side\ of\ the\ system.\ The\ calling\ signature\ is\ \`{}\`{}fun(t,\ y)\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00418}00418\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Here,\ \`{}\`{}t\`{}\`{}\ is\ a\ scalar,\ and\ there\ are\ two\ options\ for\ the\ ndarray\ \`{}\`{}y\`{}\`{}:}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00419}00419\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ It\ can\ either\ have\ shape\ (n,);\ then\ \`{}\`{}fun\`{}\`{}\ must\ return\ array\_like\ with}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00420}00420\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ shape\ (n,).\ Alternatively\ it\ can\ have\ shape\ (n,\ k);\ then\ \`{}\`{}fun\`{}\`{}}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00421}00421\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ must\ return\ an\ array\_like\ with\ shape\ (n,\ k),\ i.e.\ each\ column}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00422}00422\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ corresponds\ to\ a\ single\ column\ in\ \`{}\`{}y\`{}\`{}.\ The\ choice\ between\ the\ two}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00423}00423\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ options\ is\ determined\ by\ \`{}vectorized\`{}\ argument\ (see\ below).}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00424}00424\ \textcolor{stringliteral}{\ \ \ \ t0\ :\ float}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00425}00425\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Initial\ time.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00426}00426\ \textcolor{stringliteral}{\ \ \ \ y0\ :\ array\_like,\ shape\ (n,)}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00427}00427\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Initial\ state.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00428}00428\ \textcolor{stringliteral}{\ \ \ \ t\_bound\ :\ float}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00429}00429\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Boundary\ time\ -\/\ the\ integration\ won't\ continue\ beyond\ it.\ It\ also}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00430}00430\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ determines\ the\ direction\ of\ the\ integration.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00431}00431\ \textcolor{stringliteral}{\ \ \ \ first\_step\ :\ float\ or\ None,\ optional}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00432}00432\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Initial\ step\ size.\ Default\ is\ \`{}\`{}None\`{}\`{}\ which\ means\ that\ the\ algorithm}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00433}00433\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ should\ choose.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00434}00434\ \textcolor{stringliteral}{\ \ \ \ max\_step\ :\ float,\ optional}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00435}00435\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Maximum\ allowed\ step\ size.\ Default\ is\ np.inf,\ i.e.\ the\ step\ size\ is\ not}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00436}00436\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ bounded\ and\ determined\ solely\ by\ the\ solver.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00437}00437\ \textcolor{stringliteral}{\ \ \ \ rtol,\ atol\ :\ float\ and\ array\_like,\ optional}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00438}00438\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Relative\ and\ absolute\ tolerances.\ The\ solver\ keeps\ the\ local\ error}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00439}00439\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ estimates\ less\ than\ \`{}\`{}atol\ +\ rtol\ *\ abs(y)\`{}\`{}.\ Here\ \`{}rtol\`{}\ controls\ a}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00440}00440\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ relative\ accuracy\ (number\ of\ correct\ digits),\ while\ \`{}atol\`{}\ controls}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00441}00441\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ absolute\ accuracy\ (number\ of\ correct\ decimal\ places).\ To\ achieve\ the}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00442}00442\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ desired\ \`{}rtol\`{},\ set\ \`{}atol\`{}\ to\ be\ smaller\ than\ the\ smallest\ value\ that}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00443}00443\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ can\ be\ expected\ from\ \`{}\`{}rtol\ *\ abs(y)\`{}\`{}\ so\ that\ \`{}rtol\`{}\ dominates\ the}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00444}00444\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ allowable\ error.\ If\ \`{}atol\`{}\ is\ larger\ than\ \`{}\`{}rtol\ *\ abs(y)\`{}\`{}\ the}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00445}00445\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ number\ of\ correct\ digits\ is\ not\ guaranteed.\ Conversely,\ to\ achieve\ the}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00446}00446\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ desired\ \`{}atol\`{}\ set\ \`{}rtol\`{}\ such\ that\ \`{}\`{}rtol\ *\ abs(y)\`{}\`{}\ is\ always\ smaller}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00447}00447\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ than\ \`{}atol\`{}.\ If\ components\ of\ y\ have\ different\ scales,\ it\ might\ be}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00448}00448\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ beneficial\ to\ set\ different\ \`{}atol\`{}\ values\ for\ different\ components\ by}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00449}00449\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ passing\ array\_like\ with\ shape\ (n,)\ for\ \`{}atol\`{}.\ Default\ values\ are}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00450}00450\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 1e-\/3\ for\ \`{}rtol\`{}\ and\ 1e-\/6\ for\ \`{}atol\`{}.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00451}00451\ \textcolor{stringliteral}{\ \ \ \ vectorized\ :\ bool,\ optional}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00452}00452\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Whether\ \`{}fun\`{}\ is\ implemented\ in\ a\ vectorized\ fashion.\ Default\ is\ False.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00453}00453\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00454}00454\ \textcolor{stringliteral}{\ \ \ \ Attributes}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00455}00455\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00456}00456\ \textcolor{stringliteral}{\ \ \ \ n\ :\ int}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00457}00457\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ equations.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00458}00458\ \textcolor{stringliteral}{\ \ \ \ status\ :\ string}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00459}00459\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Current\ status\ of\ the\ solver:\ 'running',\ 'finished'\ or\ 'failed'.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00460}00460\ \textcolor{stringliteral}{\ \ \ \ t\_bound\ :\ float}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00461}00461\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Boundary\ time.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00462}00462\ \textcolor{stringliteral}{\ \ \ \ direction\ :\ float}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00463}00463\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Integration\ direction:\ +1\ or\ -\/1.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00464}00464\ \textcolor{stringliteral}{\ \ \ \ t\ :\ float}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00465}00465\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Current\ time.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00466}00466\ \textcolor{stringliteral}{\ \ \ \ y\ :\ ndarray}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00467}00467\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Current\ state.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00468}00468\ \textcolor{stringliteral}{\ \ \ \ t\_old\ :\ float}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00469}00469\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Previous\ time.\ None\ if\ no\ steps\ were\ made\ yet.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00470}00470\ \textcolor{stringliteral}{\ \ \ \ step\_size\ :\ float}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00471}00471\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Size\ of\ the\ last\ successful\ step.\ None\ if\ no\ steps\ were\ made\ yet.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00472}00472\ \textcolor{stringliteral}{\ \ \ \ nfev\ :\ int}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00473}00473\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ evaluations\ of\ the\ system's\ right-\/hand\ side.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00474}00474\ \textcolor{stringliteral}{\ \ \ \ njev\ :\ int}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00475}00475\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ evaluations\ of\ the\ Jacobian.\ Is\ always\ 0\ for\ this\ solver}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00476}00476\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ as\ it\ does\ not\ use\ the\ Jacobian.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00477}00477\ \textcolor{stringliteral}{\ \ \ \ nlu\ :\ int}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00478}00478\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ LU\ decompositions.\ Is\ always\ 0\ for\ this\ solver.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00479}00479\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00480}00480\ \textcolor{stringliteral}{\ \ \ \ References}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00481}00481\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00482}00482\ \textcolor{stringliteral}{\ \ \ \ ..\ [1]\ E.\ Hairer,\ S.\ P.\ Norsett\ G.\ Wanner,\ "{}Solving\ Ordinary\ Differential}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00483}00483\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ Equations\ I:\ Nonstiff\ Problems"{},\ Sec.\ II.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00484}00484\ \textcolor{stringliteral}{\ \ \ \ ..\ [2]\ \`{}Page\ with\ original\ Fortran\ code\ of\ DOP853}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00485}00485\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ <http://www.unige.ch/\string~hairer/software.html>\`{}\_.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00486}00486\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00487}00487\ \ \ \ \ n\_stages\ =\ dop853\_coefficients.N\_STAGES}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00488}00488\ \ \ \ \ order\ =\ 8}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00489}00489\ \ \ \ \ error\_estimator\_order\ =\ 7}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00490}00490\ \ \ \ \ A\ =\ dop853\_coefficients.A[:n\_stages,\ :n\_stages]}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00491}00491\ \ \ \ \ B\ =\ dop853\_coefficients.B}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00492}00492\ \ \ \ \ C\ =\ dop853\_coefficients.C[:n\_stages]}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00493}00493\ \ \ \ \ E3\ =\ dop853\_coefficients.E3}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00494}00494\ \ \ \ \ E5\ =\ dop853\_coefficients.E5}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00495}00495\ \ \ \ \ D\ =\ dop853\_coefficients.D}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00496}00496\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00497}00497\ \ \ \ \ A\_EXTRA\ =\ dop853\_coefficients.A[n\_stages\ +\ 1:]}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00498}00498\ \ \ \ \ C\_EXTRA\ =\ dop853\_coefficients.C[n\_stages\ +\ 1:]}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00499}00499\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00500}00500\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ fun,\ t0,\ y0,\ t\_bound,\ max\_step=np.inf,}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00501}00501\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ rtol=1e-\/3,\ atol=1e-\/6,\ vectorized=False,}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00502}00502\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ first\_step=None,\ **extraneous):}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00503}00503\ \ \ \ \ \ \ \ \ super().\_\_init\_\_(fun,\ t0,\ y0,\ t\_bound,\ max\_step,\ rtol,\ atol,}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00504}00504\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ vectorized,\ first\_step,\ **extraneous)}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00505}00505\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1DOP853_a83d53e6cbc5b128d8b37cd5e00b532d2}{K\_extended}}\ =\ np.empty((dop853\_coefficients.N\_STAGES\_EXTENDED,}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00506}00506\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1base_1_1OdeSolver_a460d321a92662254b1865e733dc5ef41}{n}}),\ dtype=self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1base_1_1OdeSolver_a81f6cc865069df46b578ecc69cd0bdb5}{y}}.dtype)}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00507}00507\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_ab7c0cc1b8a4a51f26c99342f6e397537}{K}}\ =\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1DOP853_a83d53e6cbc5b128d8b37cd5e00b532d2}{K\_extended}}[:self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_af5e02d6cddacc8f6aed8529bcf302d12}{n\_stages}}\ +\ 1]}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00508}00508\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00509}00509\ \ \ \ \ \textcolor{keyword}{def\ }\_estimate\_error(self,\ K,\ h):\ \ \textcolor{comment}{\#\ Left\ for\ testing\ purposes.}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00510}00510\ \ \ \ \ \ \ \ \ err5\ =\ np.dot(K.T,\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1DOP853_acb69a57ad3b05d3739412ab8655d37c3}{E5}})}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00511}00511\ \ \ \ \ \ \ \ \ err3\ =\ np.dot(K.T,\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1DOP853_a27b77de1a6c87820b66499abfcd7f052}{E3}})}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00512}00512\ \ \ \ \ \ \ \ \ denom\ =\ np.hypot(np.abs(err5),\ 0.1\ *\ np.abs(err3))}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00513}00513\ \ \ \ \ \ \ \ \ correction\_factor\ =\ np.ones\_like(err5)}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00514}00514\ \ \ \ \ \ \ \ \ mask\ =\ denom\ >\ 0}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00515}00515\ \ \ \ \ \ \ \ \ correction\_factor[mask]\ =\ np.abs(err5[mask])\ /\ denom[mask]}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00516}00516\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ h\ *\ err5\ *\ correction\_factor}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00517}00517\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00518}00518\ \ \ \ \ \textcolor{keyword}{def\ }\_estimate\_error\_norm(self,\ K,\ h,\ scale):}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00519}00519\ \ \ \ \ \ \ \ \ err5\ =\ np.dot(K.T,\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1DOP853_acb69a57ad3b05d3739412ab8655d37c3}{E5}})\ /\ scale}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00520}00520\ \ \ \ \ \ \ \ \ err3\ =\ np.dot(K.T,\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1DOP853_a27b77de1a6c87820b66499abfcd7f052}{E3}})\ /\ scale}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00521}00521\ \ \ \ \ \ \ \ \ err5\_norm\_2\ =\ np.linalg.norm(err5)**2}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00522}00522\ \ \ \ \ \ \ \ \ err3\_norm\_2\ =\ np.linalg.norm(err3)**2}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00523}00523\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ err5\_norm\_2\ ==\ 0\ \textcolor{keywordflow}{and}\ err3\_norm\_2\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00524}00524\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ 0.0}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00525}00525\ \ \ \ \ \ \ \ \ denom\ =\ err5\_norm\_2\ +\ 0.01\ *\ err3\_norm\_2}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00526}00526\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ np.abs(h)\ *\ err5\_norm\_2\ /\ np.sqrt(denom\ *\ len(scale))}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00527}00527\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00528}00528\ \ \ \ \ \textcolor{keyword}{def\ }\_dense\_output\_impl(self):}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00529}00529\ \ \ \ \ \ \ \ \ K\ =\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1DOP853_a83d53e6cbc5b128d8b37cd5e00b532d2}{K\_extended}}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00530}00530\ \ \ \ \ \ \ \ \ h\ =\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_a3f05151e676c567ec620c1cc38669547}{h\_previous}}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00531}00531\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ s,\ (a,\ c)\ \textcolor{keywordflow}{in}\ enumerate(zip(self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1DOP853_a1561ee7beae53e9273afe9fbb1970ac3}{A\_EXTRA}},\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1DOP853_a39d069087fb896f0065e31a4b9e93307}{C\_EXTRA}}),}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00532}00532\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ start=self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_af5e02d6cddacc8f6aed8529bcf302d12}{n\_stages}}\ +\ 1):}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00533}00533\ \ \ \ \ \ \ \ \ \ \ \ \ dy\ =\ np.dot(K[:s].T,\ a[:s])\ *\ h}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00534}00534\ \ \ \ \ \ \ \ \ \ \ \ \ K[s]\ =\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1base_1_1OdeSolver_a197e81c9751b393b77e31dd57a5414ea}{fun}}(self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1base_1_1OdeSolver_a0093ec62c6c9dd41131f2d867bcf67c4}{t\_old}}\ +\ c\ *\ h,\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_aeb360a04e664bb5375f844d61817df26}{y\_old}}\ +\ dy)}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00535}00535\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00536}00536\ \ \ \ \ \ \ \ \ F\ =\ np.empty((dop853\_coefficients.INTERPOLATOR\_POWER,\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1base_1_1OdeSolver_a460d321a92662254b1865e733dc5ef41}{n}}),}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00537}00537\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ dtype=self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_aeb360a04e664bb5375f844d61817df26}{y\_old}}.dtype)}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00538}00538\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00539}00539\ \ \ \ \ \ \ \ \ f\_old\ =\ K[0]}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00540}00540\ \ \ \ \ \ \ \ \ delta\_y\ =\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1base_1_1OdeSolver_a81f6cc865069df46b578ecc69cd0bdb5}{y}}\ -\/\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_aeb360a04e664bb5375f844d61817df26}{y\_old}}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00541}00541\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00542}00542\ \ \ \ \ \ \ \ \ F[0]\ =\ delta\_y}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00543}00543\ \ \ \ \ \ \ \ \ F[1]\ =\ h\ *\ f\_old\ -\/\ delta\_y}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00544}00544\ \ \ \ \ \ \ \ \ F[2]\ =\ 2\ *\ delta\_y\ -\/\ h\ *\ (self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_adb9e6b713a883daf3b28358e2777e557}{f}}\ +\ f\_old)}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00545}00545\ \ \ \ \ \ \ \ \ F[3:]\ =\ h\ *\ np.dot(self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1DOP853_a39b1f92e84b457f1e255995184744ef3}{D}},\ K)}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00546}00546\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00547}00547\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1Dop853DenseOutput}{Dop853DenseOutput}}(self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1base_1_1OdeSolver_a0093ec62c6c9dd41131f2d867bcf67c4}{t\_old}},\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1base_1_1OdeSolver_a02ce7b1a63b6eacc3a0c086d333cd0db}{t}},\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RungeKutta_aeb360a04e664bb5375f844d61817df26}{y\_old}},\ F)}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00548}00548\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00549}00549\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00550}\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RkDenseOutput}{00550}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RkDenseOutput}{RkDenseOutput}}(\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1base_1_1DenseOutput}{DenseOutput}}):}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00551}00551\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ t\_old,\ t,\ y\_old,\ Q):}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00552}00552\ \ \ \ \ \ \ \ \ super().\_\_init\_\_(t\_old,\ t)}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00553}00553\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RkDenseOutput_a8af04306d0d0c8c0b02d3e2835e622dc}{h}}\ =\ t\ -\/\ t\_old}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00554}00554\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RkDenseOutput_ac576dedd7ea706b8ae11507a11057ddd}{Q}}\ =\ Q}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00555}00555\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RkDenseOutput_adb53121485446b536473f847b76278d3}{order}}\ =\ Q.shape[1]\ -\/\ 1}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00556}00556\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RkDenseOutput_a5a0a865b8386c06fce35dfceadcdeb21}{y\_old}}\ =\ y\_old}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00557}00557\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00558}00558\ \ \ \ \ \textcolor{keyword}{def\ }\_call\_impl(self,\ t):}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00559}00559\ \ \ \ \ \ \ \ \ x\ =\ (t\ -\/\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1base_1_1DenseOutput_a0f8a4f716d1f59751bbcdddad98be114}{t\_old}})\ /\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RkDenseOutput_a8af04306d0d0c8c0b02d3e2835e622dc}{h}}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00560}00560\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ t.ndim\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00561}00561\ \ \ \ \ \ \ \ \ \ \ \ \ p\ =\ np.tile(x,\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RkDenseOutput_adb53121485446b536473f847b76278d3}{order}}\ +\ 1)}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00562}00562\ \ \ \ \ \ \ \ \ \ \ \ \ p\ =\ np.cumprod(p)}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00563}00563\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00564}00564\ \ \ \ \ \ \ \ \ \ \ \ \ p\ =\ np.tile(x,\ (self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RkDenseOutput_adb53121485446b536473f847b76278d3}{order}}\ +\ 1,\ 1))}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00565}00565\ \ \ \ \ \ \ \ \ \ \ \ \ p\ =\ np.cumprod(p,\ axis=0)}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00566}00566\ \ \ \ \ \ \ \ \ y\ =\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RkDenseOutput_a8af04306d0d0c8c0b02d3e2835e622dc}{h}}\ *\ np.dot(self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RkDenseOutput_ac576dedd7ea706b8ae11507a11057ddd}{Q}},\ p)}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00567}00567\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ y.ndim\ ==\ 2:}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00568}00568\ \ \ \ \ \ \ \ \ \ \ \ \ y\ +=\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RkDenseOutput_a5a0a865b8386c06fce35dfceadcdeb21}{y\_old}}[:,\ \textcolor{keywordtype}{None}]}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00569}00569\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00570}00570\ \ \ \ \ \ \ \ \ \ \ \ \ y\ +=\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1RkDenseOutput_a5a0a865b8386c06fce35dfceadcdeb21}{y\_old}}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00571}00571\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00572}00572\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ y}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00573}00573\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00574}00574\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00575}\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1Dop853DenseOutput}{00575}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1Dop853DenseOutput}{Dop853DenseOutput}}(\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1base_1_1DenseOutput}{DenseOutput}}):}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00576}00576\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ t\_old,\ t,\ y\_old,\ F):}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00577}00577\ \ \ \ \ \ \ \ \ super().\_\_init\_\_(t\_old,\ t)}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00578}00578\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1Dop853DenseOutput_a94db4957173d26ee0bc8f7830848f233}{h}}\ =\ t\ -\/\ t\_old}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00579}00579\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1Dop853DenseOutput_a63495b89f080cde67d1227b58bc2e5f2}{F}}\ =\ F}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00580}00580\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1Dop853DenseOutput_a3529cf7e109dcb7b338a5b47e1ab7480}{y\_old}}\ =\ y\_old}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00581}00581\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00582}00582\ \ \ \ \ \textcolor{keyword}{def\ }\_call\_impl(self,\ t):}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00583}00583\ \ \ \ \ \ \ \ \ x\ =\ (t\ -\/\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1base_1_1DenseOutput_a0f8a4f716d1f59751bbcdddad98be114}{t\_old}})\ /\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1Dop853DenseOutput_a94db4957173d26ee0bc8f7830848f233}{h}}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00584}00584\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00585}00585\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ t.ndim\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00586}00586\ \ \ \ \ \ \ \ \ \ \ \ \ y\ =\ np.zeros\_like(self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1Dop853DenseOutput_a3529cf7e109dcb7b338a5b47e1ab7480}{y\_old}})}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00587}00587\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00588}00588\ \ \ \ \ \ \ \ \ \ \ \ \ x\ =\ x[:,\ \textcolor{keywordtype}{None}]}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00589}00589\ \ \ \ \ \ \ \ \ \ \ \ \ y\ =\ np.zeros((len(x),\ len(self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1Dop853DenseOutput_a3529cf7e109dcb7b338a5b47e1ab7480}{y\_old}})),\ dtype=self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1Dop853DenseOutput_a3529cf7e109dcb7b338a5b47e1ab7480}{y\_old}}.dtype)}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00590}00590\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00591}00591\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ i,\ f\ \textcolor{keywordflow}{in}\ enumerate(reversed(self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1Dop853DenseOutput_a63495b89f080cde67d1227b58bc2e5f2}{F}})):}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00592}00592\ \ \ \ \ \ \ \ \ \ \ \ \ y\ +=\ f}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00593}00593\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ i\ \%\ 2\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00594}00594\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ y\ *=\ x}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00595}00595\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00596}00596\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ y\ *=\ 1\ -\/\ x}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00597}00597\ \ \ \ \ \ \ \ \ y\ +=\ self.\mbox{\hyperlink{classscipy_1_1integrate_1_1__ivp_1_1rk_1_1Dop853DenseOutput_a3529cf7e109dcb7b338a5b47e1ab7480}{y\_old}}}
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00598}00598\ }
+\DoxyCodeLine{\Hypertarget{rk_8py_source_l00599}00599\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ y.T}
+
+\end{DoxyCode}

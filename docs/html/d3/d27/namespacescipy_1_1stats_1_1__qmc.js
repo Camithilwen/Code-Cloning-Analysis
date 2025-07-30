@@ -1,0 +1,25 @@
+var namespacescipy_1_1stats_1_1__qmc =
+[
+    [ "Halton", "db/d33/classscipy_1_1stats_1_1__qmc_1_1Halton.html", "db/d33/classscipy_1_1stats_1_1__qmc_1_1Halton" ],
+    [ "LatinHypercube", "d0/dcf/classscipy_1_1stats_1_1__qmc_1_1LatinHypercube.html", "d0/dcf/classscipy_1_1stats_1_1__qmc_1_1LatinHypercube" ],
+    [ "MultinomialQMC", "d0/dcb/classscipy_1_1stats_1_1__qmc_1_1MultinomialQMC.html", "d0/dcb/classscipy_1_1stats_1_1__qmc_1_1MultinomialQMC" ],
+    [ "MultivariateNormalQMC", "df/d4e/classscipy_1_1stats_1_1__qmc_1_1MultivariateNormalQMC.html", "df/d4e/classscipy_1_1stats_1_1__qmc_1_1MultivariateNormalQMC" ],
+    [ "PoissonDisk", "dd/db0/classscipy_1_1stats_1_1__qmc_1_1PoissonDisk.html", "dd/db0/classscipy_1_1stats_1_1__qmc_1_1PoissonDisk" ],
+    [ "QMCEngine", "d7/de6/classscipy_1_1stats_1_1__qmc_1_1QMCEngine.html", "d7/de6/classscipy_1_1stats_1_1__qmc_1_1QMCEngine" ],
+    [ "Sobol", "d7/d58/classscipy_1_1stats_1_1__qmc_1_1Sobol.html", "d7/d58/classscipy_1_1stats_1_1__qmc_1_1Sobol" ],
+    [ "_lloyd_centroidal_voronoi_tessellation", "d3/d27/namespacescipy_1_1stats_1_1__qmc.html#a890631119b89c4f4f62bb023ad6c60f1", null ],
+    [ "_lloyd_iteration", "d3/d27/namespacescipy_1_1stats_1_1__qmc.html#a939675ced92e21d78912310257cf3708", null ],
+    [ "_perturb_discrepancy", "d3/d27/namespacescipy_1_1stats_1_1__qmc.html#a5c28a8dac5cfeaeacca8c1cf345f9b05", null ],
+    [ "_random_cd", "d3/d27/namespacescipy_1_1stats_1_1__qmc.html#a7a6cb5783a79ae04ed930416584199f1", null ],
+    [ "_select_optimizer", "d3/d27/namespacescipy_1_1stats_1_1__qmc.html#a4f12c2d08735f2790606871d9c479dfb", null ],
+    [ "_validate_bounds", "d3/d27/namespacescipy_1_1stats_1_1__qmc.html#a8c10cc54f2dedf13beea8285ed2fe079", null ],
+    [ "_validate_workers", "d3/d27/namespacescipy_1_1stats_1_1__qmc.html#a50556dec8eaef56be3606788d98bd945", null ],
+    [ "_van_der_corput_permutations", "d3/d27/namespacescipy_1_1stats_1_1__qmc.html#aac2dadc825d19fe30b9e0ab9f0c35df3", null ],
+    [ "check_random_state", "d3/d27/namespacescipy_1_1stats_1_1__qmc.html#a1af3e5c60b0fbc5c4d257feb9e2a9423", null ],
+    [ "discrepancy", "d3/d27/namespacescipy_1_1stats_1_1__qmc.html#a9bba96ae85ce5dcf83d9960340b9298c", null ],
+    [ "n_primes", "d3/d27/namespacescipy_1_1stats_1_1__qmc.html#a4a2a87897d180c083d702531cdca44cf", null ],
+    [ "primes_from_2_to", "d3/d27/namespacescipy_1_1stats_1_1__qmc.html#a73db6f8ac0e878841d09657004b0649c", null ],
+    [ "scale", "d3/d27/namespacescipy_1_1stats_1_1__qmc.html#ae76f690673ebcc776891798b0e128d4a", null ],
+    [ "update_discrepancy", "d3/d27/namespacescipy_1_1stats_1_1__qmc.html#a33205602634d9d5ce04705a48d798551", null ],
+    [ "van_der_corput", "d3/d27/namespacescipy_1_1stats_1_1__qmc.html#a43c0482d0724d18fd957cd241692c0b2", null ]
+];

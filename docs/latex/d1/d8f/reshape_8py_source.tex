@@ -1,0 +1,995 @@
+\doxysection{reshape.\+py}
+\hypertarget{reshape_8py_source}{}\label{reshape_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/pandas/core/reshape/reshape.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/pandas/core/reshape/reshape.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00001}\mbox{\hyperlink{namespacepandas_1_1core_1_1reshape_1_1reshape}{00001}}\ \textcolor{keyword}{from}\ \_\_future\_\_\ \textcolor{keyword}{import}\ annotations}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00002}00002\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00003}00003\ \textcolor{keyword}{import}\ itertools}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00004}00004\ \textcolor{keyword}{from}\ typing\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00005}00005\ \ \ \ \ TYPE\_CHECKING,}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00006}00006\ \ \ \ \ cast,}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00007}00007\ )}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00008}00008\ \textcolor{keyword}{import}\ warnings}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00009}00009\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00010}00010\ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00011}00011\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00012}00012\ \textcolor{keyword}{import}\ pandas.\_libs.reshape\ \textcolor{keyword}{as}\ libreshape}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00013}00013\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1errors}{pandas.errors}}\ \textcolor{keyword}{import}\ PerformanceWarning}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00014}00014\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1util_1_1__decorators}{pandas.util.\_decorators}}\ \textcolor{keyword}{import}\ cache\_readonly}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00015}00015\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1util_1_1__exceptions}{pandas.util.\_exceptions}}\ \textcolor{keyword}{import}\ find\_stack\_level}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00016}00016\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00017}00017\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1dtypes_1_1cast}{pandas.core.dtypes.cast}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00018}00018\ \ \ \ \ find\_common\_type,}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00019}00019\ \ \ \ \ maybe\_promote,}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00020}00020\ )}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00021}00021\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1dtypes_1_1common}{pandas.core.dtypes.common}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00022}00022\ \ \ \ \ ensure\_platform\_int,}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00023}00023\ \ \ \ \ is\_1d\_only\_ea\_dtype,}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00024}00024\ \ \ \ \ is\_integer,}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00025}00025\ \ \ \ \ needs\_i8\_conversion,}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00026}00026\ )}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00027}00027\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1dtypes_1_1dtypes}{pandas.core.dtypes.dtypes}}\ \textcolor{keyword}{import}\ ExtensionDtype}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00028}00028\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1dtypes_1_1missing}{pandas.core.dtypes.missing}}\ \textcolor{keyword}{import}\ notna}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00029}00029\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00030}00030\ \textcolor{keyword}{import}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1algorithms}{pandas.core.algorithms}}\ \textcolor{keyword}{as}\ algos}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00031}00031\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1algorithms}{pandas.core.algorithms}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00032}00032\ \ \ \ \ factorize,}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00033}00033\ \ \ \ \ unique,}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00034}00034\ )}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00035}00035\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1arrays_1_1categorical}{pandas.core.arrays.categorical}}\ \textcolor{keyword}{import}\ factorize\_from\_iterable}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00036}00036\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1construction}{pandas.core.construction}}\ \textcolor{keyword}{import}\ ensure\_wrapped\_if\_datetimelike}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00037}00037\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1frame}{pandas.core.frame}}\ \textcolor{keyword}{import}\ DataFrame}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00038}00038\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1indexes_1_1api}{pandas.core.indexes.api}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00039}00039\ \ \ \ \ Index,}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00040}00040\ \ \ \ \ MultiIndex,}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00041}00041\ \ \ \ \ RangeIndex,}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00042}00042\ )}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00043}00043\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1reshape_1_1concat}{pandas.core.reshape.concat}}\ \textcolor{keyword}{import}\ concat}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00044}00044\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1series}{pandas.core.series}}\ \textcolor{keyword}{import}\ Series}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00045}00045\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1sorting}{pandas.core.sorting}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00046}00046\ \ \ \ \ compress\_group\_index,}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00047}00047\ \ \ \ \ decons\_obs\_group\_ids,}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00048}00048\ \ \ \ \ get\_compressed\_ids,}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00049}00049\ \ \ \ \ get\_group\_index,}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00050}00050\ \ \ \ \ get\_group\_index\_sorter,}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00051}00051\ )}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00052}00052\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00053}00053\ \textcolor{keywordflow}{if}\ TYPE\_CHECKING:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00054}00054\ \ \ \ \ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1__typing}{pandas.\_typing}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00055}00055\ \ \ \ \ \ \ \ \ ArrayLike,}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00056}00056\ \ \ \ \ \ \ \ \ Level,}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00057}00057\ \ \ \ \ \ \ \ \ npt,}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00058}00058\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00059}00059\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00060}00060\ \ \ \ \ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1arrays}{pandas.core.arrays}}\ \textcolor{keyword}{import}\ ExtensionArray}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00061}00061\ \ \ \ \ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1indexes_1_1frozen}{pandas.core.indexes.frozen}}\ \textcolor{keyword}{import}\ FrozenList}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00062}00062\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00063}00063\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00064}\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker}{00064}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker}{\_Unstacker}}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00065}00065\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00066}00066\ \textcolor{stringliteral}{\ \ \ \ Helper\ class\ to\ unstack\ data\ /\ pivot\ with\ multi-\/level\ index}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00067}00067\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00068}00068\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00069}00069\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00070}00070\ \textcolor{stringliteral}{\ \ \ \ index\ :\ MultiIndex}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00071}00071\ \textcolor{stringliteral}{\ \ \ \ level\ :\ int\ or\ str,\ default\ last\ level}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00072}00072\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Level\ to\ "{}unstack"{}.\ Accepts\ a\ name\ for\ the\ level.}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00073}00073\ \textcolor{stringliteral}{\ \ \ \ fill\_value\ :\ scalar,\ optional}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00074}00074\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Default\ value\ to\ fill\ in\ missing\ values\ if\ subgroups\ do\ not\ have\ the}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00075}00075\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ same\ set\ of\ labels.\ By\ default,\ missing\ values\ will\ be\ replaced\ with}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00076}00076\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ default\ fill\ value\ for\ that\ data\ type,\ NaN\ for\ float,\ NaT\ for}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00077}00077\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ datetimelike,\ etc.\ For\ integer\ types,\ by\ default\ data\ will\ converted\ to}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00078}00078\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ float\ and\ missing\ values\ will\ be\ set\ to\ NaN.}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00079}00079\ \textcolor{stringliteral}{\ \ \ \ constructor\ :\ object}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00080}00080\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Pandas\ \`{}\`{}DataFrame\`{}\`{}\ or\ subclass\ used\ to\ create\ unstacked}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00081}00081\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ response.\ \ If\ None,\ DataFrame\ will\ be\ used.}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00082}00082\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00083}00083\ \textcolor{stringliteral}{\ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00084}00084\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00085}00085\ \textcolor{stringliteral}{\ \ \ \ >>>\ index\ =\ pd.MultiIndex.from\_tuples([('one',\ 'a'),\ ('one',\ 'b'),}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00086}00086\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ('two',\ 'a'),\ ('two',\ 'b')])}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00087}00087\ \textcolor{stringliteral}{\ \ \ \ >>>\ s\ =\ pd.Series(np.arange(1,\ 5,\ dtype=np.int64),\ index=index)}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00088}00088\ \textcolor{stringliteral}{\ \ \ \ >>>\ s}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00089}00089\ \textcolor{stringliteral}{\ \ \ \ one\ \ a\ \ \ \ 1}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00090}00090\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ b\ \ \ \ 2}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00091}00091\ \textcolor{stringliteral}{\ \ \ \ two\ \ a\ \ \ \ 3}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00092}00092\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ b\ \ \ \ 4}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00093}00093\ \textcolor{stringliteral}{\ \ \ \ dtype:\ int64}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00094}00094\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00095}00095\ \textcolor{stringliteral}{\ \ \ \ >>>\ s.unstack(level=-\/1)}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00096}00096\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ a\ \ b}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00097}00097\ \textcolor{stringliteral}{\ \ \ \ one\ \ 1\ \ 2}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00098}00098\ \textcolor{stringliteral}{\ \ \ \ two\ \ 3\ \ 4}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00099}00099\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00100}00100\ \textcolor{stringliteral}{\ \ \ \ >>>\ s.unstack(level=0)}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00101}00101\ \textcolor{stringliteral}{\ \ \ \ \ \ \ one\ \ two}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00102}00102\ \textcolor{stringliteral}{\ \ \ \ a\ \ \ \ 1\ \ \ \ 3}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00103}00103\ \textcolor{stringliteral}{\ \ \ \ b\ \ \ \ 2\ \ \ \ 4}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00104}00104\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00105}00105\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00106}00106\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00107}00107\ \textcolor{stringliteral}{\ \ \ \ unstacked\ :\ DataFrame}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00108}00108\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00109}00109\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00110}00110\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00111}00111\ \ \ \ \ \ \ \ \ self,\ index:\ MultiIndex,\ level:\ Level,\ constructor,\ sort:\ bool\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00112}00112\ \ \ \ \ )\ -\/>\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00113}00113\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a79d3989edebdee46a519c89ec8f44cb2}{constructor}}\ =\ constructor}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00114}00114\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a1fd14fed506e5743048e2c073f39fe71}{sort}}\ =\ sort}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00115}00115\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00116}00116\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a5f7bf40b4eda470f583921bccbe051f3}{index}}\ =\ index.remove\_unused\_levels()}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00117}00117\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00118}00118\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_af97c72c0f147d67582d59fdb95701d10}{level}}\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a5f7bf40b4eda470f583921bccbe051f3}{index}}.\_get\_level\_number(level)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00119}00119\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00120}00120\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ when\ index\ includes\ \`{}nan`,\ need\ to\ lift\ levels/strides\ by\ 1}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00121}00121\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_afa13326561c362d9852785aeea82b7f4}{lift}}\ =\ 1\ \textcolor{keywordflow}{if}\ -\/1\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a5f7bf40b4eda470f583921bccbe051f3}{index}}.codes[self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_af97c72c0f147d67582d59fdb95701d10}{level}}]\ \textcolor{keywordflow}{else}\ 0}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00122}00122\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00123}00123\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Note:\ the\ "{}pop"{}\ below\ alters\ these\ in-\/place.}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00124}00124\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a238f0075d4b444ab3b67c134d2fed26b}{new\_index\_levels}}\ =\ list(self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a5f7bf40b4eda470f583921bccbe051f3}{index}}.levels)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00125}00125\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_afd4f5e19b082d77e1e61a362f87afeaa}{new\_index\_names}}\ =\ list(self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a5f7bf40b4eda470f583921bccbe051f3}{index}}.names)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00126}00126\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00127}00127\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_afa10f4718276e78caa8a27cb40768e27}{removed\_name}}\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_afd4f5e19b082d77e1e61a362f87afeaa}{new\_index\_names}}.pop(self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_af97c72c0f147d67582d59fdb95701d10}{level}})}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00128}00128\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a473a26bfbebb3a5c5fd89c1b97a47001}{removed\_level}}\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a238f0075d4b444ab3b67c134d2fed26b}{new\_index\_levels}}.pop(self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_af97c72c0f147d67582d59fdb95701d10}{level}})}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00129}00129\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_aa93ae4ebf5ae0391df0b00c496cedea1}{removed\_level\_full}}\ =\ index.levels[self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_af97c72c0f147d67582d59fdb95701d10}{level}}]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00130}00130\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a1fd14fed506e5743048e2c073f39fe71}{sort}}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00131}00131\ \ \ \ \ \ \ \ \ \ \ \ \ unique\_codes\ =\ unique(self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a5f7bf40b4eda470f583921bccbe051f3}{index}}.codes[self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_af97c72c0f147d67582d59fdb95701d10}{level}}])}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00132}00132\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a473a26bfbebb3a5c5fd89c1b97a47001}{removed\_level}}\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a473a26bfbebb3a5c5fd89c1b97a47001}{removed\_level}}.take(unique\_codes)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00133}00133\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_aa93ae4ebf5ae0391df0b00c496cedea1}{removed\_level\_full}}\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_aa93ae4ebf5ae0391df0b00c496cedea1}{removed\_level\_full}}.take(unique\_codes)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00134}00134\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00135}00135\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Bug\ fix\ GH\ 20601}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00136}00136\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ If\ the\ data\ frame\ is\ too\ big,\ the\ number\ of\ unique\ index\ combination}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00137}00137\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ will\ cause\ int32\ overflow\ on\ windows\ environments.}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00138}00138\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ We\ want\ to\ check\ and\ raise\ an\ warning\ before\ this\ happens}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00139}00139\ \ \ \ \ \ \ \ \ num\_rows\ =\ np.max([index\_level.size\ \textcolor{keywordflow}{for}\ index\_level\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a238f0075d4b444ab3b67c134d2fed26b}{new\_index\_levels}}])}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00140}00140\ \ \ \ \ \ \ \ \ num\_columns\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a473a26bfbebb3a5c5fd89c1b97a47001}{removed\_level}}.size}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00141}00141\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00142}00142\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ GH20601:\ This\ forces\ an\ overflow\ if\ the\ number\ of\ cells\ is\ too\ high.}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00143}00143\ \ \ \ \ \ \ \ \ num\_cells\ =\ num\_rows\ *\ num\_columns}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00144}00144\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00145}00145\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ GH\ 26314:\ Previous\ ValueError\ raised\ was\ too\ restrictive\ for\ many\ users.}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00146}00146\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ num\_cells\ >\ np.iinfo(np.int32).max:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00147}00147\ \ \ \ \ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00148}00148\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}The\ following\ operation\ may\ generate\ \{num\_cells\}\ cells\ "{}}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00149}00149\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}in\ the\ resulting\ pandas\ object."{}},}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00150}00150\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ PerformanceWarning,}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00151}00151\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ stacklevel=find\_stack\_level(),}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00152}00152\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00153}00153\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00154}00154\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a66d20067cb44f6e75dd00a56ff7c6383}{\_make\_selectors}}()}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00155}00155\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00156}00156\ \ \ \ \ \textcolor{preprocessor}{@cache\_readonly}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00157}00157\ \ \ \ \ \textcolor{keyword}{def\ }\_indexer\_and\_to\_sort(}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00158}00158\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00159}00159\ \ \ \ \ )\ -\/>\ tuple[}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00160}00160\ \ \ \ \ \ \ \ \ npt.NDArray[np.intp],}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00161}00161\ \ \ \ \ \ \ \ \ list[np.ndarray],\ \ \textcolor{comment}{\#\ each\ has\ \_some\_\ signed\ integer\ dtype}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00162}00162\ \ \ \ \ ]:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00163}00163\ \ \ \ \ \ \ \ \ v\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_af97c72c0f147d67582d59fdb95701d10}{level}}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00164}00164\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00165}00165\ \ \ \ \ \ \ \ \ codes\ =\ list(self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a5f7bf40b4eda470f583921bccbe051f3}{index}}.codes)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00166}00166\ \ \ \ \ \ \ \ \ levs\ =\ list(self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a5f7bf40b4eda470f583921bccbe051f3}{index}}.levels)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00167}00167\ \ \ \ \ \ \ \ \ to\_sort\ =\ codes[:v]\ +\ codes[v\ +\ 1\ :]\ +\ [codes[v]]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00168}00168\ \ \ \ \ \ \ \ \ sizes\ =\ tuple(len(x)\ \textcolor{keywordflow}{for}\ x\ \textcolor{keywordflow}{in}\ levs[:v]\ +\ levs[v\ +\ 1\ :]\ +\ [levs[v]])}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00169}00169\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00170}00170\ \ \ \ \ \ \ \ \ comp\_index,\ obs\_ids\ =\ get\_compressed\_ids(to\_sort,\ sizes)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00171}00171\ \ \ \ \ \ \ \ \ ngroups\ =\ len(obs\_ids)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00172}00172\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00173}00173\ \ \ \ \ \ \ \ \ indexer\ =\ get\_group\_index\_sorter(comp\_index,\ ngroups)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00174}00174\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ indexer,\ to\_sort}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00175}00175\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00176}00176\ \ \ \ \ \textcolor{preprocessor}{@cache\_readonly}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00177}00177\ \ \ \ \ \textcolor{keyword}{def\ }sorted\_labels(self)\ -\/>\ list[np.ndarray]:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00178}00178\ \ \ \ \ \ \ \ \ indexer,\ to\_sort\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a9945a692a49abbbb53e2d01c065b0ecd}{\_indexer\_and\_to\_sort}}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00179}00179\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a1fd14fed506e5743048e2c073f39fe71}{sort}}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00180}00180\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ [line.take(indexer)\ \textcolor{keywordflow}{for}\ line\ \textcolor{keywordflow}{in}\ to\_sort]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00181}00181\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ to\_sort}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00182}00182\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00183}00183\ \ \ \ \ \textcolor{keyword}{def\ }\_make\_sorted\_values(self,\ values:\ np.ndarray)\ -\/>\ np.ndarray:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00184}00184\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a1fd14fed506e5743048e2c073f39fe71}{sort}}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00185}00185\ \ \ \ \ \ \ \ \ \ \ \ \ indexer,\ \_\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a9945a692a49abbbb53e2d01c065b0ecd}{\_indexer\_and\_to\_sort}}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00186}00186\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00187}00187\ \ \ \ \ \ \ \ \ \ \ \ \ sorted\_values\ =\ algos.take\_nd(values,\ indexer,\ axis=0)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00188}00188\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ sorted\_values}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00189}00189\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ values}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00190}00190\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00191}00191\ \ \ \ \ \textcolor{keyword}{def\ }\_make\_selectors(self):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00192}00192\ \ \ \ \ \ \ \ \ new\_levels\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a238f0075d4b444ab3b67c134d2fed26b}{new\_index\_levels}}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00193}00193\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00194}00194\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ make\ the\ mask}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00195}00195\ \ \ \ \ \ \ \ \ remaining\_labels\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a2c68832ff7fda6c30feaa334ef449c45}{sorted\_labels}}[:-\/1]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00196}00196\ \ \ \ \ \ \ \ \ level\_sizes\ =\ tuple(len(x)\ \textcolor{keywordflow}{for}\ x\ \textcolor{keywordflow}{in}\ new\_levels)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00197}00197\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00198}00198\ \ \ \ \ \ \ \ \ comp\_index,\ obs\_ids\ =\ get\_compressed\_ids(remaining\_labels,\ level\_sizes)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00199}00199\ \ \ \ \ \ \ \ \ ngroups\ =\ len(obs\_ids)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00200}00200\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00201}00201\ \ \ \ \ \ \ \ \ comp\_index\ =\ ensure\_platform\_int(comp\_index)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00202}00202\ \ \ \ \ \ \ \ \ stride\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a5f7bf40b4eda470f583921bccbe051f3}{index}}.levshape[self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_af97c72c0f147d67582d59fdb95701d10}{level}}]\ +\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_afa13326561c362d9852785aeea82b7f4}{lift}}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00203}00203\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a2365a0454c469327fd512b5a5436cafc}{full\_shape}}\ =\ ngroups,\ stride}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00204}00204\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00205}00205\ \ \ \ \ \ \ \ \ selector\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a2c68832ff7fda6c30feaa334ef449c45}{sorted\_labels}}[-\/1]\ +\ stride\ *\ comp\_index\ +\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_afa13326561c362d9852785aeea82b7f4}{lift}}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00206}00206\ \ \ \ \ \ \ \ \ mask\ =\ np.zeros(np.prod(self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a2365a0454c469327fd512b5a5436cafc}{full\_shape}}),\ dtype=bool)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00207}00207\ \ \ \ \ \ \ \ \ mask.put(selector,\ \textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00208}00208\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00209}00209\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ mask.sum()\ <\ len(self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a5f7bf40b4eda470f583921bccbe051f3}{index}}):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00210}00210\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}Index\ contains\ duplicate\ entries,\ cannot\ reshape"{}})}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00211}00211\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00212}00212\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a0e0beee8bf3a19e8c76f35b051a7a179}{group\_index}}\ =\ comp\_index}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00213}00213\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a40216f8338ddba5bc0ba8fe9ed576877}{mask}}\ =\ mask}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00214}00214\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a1fd14fed506e5743048e2c073f39fe71}{sort}}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00215}00215\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a1f1ab98cc3cc2de8dd4c4d67fb282af7}{compressor}}\ =\ comp\_index.searchsorted(np.arange(ngroups))}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00216}00216\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00217}00217\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a1f1ab98cc3cc2de8dd4c4d67fb282af7}{compressor}}\ =\ np.sort(np.unique(comp\_index,\ return\_index=\textcolor{keyword}{True})[1])}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00218}00218\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00219}00219\ \ \ \ \ \textcolor{preprocessor}{@cache\_readonly}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00220}00220\ \ \ \ \ \textcolor{keyword}{def\ }mask\_all(self)\ -\/>\ bool:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00221}00221\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ bool(self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a40216f8338ddba5bc0ba8fe9ed576877}{mask}}.all())}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00222}00222\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00223}00223\ \ \ \ \ \textcolor{preprocessor}{@cache\_readonly}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00224}00224\ \ \ \ \ \textcolor{keyword}{def\ }arange\_result(self)\ -\/>\ tuple[npt.NDArray[np.intp],\ npt.NDArray[np.bool\_]]:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00225}00225\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ We\ cache\ this\ for\ reuse\ in\ ExtensionBlock.\_unstack}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00226}00226\ \ \ \ \ \ \ \ \ dummy\_arr\ =\ np.arange(len(self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a5f7bf40b4eda470f583921bccbe051f3}{index}}),\ dtype=np.intp)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00227}00227\ \ \ \ \ \ \ \ \ new\_values,\ mask\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_afd4d380cc648bfb31c2e839d75b842f7}{get\_new\_values}}(dummy\_arr,\ fill\_value=-\/1)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00228}00228\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ new\_values,\ mask.any(0)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00229}00229\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ TODO:\ in\ all\ tests\ we\ have\ mask.any(0).all();\ can\ we\ rely\ on\ that?}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00230}00230\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00231}00231\ \ \ \ \ \textcolor{keyword}{def\ }get\_result(self,\ values,\ value\_columns,\ fill\_value)\ -\/>\ DataFrame:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00232}00232\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ values.ndim\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00233}00233\ \ \ \ \ \ \ \ \ \ \ \ \ values\ =\ values[:,\ np.newaxis]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00234}00234\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00235}00235\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ value\_columns\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{and}\ values.shape[1]\ !=\ 1:\ \ \textcolor{comment}{\#\ pragma:\ no\ cover}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00236}00236\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}must\ pass\ column\ labels\ for\ multi-\/column\ data"{}})}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00237}00237\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00238}00238\ \ \ \ \ \ \ \ \ values,\ \_\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_afd4d380cc648bfb31c2e839d75b842f7}{get\_new\_values}}(values,\ fill\_value)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00239}00239\ \ \ \ \ \ \ \ \ columns\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_acfd107d3d422bb513412d9c103ebd305}{get\_new\_columns}}(value\_columns)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00240}00240\ \ \ \ \ \ \ \ \ index\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a68815b36a7564cacecdbfb09d123dac1}{new\_index}}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00241}00241\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00242}00242\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a79d3989edebdee46a519c89ec8f44cb2}{constructor}}(}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00243}00243\ \ \ \ \ \ \ \ \ \ \ \ \ values,\ index=index,\ columns=columns,\ dtype=values.dtype}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00244}00244\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00245}00245\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00246}00246\ \ \ \ \ \textcolor{keyword}{def\ }get\_new\_values(self,\ values,\ fill\_value=None):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00247}00247\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ values.ndim\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00248}00248\ \ \ \ \ \ \ \ \ \ \ \ \ values\ =\ values[:,\ np.newaxis]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00249}00249\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00250}00250\ \ \ \ \ \ \ \ \ sorted\_values\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a9b16210fe81cdab6b60e17c1bf0ceae8}{\_make\_sorted\_values}}(values)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00251}00251\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00252}00252\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ place\ the\ values}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00253}00253\ \ \ \ \ \ \ \ \ length,\ width\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a2365a0454c469327fd512b5a5436cafc}{full\_shape}}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00254}00254\ \ \ \ \ \ \ \ \ stride\ =\ values.shape[1]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00255}00255\ \ \ \ \ \ \ \ \ result\_width\ =\ width\ *\ stride}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00256}00256\ \ \ \ \ \ \ \ \ result\_shape\ =\ (length,\ result\_width)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00257}00257\ \ \ \ \ \ \ \ \ mask\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a40216f8338ddba5bc0ba8fe9ed576877}{mask}}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00258}00258\ \ \ \ \ \ \ \ \ mask\_all\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_ac879a1829bc7b6d803cb75ad16848429}{mask\_all}}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00259}00259\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00260}00260\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ we\ can\ simply\ reshape\ if\ we\ don't\ have\ a\ mask}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00261}00261\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ mask\_all\ \textcolor{keywordflow}{and}\ len(values):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00262}00262\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ TODO:\ Under\ what\ circumstances\ can\ we\ rely\ on\ sorted\_values}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00263}00263\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ matching\ values?\ \ When\ that\ holds,\ we\ can\ slice\ instead}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00264}00264\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ of\ take\ (in\ particular\ for\ EAs)}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00265}00265\ \ \ \ \ \ \ \ \ \ \ \ \ new\_values\ =\ (}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00266}00266\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ sorted\_values.reshape(length,\ width,\ stride)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00267}00267\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ .swapaxes(1,\ 2)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00268}00268\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ .reshape(result\_shape)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00269}00269\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00270}00270\ \ \ \ \ \ \ \ \ \ \ \ \ new\_mask\ =\ np.ones(result\_shape,\ dtype=bool)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00271}00271\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ new\_values,\ new\_mask}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00272}00272\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00273}00273\ \ \ \ \ \ \ \ \ dtype\ =\ values.dtype}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00274}00274\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00275}00275\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ if\ our\ mask\ is\ all\ True,\ then\ we\ can\ use\ our\ existing\ dtype}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00276}00276\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ mask\_all:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00277}00277\ \ \ \ \ \ \ \ \ \ \ \ \ dtype\ =\ values.dtype}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00278}00278\ \ \ \ \ \ \ \ \ \ \ \ \ new\_values\ =\ np.empty(result\_shape,\ dtype=dtype)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00279}00279\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00280}00280\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(dtype,\ ExtensionDtype):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00281}00281\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ GH\#41875}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00282}00282\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ We\ are\ assuming\ that\ fill\_value\ can\ be\ held\ by\ this\ dtype,}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00283}00283\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ unlike\ the\ non-\/EA\ case\ that\ promotes.}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00284}00284\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ cls\ =\ dtype.construct\_array\_type()}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00285}00285\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ new\_values\ =\ cls.\_empty(result\_shape,\ dtype=dtype)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00286}00286\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ new\_values[:]\ =\ fill\_value}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00287}00287\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00288}00288\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ dtype,\ fill\_value\ =\ maybe\_promote(dtype,\ fill\_value)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00289}00289\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ new\_values\ =\ np.empty(result\_shape,\ dtype=dtype)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00290}00290\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ new\_values.fill(fill\_value)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00291}00291\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00292}00292\ \ \ \ \ \ \ \ \ name\ =\ dtype.name}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00293}00293\ \ \ \ \ \ \ \ \ new\_mask\ =\ np.zeros(result\_shape,\ dtype=bool)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00294}00294\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00295}00295\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ we\ need\ to\ convert\ to\ a\ basic\ dtype}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00296}00296\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ and\ possibly\ coerce\ an\ input\ to\ our\ output\ dtype}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00297}00297\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ e.g.\ ints\ -\/>\ floats}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00298}00298\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ needs\_i8\_conversion(values.dtype):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00299}00299\ \ \ \ \ \ \ \ \ \ \ \ \ sorted\_values\ =\ sorted\_values.view(\textcolor{stringliteral}{"{}i8"{}})}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00300}00300\ \ \ \ \ \ \ \ \ \ \ \ \ new\_values\ =\ new\_values.view(\textcolor{stringliteral}{"{}i8"{}})}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00301}00301\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00302}00302\ \ \ \ \ \ \ \ \ \ \ \ \ sorted\_values\ =\ sorted\_values.astype(name,\ copy=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00303}00303\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00304}00304\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ fill\ in\ our\ values\ \&\ mask}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00305}00305\ \ \ \ \ \ \ \ \ libreshape.unstack(}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00306}00306\ \ \ \ \ \ \ \ \ \ \ \ \ sorted\_values,}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00307}00307\ \ \ \ \ \ \ \ \ \ \ \ \ mask.view(\textcolor{stringliteral}{"{}u1"{}}),}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00308}00308\ \ \ \ \ \ \ \ \ \ \ \ \ stride,}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00309}00309\ \ \ \ \ \ \ \ \ \ \ \ \ length,}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00310}00310\ \ \ \ \ \ \ \ \ \ \ \ \ width,}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00311}00311\ \ \ \ \ \ \ \ \ \ \ \ \ new\_values,}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00312}00312\ \ \ \ \ \ \ \ \ \ \ \ \ new\_mask.view(\textcolor{stringliteral}{"{}u1"{}}),}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00313}00313\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00314}00314\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00315}00315\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ reconstruct\ dtype\ if\ needed}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00316}00316\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ needs\_i8\_conversion(values.dtype):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00317}00317\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ view\ as\ datetime64\ so\ we\ can\ wrap\ in\ DatetimeArray\ and\ use}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00318}00318\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ DTA's\ view\ method}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00319}00319\ \ \ \ \ \ \ \ \ \ \ \ \ new\_values\ =\ new\_values.view(\textcolor{stringliteral}{"{}M8[ns]"{}})}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00320}00320\ \ \ \ \ \ \ \ \ \ \ \ \ new\_values\ =\ ensure\_wrapped\_if\_datetimelike(new\_values)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00321}00321\ \ \ \ \ \ \ \ \ \ \ \ \ new\_values\ =\ new\_values.view(values.dtype)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00322}00322\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00323}00323\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ new\_values,\ new\_mask}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00324}00324\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00325}00325\ \ \ \ \ \textcolor{keyword}{def\ }get\_new\_columns(self,\ value\_columns:\ Index\ |\ \textcolor{keywordtype}{None}):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00326}00326\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ value\_columns\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00327}00327\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_afa13326561c362d9852785aeea82b7f4}{lift}}\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00328}00328\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a473a26bfbebb3a5c5fd89c1b97a47001}{removed\_level}}.\_rename(name=self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_afa10f4718276e78caa8a27cb40768e27}{removed\_name}})}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00329}00329\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00330}00330\ \ \ \ \ \ \ \ \ \ \ \ \ lev\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a473a26bfbebb3a5c5fd89c1b97a47001}{removed\_level}}.insert(0,\ item=self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a473a26bfbebb3a5c5fd89c1b97a47001}{removed\_level}}.\_na\_value)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00331}00331\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ lev.rename(self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_afa10f4718276e78caa8a27cb40768e27}{removed\_name}})}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00332}00332\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00333}00333\ \ \ \ \ \ \ \ \ stride\ =\ len(self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a473a26bfbebb3a5c5fd89c1b97a47001}{removed\_level}})\ +\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_afa13326561c362d9852785aeea82b7f4}{lift}}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00334}00334\ \ \ \ \ \ \ \ \ width\ =\ len(value\_columns)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00335}00335\ \ \ \ \ \ \ \ \ propagator\ =\ np.repeat(np.arange(width),\ stride)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00336}00336\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00337}00337\ \ \ \ \ \ \ \ \ new\_levels:\ FrozenList\ |\ list[Index]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00338}00338\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00339}00339\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(value\_columns,\ MultiIndex):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00340}00340\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ error:\ Cannot\ determine\ type\ of\ "{}\_\_add\_\_"{}\ \ [has-\/type]}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00341}00341\ \ \ \ \ \ \ \ \ \ \ \ \ new\_levels\ =\ value\_columns.levels\ +\ (\ \ \textcolor{comment}{\#\ type:\ ignore[has-\/type]}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00342}00342\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_aa93ae4ebf5ae0391df0b00c496cedea1}{removed\_level\_full}},}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00343}00343\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00344}00344\ \ \ \ \ \ \ \ \ \ \ \ \ new\_names\ =\ value\_columns.names\ +\ (self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_afa10f4718276e78caa8a27cb40768e27}{removed\_name}},)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00345}00345\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00346}00346\ \ \ \ \ \ \ \ \ \ \ \ \ new\_codes\ =\ [lab.take(propagator)\ \textcolor{keywordflow}{for}\ lab\ \textcolor{keywordflow}{in}\ value\_columns.codes]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00347}00347\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00348}00348\ \ \ \ \ \ \ \ \ \ \ \ \ new\_levels\ =\ [}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00349}00349\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ value\_columns,}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00350}00350\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_aa93ae4ebf5ae0391df0b00c496cedea1}{removed\_level\_full}},}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00351}00351\ \ \ \ \ \ \ \ \ \ \ \ \ ]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00352}00352\ \ \ \ \ \ \ \ \ \ \ \ \ new\_names\ =\ [value\_columns.name,\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_afa10f4718276e78caa8a27cb40768e27}{removed\_name}}]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00353}00353\ \ \ \ \ \ \ \ \ \ \ \ \ new\_codes\ =\ [propagator]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00354}00354\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00355}00355\ \ \ \ \ \ \ \ \ repeater\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_aadd559c24ab28cf5cbc04a85ce1b7da1}{\_repeater}}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00356}00356\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00357}00357\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ entire\ level\ is\ then\ just\ a\ repetition\ of\ the\ single\ chunk:}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00358}00358\ \ \ \ \ \ \ \ \ new\_codes.append(np.tile(repeater,\ width))}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00359}00359\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classpandas_1_1core_1_1indexes_1_1multi_1_1MultiIndex}{MultiIndex}}(}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00360}00360\ \ \ \ \ \ \ \ \ \ \ \ \ levels=new\_levels,\ codes=new\_codes,\ names=new\_names,\ verify\_integrity=\textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00361}00361\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00362}00362\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00363}00363\ \ \ \ \ \textcolor{preprocessor}{@cache\_readonly}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00364}00364\ \ \ \ \ \textcolor{keyword}{def\ }\_repeater(self)\ -\/>\ np.ndarray:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00365}00365\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ two\ indices\ differ\ only\ if\ the\ unstacked\ level\ had\ unused\ items:}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00366}00366\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_aa93ae4ebf5ae0391df0b00c496cedea1}{removed\_level\_full}})\ !=\ len(self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a473a26bfbebb3a5c5fd89c1b97a47001}{removed\_level}}):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00367}00367\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ In\ this\ case,\ we\ remap\ the\ new\ codes\ to\ the\ original\ level:}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00368}00368\ \ \ \ \ \ \ \ \ \ \ \ \ repeater\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_aa93ae4ebf5ae0391df0b00c496cedea1}{removed\_level\_full}}.get\_indexer(self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a473a26bfbebb3a5c5fd89c1b97a47001}{removed\_level}})}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00369}00369\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_afa13326561c362d9852785aeea82b7f4}{lift}}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00370}00370\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ repeater\ =\ np.insert(repeater,\ 0,\ -\/1)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00371}00371\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00372}00372\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Otherwise,\ we\ just\ use\ each\ level\ item\ exactly\ once:}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00373}00373\ \ \ \ \ \ \ \ \ \ \ \ \ stride\ =\ len(self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a473a26bfbebb3a5c5fd89c1b97a47001}{removed\_level}})\ +\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_afa13326561c362d9852785aeea82b7f4}{lift}}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00374}00374\ \ \ \ \ \ \ \ \ \ \ \ \ repeater\ =\ np.arange(stride)\ -\/\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_afa13326561c362d9852785aeea82b7f4}{lift}}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00375}00375\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00376}00376\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ repeater}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00377}00377\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00378}00378\ \ \ \ \ \textcolor{preprocessor}{@cache\_readonly}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00379}00379\ \ \ \ \ \textcolor{keyword}{def\ }new\_index(self)\ -\/>\ MultiIndex:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00380}00380\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Does\ not\ depend\ on\ values\ or\ value\_columns}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00381}00381\ \ \ \ \ \ \ \ \ result\_codes\ =\ [lab.take(self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a1f1ab98cc3cc2de8dd4c4d67fb282af7}{compressor}})\ \textcolor{keywordflow}{for}\ lab\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a2c68832ff7fda6c30feaa334ef449c45}{sorted\_labels}}[:-\/1]]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00382}00382\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00383}00383\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ construct\ the\ new\ index}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00384}00384\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a238f0075d4b444ab3b67c134d2fed26b}{new\_index\_levels}})\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00385}00385\ \ \ \ \ \ \ \ \ \ \ \ \ level,\ level\_codes\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a238f0075d4b444ab3b67c134d2fed26b}{new\_index\_levels}}[0],\ result\_codes[0]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00386}00386\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (level\_codes\ ==\ -\/1).any():}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00387}00387\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ level\ =\ level.insert(len(level),\ level.\_na\_value)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00388}00388\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ level.take(level\_codes).rename(self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_afd4f5e19b082d77e1e61a362f87afeaa}{new\_index\_names}}[0])}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00389}00389\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00390}00390\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classpandas_1_1core_1_1indexes_1_1multi_1_1MultiIndex}{MultiIndex}}(}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00391}00391\ \ \ \ \ \ \ \ \ \ \ \ \ levels=self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_a238f0075d4b444ab3b67c134d2fed26b}{new\_index\_levels}},}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00392}00392\ \ \ \ \ \ \ \ \ \ \ \ \ codes=result\_codes,}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00393}00393\ \ \ \ \ \ \ \ \ \ \ \ \ names=self.\mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker_afd4f5e19b082d77e1e61a362f87afeaa}{new\_index\_names}},}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00394}00394\ \ \ \ \ \ \ \ \ \ \ \ \ verify\_integrity=\textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00395}00395\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00396}00396\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00397}00397\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00398}00398\ \textcolor{keyword}{def\ }\_unstack\_multiple(}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00399}00399\ \ \ \ \ data:\ Series\ |\ DataFrame,\ clocs,\ fill\_value=\textcolor{keywordtype}{None},\ sort:\ bool\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00400}00400\ ):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00401}00401\ \ \ \ \ \textcolor{keywordflow}{if}\ len(clocs)\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00402}00402\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ data}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00403}00403\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00404}00404\ \ \ \ \ \textcolor{comment}{\#\ NOTE:\ This\ doesn't\ deal\ with\ hierarchical\ columns\ yet}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00405}00405\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00406}00406\ \ \ \ \ index\ =\ data.index}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00407}00407\ \ \ \ \ index\ =\ cast(MultiIndex,\ index)\ \ \textcolor{comment}{\#\ caller\ is\ responsible\ for\ checking}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00408}00408\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00409}00409\ \ \ \ \ \textcolor{comment}{\#\ GH\ 19966\ Make\ sure\ if\ MultiIndexed\ index\ has\ tuple\ name,\ they\ will\ be}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00410}00410\ \ \ \ \ \textcolor{comment}{\#\ recognised\ as\ a\ whole}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00411}00411\ \ \ \ \ \textcolor{keywordflow}{if}\ clocs\ \textcolor{keywordflow}{in}\ index.names:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00412}00412\ \ \ \ \ \ \ \ \ clocs\ =\ [clocs]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00413}00413\ \ \ \ \ clocs\ =\ [index.\_get\_level\_number(i)\ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ clocs]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00414}00414\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00415}00415\ \ \ \ \ rlocs\ =\ [i\ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(index.nlevels)\ \textcolor{keywordflow}{if}\ i\ \textcolor{keywordflow}{not}\ \textcolor{keywordflow}{in}\ clocs]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00416}00416\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00417}00417\ \ \ \ \ clevels\ =\ [index.levels[i]\ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ clocs]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00418}00418\ \ \ \ \ ccodes\ =\ [index.codes[i]\ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ clocs]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00419}00419\ \ \ \ \ cnames\ =\ [index.names[i]\ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ clocs]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00420}00420\ \ \ \ \ rlevels\ =\ [index.levels[i]\ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ rlocs]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00421}00421\ \ \ \ \ rcodes\ =\ [index.codes[i]\ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ rlocs]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00422}00422\ \ \ \ \ rnames\ =\ [index.names[i]\ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ rlocs]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00423}00423\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00424}00424\ \ \ \ \ shape\ =\ tuple(len(x)\ \textcolor{keywordflow}{for}\ x\ \textcolor{keywordflow}{in}\ clevels)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00425}00425\ \ \ \ \ group\_index\ =\ get\_group\_index(ccodes,\ shape,\ sort=\textcolor{keyword}{False},\ xnull=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00426}00426\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00427}00427\ \ \ \ \ comp\_ids,\ obs\_ids\ =\ compress\_group\_index(group\_index,\ sort=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00428}00428\ \ \ \ \ recons\_codes\ =\ decons\_obs\_group\_ids(comp\_ids,\ obs\_ids,\ shape,\ ccodes,\ xnull=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00429}00429\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00430}00430\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ rlocs:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00431}00431\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Everything\ is\ in\ clocs,\ so\ the\ dummy\ df\ has\ a\ regular\ index}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00432}00432\ \ \ \ \ \ \ \ \ dummy\_index\ =\ \mbox{\hyperlink{classpandas_1_1core_1_1indexes_1_1base_1_1Index}{Index}}(obs\_ids,\ name=\textcolor{stringliteral}{"{}\_\_placeholder\_\_"{}})}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00433}00433\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00434}00434\ \ \ \ \ \ \ \ \ dummy\_index\ =\ \mbox{\hyperlink{classpandas_1_1core_1_1indexes_1_1multi_1_1MultiIndex}{MultiIndex}}(}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00435}00435\ \ \ \ \ \ \ \ \ \ \ \ \ levels=rlevels\ +\ [obs\_ids],}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00436}00436\ \ \ \ \ \ \ \ \ \ \ \ \ codes=rcodes\ +\ [comp\_ids],}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00437}00437\ \ \ \ \ \ \ \ \ \ \ \ \ names=rnames\ +\ [\textcolor{stringliteral}{"{}\_\_placeholder\_\_"{}}],}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00438}00438\ \ \ \ \ \ \ \ \ \ \ \ \ verify\_integrity=\textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00439}00439\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00440}00440\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00441}00441\ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(data,\ Series):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00442}00442\ \ \ \ \ \ \ \ \ dummy\ =\ data.copy()}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00443}00443\ \ \ \ \ \ \ \ \ dummy.index\ =\ dummy\_index}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00444}00444\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00445}00445\ \ \ \ \ \ \ \ \ unstacked\ =\ dummy.unstack(\textcolor{stringliteral}{"{}\_\_placeholder\_\_"{}},\ fill\_value=fill\_value,\ sort=sort)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00446}00446\ \ \ \ \ \ \ \ \ new\_levels\ =\ clevels}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00447}00447\ \ \ \ \ \ \ \ \ new\_names\ =\ cnames}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00448}00448\ \ \ \ \ \ \ \ \ new\_codes\ =\ recons\_codes}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00449}00449\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00450}00450\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(data.columns,\ MultiIndex):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00451}00451\ \ \ \ \ \ \ \ \ \ \ \ \ result\ =\ data}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00452}00452\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{while}\ clocs:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00453}00453\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ val\ =\ clocs.pop(0)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00454}00454\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ result\ =\ result.unstack(val,\ fill\_value=fill\_value,\ sort=sort)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00455}00455\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ clocs\ =\ [v\ \textcolor{keywordflow}{if}\ v\ <\ val\ \textcolor{keywordflow}{else}\ v\ -\/\ 1\ \textcolor{keywordflow}{for}\ v\ \textcolor{keywordflow}{in}\ clocs]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00456}00456\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00457}00457\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ result}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00458}00458\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00459}00459\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ GH\#42579\ deep=False\ to\ avoid\ consolidating}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00460}00460\ \ \ \ \ \ \ \ \ dummy\_df\ =\ data.copy(deep=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00461}00461\ \ \ \ \ \ \ \ \ dummy\_df.index\ =\ dummy\_index}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00462}00462\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00463}00463\ \ \ \ \ \ \ \ \ unstacked\ =\ dummy\_df.unstack(}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00464}00464\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\_\_placeholder\_\_"{}},\ fill\_value=fill\_value,\ sort=sort}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00465}00465\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00466}00466\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(unstacked,\ Series):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00467}00467\ \ \ \ \ \ \ \ \ \ \ \ \ unstcols\ =\ unstacked.index}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00468}00468\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00469}00469\ \ \ \ \ \ \ \ \ \ \ \ \ unstcols\ =\ unstacked.columns}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00470}00470\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ isinstance(unstcols,\ MultiIndex)\ \ \textcolor{comment}{\#\ for\ mypy}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00471}00471\ \ \ \ \ \ \ \ \ new\_levels\ =\ [unstcols.levels[0]]\ +\ clevels}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00472}00472\ \ \ \ \ \ \ \ \ new\_names\ =\ [data.columns.name]\ +\ cnames}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00473}00473\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00474}00474\ \ \ \ \ \ \ \ \ new\_codes\ =\ [unstcols.codes[0]]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00475}00475\ \ \ \ \ \ \ \ \ new\_codes.extend(rec.take(unstcols.codes[-\/1])\ \textcolor{keywordflow}{for}\ rec\ \textcolor{keywordflow}{in}\ recons\_codes)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00476}00476\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00477}00477\ \ \ \ \ new\_columns\ =\ \mbox{\hyperlink{classpandas_1_1core_1_1indexes_1_1multi_1_1MultiIndex}{MultiIndex}}(}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00478}00478\ \ \ \ \ \ \ \ \ levels=new\_levels,\ codes=new\_codes,\ names=new\_names,\ verify\_integrity=\textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00479}00479\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00480}00480\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00481}00481\ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(unstacked,\ Series):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00482}00482\ \ \ \ \ \ \ \ \ unstacked.index\ =\ new\_columns}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00483}00483\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00484}00484\ \ \ \ \ \ \ \ \ unstacked.columns\ =\ new\_columns}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00485}00485\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00486}00486\ \ \ \ \ \textcolor{keywordflow}{return}\ unstacked}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00487}00487\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00488}00488\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00489}00489\ \textcolor{keyword}{def\ }unstack(obj:\ Series\ |\ DataFrame,\ level,\ fill\_value=\textcolor{keywordtype}{None},\ sort:\ bool\ =\ \textcolor{keyword}{True}):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00490}00490\ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(level,\ (tuple,\ list)):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00491}00491\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(level)\ !=\ 1:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00492}00492\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \_unstack\_multiple\ only\ handles\ MultiIndexes,}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00493}00493\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ and\ isn't\ needed\ for\ a\ single\ level}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00494}00494\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \_unstack\_multiple(obj,\ level,\ fill\_value=fill\_value,\ sort=sort)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00495}00495\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00496}00496\ \ \ \ \ \ \ \ \ \ \ \ \ level\ =\ level[0]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00497}00497\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00498}00498\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ is\_integer(level)\ \textcolor{keywordflow}{and}\ \textcolor{keywordflow}{not}\ level\ ==\ \textcolor{stringliteral}{"{}\_\_placeholder\_\_"{}}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00499}00499\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ check\ if\ level\ is\ valid\ in\ case\ of\ regular\ index}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00500}00500\ \ \ \ \ \ \ \ \ obj.index.\_get\_level\_number(level)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00501}00501\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00502}00502\ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(obj,\ DataFrame):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00503}00503\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(obj.index,\ MultiIndex):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00504}00504\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \_unstack\_frame(obj,\ level,\ fill\_value=fill\_value,\ sort=sort)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00505}00505\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00506}00506\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ obj.T.stack(future\_stack=\textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00507}00507\ \ \ \ \ \textcolor{keywordflow}{elif}\ \textcolor{keywordflow}{not}\ isinstance(obj.index,\ MultiIndex):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00508}00508\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ GH\ 36113}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00509}00509\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Give\ nicer\ error\ messages\ when\ unstack\ a\ Series\ whose}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00510}00510\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Index\ is\ not\ a\ MultiIndex.}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00511}00511\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00512}00512\ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}index\ must\ be\ a\ MultiIndex\ to\ unstack,\ \{type(obj.index)\}\ was\ passed"{}}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00513}00513\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00514}00514\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00515}00515\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ is\_1d\_only\_ea\_dtype(obj.dtype):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00516}00516\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1reshape_1_1reshape_ab2ffbec49a3cadc406dfc63e1534766a}{\_unstack\_extension\_series}}(obj,\ level,\ fill\_value,\ sort=sort)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00517}00517\ \ \ \ \ \ \ \ \ unstacker\ =\ \mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker}{\_Unstacker}}(}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00518}00518\ \ \ \ \ \ \ \ \ \ \ \ \ obj.index,\ level=level,\ constructor=obj.\_constructor\_expanddim,\ sort=sort}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00519}00519\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00520}00520\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ unstacker.get\_result(}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00521}00521\ \ \ \ \ \ \ \ \ \ \ \ \ obj.\_values,\ value\_columns=\textcolor{keywordtype}{None},\ fill\_value=fill\_value}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00522}00522\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00523}00523\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00524}00524\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00525}00525\ \textcolor{keyword}{def\ }\_unstack\_frame(}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00526}00526\ \ \ \ \ obj:\ DataFrame,\ level,\ fill\_value=\textcolor{keywordtype}{None},\ sort:\ bool\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00527}00527\ )\ -\/>\ DataFrame:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00528}00528\ \ \ \ \ \textcolor{keyword}{assert}\ isinstance(obj.index,\ MultiIndex)\ \ \textcolor{comment}{\#\ checked\ by\ caller}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00529}00529\ \ \ \ \ unstacker\ =\ \mbox{\hyperlink{classpandas_1_1core_1_1reshape_1_1reshape_1_1__Unstacker}{\_Unstacker}}(}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00530}00530\ \ \ \ \ \ \ \ \ obj.index,\ level=level,\ constructor=obj.\_constructor,\ sort=sort}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00531}00531\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00532}00532\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00533}00533\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ obj.\_can\_fast\_transpose:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00534}00534\ \ \ \ \ \ \ \ \ mgr\ =\ obj.\_mgr.unstack(unstacker,\ fill\_value=fill\_value)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00535}00535\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ obj.\_constructor\_from\_mgr(mgr,\ axes=mgr.axes)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00536}00536\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00537}00537\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ unstacker.get\_result(}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00538}00538\ \ \ \ \ \ \ \ \ \ \ \ \ obj.\_values,\ value\_columns=obj.columns,\ fill\_value=fill\_value}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00539}00539\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00540}00540\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00541}00541\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00542}\mbox{\hyperlink{namespacepandas_1_1core_1_1reshape_1_1reshape_ab2ffbec49a3cadc406dfc63e1534766a}{00542}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1core_1_1reshape_1_1reshape_ab2ffbec49a3cadc406dfc63e1534766a}{\_unstack\_extension\_series}}(}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00543}00543\ \ \ \ \ series:\ Series,\ level,\ fill\_value,\ sort:\ bool}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00544}00544\ )\ -\/>\ DataFrame:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00545}00545\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00546}00546\ \textcolor{stringliteral}{\ \ \ \ Unstack\ an\ ExtensionArray-\/backed\ Series.}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00547}00547\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00548}00548\ \textcolor{stringliteral}{\ \ \ \ The\ ExtensionDtype\ is\ preserved.}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00549}00549\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00550}00550\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00551}00551\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00552}00552\ \textcolor{stringliteral}{\ \ \ \ series\ :\ Series}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00553}00553\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ A\ Series\ with\ an\ ExtensionArray\ for\ values}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00554}00554\ \textcolor{stringliteral}{\ \ \ \ level\ :\ Any}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00555}00555\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ level\ name\ or\ number.}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00556}00556\ \textcolor{stringliteral}{\ \ \ \ fill\_value\ :\ Any}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00557}00557\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ user-\/level\ (not\ physical\ storage)\ fill\ value\ to\ use\ for}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00558}00558\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ missing\ values\ introduced\ by\ the\ reshape.\ Passed\ to}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00559}00559\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}series.values.take\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00560}00560\ \textcolor{stringliteral}{\ \ \ \ sort\ :\ bool}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00561}00561\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Whether\ to\ sort\ the\ resulting\ MuliIndex\ levels}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00562}00562\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00563}00563\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00564}00564\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00565}00565\ \textcolor{stringliteral}{\ \ \ \ DataFrame}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00566}00566\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Each\ column\ of\ the\ DataFrame\ will\ have\ the\ same\ dtype\ as}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00567}00567\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ input\ Series.}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00568}00568\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00569}00569\ \ \ \ \ \textcolor{comment}{\#\ Defer\ to\ the\ logic\ in\ ExtensionBlock.\_unstack}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00570}00570\ \ \ \ \ df\ =\ series.to\_frame()}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00571}00571\ \ \ \ \ result\ =\ df.unstack(level=level,\ fill\_value=fill\_value,\ sort=sort)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00572}00572\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00573}00573\ \ \ \ \ \textcolor{comment}{\#\ equiv:\ result.droplevel(level=0,\ axis=1)}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00574}00574\ \ \ \ \ \textcolor{comment}{\#\ \ but\ this\ avoids\ an\ extra\ copy}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00575}00575\ \ \ \ \ result.columns\ =\ result.columns.\_drop\_level\_numbers([0])}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00576}00576\ \ \ \ \ \textcolor{keywordflow}{return}\ result}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00577}00577\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00578}00578\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00579}\mbox{\hyperlink{namespacepandas_1_1core_1_1reshape_1_1reshape_a6701ebc502ed7590d9cb809a1dc033f7}{00579}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1core_1_1reshape_1_1reshape_a6701ebc502ed7590d9cb809a1dc033f7}{stack}}(frame:\ DataFrame,\ level=-\/1,\ dropna:\ bool\ =\ \textcolor{keyword}{True},\ sort:\ bool\ =\ \textcolor{keyword}{True}):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00580}00580\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00581}00581\ \textcolor{stringliteral}{\ \ \ \ Convert\ DataFrame\ to\ Series\ with\ multi-\/level\ Index.\ Columns\ become\ the}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00582}00582\ \textcolor{stringliteral}{\ \ \ \ second\ level\ of\ the\ resulting\ hierarchical\ index}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00583}00583\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00584}00584\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00585}00585\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00586}00586\ \textcolor{stringliteral}{\ \ \ \ stacked\ :\ Series\ or\ DataFrame}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00587}00587\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00588}00588\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00589}00589\ \ \ \ \ \textcolor{keyword}{def\ }stack\_factorize(index):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00590}00590\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ index.is\_unique:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00591}00591\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ index,\ np.arange(len(index))}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00592}00592\ \ \ \ \ \ \ \ \ codes,\ categories\ =\ factorize\_from\_iterable(index)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00593}00593\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ categories,\ codes}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00594}00594\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00595}00595\ \ \ \ \ N,\ K\ =\ frame.shape}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00596}00596\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00597}00597\ \ \ \ \ \textcolor{comment}{\#\ Will\ also\ convert\ negative\ level\ numbers\ and\ check\ if\ out\ of\ bounds.}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00598}00598\ \ \ \ \ level\_num\ =\ frame.columns.\_get\_level\_number(level)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00599}00599\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00600}00600\ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(frame.columns,\ MultiIndex):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00601}00601\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \_stack\_multi\_columns(}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00602}00602\ \ \ \ \ \ \ \ \ \ \ \ \ frame,\ level\_num=level\_num,\ dropna=dropna,\ sort=sort}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00603}00603\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00604}00604\ \ \ \ \ \textcolor{keywordflow}{elif}\ isinstance(frame.index,\ MultiIndex):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00605}00605\ \ \ \ \ \ \ \ \ new\_levels\ =\ list(frame.index.levels)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00606}00606\ \ \ \ \ \ \ \ \ new\_codes\ =\ [lab.repeat(K)\ \textcolor{keywordflow}{for}\ lab\ \textcolor{keywordflow}{in}\ frame.index.codes]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00607}00607\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00608}00608\ \ \ \ \ \ \ \ \ clev,\ clab\ =\ stack\_factorize(frame.columns)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00609}00609\ \ \ \ \ \ \ \ \ new\_levels.append(clev)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00610}00610\ \ \ \ \ \ \ \ \ new\_codes.append(np.tile(clab,\ N).ravel())}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00611}00611\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00612}00612\ \ \ \ \ \ \ \ \ new\_names\ =\ list(frame.index.names)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00613}00613\ \ \ \ \ \ \ \ \ new\_names.append(frame.columns.name)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00614}00614\ \ \ \ \ \ \ \ \ new\_index\ =\ \mbox{\hyperlink{classpandas_1_1core_1_1indexes_1_1multi_1_1MultiIndex}{MultiIndex}}(}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00615}00615\ \ \ \ \ \ \ \ \ \ \ \ \ levels=new\_levels,\ codes=new\_codes,\ names=new\_names,\ verify\_integrity=\textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00616}00616\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00617}00617\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00618}00618\ \ \ \ \ \ \ \ \ levels,\ (ilab,\ clab)\ =\ zip(*map(stack\_factorize,\ (frame.index,\ frame.columns)))}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00619}00619\ \ \ \ \ \ \ \ \ codes\ =\ ilab.repeat(K),\ np.tile(clab,\ N).ravel()}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00620}00620\ \ \ \ \ \ \ \ \ new\_index\ =\ \mbox{\hyperlink{classpandas_1_1core_1_1indexes_1_1multi_1_1MultiIndex}{MultiIndex}}(}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00621}00621\ \ \ \ \ \ \ \ \ \ \ \ \ levels=levels,}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00622}00622\ \ \ \ \ \ \ \ \ \ \ \ \ codes=codes,}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00623}00623\ \ \ \ \ \ \ \ \ \ \ \ \ names=[frame.index.name,\ frame.columns.name],}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00624}00624\ \ \ \ \ \ \ \ \ \ \ \ \ verify\_integrity=\textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00625}00625\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00626}00626\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00627}00627\ \ \ \ \ new\_values:\ ArrayLike}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00628}00628\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ frame.empty\ \textcolor{keywordflow}{and}\ frame.\_is\_homogeneous\_type:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00629}00629\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ For\ homogeneous\ EAs,\ frame.\_values\ will\ coerce\ to\ object.\ So}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00630}00630\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ we\ concatenate\ instead.}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00631}00631\ \ \ \ \ \ \ \ \ dtypes\ =\ list(frame.dtypes.\_values)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00632}00632\ \ \ \ \ \ \ \ \ dtype\ =\ dtypes[0]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00633}00633\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00634}00634\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(dtype,\ ExtensionDtype):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00635}00635\ \ \ \ \ \ \ \ \ \ \ \ \ arr\ =\ dtype.construct\_array\_type()}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00636}00636\ \ \ \ \ \ \ \ \ \ \ \ \ new\_values\ =\ arr.\_concat\_same\_type(}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00637}00637\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ [col.\_values\ \textcolor{keywordflow}{for}\ \_,\ col\ \textcolor{keywordflow}{in}\ frame.items()]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00638}00638\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00639}00639\ \ \ \ \ \ \ \ \ \ \ \ \ new\_values\ =\ \mbox{\hyperlink{namespacepandas_1_1core_1_1reshape_1_1reshape_a47efa768da0a75cbbfcc42c21ba1db28}{\_reorder\_for\_extension\_array\_stack}}(new\_values,\ N,\ K)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00640}00640\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00641}00641\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ homogeneous,\ non-\/EA}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00642}00642\ \ \ \ \ \ \ \ \ \ \ \ \ new\_values\ =\ frame.\_values.ravel()}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00643}00643\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00644}00644\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00645}00645\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ non-\/homogeneous}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00646}00646\ \ \ \ \ \ \ \ \ new\_values\ =\ frame.\_values.ravel()}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00647}00647\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00648}00648\ \ \ \ \ \textcolor{keywordflow}{if}\ dropna:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00649}00649\ \ \ \ \ \ \ \ \ mask\ =\ notna(new\_values)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00650}00650\ \ \ \ \ \ \ \ \ new\_values\ =\ new\_values[mask]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00651}00651\ \ \ \ \ \ \ \ \ new\_index\ =\ new\_index[mask]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00652}00652\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00653}00653\ \ \ \ \ \textcolor{keywordflow}{return}\ frame.\_constructor\_sliced(new\_values,\ index=new\_index)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00654}00654\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00655}00655\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00656}00656\ \textcolor{keyword}{def\ }stack\_multiple(frame:\ DataFrame,\ level,\ dropna:\ bool\ =\ \textcolor{keyword}{True},\ sort:\ bool\ =\ \textcolor{keyword}{True}):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00657}00657\ \ \ \ \ \textcolor{comment}{\#\ If\ all\ passed\ levels\ match\ up\ to\ column\ names,\ no}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00658}00658\ \ \ \ \ \textcolor{comment}{\#\ ambiguity\ about\ what\ to\ do}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00659}00659\ \ \ \ \ \textcolor{keywordflow}{if}\ all(lev\ \textcolor{keywordflow}{in}\ frame.columns.names\ \textcolor{keywordflow}{for}\ lev\ \textcolor{keywordflow}{in}\ level):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00660}00660\ \ \ \ \ \ \ \ \ result\ =\ frame}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00661}00661\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ lev\ \textcolor{keywordflow}{in}\ level:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00662}00662\ \ \ \ \ \ \ \ \ \ \ \ \ result\ =\ \mbox{\hyperlink{namespacepandas_1_1core_1_1reshape_1_1reshape_a6701ebc502ed7590d9cb809a1dc033f7}{stack}}(result,\ lev,\ dropna=dropna,\ sort=sort)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00663}00663\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00664}00664\ \ \ \ \ \textcolor{comment}{\#\ Otherwise,\ level\ numbers\ may\ change\ as\ each\ successive\ level\ is\ stacked}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00665}00665\ \ \ \ \ \textcolor{keywordflow}{elif}\ all(isinstance(lev,\ int)\ \textcolor{keywordflow}{for}\ lev\ \textcolor{keywordflow}{in}\ level):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00666}00666\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ As\ each\ stack\ is\ done,\ the\ level\ numbers\ decrease,\ so\ we\ need}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00667}00667\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ to\ account\ for\ that\ when\ level\ is\ a\ sequence\ of\ ints}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00668}00668\ \ \ \ \ \ \ \ \ result\ =\ frame}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00669}00669\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \_get\_level\_number()\ checks\ level\ numbers\ are\ in\ range\ and\ converts}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00670}00670\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ negative\ numbers\ to\ positive}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00671}00671\ \ \ \ \ \ \ \ \ level\ =\ [frame.columns.\_get\_level\_number(lev)\ \textcolor{keywordflow}{for}\ lev\ \textcolor{keywordflow}{in}\ level]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00672}00672\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00673}00673\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{while}\ level:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00674}00674\ \ \ \ \ \ \ \ \ \ \ \ \ lev\ =\ level.pop(0)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00675}00675\ \ \ \ \ \ \ \ \ \ \ \ \ result\ =\ \mbox{\hyperlink{namespacepandas_1_1core_1_1reshape_1_1reshape_a6701ebc502ed7590d9cb809a1dc033f7}{stack}}(result,\ lev,\ dropna=dropna,\ sort=sort)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00676}00676\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Decrement\ all\ level\ numbers\ greater\ than\ current,\ as\ these}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00677}00677\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ have\ now\ shifted\ down\ by\ one}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00678}00678\ \ \ \ \ \ \ \ \ \ \ \ \ level\ =\ [v\ \textcolor{keywordflow}{if}\ v\ <=\ lev\ \textcolor{keywordflow}{else}\ v\ -\/\ 1\ \textcolor{keywordflow}{for}\ v\ \textcolor{keywordflow}{in}\ level]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00679}00679\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00680}00680\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00681}00681\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00682}00682\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}level\ should\ contain\ all\ level\ names\ or\ all\ level\ "{}}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00683}00683\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}numbers,\ not\ a\ mixture\ of\ the\ two."{}}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00684}00684\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00685}00685\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00686}00686\ \ \ \ \ \textcolor{keywordflow}{return}\ result}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00687}00687\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00688}00688\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00689}\mbox{\hyperlink{namespacepandas_1_1core_1_1reshape_1_1reshape_a739ff3037e914b5aabcaf82f0c1c5057}{00689}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1core_1_1reshape_1_1reshape_a739ff3037e914b5aabcaf82f0c1c5057}{\_stack\_multi\_column\_index}}(columns:\ MultiIndex)\ -\/>\ MultiIndex:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00690}00690\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Creates\ a\ MultiIndex\ from\ the\ first\ N-\/1\ levels\ of\ this\ MultiIndex."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00691}00691\ \ \ \ \ \textcolor{keywordflow}{if}\ len(columns.levels)\ <=\ 2:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00692}00692\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ columns.levels[0].\_rename(name=columns.names[0])}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00693}00693\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00694}00694\ \ \ \ \ levs\ =\ [}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00695}00695\ \ \ \ \ \ \ \ \ [lev[c]\ \textcolor{keywordflow}{if}\ c\ >=\ 0\ \textcolor{keywordflow}{else}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{for}\ c\ \textcolor{keywordflow}{in}\ codes]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00696}00696\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ lev,\ codes\ \textcolor{keywordflow}{in}\ zip(columns.levels[:-\/1],\ columns.codes[:-\/1])}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00697}00697\ \ \ \ \ ]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00698}00698\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00699}00699\ \ \ \ \ \textcolor{comment}{\#\ Remove\ duplicate\ tuples\ in\ the\ MultiIndex.}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00700}00700\ \ \ \ \ tuples\ =\ zip(*levs)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00701}00701\ \ \ \ \ unique\_tuples\ =\ (key\ \textcolor{keywordflow}{for}\ key,\ \_\ \textcolor{keywordflow}{in}\ itertools.groupby(tuples))}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00702}00702\ \ \ \ \ new\_levs\ =\ zip(*unique\_tuples)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00703}00703\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00704}00704\ \ \ \ \ \textcolor{comment}{\#\ The\ dtype\ of\ each\ level\ must\ be\ explicitly\ set\ to\ avoid\ inferring\ the\ wrong\ type.}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00705}00705\ \ \ \ \ \textcolor{comment}{\#\ See\ GH-\/36991.}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00706}00706\ \ \ \ \ \textcolor{keywordflow}{return}\ MultiIndex.from\_arrays(}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00707}00707\ \ \ \ \ \ \ \ \ [}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00708}00708\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Not\ all\ indices\ can\ accept\ None\ values.}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00709}00709\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classpandas_1_1core_1_1indexes_1_1base_1_1Index}{Index}}(new\_lev,\ dtype=lev.dtype)\ \textcolor{keywordflow}{if}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{not}\ \textcolor{keywordflow}{in}\ new\_lev\ \textcolor{keywordflow}{else}\ new\_lev}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00710}00710\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ new\_lev,\ lev\ \textcolor{keywordflow}{in}\ zip(new\_levs,\ columns.levels)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00711}00711\ \ \ \ \ \ \ \ \ ],}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00712}00712\ \ \ \ \ \ \ \ \ names=columns.names[:-\/1],}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00713}00713\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00714}00714\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00715}00715\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00716}00716\ \textcolor{keyword}{def\ }\_stack\_multi\_columns(}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00717}00717\ \ \ \ \ frame:\ DataFrame,\ level\_num:\ int\ =\ -\/1,\ dropna:\ bool\ =\ \textcolor{keyword}{True},\ sort:\ bool\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00718}00718\ )\ -\/>\ DataFrame:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00719}00719\ \ \ \ \ \textcolor{keyword}{def\ }\_convert\_level\_number(level\_num:\ int,\ columns:\ Index):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00720}00720\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00721}00721\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Logic\ for\ converting\ the\ level\ number\ to\ something\ we\ can\ safely\ pass}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00722}00722\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ to\ swaplevel.}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00723}00723\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00724}00724\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ \`{}level\_num\`{}\ matches\ a\ column\ name\ return\ the\ name\ from}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00725}00725\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ position\ \`{}level\_num\`{},\ otherwise\ return\ \`{}level\_num\`{}.}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00726}00726\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00727}00727\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ level\_num\ \textcolor{keywordflow}{in}\ columns.names:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00728}00728\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ columns.names[level\_num]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00729}00729\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00730}00730\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ level\_num}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00731}00731\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00732}00732\ \ \ \ \ this\ =\ frame.copy(deep=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00733}00733\ \ \ \ \ mi\_cols\ =\ this.columns\ \ \textcolor{comment}{\#\ cast(MultiIndex,\ this.columns)}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00734}00734\ \ \ \ \ \textcolor{keyword}{assert}\ isinstance(mi\_cols,\ MultiIndex)\ \ \textcolor{comment}{\#\ caller\ is\ responsible}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00735}00735\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00736}00736\ \ \ \ \ \textcolor{comment}{\#\ this\ makes\ life\ much\ simpler}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00737}00737\ \ \ \ \ \textcolor{keywordflow}{if}\ level\_num\ !=\ mi\_cols.nlevels\ -\/\ 1:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00738}00738\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ roll\ levels\ to\ put\ selected\ level\ at\ end}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00739}00739\ \ \ \ \ \ \ \ \ roll\_columns\ =\ mi\_cols}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00740}00740\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(level\_num,\ mi\_cols.nlevels\ -\/\ 1):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00741}00741\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Need\ to\ check\ if\ the\ ints\ conflict\ with\ level\ names}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00742}00742\ \ \ \ \ \ \ \ \ \ \ \ \ lev1\ =\ \_convert\_level\_number(i,\ roll\_columns)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00743}00743\ \ \ \ \ \ \ \ \ \ \ \ \ lev2\ =\ \_convert\_level\_number(i\ +\ 1,\ roll\_columns)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00744}00744\ \ \ \ \ \ \ \ \ \ \ \ \ roll\_columns\ =\ roll\_columns.swaplevel(lev1,\ lev2)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00745}00745\ \ \ \ \ \ \ \ \ this.columns\ =\ mi\_cols\ =\ roll\_columns}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00746}00746\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00747}00747\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ mi\_cols.\_is\_lexsorted()\ \textcolor{keywordflow}{and}\ sort:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00748}00748\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Workaround\ the\ edge\ case\ where\ 0\ is\ one\ of\ the\ column\ names,}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00749}00749\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ which\ interferes\ with\ trying\ to\ sort\ based\ on\ the\ first}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00750}00750\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ level}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00751}00751\ \ \ \ \ \ \ \ \ level\_to\_sort\ =\ \_convert\_level\_number(0,\ mi\_cols)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00752}00752\ \ \ \ \ \ \ \ \ this\ =\ this.sort\_index(level=level\_to\_sort,\ axis=1)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00753}00753\ \ \ \ \ \ \ \ \ mi\_cols\ =\ this.columns}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00754}00754\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00755}00755\ \ \ \ \ mi\_cols\ =\ cast(MultiIndex,\ mi\_cols)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00756}00756\ \ \ \ \ new\_columns\ =\ \mbox{\hyperlink{namespacepandas_1_1core_1_1reshape_1_1reshape_a739ff3037e914b5aabcaf82f0c1c5057}{\_stack\_multi\_column\_index}}(mi\_cols)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00757}00757\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00758}00758\ \ \ \ \ \textcolor{comment}{\#\ time\ to\ ravel\ the\ values}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00759}00759\ \ \ \ \ new\_data\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00760}00760\ \ \ \ \ level\_vals\ =\ mi\_cols.levels[-\/1]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00761}00761\ \ \ \ \ level\_codes\ =\ unique(mi\_cols.codes[-\/1])}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00762}00762\ \ \ \ \ \textcolor{keywordflow}{if}\ sort:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00763}00763\ \ \ \ \ \ \ \ \ level\_codes\ =\ np.sort(level\_codes)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00764}00764\ \ \ \ \ level\_vals\_nan\ =\ level\_vals.insert(len(level\_vals),\ \textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00765}00765\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00766}00766\ \ \ \ \ level\_vals\_used\ =\ np.take(level\_vals\_nan,\ level\_codes)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00767}00767\ \ \ \ \ levsize\ =\ len(level\_codes)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00768}00768\ \ \ \ \ drop\_cols\ =\ []}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00769}00769\ \ \ \ \ \textcolor{keywordflow}{for}\ key\ \textcolor{keywordflow}{in}\ new\_columns:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00770}00770\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00771}00771\ \ \ \ \ \ \ \ \ \ \ \ \ loc\ =\ this.columns.get\_loc(key)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00772}00772\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ KeyError:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00773}00773\ \ \ \ \ \ \ \ \ \ \ \ \ drop\_cols.append(key)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00774}00774\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00775}00775\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00776}00776\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ can\ make\ more\ efficient?}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00777}00777\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ we\ almost\ always\ return\ a\ slice}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00778}00778\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ but\ if\ unsorted\ can\ get\ a\ boolean}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00779}00779\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ indexer}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00780}00780\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ isinstance(loc,\ slice):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00781}00781\ \ \ \ \ \ \ \ \ \ \ \ \ slice\_len\ =\ len(loc)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00782}00782\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00783}00783\ \ \ \ \ \ \ \ \ \ \ \ \ slice\_len\ =\ loc.stop\ -\/\ loc.start}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00784}00784\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00785}00785\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ slice\_len\ !=\ levsize:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00786}00786\ \ \ \ \ \ \ \ \ \ \ \ \ chunk\ =\ this.loc[:,\ this.columns[loc]]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00787}00787\ \ \ \ \ \ \ \ \ \ \ \ \ chunk.columns\ =\ level\_vals\_nan.take(chunk.columns.codes[-\/1])}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00788}00788\ \ \ \ \ \ \ \ \ \ \ \ \ value\_slice\ =\ chunk.reindex(columns=level\_vals\_used).values}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00789}00789\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00790}00790\ \ \ \ \ \ \ \ \ \ \ \ \ subset\ =\ this.iloc[:,\ loc]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00791}00791\ \ \ \ \ \ \ \ \ \ \ \ \ dtype\ =\ find\_common\_type(subset.dtypes.tolist())}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00792}00792\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(dtype,\ ExtensionDtype):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00793}00793\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ TODO(EA2D):\ won't\ need\ special\ case,\ can\ go\ through\ .values}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00794}00794\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ paths\ below\ (might\ change\ to\ .\_values)}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00795}00795\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ value\_slice\ =\ dtype.construct\_array\_type().\_concat\_same\_type(}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00796}00796\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ [x.\_values.astype(dtype,\ copy=\textcolor{keyword}{False})\ \textcolor{keywordflow}{for}\ \_,\ x\ \textcolor{keywordflow}{in}\ subset.items()]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00797}00797\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00798}00798\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ N,\ K\ =\ subset.shape}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00799}00799\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ idx\ =\ np.arange(N\ *\ K).reshape(K,\ N).T.ravel()}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00800}00800\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ value\_slice\ =\ value\_slice.take(idx)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00801}00801\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00802}00802\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ value\_slice\ =\ subset.values}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00803}00803\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00804}00804\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ value\_slice.ndim\ >\ 1:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00805}00805\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ i.e.\ not\ extension}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00806}00806\ \ \ \ \ \ \ \ \ \ \ \ \ value\_slice\ =\ value\_slice.ravel()}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00807}00807\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00808}00808\ \ \ \ \ \ \ \ \ new\_data[key]\ =\ value\_slice}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00809}00809\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00810}00810\ \ \ \ \ \textcolor{keywordflow}{if}\ len(drop\_cols)\ >\ 0:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00811}00811\ \ \ \ \ \ \ \ \ new\_columns\ =\ new\_columns.difference(drop\_cols)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00812}00812\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00813}00813\ \ \ \ \ N\ =\ len(this)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00814}00814\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00815}00815\ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(this.index,\ MultiIndex):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00816}00816\ \ \ \ \ \ \ \ \ new\_levels\ =\ list(this.index.levels)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00817}00817\ \ \ \ \ \ \ \ \ new\_names\ =\ list(this.index.names)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00818}00818\ \ \ \ \ \ \ \ \ new\_codes\ =\ [lab.repeat(levsize)\ \textcolor{keywordflow}{for}\ lab\ \textcolor{keywordflow}{in}\ this.index.codes]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00819}00819\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00820}00820\ \ \ \ \ \ \ \ \ old\_codes,\ old\_levels\ =\ factorize\_from\_iterable(this.index)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00821}00821\ \ \ \ \ \ \ \ \ new\_levels\ =\ [old\_levels]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00822}00822\ \ \ \ \ \ \ \ \ new\_codes\ =\ [old\_codes.repeat(levsize)]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00823}00823\ \ \ \ \ \ \ \ \ new\_names\ =\ [this.index.name]\ \ \textcolor{comment}{\#\ something\ better?}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00824}00824\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00825}00825\ \ \ \ \ new\_levels.append(level\_vals)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00826}00826\ \ \ \ \ new\_codes.append(np.tile(level\_codes,\ N))}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00827}00827\ \ \ \ \ new\_names.append(frame.columns.names[level\_num])}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00828}00828\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00829}00829\ \ \ \ \ new\_index\ =\ \mbox{\hyperlink{classpandas_1_1core_1_1indexes_1_1multi_1_1MultiIndex}{MultiIndex}}(}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00830}00830\ \ \ \ \ \ \ \ \ levels=new\_levels,\ codes=new\_codes,\ names=new\_names,\ verify\_integrity=\textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00831}00831\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00832}00832\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00833}00833\ \ \ \ \ result\ =\ frame.\_constructor(new\_data,\ index=new\_index,\ columns=new\_columns)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00834}00834\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00835}00835\ \ \ \ \ \textcolor{keywordflow}{if}\ frame.columns.nlevels\ >\ 1:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00836}00836\ \ \ \ \ \ \ \ \ desired\_columns\ =\ frame.columns.\_drop\_level\_numbers([level\_num]).unique()}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00837}00837\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ result.columns.equals(desired\_columns):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00838}00838\ \ \ \ \ \ \ \ \ \ \ \ \ result\ =\ result[desired\_columns]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00839}00839\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00840}00840\ \ \ \ \ \textcolor{comment}{\#\ more\ efficient\ way\ to\ go\ about\ this?\ can\ do\ the\ whole\ masking\ biz\ but}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00841}00841\ \ \ \ \ \textcolor{comment}{\#\ will\ only\ save\ a\ small\ amount\ of\ time...}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00842}00842\ \ \ \ \ \textcolor{keywordflow}{if}\ dropna:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00843}00843\ \ \ \ \ \ \ \ \ result\ =\ result.dropna(axis=0,\ how=\textcolor{stringliteral}{"{}all"{}})}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00844}00844\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00845}00845\ \ \ \ \ \textcolor{keywordflow}{return}\ result}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00846}00846\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00847}00847\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00848}\mbox{\hyperlink{namespacepandas_1_1core_1_1reshape_1_1reshape_a47efa768da0a75cbbfcc42c21ba1db28}{00848}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1core_1_1reshape_1_1reshape_a47efa768da0a75cbbfcc42c21ba1db28}{\_reorder\_for\_extension\_array\_stack}}(}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00849}00849\ \ \ \ \ arr:\ ExtensionArray,\ n\_rows:\ int,\ n\_columns:\ int}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00850}00850\ )\ -\/>\ ExtensionArray:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00851}00851\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00852}00852\ \textcolor{stringliteral}{\ \ \ \ Re-\/orders\ the\ values\ when\ stacking\ multiple\ extension-\/arrays.}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00853}00853\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00854}00854\ \textcolor{stringliteral}{\ \ \ \ The\ indirect\ stacking\ method\ used\ for\ EAs\ requires\ a\ followup}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00855}00855\ \textcolor{stringliteral}{\ \ \ \ take\ to\ get\ the\ order\ correct.}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00856}00856\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00857}00857\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00858}00858\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00859}00859\ \textcolor{stringliteral}{\ \ \ \ arr\ :\ ExtensionArray}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00860}00860\ \textcolor{stringliteral}{\ \ \ \ n\_rows,\ n\_columns\ :\ int}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00861}00861\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ number\ of\ rows\ and\ columns\ in\ the\ original\ DataFrame.}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00862}00862\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00863}00863\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00864}00864\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00865}00865\ \textcolor{stringliteral}{\ \ \ \ taken\ :\ ExtensionArray}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00866}00866\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ original\ \`{}arr\`{}\ with\ elements\ re-\/ordered\ appropriately}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00867}00867\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00868}00868\ \textcolor{stringliteral}{\ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00869}00869\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00870}00870\ \textcolor{stringliteral}{\ \ \ \ >>>\ arr\ =\ np.array(['a',\ 'b',\ 'c',\ 'd',\ 'e',\ 'f'])}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00871}00871\ \textcolor{stringliteral}{\ \ \ \ >>>\ \_reorder\_for\_extension\_array\_stack(arr,\ 2,\ 3)}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00872}00872\ \textcolor{stringliteral}{\ \ \ \ array(['a',\ 'c',\ 'e',\ 'b',\ 'd',\ 'f'],\ dtype='<U1')}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00873}00873\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00874}00874\ \textcolor{stringliteral}{\ \ \ \ >>>\ \_reorder\_for\_extension\_array\_stack(arr,\ 3,\ 2)}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00875}00875\ \textcolor{stringliteral}{\ \ \ \ array(['a',\ 'd',\ 'b',\ 'e',\ 'c',\ 'f'],\ dtype='<U1')}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00876}00876\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00877}00877\ \ \ \ \ \textcolor{comment}{\#\ final\ take\ to\ get\ the\ order\ correct.}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00878}00878\ \ \ \ \ \textcolor{comment}{\#\ idx\ is\ an\ indexer\ like}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00879}00879\ \ \ \ \ \textcolor{comment}{\#\ [c0r0,\ c1r0,\ c2r0,\ ...,}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00880}00880\ \ \ \ \ \textcolor{comment}{\#\ \ c0r1,\ c1r1,\ c2r1,\ ...]}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00881}00881\ \ \ \ \ idx\ =\ np.arange(n\_rows\ *\ n\_columns).reshape(n\_columns,\ n\_rows).T.ravel()}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00882}00882\ \ \ \ \ \textcolor{keywordflow}{return}\ arr.take(idx)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00883}00883\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00884}00884\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00885}00885\ \textcolor{keyword}{def\ }stack\_v3(frame:\ DataFrame,\ level:\ list[int])\ -\/>\ Series\ |\ DataFrame:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00886}00886\ \ \ \ \ \textcolor{keywordflow}{if}\ frame.columns.nunique()\ !=\ len(frame.columns):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00887}00887\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}Columns\ with\ duplicate\ values\ are\ not\ supported\ in\ stack"{}})}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00888}00888\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00889}00889\ \ \ \ \ \textcolor{comment}{\#\ If\ we\ need\ to\ drop\ \`{}level`\ from\ columns,\ it\ needs\ to\ be\ in\ descending\ order}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00890}00890\ \ \ \ \ drop\_levnums\ =\ sorted(level,\ reverse=\textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00891}00891\ \ \ \ \ stack\_cols\ =\ frame.columns.\_drop\_level\_numbers(}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00892}00892\ \ \ \ \ \ \ \ \ [k\ \textcolor{keywordflow}{for}\ k\ \textcolor{keywordflow}{in}\ range(frame.columns.nlevels)\ \textcolor{keywordflow}{if}\ k\ \textcolor{keywordflow}{not}\ \textcolor{keywordflow}{in}\ level][::-\/1]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00893}00893\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00894}00894\ \ \ \ \ \textcolor{keywordflow}{if}\ len(level)\ >\ 1:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00895}00895\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Arrange\ columns\ in\ the\ order\ we\ want\ to\ take\ them,\ e.g.\ level=[2,\ 0,\ 1]}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00896}00896\ \ \ \ \ \ \ \ \ sorter\ =\ np.argsort(level)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00897}00897\ \ \ \ \ \ \ \ \ ordered\_stack\_cols\ =\ stack\_cols.\_reorder\_ilevels(sorter)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00898}00898\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00899}00899\ \ \ \ \ \ \ \ \ ordered\_stack\_cols\ =\ stack\_cols}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00900}00900\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00901}00901\ \ \ \ \ stack\_cols\_unique\ =\ stack\_cols.unique()}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00902}00902\ \ \ \ \ ordered\_stack\_cols\_unique\ =\ ordered\_stack\_cols.unique()}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00903}00903\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00904}00904\ \ \ \ \ \textcolor{comment}{\#\ Grab\ data\ for\ each\ unique\ index\ to\ be\ stacked}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00905}00905\ \ \ \ \ buf\ =\ []}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00906}00906\ \ \ \ \ \textcolor{keywordflow}{for}\ idx\ \textcolor{keywordflow}{in}\ stack\_cols\_unique:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00907}00907\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(frame.columns)\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00908}00908\ \ \ \ \ \ \ \ \ \ \ \ \ data\ =\ frame.copy()}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00909}00909\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00910}00910\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Take\ the\ data\ from\ frame\ corresponding\ to\ this\ idx\ value}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00911}00911\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(level)\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00912}00912\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ idx\ =\ (idx,)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00913}00913\ \ \ \ \ \ \ \ \ \ \ \ \ gen\ =\ iter(idx)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00914}00914\ \ \ \ \ \ \ \ \ \ \ \ \ column\_indexer\ =\ tuple(}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00915}00915\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ next(gen)\ \textcolor{keywordflow}{if}\ k\ \textcolor{keywordflow}{in}\ level\ \textcolor{keywordflow}{else}\ slice(\textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00916}00916\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ k\ \textcolor{keywordflow}{in}\ range(frame.columns.nlevels)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00917}00917\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00918}00918\ \ \ \ \ \ \ \ \ \ \ \ \ data\ =\ frame.loc[:,\ column\_indexer]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00919}00919\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00920}00920\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(level)\ <\ frame.columns.nlevels:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00921}00921\ \ \ \ \ \ \ \ \ \ \ \ \ data.columns\ =\ data.columns.\_drop\_level\_numbers(drop\_levnums)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00922}00922\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ stack\_cols.nlevels\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00923}00923\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ data.ndim\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00924}00924\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ data.name\ =\ 0}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00925}00925\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00926}00926\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ data.columns\ =\ \mbox{\hyperlink{classpandas_1_1core_1_1indexes_1_1range_1_1RangeIndex}{RangeIndex}}(len(data.columns))}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00927}00927\ \ \ \ \ \ \ \ \ buf.append(data)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00928}00928\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00929}00929\ \ \ \ \ result:\ Series\ |\ DataFrame}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00930}00930\ \ \ \ \ \textcolor{keywordflow}{if}\ len(buf)\ >\ 0\ \textcolor{keywordflow}{and}\ \textcolor{keywordflow}{not}\ frame.empty:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00931}00931\ \ \ \ \ \ \ \ \ result\ =\ concat(buf)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00932}00932\ \ \ \ \ \ \ \ \ ratio\ =\ len(result)\ //\ len(frame)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00933}00933\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00934}00934\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ input\ is\ empty}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00935}00935\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(level)\ <\ frame.columns.nlevels:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00936}00936\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ concat\ column\ order\ may\ be\ different\ from\ dropping\ the\ levels}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00937}00937\ \ \ \ \ \ \ \ \ \ \ \ \ new\_columns\ =\ frame.columns.\_drop\_level\_numbers(drop\_levnums).unique()}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00938}00938\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00939}00939\ \ \ \ \ \ \ \ \ \ \ \ \ new\_columns\ =\ [0]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00940}00940\ \ \ \ \ \ \ \ \ result\ =\ \mbox{\hyperlink{classpandas_1_1core_1_1frame_1_1DataFrame}{DataFrame}}(columns=new\_columns,\ dtype=frame.\_values.dtype)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00941}00941\ \ \ \ \ \ \ \ \ ratio\ =\ 0}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00942}00942\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00943}00943\ \ \ \ \ \textcolor{keywordflow}{if}\ len(level)\ <\ frame.columns.nlevels:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00944}00944\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ concat\ column\ order\ may\ be\ different\ from\ dropping\ the\ levels}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00945}00945\ \ \ \ \ \ \ \ \ desired\_columns\ =\ frame.columns.\_drop\_level\_numbers(drop\_levnums).unique()}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00946}00946\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ result.columns.equals(desired\_columns):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00947}00947\ \ \ \ \ \ \ \ \ \ \ \ \ result\ =\ result[desired\_columns]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00948}00948\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00949}00949\ \ \ \ \ \textcolor{comment}{\#\ Construct\ the\ correct\ MultiIndex\ by\ combining\ the\ frame's\ index\ and}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00950}00950\ \ \ \ \ \textcolor{comment}{\#\ stacked\ columns.}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00951}00951\ \ \ \ \ index\_levels:\ list\ |\ FrozenList}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00952}00952\ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(frame.index,\ MultiIndex):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00953}00953\ \ \ \ \ \ \ \ \ index\_levels\ =\ frame.index.levels}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00954}00954\ \ \ \ \ \ \ \ \ index\_codes\ =\ list(np.tile(frame.index.codes,\ (1,\ ratio)))}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00955}00955\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00956}00956\ \ \ \ \ \ \ \ \ codes,\ uniques\ =\ factorize(frame.index,\ use\_na\_sentinel=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00957}00957\ \ \ \ \ \ \ \ \ index\_levels\ =\ [uniques]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00958}00958\ \ \ \ \ \ \ \ \ index\_codes\ =\ list(np.tile(codes,\ (1,\ ratio)))}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00959}00959\ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(stack\_cols,\ MultiIndex):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00960}00960\ \ \ \ \ \ \ \ \ column\_levels\ =\ ordered\_stack\_cols.levels}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00961}00961\ \ \ \ \ \ \ \ \ column\_codes\ =\ ordered\_stack\_cols.drop\_duplicates().codes}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00962}00962\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00963}00963\ \ \ \ \ \ \ \ \ column\_levels\ =\ [ordered\_stack\_cols.unique()]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00964}00964\ \ \ \ \ \ \ \ \ column\_codes\ =\ [factorize(ordered\_stack\_cols\_unique,\ use\_na\_sentinel=\textcolor{keyword}{False})[0]]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00965}00965\ \ \ \ \ column\_codes\ =\ [np.repeat(codes,\ len(frame))\ \textcolor{keywordflow}{for}\ codes\ \textcolor{keywordflow}{in}\ column\_codes]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00966}00966\ \ \ \ \ result.index\ =\ \mbox{\hyperlink{classpandas_1_1core_1_1indexes_1_1multi_1_1MultiIndex}{MultiIndex}}(}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00967}00967\ \ \ \ \ \ \ \ \ levels=index\_levels\ +\ column\_levels,}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00968}00968\ \ \ \ \ \ \ \ \ codes=index\_codes\ +\ column\_codes,}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00969}00969\ \ \ \ \ \ \ \ \ names=frame.index.names\ +\ list(ordered\_stack\_cols.names),}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00970}00970\ \ \ \ \ \ \ \ \ verify\_integrity=\textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00971}00971\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00972}00972\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00973}00973\ \ \ \ \ \textcolor{comment}{\#\ sort\ result,\ but\ faster\ than\ calling\ sort\_index\ since\ we\ know\ the\ order\ we\ need}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00974}00974\ \ \ \ \ len\_df\ =\ len(frame)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00975}00975\ \ \ \ \ n\_uniques\ =\ len(ordered\_stack\_cols\_unique)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00976}00976\ \ \ \ \ indexer\ =\ np.arange(n\_uniques)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00977}00977\ \ \ \ \ idxs\ =\ np.tile(len\_df\ *\ indexer,\ len\_df)\ +\ np.repeat(np.arange(len\_df),\ n\_uniques)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00978}00978\ \ \ \ \ result\ =\ result.take(idxs)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00979}00979\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00980}00980\ \ \ \ \ \textcolor{comment}{\#\ Reshape/rename\ if\ needed\ and\ dropna}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00981}00981\ \ \ \ \ \textcolor{keywordflow}{if}\ result.ndim\ ==\ 2\ \textcolor{keywordflow}{and}\ frame.columns.nlevels\ ==\ len(level):}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00982}00982\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(result.columns)\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00983}00983\ \ \ \ \ \ \ \ \ \ \ \ \ result\ =\ \mbox{\hyperlink{classpandas_1_1core_1_1series_1_1Series}{Series}}(index=result.index)}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00984}00984\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00985}00985\ \ \ \ \ \ \ \ \ \ \ \ \ result\ =\ result.iloc[:,\ 0]}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00986}00986\ \ \ \ \ \textcolor{keywordflow}{if}\ result.ndim\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00987}00987\ \ \ \ \ \ \ \ \ result.name\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00988}00988\ }
+\DoxyCodeLine{\Hypertarget{reshape_8py_source_l00989}00989\ \ \ \ \ \textcolor{keywordflow}{return}\ result}
+
+\end{DoxyCode}

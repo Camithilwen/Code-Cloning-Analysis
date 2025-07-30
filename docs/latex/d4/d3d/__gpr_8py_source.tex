@@ -1,0 +1,681 @@
+\doxysection{\+\_\+gpr.\+py}
+\hypertarget{__gpr_8py_source}{}\label{__gpr_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/sklearn/gaussian\_process/\_gpr.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/sklearn/gaussian\_process/\_gpr.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00001}\mbox{\hyperlink{namespacesklearn_1_1gaussian__process_1_1__gpr}{00001}}\ \textcolor{stringliteral}{"{}"{}"{}Gaussian\ processes\ regression."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00002}00002\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00003}00003\ \textcolor{comment}{\#\ Authors:\ The\ scikit-\/learn\ developers}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00004}00004\ \textcolor{comment}{\#\ SPDX-\/License-\/Identifier:\ BSD-\/3-\/Clause}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00005}00005\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00006}00006\ \textcolor{keyword}{import}\ warnings}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00007}00007\ \textcolor{keyword}{from}\ numbers\ \textcolor{keyword}{import}\ Integral,\ Real}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00008}00008\ \textcolor{keyword}{from}\ operator\ \textcolor{keyword}{import}\ itemgetter}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00009}00009\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00010}00010\ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00011}00011\ \textcolor{keyword}{import}\ \mbox{\hyperlink{namespacescipy_1_1optimize}{scipy.optimize}}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00012}00012\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacescipy_1_1linalg}{scipy.linalg}}\ \textcolor{keyword}{import}\ cho\_solve,\ cholesky,\ solve\_triangular}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00013}00013\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00014}00014\ \textcolor{keyword}{from}\ ..base\ \textcolor{keyword}{import}\ BaseEstimator,\ MultiOutputMixin,\ RegressorMixin,\ \_fit\_context,\ clone}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00015}00015\ \textcolor{keyword}{from}\ ..preprocessing.\_data\ \textcolor{keyword}{import}\ \_handle\_zeros\_in\_scale}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00016}00016\ \textcolor{keyword}{from}\ ..utils\ \textcolor{keyword}{import}\ check\_random\_state}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00017}00017\ \textcolor{keyword}{from}\ ..utils.\_param\_validation\ \textcolor{keyword}{import}\ Interval,\ StrOptions}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00018}00018\ \textcolor{keyword}{from}\ ..utils.optimize\ \textcolor{keyword}{import}\ \_check\_optimize\_result}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00019}00019\ \textcolor{keyword}{from}\ ..utils.validation\ \textcolor{keyword}{import}\ validate\_data}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00020}00020\ \textcolor{keyword}{from}\ .kernels\ \textcolor{keyword}{import}\ RBF,\ Kernel}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00021}00021\ \textcolor{keyword}{from}\ .kernels\ \textcolor{keyword}{import}\ ConstantKernel\ \textcolor{keyword}{as}\ C}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00022}00022\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00023}00023\ GPR\_CHOLESKY\_LOWER\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00024}00024\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00025}00025\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00026}\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor}{00026}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor}{GaussianProcessRegressor}}(\mbox{\hyperlink{classsklearn_1_1base_1_1MultiOutputMixin}{MultiOutputMixin}},\ \mbox{\hyperlink{classsklearn_1_1base_1_1RegressorMixin}{RegressorMixin}},\ \mbox{\hyperlink{classsklearn_1_1base_1_1BaseEstimator}{BaseEstimator}}):}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00027}00027\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Gaussian\ process\ regression\ (GPR).}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00028}00028\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00029}00029\ \textcolor{stringliteral}{\ \ \ \ The\ implementation\ is\ based\ on\ Algorithm\ 2.1\ of\ [RW2006]\_.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00030}00030\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00031}00031\ \textcolor{stringliteral}{\ \ \ \ In\ addition\ to\ standard\ scikit-\/learn\ estimator\ API,}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00032}00032\ \textcolor{stringliteral}{\ \ \ \ :class:\`{}GaussianProcessRegressor\`{}:}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00033}00033\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00034}00034\ \textcolor{stringliteral}{\ \ \ \ *\ allows\ prediction\ without\ prior\ fitting\ (based\ on\ the\ GP\ prior)}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00035}00035\ \textcolor{stringliteral}{\ \ \ \ *\ provides\ an\ additional\ method\ \`{}sample\_y(X)\`{},\ which\ evaluates\ samples}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00036}00036\ \textcolor{stringliteral}{\ \ \ \ \ \ drawn\ from\ the\ GPR\ (prior\ or\ posterior)\ at\ given\ inputs}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00037}00037\ \textcolor{stringliteral}{\ \ \ \ *\ exposes\ a\ method\ \`{}log\_marginal\_likelihood(theta)\`{},\ which\ can\ be\ used}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00038}00038\ \textcolor{stringliteral}{\ \ \ \ \ \ externally\ for\ other\ ways\ of\ selecting\ hyperparameters,\ e.g.,\ via}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00039}00039\ \textcolor{stringliteral}{\ \ \ \ \ \ Markov\ chain\ Monte\ Carlo.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00040}00040\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00041}00041\ \textcolor{stringliteral}{\ \ \ \ To\ learn\ the\ difference\ between\ a\ point-\/estimate\ approach\ vs.\ a\ more}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00042}00042\ \textcolor{stringliteral}{\ \ \ \ Bayesian\ modelling\ approach,\ refer\ to\ the\ example\ entitled}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00043}00043\ \textcolor{stringliteral}{\ \ \ \ :ref:\`{}sphx\_glr\_auto\_examples\_gaussian\_process\_plot\_compare\_gpr\_krr.py\`{}.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00044}00044\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00045}00045\ \textcolor{stringliteral}{\ \ \ \ Read\ more\ in\ the\ :ref:\`{}User\ Guide\ <gaussian\_process>\`{}.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00046}00046\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00047}00047\ \textcolor{stringliteral}{\ \ \ \ ..\ versionadded::\ 0.18}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00048}00048\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00049}00049\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00050}00050\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00051}00051\ \textcolor{stringliteral}{\ \ \ \ kernel\ :\ kernel\ instance,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00052}00052\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ kernel\ specifying\ the\ covariance\ function\ of\ the\ GP.\ If\ None\ is}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00053}00053\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ passed,\ the\ kernel\ \`{}\`{}ConstantKernel(1.0,\ constant\_value\_bounds="{}fixed"{})}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00054}00054\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ *\ RBF(1.0,\ length\_scale\_bounds="{}fixed"{})\`{}\`{}\ is\ used\ as\ default.\ Note\ that}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00055}00055\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ kernel\ hyperparameters\ are\ optimized\ during\ fitting\ unless\ the}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00056}00056\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ bounds\ are\ marked\ as\ "{}fixed"{}.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00057}00057\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00058}00058\ \textcolor{stringliteral}{\ \ \ \ alpha\ :\ float\ or\ ndarray\ of\ shape\ (n\_samples,),\ default=1e-\/10}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00059}00059\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Value\ added\ to\ the\ diagonal\ of\ the\ kernel\ matrix\ during\ fitting.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00060}00060\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ This\ can\ prevent\ a\ potential\ numerical\ issue\ during\ fitting,\ by}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00061}00061\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ensuring\ that\ the\ calculated\ values\ form\ a\ positive\ definite\ matrix.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00062}00062\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ It\ can\ also\ be\ interpreted\ as\ the\ variance\ of\ additional\ Gaussian}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00063}00063\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ measurement\ noise\ on\ the\ training\ observations.\ Note\ that\ this\ is}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00064}00064\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ different\ from\ using\ a\ \`{}WhiteKernel\`{}.\ If\ an\ array\ is\ passed,\ it\ must}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00065}00065\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ have\ the\ same\ number\ of\ entries\ as\ the\ data\ used\ for\ fitting\ and\ is}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00066}00066\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ used\ as\ datapoint-\/dependent\ noise\ level.\ Allowing\ to\ specify\ the}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00067}00067\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ noise\ level\ directly\ as\ a\ parameter\ is\ mainly\ for\ convenience\ and}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00068}00068\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ for\ consistency\ with\ :class:\`{}\string~sklearn.linear\_model.Ridge\`{}.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00069}00069\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ For\ an\ example\ illustrating\ how\ the\ alpha\ parameter\ controls}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00070}00070\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ noise\ variance\ in\ Gaussian\ Process\ Regression,\ see}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00071}00071\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :ref:\`{}sphx\_glr\_auto\_examples\_gaussian\_process\_plot\_gpr\_noisy\_targets.py\`{}.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00072}00072\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00073}00073\ \textcolor{stringliteral}{\ \ \ \ optimizer\ :\ "{}fmin\_l\_bfgs\_b"{},\ callable\ or\ None,\ default="{}fmin\_l\_bfgs\_b"{}}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00074}00074\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Can\ either\ be\ one\ of\ the\ internally\ supported\ optimizers\ for\ optimizing}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00075}00075\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ kernel's\ parameters,\ specified\ by\ a\ string,\ or\ an\ externally}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00076}00076\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ defined\ optimizer\ passed\ as\ a\ callable.\ If\ a\ callable\ is\ passed,\ it}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00077}00077\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ must\ have\ the\ signature::}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00078}00078\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00079}00079\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ def\ optimizer(obj\_func,\ initial\_theta,\ bounds):}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00080}00080\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \#\ *\ 'obj\_func':\ the\ objective\ function\ to\ be\ minimized,\ which}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00081}00081\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \#\ \ \ takes\ the\ hyperparameters\ theta\ as\ a\ parameter\ and\ an}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00082}00082\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \#\ \ \ optional\ flag\ eval\_gradient,\ which\ determines\ if\ the}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00083}00083\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \#\ \ \ gradient\ is\ returned\ additionally\ to\ the\ function\ value}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00084}00084\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \#\ *\ 'initial\_theta':\ the\ initial\ value\ for\ theta,\ which\ can\ be}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00085}00085\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \#\ \ \ used\ by\ local\ optimizers}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00086}00086\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \#\ *\ 'bounds':\ the\ bounds\ on\ the\ values\ of\ theta}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00087}00087\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ....}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00088}00088\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \#\ Returned\ are\ the\ best\ found\ hyperparameters\ theta\ and}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00089}00089\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \#\ the\ corresponding\ value\ of\ the\ target\ function.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00090}00090\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ return\ theta\_opt,\ func\_min}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00091}00091\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00092}00092\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Per\ default,\ the\ L-\/BFGS-\/B\ algorithm\ from\ \`{}scipy.optimize.minimize\`{}}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00093}00093\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ is\ used.\ If\ None\ is\ passed,\ the\ kernel's\ parameters\ are\ kept\ fixed.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00094}00094\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Available\ internal\ optimizers\ are:\ \`{}\{'fmin\_l\_bfgs\_b'\}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00095}00095\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00096}00096\ \textcolor{stringliteral}{\ \ \ \ n\_restarts\_optimizer\ :\ int,\ default=0}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00097}00097\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ number\ of\ restarts\ of\ the\ optimizer\ for\ finding\ the\ kernel's}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00098}00098\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ parameters\ which\ maximize\ the\ log-\/marginal\ likelihood.\ The\ first\ run}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00099}00099\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ of\ the\ optimizer\ is\ performed\ from\ the\ kernel's\ initial\ parameters,}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00100}00100\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ remaining\ ones\ (if\ any)\ from\ thetas\ sampled\ log-\/uniform\ randomly}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00101}00101\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ from\ the\ space\ of\ allowed\ theta-\/values.\ If\ greater\ than\ 0,\ all\ bounds}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00102}00102\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ must\ be\ finite.\ Note\ that\ \`{}n\_restarts\_optimizer\ ==\ 0\`{}\ implies\ that\ one}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00103}00103\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ run\ is\ performed.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00104}00104\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00105}00105\ \textcolor{stringliteral}{\ \ \ \ normalize\_y\ :\ bool,\ default=False}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00106}00106\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Whether\ or\ not\ to\ normalize\ the\ target\ values\ \`{}y\`{}\ by\ removing\ the\ mean}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00107}00107\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ and\ scaling\ to\ unit-\/variance.\ This\ is\ recommended\ for\ cases\ where}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00108}00108\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ zero-\/mean,\ unit-\/variance\ priors\ are\ used.\ Note\ that,\ in\ this}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00109}00109\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ implementation,\ the\ normalisation\ is\ reversed\ before\ the\ GP\ predictions}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00110}00110\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ are\ reported.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00111}00111\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00112}00112\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionchanged::\ 0.23}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00113}00113\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00114}00114\ \textcolor{stringliteral}{\ \ \ \ copy\_X\_train\ :\ bool,\ default=True}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00115}00115\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ True,\ a\ persistent\ copy\ of\ the\ training\ data\ is\ stored\ in\ the}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00116}00116\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ object.\ Otherwise,\ just\ a\ reference\ to\ the\ training\ data\ is\ stored,}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00117}00117\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ which\ might\ cause\ predictions\ to\ change\ if\ the\ data\ is\ modified}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00118}00118\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ externally.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00119}00119\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00120}00120\ \textcolor{stringliteral}{\ \ \ \ n\_targets\ :\ int,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00121}00121\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ number\ of\ dimensions\ of\ the\ target\ values.\ Used\ to\ decide\ the\ number}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00122}00122\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ of\ outputs\ when\ sampling\ from\ the\ prior\ distributions\ (i.e.\ calling}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00123}00123\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :meth:\`{}sample\_y\`{}\ before\ :meth:\`{}fit\`{}).\ This\ parameter\ is\ ignored\ once}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00124}00124\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :meth:\`{}fit\`{}\ has\ been\ called.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00125}00125\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00126}00126\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 1.3}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00127}00127\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00128}00128\ \textcolor{stringliteral}{\ \ \ \ random\_state\ :\ int,\ RandomState\ instance\ or\ None,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00129}00129\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Determines\ random\ number\ generation\ used\ to\ initialize\ the\ centers.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00130}00130\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Pass\ an\ int\ for\ reproducible\ results\ across\ multiple\ function\ calls.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00131}00131\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ See\ :term:\`{}Glossary\ <random\_state>\`{}.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00132}00132\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00133}00133\ \textcolor{stringliteral}{\ \ \ \ Attributes}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00134}00134\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00135}00135\ \textcolor{stringliteral}{\ \ \ \ X\_train\_\ :\ array-\/like\ of\ shape\ (n\_samples,\ n\_features)\ or\ list\ of\ object}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00136}00136\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Feature\ vectors\ or\ other\ representations\ of\ training\ data\ (also}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00137}00137\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ required\ for\ prediction).}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00138}00138\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00139}00139\ \textcolor{stringliteral}{\ \ \ \ y\_train\_\ :\ array-\/like\ of\ shape\ (n\_samples,)\ or\ (n\_samples,\ n\_targets)}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00140}00140\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Target\ values\ in\ training\ data\ (also\ required\ for\ prediction).}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00141}00141\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00142}00142\ \textcolor{stringliteral}{\ \ \ \ kernel\_\ :\ kernel\ instance}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00143}00143\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ kernel\ used\ for\ prediction.\ The\ structure\ of\ the\ kernel\ is\ the}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00144}00144\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ same\ as\ the\ one\ passed\ as\ parameter\ but\ with\ optimized\ hyperparameters.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00145}00145\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00146}00146\ \textcolor{stringliteral}{\ \ \ \ L\_\ :\ array-\/like\ of\ shape\ (n\_samples,\ n\_samples)}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00147}00147\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Lower-\/triangular\ Cholesky\ decomposition\ of\ the\ kernel\ in\ \`{}\`{}X\_train\_\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00148}00148\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00149}00149\ \textcolor{stringliteral}{\ \ \ \ alpha\_\ :\ array-\/like\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00150}00150\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Dual\ coefficients\ of\ training\ data\ points\ in\ kernel\ space.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00151}00151\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00152}00152\ \textcolor{stringliteral}{\ \ \ \ log\_marginal\_likelihood\_value\_\ :\ float}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00153}00153\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ log-\/marginal-\/likelihood\ of\ \`{}\`{}self.kernel\_.theta\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00154}00154\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00155}00155\ \textcolor{stringliteral}{\ \ \ \ n\_features\_in\_\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00156}00156\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ features\ seen\ during\ :term:\`{}fit\`{}.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00157}00157\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00158}00158\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 0.24}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00159}00159\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00160}00160\ \textcolor{stringliteral}{\ \ \ \ feature\_names\_in\_\ :\ ndarray\ of\ shape\ (\`{}n\_features\_in\_\`{},)}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00161}00161\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Names\ of\ features\ seen\ during\ :term:\`{}fit\`{}.\ Defined\ only\ when\ \`{}X\`{}}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00162}00162\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ has\ feature\ names\ that\ are\ all\ strings.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00163}00163\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00164}00164\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 1.0}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00165}00165\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00166}00166\ \textcolor{stringliteral}{\ \ \ \ See\ Also}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00167}00167\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00168}00168\ \textcolor{stringliteral}{\ \ \ \ GaussianProcessClassifier\ :\ Gaussian\ process\ classification\ (GPC)}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00169}00169\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ based\ on\ Laplace\ approximation.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00170}00170\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00171}00171\ \textcolor{stringliteral}{\ \ \ \ References}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00172}00172\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00173}00173\ \textcolor{stringliteral}{\ \ \ \ ..\ [RW2006]\ \`{}Carl\ E.\ Rasmussen\ and\ Christopher\ K.I.\ Williams,}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00174}00174\ \textcolor{stringliteral}{\ \ \ \ \ \ \ "{}Gaussian\ Processes\ for\ Machine\ Learning"{},}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00175}00175\ \textcolor{stringliteral}{\ \ \ \ \ \ \ MIT\ Press\ 2006\ <https://www.gaussianprocess.org/gpml/chapters/RW.pdf>\`{}\_}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00176}00176\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00177}00177\ \textcolor{stringliteral}{\ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00178}00178\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00179}00179\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.datasets\ import\ make\_friedman2}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00180}00180\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.gaussian\_process\ import\ GaussianProcessRegressor}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00181}00181\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.gaussian\_process.kernels\ import\ DotProduct,\ WhiteKernel}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00182}00182\ \textcolor{stringliteral}{\ \ \ \ >>>\ X,\ y\ =\ make\_friedman2(n\_samples=500,\ noise=0,\ random\_state=0)}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00183}00183\ \textcolor{stringliteral}{\ \ \ \ >>>\ kernel\ =\ DotProduct()\ +\ WhiteKernel()}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00184}00184\ \textcolor{stringliteral}{\ \ \ \ >>>\ gpr\ =\ GaussianProcessRegressor(kernel=kernel,}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00185}00185\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ \ \ \ random\_state=0).fit(X,\ y)}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00186}00186\ \textcolor{stringliteral}{\ \ \ \ >>>\ gpr.score(X,\ y)}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00187}00187\ \textcolor{stringliteral}{\ \ \ \ 0.3680...}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00188}00188\ \textcolor{stringliteral}{\ \ \ \ >>>\ gpr.predict(X[:2,:],\ return\_std=True)}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00189}00189\ \textcolor{stringliteral}{\ \ \ \ (array([653.0,\ 592.1]),\ array([316.6,\ 316.6]))}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00190}00190\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00191}00191\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00192}00192\ \ \ \ \ \_parameter\_constraints:\ dict\ =\ \{}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00193}00193\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}kernel"{}}:\ [\textcolor{keywordtype}{None},\ Kernel],}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00194}00194\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}alpha"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Real,\ 0,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}}),\ np.ndarray],}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00195}00195\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}optimizer"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1StrOptions}{StrOptions}}(\{\textcolor{stringliteral}{"{}fmin\_l\_bfgs\_b"{}}\}),\ callable,\ \textcolor{keywordtype}{None}],}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00196}00196\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}n\_restarts\_optimizer"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Integral,\ 0,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}})],}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00197}00197\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}normalize\_y"{}}:\ [\textcolor{stringliteral}{"{}boolean"{}}],}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00198}00198\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}copy\_X\_train"{}}:\ [\textcolor{stringliteral}{"{}boolean"{}}],}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00199}00199\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}n\_targets"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Integral,\ 1,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}}),\ \textcolor{keywordtype}{None}],}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00200}00200\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}random\_state"{}}:\ [\textcolor{stringliteral}{"{}random\_state"{}}],}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00201}00201\ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00202}00202\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00203}00203\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00204}00204\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00205}00205\ \ \ \ \ \ \ \ \ kernel=None,}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00206}00206\ \ \ \ \ \ \ \ \ *,}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00207}00207\ \ \ \ \ \ \ \ \ alpha=1e-\/10,}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00208}00208\ \ \ \ \ \ \ \ \ optimizer="{}fmin\_l\_bfgs\_b"{},}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00209}00209\ \ \ \ \ \ \ \ \ n\_restarts\_optimizer=0,}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00210}00210\ \ \ \ \ \ \ \ \ normalize\_y=False,}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00211}00211\ \ \ \ \ \ \ \ \ copy\_X\_train=True,}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00212}00212\ \ \ \ \ \ \ \ \ n\_targets=None,}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00213}00213\ \ \ \ \ \ \ \ \ random\_state=None,}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00214}00214\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00215}00215\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_af846d5cd1e17dfa525fb99fcaa867ed7}{kernel}}\ =\ kernel}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00216}00216\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_abc89fb029f5d119897dd84616d84cc91}{alpha}}\ =\ alpha}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00217}00217\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_ae974bf9af46dbf9052e39cce9a0fcb42}{optimizer}}\ =\ optimizer}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00218}00218\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_aeca5128011525338dfc4773c9ec15df8}{n\_restarts\_optimizer}}\ =\ n\_restarts\_optimizer}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00219}00219\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a9afd45fe3416504d43c4b9a7f53240a2}{normalize\_y}}\ =\ normalize\_y}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00220}00220\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a658f726e6f37d4b3f2739b4ffe3b9fb0}{copy\_X\_train}}\ =\ copy\_X\_train}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00221}00221\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a08da11091adb5c4c035ec9af056eac6c}{n\_targets}}\ =\ n\_targets}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00222}00222\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a54770fcb8d43e6d4cfe331733dd2a95f}{random\_state}}\ =\ random\_state}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00223}00223\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00224}00224\ \ \ \ \ \textcolor{preprocessor}{@\_fit\_context(prefer\_skip\_nested\_validation=True)}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00225}\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_ade4077cc91e436180791b0f6a7bc0aba}{00225}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_ade4077cc91e436180791b0f6a7bc0aba}{fit}}(self,\ X,\ y):}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00226}00226\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Fit\ Gaussian\ process\ regression\ model.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00227}00227\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00228}00228\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00229}00229\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00230}00230\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\ :\ array-\/like\ of\ shape\ (n\_samples,\ n\_features)\ or\ list\ of\ object}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00231}00231\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Feature\ vectors\ or\ other\ representations\ of\ training\ data.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00232}00232\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00233}00233\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ y\ :\ array-\/like\ of\ shape\ (n\_samples,)\ or\ (n\_samples,\ n\_targets)}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00234}00234\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Target\ values.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00235}00235\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00236}00236\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00237}00237\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00238}00238\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ self\ :\ object}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00239}00239\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ GaussianProcessRegressor\ class\ instance.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00240}00240\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00241}00241\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_af846d5cd1e17dfa525fb99fcaa867ed7}{kernel}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:\ \ \textcolor{comment}{\#\ Use\ an\ RBF\ kernel\ as\ default}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00242}00242\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a6ad32ca507113ebc23df62d98f85b1ea}{kernel\_}}\ =\ \mbox{\hyperlink{classC}{C}}(1.0,\ constant\_value\_bounds=\textcolor{stringliteral}{"{}fixed"{}})\ *\ \mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1kernels_1_1RBF}{RBF}}(}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00243}00243\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ 1.0,\ length\_scale\_bounds=\textcolor{stringliteral}{"{}fixed"{}}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00244}00244\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00245}00245\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00246}00246\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a6ad32ca507113ebc23df62d98f85b1ea}{kernel\_}}\ =\ clone(self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_af846d5cd1e17dfa525fb99fcaa867ed7}{kernel}})}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00247}00247\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00248}00248\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a5313f334aba0f90ef98f380e5b552181}{\_rng}}\ =\ check\_random\_state(self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a54770fcb8d43e6d4cfe331733dd2a95f}{random\_state}})}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00249}00249\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00250}00250\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a6ad32ca507113ebc23df62d98f85b1ea}{kernel\_}}.requires\_vector\_input:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00251}00251\ \ \ \ \ \ \ \ \ \ \ \ \ dtype,\ ensure\_2d\ =\ \textcolor{stringliteral}{"{}numeric"{}},\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00252}00252\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00253}00253\ \ \ \ \ \ \ \ \ \ \ \ \ dtype,\ ensure\_2d\ =\ \textcolor{keywordtype}{None},\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00254}00254\ \ \ \ \ \ \ \ \ X,\ y\ =\ validate\_data(}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00255}00255\ \ \ \ \ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00256}00256\ \ \ \ \ \ \ \ \ \ \ \ \ X,}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00257}00257\ \ \ \ \ \ \ \ \ \ \ \ \ y,}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00258}00258\ \ \ \ \ \ \ \ \ \ \ \ \ multi\_output=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00259}00259\ \ \ \ \ \ \ \ \ \ \ \ \ y\_numeric=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00260}00260\ \ \ \ \ \ \ \ \ \ \ \ \ ensure\_2d=ensure\_2d,}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00261}00261\ \ \ \ \ \ \ \ \ \ \ \ \ dtype=dtype,}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00262}00262\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00263}00263\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00264}00264\ \ \ \ \ \ \ \ \ n\_targets\_seen\ =\ y.shape[1]\ \textcolor{keywordflow}{if}\ y.ndim\ >\ 1\ \textcolor{keywordflow}{else}\ 1}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00265}00265\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a08da11091adb5c4c035ec9af056eac6c}{n\_targets}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{and}\ n\_targets\_seen\ !=\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a08da11091adb5c4c035ec9af056eac6c}{n\_targets}}:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00266}00266\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00267}00267\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}The\ number\ of\ targets\ seen\ in\ \`{}y`\ is\ different\ from\ the\ parameter\ "{}}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00268}00268\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\`{}n\_targets`.\ Got\ \{n\_targets\_seen\}\ !=\ \{self.n\_targets\}."{}}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00269}00269\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00270}00270\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00271}00271\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Normalize\ target\ value}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00272}00272\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a9afd45fe3416504d43c4b9a7f53240a2}{normalize\_y}}:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00273}00273\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_aca3e904033b5bfa2f41362d228d94a39}{\_y\_train\_mean}}\ =\ np.mean(y,\ axis=0)}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00274}00274\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a38d727c8ede6547f8381384c33f1790e}{\_y\_train\_std}}\ =\ \_handle\_zeros\_in\_scale(np.std(y,\ axis=0),\ copy=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00275}00275\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00276}00276\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Remove\ mean\ and\ make\ unit\ variance}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00277}00277\ \ \ \ \ \ \ \ \ \ \ \ \ y\ =\ (y\ -\/\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_aca3e904033b5bfa2f41362d228d94a39}{\_y\_train\_mean}})\ /\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a38d727c8ede6547f8381384c33f1790e}{\_y\_train\_std}}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00278}00278\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00279}00279\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00280}00280\ \ \ \ \ \ \ \ \ \ \ \ \ shape\_y\_stats\ =\ (y.shape[1],)\ \textcolor{keywordflow}{if}\ y.ndim\ ==\ 2\ \textcolor{keywordflow}{else}\ 1}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00281}00281\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_aca3e904033b5bfa2f41362d228d94a39}{\_y\_train\_mean}}\ =\ np.zeros(shape=shape\_y\_stats)}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00282}00282\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a38d727c8ede6547f8381384c33f1790e}{\_y\_train\_std}}\ =\ np.ones(shape=shape\_y\_stats)}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00283}00283\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00284}00284\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ np.iterable(self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_abc89fb029f5d119897dd84616d84cc91}{alpha}})\ \textcolor{keywordflow}{and}\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_abc89fb029f5d119897dd84616d84cc91}{alpha}}.shape[0]\ !=\ y.shape[0]:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00285}00285\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_abc89fb029f5d119897dd84616d84cc91}{alpha}}.shape[0]\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00286}00286\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_abc89fb029f5d119897dd84616d84cc91}{alpha}}\ =\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_abc89fb029f5d119897dd84616d84cc91}{alpha}}[0]}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00287}00287\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00288}00288\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00289}00289\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}alpha\ must\ be\ a\ scalar\ or\ an\ array\ with\ same\ number\ of\ "{}}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00290}00290\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}entries\ as\ y.\ (\{self.alpha.shape[0]\}\ !=\ \{y.shape[0]\})"{}}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00291}00291\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00292}00292\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00293}00293\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a67461b5efc90794919da2f89486f2c5d}{X\_train\_}}\ =\ np.copy(X)\ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a658f726e6f37d4b3f2739b4ffe3b9fb0}{copy\_X\_train}}\ \textcolor{keywordflow}{else}\ X}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00294}00294\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_afd7e37c72447f44c7ba2a44c36b77dda}{y\_train\_}}\ =\ np.copy(y)\ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a658f726e6f37d4b3f2739b4ffe3b9fb0}{copy\_X\_train}}\ \textcolor{keywordflow}{else}\ y}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00295}00295\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00296}00296\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_ae974bf9af46dbf9052e39cce9a0fcb42}{optimizer}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{and}\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a6ad32ca507113ebc23df62d98f85b1ea}{kernel\_}}.n\_dims\ >\ 0:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00297}00297\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Choose\ hyperparameters\ based\ on\ maximizing\ the\ log-\/marginal}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00298}00298\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ likelihood\ (potentially\ starting\ from\ several\ initial\ values)}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00299}00299\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }obj\_func(theta,\ eval\_gradient=True):}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00300}00300\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ eval\_gradient:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00301}00301\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ lml,\ grad\ =\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_ae13a5f19a008496c28127232c7df7615}{log\_marginal\_likelihood}}(}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00302}00302\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ theta,\ eval\_gradient=\textcolor{keyword}{True},\ clone\_kernel=\textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00303}00303\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00304}00304\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ -\/lml,\ -\/grad}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00305}00305\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00306}00306\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ -\/self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_ae13a5f19a008496c28127232c7df7615}{log\_marginal\_likelihood}}(theta,\ clone\_kernel=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00307}00307\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00308}00308\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ First\ optimize\ starting\ from\ theta\ specified\ in\ kernel}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00309}00309\ \ \ \ \ \ \ \ \ \ \ \ \ optima\ =\ [}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00310}00310\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00311}00311\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_ae8cc5e8995a9e88832c54c6a0e4dcb32}{\_constrained\_optimization}}(}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00312}00312\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ obj\_func,\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a6ad32ca507113ebc23df62d98f85b1ea}{kernel\_}}.theta,\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a6ad32ca507113ebc23df62d98f85b1ea}{kernel\_}}.bounds}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00313}00313\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00314}00314\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00315}00315\ \ \ \ \ \ \ \ \ \ \ \ \ ]}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00316}00316\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00317}00317\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Additional\ runs\ are\ performed\ from\ log-\/uniform\ chosen\ initial}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00318}00318\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ theta}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00319}00319\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_aeca5128011525338dfc4773c9ec15df8}{n\_restarts\_optimizer}}\ >\ 0:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00320}00320\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ np.isfinite(self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a6ad32ca507113ebc23df62d98f85b1ea}{kernel\_}}.bounds).all():}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00321}00321\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00322}00322\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Multiple\ optimizer\ restarts\ (n\_restarts\_optimizer>0)\ "{}}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00323}00323\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}requires\ that\ all\ bounds\ are\ finite."{}}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00324}00324\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00325}00325\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ bounds\ =\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a6ad32ca507113ebc23df62d98f85b1ea}{kernel\_}}.bounds}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00326}00326\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ iteration\ \textcolor{keywordflow}{in}\ range(self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_aeca5128011525338dfc4773c9ec15df8}{n\_restarts\_optimizer}}):}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00327}00327\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ theta\_initial\ =\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a5313f334aba0f90ef98f380e5b552181}{\_rng}}.uniform(bounds[:,\ 0],\ bounds[:,\ 1])}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00328}00328\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ optima.append(}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00329}00329\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_ae8cc5e8995a9e88832c54c6a0e4dcb32}{\_constrained\_optimization}}(obj\_func,\ theta\_initial,\ bounds)}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00330}00330\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00331}00331\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Select\ result\ from\ run\ with\ minimal\ (negative)\ log-\/marginal}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00332}00332\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ likelihood}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00333}00333\ \ \ \ \ \ \ \ \ \ \ \ \ lml\_values\ =\ list(map(itemgetter(1),\ optima))}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00334}00334\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a6ad32ca507113ebc23df62d98f85b1ea}{kernel\_}}.theta\ =\ optima[np.argmin(lml\_values)][0]}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00335}00335\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a6ad32ca507113ebc23df62d98f85b1ea}{kernel\_}}.\_check\_bounds\_params()}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00336}00336\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00337}00337\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a2c36e6a2ff97d218370d8ceea7238a5a}{log\_marginal\_likelihood\_value\_}}\ =\ -\/np.min(lml\_values)}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00338}00338\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00339}00339\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a2c36e6a2ff97d218370d8ceea7238a5a}{log\_marginal\_likelihood\_value\_}}\ =\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_ae13a5f19a008496c28127232c7df7615}{log\_marginal\_likelihood}}(}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00340}00340\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a6ad32ca507113ebc23df62d98f85b1ea}{kernel\_}}.theta,\ clone\_kernel=\textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00341}00341\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00342}00342\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00343}00343\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Precompute\ quantities\ required\ for\ predictions\ which\ are\ independent}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00344}00344\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ of\ actual\ query\ points}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00345}00345\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Alg.\ 2.1,\ page\ 19,\ line\ 2\ -\/>\ L\ =\ cholesky(K\ +\ sigma\string^2\ I)}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00346}00346\ \ \ \ \ \ \ \ \ K\ =\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a6ad32ca507113ebc23df62d98f85b1ea}{kernel\_}}(self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a67461b5efc90794919da2f89486f2c5d}{X\_train\_}})}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00347}00347\ \ \ \ \ \ \ \ \ K[np.diag\_indices\_from(K)]\ +=\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_abc89fb029f5d119897dd84616d84cc91}{alpha}}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00348}00348\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00349}00349\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_aee925c9908927bcbef5a4f38b928aced}{L\_}}\ =\ cholesky(K,\ lower=GPR\_CHOLESKY\_LOWER,\ check\_finite=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00350}00350\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ \mbox{\hyperlink{classnp_1_1linalg_1_1LinAlgError}{np.linalg.LinAlgError}}\ \textcolor{keyword}{as}\ exc:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00351}00351\ \ \ \ \ \ \ \ \ \ \ \ \ exc.args\ =\ (}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00352}00352\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00353}00353\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}The\ kernel,\ \{self.kernel\_\},\ is\ not\ returning\ a\ positive\ "{}}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00354}00354\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}definite\ matrix.\ Try\ gradually\ increasing\ the\ 'alpha'\ "{}}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00355}00355\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}parameter\ of\ your\ GaussianProcessRegressor\ estimator."{}}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00356}00356\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00357}00357\ \ \ \ \ \ \ \ \ \ \ \ \ )\ +\ exc.args}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00358}00358\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00359}00359\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Alg\ 2.1,\ page\ 19,\ line\ 3\ -\/>\ alpha\ =\ L\string^T\ \(\backslash\)\ (L\ \(\backslash\)\ y)}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00360}00360\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a3db83b2a609a2c39200fdd4506adbc66}{alpha\_}}\ =\ cho\_solve(}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00361}00361\ \ \ \ \ \ \ \ \ \ \ \ \ (self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_aee925c9908927bcbef5a4f38b928aced}{L\_}},\ GPR\_CHOLESKY\_LOWER),}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00362}00362\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_afd7e37c72447f44c7ba2a44c36b77dda}{y\_train\_}},}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00363}00363\ \ \ \ \ \ \ \ \ \ \ \ \ check\_finite=\textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00364}00364\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00365}00365\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00366}00366\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00367}\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a390a70193d548557f9cdcd3775c2f3d2}{00367}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a390a70193d548557f9cdcd3775c2f3d2}{predict}}(self,\ X,\ return\_std=False,\ return\_cov=False):}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00368}00368\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Predict\ using\ the\ Gaussian\ process\ regression\ model.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00369}00369\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00370}00370\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ We\ can\ also\ predict\ based\ on\ an\ unfitted\ model\ by\ using\ the\ GP\ prior.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00371}00371\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ In\ addition\ to\ the\ mean\ of\ the\ predictive\ distribution,\ optionally\ also}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00372}00372\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ returns\ its\ standard\ deviation\ (\`{}return\_std=True\`{})\ or\ covariance}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00373}00373\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ (\`{}return\_cov=True\`{}).\ Note\ that\ at\ most\ one\ of\ the\ two\ can\ be\ requested.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00374}00374\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00375}00375\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00376}00376\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00377}00377\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\ :\ array-\/like\ of\ shape\ (n\_samples,\ n\_features)\ or\ list\ of\ object}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00378}00378\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Query\ points\ where\ the\ GP\ is\ evaluated.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00379}00379\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00380}00380\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ return\_std\ :\ bool,\ default=False}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00381}00381\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ If\ True,\ the\ standard-\/deviation\ of\ the\ predictive\ distribution\ at}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00382}00382\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ the\ query\ points\ is\ returned\ along\ with\ the\ mean.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00383}00383\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00384}00384\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ return\_cov\ :\ bool,\ default=False}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00385}00385\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ If\ True,\ the\ covariance\ of\ the\ joint\ predictive\ distribution\ at}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00386}00386\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ the\ query\ points\ is\ returned\ along\ with\ the\ mean.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00387}00387\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00388}00388\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00389}00389\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00390}00390\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ y\_mean\ :\ ndarray\ of\ shape\ (n\_samples,)\ or\ (n\_samples,\ n\_targets)}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00391}00391\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Mean\ of\ predictive\ distribution\ at\ query\ points.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00392}00392\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00393}00393\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ y\_std\ :\ ndarray\ of\ shape\ (n\_samples,)\ or\ (n\_samples,\ n\_targets),\ optional}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00394}00394\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Standard\ deviation\ of\ predictive\ distribution\ at\ query\ points.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00395}00395\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Only\ returned\ when\ \`{}return\_std\`{}\ is\ True.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00396}00396\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00397}00397\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ y\_cov\ :\ ndarray\ of\ shape\ (n\_samples,\ n\_samples)\ or\ \(\backslash\)}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00398}00398\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (n\_samples,\ n\_samples,\ n\_targets),\ optional}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00399}00399\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Covariance\ of\ joint\ predictive\ distribution\ at\ query\ points.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00400}00400\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Only\ returned\ when\ \`{}return\_cov\`{}\ is\ True.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00401}00401\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00402}00402\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ return\_std\ \textcolor{keywordflow}{and}\ return\_cov:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00403}00403\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classRuntimeError}{RuntimeError}}(}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00404}00404\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}At\ most\ one\ of\ return\_std\ or\ return\_cov\ can\ be\ requested."{}}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00405}00405\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00406}00406\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00407}00407\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_af846d5cd1e17dfa525fb99fcaa867ed7}{kernel}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{or}\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_af846d5cd1e17dfa525fb99fcaa867ed7}{kernel}}.requires\_vector\_input:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00408}00408\ \ \ \ \ \ \ \ \ \ \ \ \ dtype,\ ensure\_2d\ =\ \textcolor{stringliteral}{"{}numeric"{}},\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00409}00409\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00410}00410\ \ \ \ \ \ \ \ \ \ \ \ \ dtype,\ ensure\_2d\ =\ \textcolor{keywordtype}{None},\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00411}00411\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00412}00412\ \ \ \ \ \ \ \ \ X\ =\ validate\_data(self,\ X,\ ensure\_2d=ensure\_2d,\ dtype=dtype,\ reset=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00413}00413\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00414}00414\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ hasattr(self,\ \textcolor{stringliteral}{"{}X\_train\_"{}}):\ \ \textcolor{comment}{\#\ Unfitted;predict\ based\ on\ GP\ prior}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00415}00415\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_af846d5cd1e17dfa525fb99fcaa867ed7}{kernel}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00416}00416\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ kernel\ =\ \mbox{\hyperlink{classC}{C}}(1.0,\ constant\_value\_bounds=\textcolor{stringliteral}{"{}fixed"{}})\ *\ \mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1kernels_1_1RBF}{RBF}}(}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00417}00417\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ 1.0,\ length\_scale\_bounds=\textcolor{stringliteral}{"{}fixed"{}}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00418}00418\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00419}00419\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00420}00420\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ kernel\ =\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_af846d5cd1e17dfa525fb99fcaa867ed7}{kernel}}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00421}00421\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00422}00422\ \ \ \ \ \ \ \ \ \ \ \ \ n\_targets\ =\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a08da11091adb5c4c035ec9af056eac6c}{n\_targets}}\ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a08da11091adb5c4c035ec9af056eac6c}{n\_targets}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{else}\ 1}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00423}00423\ \ \ \ \ \ \ \ \ \ \ \ \ y\_mean\ =\ np.zeros(shape=(X.shape[0],\ n\_targets)).squeeze()}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00424}00424\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00425}00425\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ return\_cov:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00426}00426\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ y\_cov\ =\ kernel(X)}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00427}00427\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ n\_targets\ >\ 1:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00428}00428\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ y\_cov\ =\ np.repeat(}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00429}00429\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ np.expand\_dims(y\_cov,\ -\/1),\ repeats=n\_targets,\ axis=-\/1}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00430}00430\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00431}00431\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ y\_mean,\ y\_cov}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00432}00432\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ return\_std:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00433}00433\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ y\_var\ =\ kernel.diag(X)}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00434}00434\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ n\_targets\ >\ 1:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00435}00435\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ y\_var\ =\ np.repeat(}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00436}00436\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ np.expand\_dims(y\_var,\ -\/1),\ repeats=n\_targets,\ axis=-\/1}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00437}00437\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00438}00438\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ y\_mean,\ np.sqrt(y\_var)}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00439}00439\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00440}00440\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ y\_mean}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00441}00441\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:\ \ \textcolor{comment}{\#\ Predict\ based\ on\ GP\ posterior}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00442}00442\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Alg\ 2.1,\ page\ 19,\ line\ 4\ -\/>\ f*\_bar\ =\ K(X\_test,\ X\_train)\ .\ alpha}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00443}00443\ \ \ \ \ \ \ \ \ \ \ \ \ K\_trans\ =\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a6ad32ca507113ebc23df62d98f85b1ea}{kernel\_}}(X,\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a67461b5efc90794919da2f89486f2c5d}{X\_train\_}})}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00444}00444\ \ \ \ \ \ \ \ \ \ \ \ \ y\_mean\ =\ K\_trans\ @\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a3db83b2a609a2c39200fdd4506adbc66}{alpha\_}}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00445}00445\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00446}00446\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ undo\ normalisation}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00447}00447\ \ \ \ \ \ \ \ \ \ \ \ \ y\_mean\ =\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a38d727c8ede6547f8381384c33f1790e}{\_y\_train\_std}}\ *\ y\_mean\ +\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_aca3e904033b5bfa2f41362d228d94a39}{\_y\_train\_mean}}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00448}00448\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00449}00449\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ if\ y\_mean\ has\ shape\ (n\_samples,\ 1),\ reshape\ to\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00450}00450\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ y\_mean.ndim\ >\ 1\ \textcolor{keywordflow}{and}\ y\_mean.shape[1]\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00451}00451\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ y\_mean\ =\ np.squeeze(y\_mean,\ axis=1)}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00452}00452\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00453}00453\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Alg\ 2.1,\ page\ 19,\ line\ 5\ -\/>\ v\ =\ L\ \(\backslash\)\ K(X\_test,\ X\_train)\string^T}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00454}00454\ \ \ \ \ \ \ \ \ \ \ \ \ V\ =\ solve\_triangular(}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00455}00455\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_aee925c9908927bcbef5a4f38b928aced}{L\_}},\ K\_trans.T,\ lower=GPR\_CHOLESKY\_LOWER,\ check\_finite=\textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00456}00456\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00457}00457\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00458}00458\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ return\_cov:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00459}00459\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Alg\ 2.1,\ page\ 19,\ line\ 6\ -\/>\ K(X\_test,\ X\_test)\ -\/\ v\string^T.\ v}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00460}00460\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ y\_cov\ =\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a6ad32ca507113ebc23df62d98f85b1ea}{kernel\_}}(X)\ -\/\ V.T\ @\ V}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00461}00461\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00462}00462\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ undo\ normalisation}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00463}00463\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ y\_cov\ =\ np.outer(y\_cov,\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a38d727c8ede6547f8381384c33f1790e}{\_y\_train\_std}}**2).reshape(*y\_cov.shape,\ -\/1)}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00464}00464\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ if\ y\_cov\ has\ shape\ (n\_samples,\ n\_samples,\ 1),\ reshape\ to}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00465}00465\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ (n\_samples,\ n\_samples)}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00466}00466\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ y\_cov.shape[2]\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00467}00467\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ y\_cov\ =\ np.squeeze(y\_cov,\ axis=2)}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00468}00468\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00469}00469\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ y\_mean,\ y\_cov}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00470}00470\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ return\_std:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00471}00471\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Compute\ variance\ of\ predictive\ distribution}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00472}00472\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Use\ einsum\ to\ avoid\ explicitly\ forming\ the\ large\ matrix}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00473}00473\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ V\string^T\ @\ V\ just\ to\ extract\ its\ diagonal\ afterward.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00474}00474\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ y\_var\ =\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a6ad32ca507113ebc23df62d98f85b1ea}{kernel\_}}.diag(X).copy()}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00475}00475\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ y\_var\ -\/=\ np.einsum(\textcolor{stringliteral}{"{}ij,ji-\/>i"{}},\ V.T,\ V)}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00476}00476\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00477}00477\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Check\ if\ any\ of\ the\ variances\ is\ negative\ because\ of}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00478}00478\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ numerical\ issues.\ If\ yes:\ set\ the\ variance\ to\ 0.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00479}00479\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ y\_var\_negative\ =\ y\_var\ <\ 0}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00480}00480\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ np.any(y\_var\_negative):}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00481}00481\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00482}00482\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Predicted\ variances\ smaller\ than\ 0.\ "{}}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00483}00483\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Setting\ those\ variances\ to\ 0."{}}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00484}00484\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00485}00485\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ y\_var[y\_var\_negative]\ =\ 0.0}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00486}00486\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00487}00487\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ undo\ normalisation}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00488}00488\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ y\_var\ =\ np.outer(y\_var,\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a38d727c8ede6547f8381384c33f1790e}{\_y\_train\_std}}**2).reshape(*y\_var.shape,\ -\/1)}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00489}00489\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00490}00490\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ if\ y\_var\ has\ shape\ (n\_samples,\ 1),\ reshape\ to\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00491}00491\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ y\_var.shape[1]\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00492}00492\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ y\_var\ =\ np.squeeze(y\_var,\ axis=1)}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00493}00493\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00494}00494\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ y\_mean,\ np.sqrt(y\_var)}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00495}00495\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00496}00496\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ y\_mean}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00497}00497\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00498}\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a244700908024966019e0a5b5222febb4}{00498}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a244700908024966019e0a5b5222febb4}{sample\_y}}(self,\ X,\ n\_samples=1,\ random\_state=0):}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00499}00499\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Draw\ samples\ from\ Gaussian\ process\ and\ evaluate\ at\ X.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00500}00500\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00501}00501\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00502}00502\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00503}00503\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\ :\ array-\/like\ of\ shape\ (n\_samples\_X,\ n\_features)\ or\ list\ of\ object}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00504}00504\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Query\ points\ where\ the\ GP\ is\ evaluated.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00505}00505\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00506}00506\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ n\_samples\ :\ int,\ default=1}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00507}00507\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Number\ of\ samples\ drawn\ from\ the\ Gaussian\ process\ per\ query\ point.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00508}00508\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00509}00509\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ random\_state\ :\ int,\ RandomState\ instance\ or\ None,\ default=0}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00510}00510\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Determines\ random\ number\ generation\ to\ randomly\ draw\ samples.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00511}00511\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Pass\ an\ int\ for\ reproducible\ results\ across\ multiple\ function}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00512}00512\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ calls.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00513}00513\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ See\ :term:\`{}Glossary\ <random\_state>\`{}.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00514}00514\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00515}00515\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00516}00516\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00517}00517\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ y\_samples\ :\ ndarray\ of\ shape\ (n\_samples\_X,\ n\_samples),\ or\ \(\backslash\)}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00518}00518\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ (n\_samples\_X,\ n\_targets,\ n\_samples)}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00519}00519\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Values\ of\ n\_samples\ samples\ drawn\ from\ Gaussian\ process\ and}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00520}00520\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ evaluated\ at\ query\ points.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00521}00521\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00522}00522\ \ \ \ \ \ \ \ \ rng\ =\ check\_random\_state(random\_state)}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00523}00523\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00524}00524\ \ \ \ \ \ \ \ \ y\_mean,\ y\_cov\ =\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a390a70193d548557f9cdcd3775c2f3d2}{predict}}(X,\ return\_cov=\textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00525}00525\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ y\_mean.ndim\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00526}00526\ \ \ \ \ \ \ \ \ \ \ \ \ y\_samples\ =\ rng.multivariate\_normal(y\_mean,\ y\_cov,\ n\_samples).T}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00527}00527\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00528}00528\ \ \ \ \ \ \ \ \ \ \ \ \ y\_samples\ =\ [}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00529}00529\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ rng.multivariate\_normal(}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00530}00530\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ y\_mean[:,\ target],\ y\_cov[...,\ target],\ n\_samples}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00531}00531\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ).T[:,\ np.newaxis]}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00532}00532\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ target\ \textcolor{keywordflow}{in}\ range(y\_mean.shape[1])}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00533}00533\ \ \ \ \ \ \ \ \ \ \ \ \ ]}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00534}00534\ \ \ \ \ \ \ \ \ \ \ \ \ y\_samples\ =\ np.hstack(y\_samples)}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00535}00535\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ y\_samples}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00536}00536\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00537}\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_ae13a5f19a008496c28127232c7df7615}{00537}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_ae13a5f19a008496c28127232c7df7615}{log\_marginal\_likelihood}}(}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00538}00538\ \ \ \ \ \ \ \ \ self,\ theta=None,\ eval\_gradient=False,\ clone\_kernel=True}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00539}00539\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00540}00540\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Return\ log-\/marginal\ likelihood\ of\ theta\ for\ training\ data.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00541}00541\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00542}00542\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00543}00543\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00544}00544\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ theta\ :\ array-\/like\ of\ shape\ (n\_kernel\_params,)\ default=None}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00545}00545\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Kernel\ hyperparameters\ for\ which\ the\ log-\/marginal\ likelihood\ is}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00546}00546\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ evaluated.\ If\ None,\ the\ precomputed\ log\_marginal\_likelihood}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00547}00547\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ of\ \`{}\`{}self.kernel\_.theta\`{}\`{}\ is\ returned.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00548}00548\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00549}00549\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ eval\_gradient\ :\ bool,\ default=False}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00550}00550\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ If\ True,\ the\ gradient\ of\ the\ log-\/marginal\ likelihood\ with\ respect}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00551}00551\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ to\ the\ kernel\ hyperparameters\ at\ position\ theta\ is\ returned}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00552}00552\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ additionally.\ If\ True,\ theta\ must\ not\ be\ None.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00553}00553\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00554}00554\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ clone\_kernel\ :\ bool,\ default=True}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00555}00555\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ If\ True,\ the\ kernel\ attribute\ is\ copied.\ If\ False,\ the\ kernel}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00556}00556\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ attribute\ is\ modified,\ but\ may\ result\ in\ a\ performance\ improvement.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00557}00557\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00558}00558\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00559}00559\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00560}00560\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ log\_likelihood\ :\ float}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00561}00561\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Log-\/marginal\ likelihood\ of\ theta\ for\ training\ data.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00562}00562\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00563}00563\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ log\_likelihood\_gradient\ :\ ndarray\ of\ shape\ (n\_kernel\_params,),\ optional}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00564}00564\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Gradient\ of\ the\ log-\/marginal\ likelihood\ with\ respect\ to\ the\ kernel}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00565}00565\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ hyperparameters\ at\ position\ theta.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00566}00566\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Only\ returned\ when\ eval\_gradient\ is\ True.}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00567}00567\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00568}00568\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ theta\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00569}00569\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ eval\_gradient:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00570}00570\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}Gradient\ can\ only\ be\ evaluated\ for\ theta!=None"{}})}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00571}00571\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a2c36e6a2ff97d218370d8ceea7238a5a}{log\_marginal\_likelihood\_value\_}}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00572}00572\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00573}00573\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ clone\_kernel:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00574}00574\ \ \ \ \ \ \ \ \ \ \ \ \ kernel\ =\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a6ad32ca507113ebc23df62d98f85b1ea}{kernel\_}}.clone\_with\_theta(theta)}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00575}00575\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00576}00576\ \ \ \ \ \ \ \ \ \ \ \ \ kernel\ =\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a6ad32ca507113ebc23df62d98f85b1ea}{kernel\_}}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00577}00577\ \ \ \ \ \ \ \ \ \ \ \ \ kernel.theta\ =\ theta}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00578}00578\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00579}00579\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ eval\_gradient:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00580}00580\ \ \ \ \ \ \ \ \ \ \ \ \ K,\ K\_gradient\ =\ kernel(self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a67461b5efc90794919da2f89486f2c5d}{X\_train\_}},\ eval\_gradient=\textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00581}00581\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00582}00582\ \ \ \ \ \ \ \ \ \ \ \ \ K\ =\ kernel(self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_a67461b5efc90794919da2f89486f2c5d}{X\_train\_}})}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00583}00583\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00584}00584\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Alg.\ 2.1,\ page\ 19,\ line\ 2\ -\/>\ L\ =\ cholesky(K\ +\ sigma\string^2\ I)}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00585}00585\ \ \ \ \ \ \ \ \ K[np.diag\_indices\_from(K)]\ +=\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_abc89fb029f5d119897dd84616d84cc91}{alpha}}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00586}00586\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00587}00587\ \ \ \ \ \ \ \ \ \ \ \ \ L\ =\ cholesky(K,\ lower=GPR\_CHOLESKY\_LOWER,\ check\_finite=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00588}00588\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ \mbox{\hyperlink{classnp_1_1linalg_1_1LinAlgError}{np.linalg.LinAlgError}}:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00589}00589\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ (-\/np.inf,\ np.zeros\_like(theta))\ \textcolor{keywordflow}{if}\ eval\_gradient\ \textcolor{keywordflow}{else}\ -\/np.inf}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00590}00590\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00591}00591\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Support\ multi-\/dimensional\ output\ of\ self.y\_train\_}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00592}00592\ \ \ \ \ \ \ \ \ y\_train\ =\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_afd7e37c72447f44c7ba2a44c36b77dda}{y\_train\_}}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00593}00593\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ y\_train.ndim\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00594}00594\ \ \ \ \ \ \ \ \ \ \ \ \ y\_train\ =\ y\_train[:,\ np.newaxis]}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00595}00595\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00596}00596\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Alg\ 2.1,\ page\ 19,\ line\ 3\ -\/>\ alpha\ =\ L\string^T\ \(\backslash\)\ (L\ \(\backslash\)\ y)}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00597}00597\ \ \ \ \ \ \ \ \ alpha\ =\ cho\_solve((L,\ GPR\_CHOLESKY\_LOWER),\ y\_train,\ check\_finite=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00598}00598\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00599}00599\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Alg\ 2.1,\ page\ 19,\ line\ 7}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00600}00600\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ -\/0.5\ .\ y\string^T\ .\ alpha\ -\/\ sum(log(diag(L)))\ -\/\ n\_samples\ /\ 2\ log(2*pi)}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00601}00601\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ y\ is\ originally\ thought\ to\ be\ a\ (1,\ n\_samples)\ row\ vector.\ However,}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00602}00602\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ in\ multioutputs,\ y\ is\ of\ shape\ (n\_samples,\ 2)\ and\ we\ need\ to\ compute}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00603}00603\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ y\string^T\ .\ alpha\ for\ each\ output,\ independently\ using\ einsum.\ Thus,\ it}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00604}00604\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ is\ equivalent\ to:}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00605}00605\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ for\ output\_idx\ in\ range(n\_outputs):}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00606}00606\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ \ log\_likelihood\_dims[output\_idx]\ =\ (}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00607}00607\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ \ \ \ \ \ y\_train[:,\ [output\_idx]]\ @\ alpha[:,\ [output\_idx]]}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00608}00608\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ \ )}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00609}00609\ \ \ \ \ \ \ \ \ log\_likelihood\_dims\ =\ -\/0.5\ *\ np.einsum(\textcolor{stringliteral}{"{}ik,ik-\/>k"{}},\ y\_train,\ alpha)}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00610}00610\ \ \ \ \ \ \ \ \ log\_likelihood\_dims\ -\/=\ np.log(np.diag(L)).sum()}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00611}00611\ \ \ \ \ \ \ \ \ log\_likelihood\_dims\ -\/=\ K.shape[0]\ /\ 2\ *\ np.log(2\ *\ np.pi)}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00612}00612\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ the\ log\ likelihood\ is\ sum-\/up\ across\ the\ outputs}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00613}00613\ \ \ \ \ \ \ \ \ log\_likelihood\ =\ log\_likelihood\_dims.sum(axis=-\/1)}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00614}00614\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00615}00615\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ eval\_gradient:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00616}00616\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Eq.\ 5.9,\ p.\ 114,\ and\ footnote\ 5\ in\ p.\ 114}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00617}00617\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ 0.5\ *\ trace((alpha\ .\ alpha\string^T\ -\/\ K\string^-\/1)\ .\ K\_gradient)}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00618}00618\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ alpha\ is\ supposed\ to\ be\ a\ vector\ of\ (n\_samples,)\ elements.\ With}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00619}00619\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ multioutputs,\ alpha\ is\ a\ matrix\ of\ size\ (n\_samples,\ n\_outputs).}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00620}00620\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Therefore,\ we\ want\ to\ construct\ a\ matrix\ of}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00621}00621\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ (n\_samples,\ n\_samples,\ n\_outputs)\ equivalent\ to}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00622}00622\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ for\ output\_idx\ in\ range(n\_outputs):}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00623}00623\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ \ output\_alpha\ =\ alpha[:,\ [output\_idx]]}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00624}00624\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ \ inner\_term[...,\ output\_idx]\ =\ output\_alpha\ @\ output\_alpha.T}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00625}00625\ \ \ \ \ \ \ \ \ \ \ \ \ inner\_term\ =\ np.einsum(\textcolor{stringliteral}{"{}ik,jk-\/>ijk"{}},\ alpha,\ alpha)}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00626}00626\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ compute\ K\string^-\/1\ of\ shape\ (n\_samples,\ n\_samples)}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00627}00627\ \ \ \ \ \ \ \ \ \ \ \ \ K\_inv\ =\ cho\_solve(}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00628}00628\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (L,\ GPR\_CHOLESKY\_LOWER),\ np.eye(K.shape[0]),\ check\_finite=\textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00629}00629\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00630}00630\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ create\ a\ new\ axis\ to\ use\ broadcasting\ between\ inner\_term\ and}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00631}00631\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ K\_inv}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00632}00632\ \ \ \ \ \ \ \ \ \ \ \ \ inner\_term\ -\/=\ K\_inv[...,\ np.newaxis]}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00633}00633\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Since\ we\ are\ interested\ about\ the\ trace\ of}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00634}00634\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ inner\_term\ @\ K\_gradient,\ we\ don't\ explicitly\ compute\ the}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00635}00635\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ matrix-\/by-\/matrix\ operation\ and\ instead\ use\ an\ einsum.\ Therefore}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00636}00636\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ it\ is\ equivalent\ to:}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00637}00637\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ for\ param\_idx\ in\ range(n\_kernel\_params):}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00638}00638\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ \ for\ output\_idx\ in\ range(n\_output):}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00639}00639\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ \ \ \ \ \ log\_likehood\_gradient\_dims[param\_idx,\ output\_idx]\ =\ (}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00640}00640\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ \ \ \ \ \ \ \ \ \ inner\_term[...,\ output\_idx]\ @}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00641}00641\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ \ \ \ \ \ \ \ \ \ K\_gradient[...,\ param\_idx]}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00642}00642\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ \ \ \ \ \ )}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00643}00643\ \ \ \ \ \ \ \ \ \ \ \ \ log\_likelihood\_gradient\_dims\ =\ 0.5\ *\ np.einsum(}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00644}00644\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}ijl,jik-\/>kl"{}},\ inner\_term,\ K\_gradient}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00645}00645\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00646}00646\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ the\ log\ likelihood\ gradient\ is\ the\ sum-\/up\ across\ the\ outputs}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00647}00647\ \ \ \ \ \ \ \ \ \ \ \ \ log\_likelihood\_gradient\ =\ log\_likelihood\_gradient\_dims.sum(axis=-\/1)}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00648}00648\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00649}00649\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ eval\_gradient:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00650}00650\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ log\_likelihood,\ log\_likelihood\_gradient}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00651}00651\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00652}00652\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ log\_likelihood}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00653}00653\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00654}00654\ \ \ \ \ \textcolor{keyword}{def\ }\_constrained\_optimization(self,\ obj\_func,\ initial\_theta,\ bounds):}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00655}00655\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_ae974bf9af46dbf9052e39cce9a0fcb42}{optimizer}}\ ==\ \textcolor{stringliteral}{"{}fmin\_l\_bfgs\_b"{}}:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00656}00656\ \ \ \ \ \ \ \ \ \ \ \ \ opt\_res\ =\ scipy.optimize.minimize(}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00657}00657\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ obj\_func,}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00658}00658\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ initial\_theta,}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00659}00659\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ method=\textcolor{stringliteral}{"{}L-\/BFGS-\/B"{}},}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00660}00660\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ jac=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00661}00661\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ bounds=bounds,}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00662}00662\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00663}00663\ \ \ \ \ \ \ \ \ \ \ \ \ \_check\_optimize\_result(\textcolor{stringliteral}{"{}lbfgs"{}},\ opt\_res)}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00664}00664\ \ \ \ \ \ \ \ \ \ \ \ \ theta\_opt,\ func\_min\ =\ opt\_res.x,\ opt\_res.fun}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00665}00665\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ callable(self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_ae974bf9af46dbf9052e39cce9a0fcb42}{optimizer}}):}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00666}00666\ \ \ \ \ \ \ \ \ \ \ \ \ theta\_opt,\ func\_min\ =\ self.\mbox{\hyperlink{classsklearn_1_1gaussian__process_1_1__gpr_1_1GaussianProcessRegressor_ae974bf9af46dbf9052e39cce9a0fcb42}{optimizer}}(obj\_func,\ initial\_theta,\ bounds=bounds)}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00667}00667\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00668}00668\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(f\textcolor{stringliteral}{"{}Unknown\ optimizer\ \{self.optimizer\}."{}})}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00669}00669\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00670}00670\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ theta\_opt,\ func\_min}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00671}00671\ }
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00672}00672\ \ \ \ \ \textcolor{keyword}{def\ }\_\_sklearn\_tags\_\_(self):}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00673}00673\ \ \ \ \ \ \ \ \ tags\ =\ super().\_\_sklearn\_tags\_\_()}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00674}00674\ \ \ \ \ \ \ \ \ tags.requires\_fit\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__gpr_8py_source_l00675}00675\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ tags}
+
+\end{DoxyCode}

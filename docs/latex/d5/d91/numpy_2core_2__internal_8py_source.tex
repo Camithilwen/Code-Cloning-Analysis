@@ -1,0 +1,941 @@
+\doxysection{\+\_\+internal.\+py}
+\hypertarget{numpy_2core_2__internal_8py_source}{}\label{numpy_2core_2__internal_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/numpy/core/\_internal.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/numpy/core/\_internal.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00001}\mbox{\hyperlink{namespacenumpy_1_1core_1_1__internal}{00001}}\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00002}00002\ \textcolor{stringliteral}{A\ place\ for\ internal\ code}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00003}00003\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00004}00004\ \textcolor{stringliteral}{Some\ things\ are\ more\ easily\ handled\ Python.}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00005}00005\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00006}00006\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00007}00007\ \textcolor{keyword}{import}\ ast}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00008}00008\ \textcolor{keyword}{import}\ re}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00009}00009\ \textcolor{keyword}{import}\ sys}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00010}00010\ \textcolor{keyword}{import}\ warnings}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00011}00011\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00012}00012\ \textcolor{keyword}{from}\ ..exceptions\ \textcolor{keyword}{import}\ DTypePromotionError}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00013}00013\ \textcolor{keyword}{from}\ .multiarray\ \textcolor{keyword}{import}\ dtype,\ array,\ ndarray,\ promote\_types}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00014}00014\ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00015}00015\ \ \ \ \ \textcolor{keyword}{import}\ ctypes}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00016}00016\ \textcolor{keywordflow}{except}\ ImportError:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00017}00017\ \ \ \ \ ctypes\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00018}00018\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00019}00019\ IS\_PYPY\ =\ sys.implementation.name\ ==\ \textcolor{stringliteral}{'pypy'}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00020}00020\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00021}00021\ \textcolor{keywordflow}{if}\ sys.byteorder\ ==\ \textcolor{stringliteral}{'little'}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00022}00022\ \ \ \ \ \_nbo\ =\ \textcolor{stringliteral}{'<'}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00023}00023\ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00024}00024\ \ \ \ \ \_nbo\ =\ \textcolor{stringliteral}{'>'}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00025}00025\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00026}00026\ \textcolor{keyword}{def\ }\_makenames\_list(adict,\ align):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00027}00027\ \ \ \ \ allfields\ =\ []}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00028}00028\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00029}00029\ \ \ \ \ \textcolor{keywordflow}{for}\ fname,\ obj\ \textcolor{keywordflow}{in}\ adict.items():}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00030}00030\ \ \ \ \ \ \ \ \ n\ =\ len(obj)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00031}00031\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ isinstance(obj,\ tuple)\ \textcolor{keywordflow}{or}\ n\ \textcolor{keywordflow}{not}\ \textcolor{keywordflow}{in}\ (2,\ 3):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00032}00032\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}entry\ not\ a\ 2-\/\ or\ 3-\/\ tuple"{}})}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00033}00033\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ n\ >\ 2\ \textcolor{keywordflow}{and}\ obj[2]\ ==\ fname:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00034}00034\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00035}00035\ \ \ \ \ \ \ \ \ num\ =\ int(obj[1])}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00036}00036\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ num\ <\ 0:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00037}00037\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}invalid\ offset."{}})}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00038}00038\ \ \ \ \ \ \ \ \ format\ =\ \mbox{\hyperlink{namespacedtype}{dtype}}(obj[0],\ align=align)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00039}00039\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ n\ >\ 2:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00040}00040\ \ \ \ \ \ \ \ \ \ \ \ \ title\ =\ obj[2]}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00041}00041\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00042}00042\ \ \ \ \ \ \ \ \ \ \ \ \ title\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00043}00043\ \ \ \ \ \ \ \ \ allfields.append((fname,\ format,\ num,\ title))}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00044}00044\ \ \ \ \ \textcolor{comment}{\#\ sort\ by\ offsets}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00045}00045\ \ \ \ \ allfields.sort(key=\textcolor{keyword}{lambda}\ x:\ x[2])}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00046}00046\ \ \ \ \ names\ =\ [x[0]\ \textcolor{keywordflow}{for}\ x\ \textcolor{keywordflow}{in}\ allfields]}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00047}00047\ \ \ \ \ formats\ =\ [x[1]\ \textcolor{keywordflow}{for}\ x\ \textcolor{keywordflow}{in}\ allfields]}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00048}00048\ \ \ \ \ offsets\ =\ [x[2]\ \textcolor{keywordflow}{for}\ x\ \textcolor{keywordflow}{in}\ allfields]}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00049}00049\ \ \ \ \ titles\ =\ [x[3]\ \textcolor{keywordflow}{for}\ x\ \textcolor{keywordflow}{in}\ allfields]}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00050}00050\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00051}00051\ \ \ \ \ \textcolor{keywordflow}{return}\ names,\ formats,\ offsets,\ titles}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00052}00052\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00053}00053\ \textcolor{comment}{\#\ Called\ in\ PyArray\_DescrConverter\ function\ when}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00054}00054\ \textcolor{comment}{\#\ \ a\ dictionary\ without\ "{}names"{}\ and\ "{}formats"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00055}00055\ \textcolor{comment}{\#\ \ fields\ is\ used\ as\ a\ data-\/type\ descriptor.}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00056}00056\ \textcolor{keyword}{def\ }\_usefields(adict,\ align):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00057}00057\ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00058}00058\ \ \ \ \ \ \ \ \ names\ =\ adict[-\/1]}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00059}00059\ \ \ \ \ \textcolor{keywordflow}{except}\ KeyError:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00060}00060\ \ \ \ \ \ \ \ \ names\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00061}00061\ \ \ \ \ \textcolor{keywordflow}{if}\ names\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00062}00062\ \ \ \ \ \ \ \ \ names,\ formats,\ offsets,\ titles\ =\ \_makenames\_list(adict,\ align)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00063}00063\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00064}00064\ \ \ \ \ \ \ \ \ formats\ =\ []}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00065}00065\ \ \ \ \ \ \ \ \ offsets\ =\ []}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00066}00066\ \ \ \ \ \ \ \ \ titles\ =\ []}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00067}00067\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ name\ \textcolor{keywordflow}{in}\ names:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00068}00068\ \ \ \ \ \ \ \ \ \ \ \ \ res\ =\ adict[name]}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00069}00069\ \ \ \ \ \ \ \ \ \ \ \ \ formats.append(res[0])}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00070}00070\ \ \ \ \ \ \ \ \ \ \ \ \ offsets.append(res[1])}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00071}00071\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(res)\ >\ 2:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00072}00072\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ titles.append(res[2])}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00073}00073\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00074}00074\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ titles.append(\textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00075}00075\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00076}00076\ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{namespacedtype}{dtype}}(\{\textcolor{stringliteral}{"{}names"{}}:\ names,}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00077}00077\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}formats"{}}:\ formats,}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00078}00078\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}offsets"{}}:\ offsets,}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00079}00079\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}titles"{}}:\ titles\},\ align)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00080}00080\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00081}00081\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00082}00082\ \textcolor{comment}{\#\ construct\ an\ array\_protocol\ descriptor\ list}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00083}00083\ \textcolor{comment}{\#\ \ from\ the\ fields\ attribute\ of\ a\ descriptor}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00084}00084\ \textcolor{comment}{\#\ This\ calls\ itself\ recursively\ but\ should\ eventually\ hit}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00085}00085\ \textcolor{comment}{\#\ \ a\ descriptor\ that\ has\ no\ fields\ and\ then\ return}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00086}00086\ \textcolor{comment}{\#\ \ a\ simple\ typestring}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00087}00087\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00088}00088\ \textcolor{keyword}{def\ }\_array\_descr(descriptor):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00089}00089\ \ \ \ \ fields\ =\ descriptor.fields}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00090}00090\ \ \ \ \ \textcolor{keywordflow}{if}\ fields\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00091}00091\ \ \ \ \ \ \ \ \ subdtype\ =\ descriptor.subdtype}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00092}00092\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ subdtype\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00093}00093\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ descriptor.metadata\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00094}00094\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ descriptor.str}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00095}00095\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00096}00096\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ new\ =\ descriptor.metadata.copy()}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00097}00097\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ new:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00098}00098\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ (descriptor.str,\ new)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00099}00099\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00100}00100\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ descriptor.str}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00101}00101\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00102}00102\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ (\_array\_descr(subdtype[0]),\ subdtype[1])}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00103}00103\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00104}00104\ \ \ \ \ names\ =\ descriptor.names}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00105}00105\ \ \ \ \ ordered\_fields\ =\ [fields[x]\ +\ (x,)\ \textcolor{keywordflow}{for}\ x\ \textcolor{keywordflow}{in}\ names]}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00106}00106\ \ \ \ \ result\ =\ []}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00107}00107\ \ \ \ \ offset\ =\ 0}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00108}00108\ \ \ \ \ \textcolor{keywordflow}{for}\ field\ \textcolor{keywordflow}{in}\ ordered\_fields:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00109}00109\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ field[1]\ >\ offset:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00110}00110\ \ \ \ \ \ \ \ \ \ \ \ \ num\ =\ field[1]\ -\/\ offset}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00111}00111\ \ \ \ \ \ \ \ \ \ \ \ \ result.append((\textcolor{stringliteral}{''},\ f\textcolor{stringliteral}{'|V\{num\}'}))}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00112}00112\ \ \ \ \ \ \ \ \ \ \ \ \ offset\ +=\ num}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00113}00113\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ field[1]\ <\ offset:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00114}00114\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00115}00115\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}dtype.descr\ is\ not\ defined\ for\ types\ with\ overlapping\ or\ "{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00116}00116\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}out-\/of-\/order\ fields"{}})}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00117}00117\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(field)\ >\ 3:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00118}00118\ \ \ \ \ \ \ \ \ \ \ \ \ name\ =\ (field[2],\ field[3])}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00119}00119\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00120}00120\ \ \ \ \ \ \ \ \ \ \ \ \ name\ =\ field[2]}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00121}00121\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ field[0].subdtype:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00122}00122\ \ \ \ \ \ \ \ \ \ \ \ \ tup\ =\ (name,\ \_array\_descr(field[0].subdtype[0]),}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00123}00123\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ field[0].subdtype[1])}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00124}00124\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00125}00125\ \ \ \ \ \ \ \ \ \ \ \ \ tup\ =\ (name,\ \_array\_descr(field[0]))}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00126}00126\ \ \ \ \ \ \ \ \ offset\ +=\ field[0].itemsize}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00127}00127\ \ \ \ \ \ \ \ \ result.append(tup)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00128}00128\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00129}00129\ \ \ \ \ \textcolor{keywordflow}{if}\ descriptor.itemsize\ >\ offset:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00130}00130\ \ \ \ \ \ \ \ \ num\ =\ descriptor.itemsize\ -\/\ offset}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00131}00131\ \ \ \ \ \ \ \ \ result.append((\textcolor{stringliteral}{''},\ f\textcolor{stringliteral}{'|V\{num\}'}))}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00132}00132\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00133}00133\ \ \ \ \ \textcolor{keywordflow}{return}\ result}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00134}00134\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00135}00135\ \textcolor{comment}{\#\ Build\ a\ new\ array\ from\ the\ information\ in\ a\ pickle.}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00136}00136\ \textcolor{comment}{\#\ Note\ that\ the\ name\ numpy.core.\_internal.\_reconstruct\ is\ embedded\ in}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00137}00137\ \textcolor{comment}{\#\ pickles\ of\ ndarrays\ made\ with\ NumPy\ before\ release\ 1.0}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00138}00138\ \textcolor{comment}{\#\ so\ don't\ remove\ the\ name\ here,\ or\ you'll}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00139}00139\ \textcolor{comment}{\#\ break\ backward\ compatibility.}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00140}00140\ \textcolor{keyword}{def\ }\_reconstruct(subtype,\ shape,\ dtype):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00141}00141\ \ \ \ \ \textcolor{keywordflow}{return}\ ndarray.\_\_new\_\_(subtype,\ shape,\ dtype)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00142}00142\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00143}00143\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00144}00144\ \textcolor{comment}{\#\ format\_re\ was\ originally\ from\ numarray\ by\ J.\ Todd\ Miller}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00145}00145\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00146}00146\ format\_re\ =\ re.compile(\textcolor{stringliteral}{r'(?P<order1>[<>|=]?)'}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00147}00147\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r'(?P<repeats>\ *[(]?[\ ,0-\/9]*[)]?\ *)'}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00148}00148\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r'(?P<order2>[<>|=]?)'}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00149}00149\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r'(?P<dtype>[A-\/Za-\/z0-\/9.?]*(?:\(\backslash\)[[a-\/zA-\/Z0-\/9,.]+\(\backslash\)])?)'})}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00150}00150\ sep\_re\ =\ re.compile(\textcolor{stringliteral}{r'\(\backslash\)s*,\(\backslash\)s*'})}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00151}00151\ space\_re\ =\ re.compile(\textcolor{stringliteral}{r'\(\backslash\)s+\$'})}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00152}00152\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00153}00153\ \textcolor{comment}{\#\ astr\ is\ a\ string\ (perhaps\ comma\ separated)}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00154}00154\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00155}00155\ \_convorder\ =\ \{\textcolor{stringliteral}{'='}:\ \_nbo\}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00156}00156\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00157}00157\ \textcolor{keyword}{def\ }\_commastring(astr):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00158}00158\ \ \ \ \ startindex\ =\ 0}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00159}00159\ \ \ \ \ result\ =\ []}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00160}00160\ \ \ \ \ \textcolor{keywordflow}{while}\ startindex\ <\ len(astr):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00161}00161\ \ \ \ \ \ \ \ \ mo\ =\ format\_re.match(astr,\ pos=startindex)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00162}00162\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00163}00163\ \ \ \ \ \ \ \ \ \ \ \ \ (order1,\ repeats,\ order2,\ dtype)\ =\ mo.groups()}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00164}00164\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ (TypeError,\ AttributeError):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00165}00165\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00166}00166\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{'format\ number\ \{len(result)+1\}\ of\ "{}\{astr\}"{}\ is\ not\ recognized'}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00167}00167\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )\ \textcolor{keyword}{from}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00168}00168\ \ \ \ \ \ \ \ \ startindex\ =\ mo.end()}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00169}00169\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Separator\ or\ ending\ padding}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00170}00170\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ startindex\ <\ len(astr):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00171}00171\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ space\_re.match(astr,\ pos=startindex):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00172}00172\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ startindex\ =\ len(astr)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00173}00173\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00174}00174\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ mo\ =\ sep\_re.match(astr,\ pos=startindex)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00175}00175\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ mo:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00176}00176\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00177}00177\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'format\ number\ \%d\ of\ "{}\%s"{}\ is\ not\ recognized'}\ \%}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00178}00178\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (len(result)+1,\ astr))}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00179}00179\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ startindex\ =\ mo.end()}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00180}00180\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00181}00181\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ order2\ ==\ \textcolor{stringliteral}{''}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00182}00182\ \ \ \ \ \ \ \ \ \ \ \ \ order\ =\ order1}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00183}00183\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ order1\ ==\ \textcolor{stringliteral}{''}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00184}00184\ \ \ \ \ \ \ \ \ \ \ \ \ order\ =\ order2}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00185}00185\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00186}00186\ \ \ \ \ \ \ \ \ \ \ \ \ order1\ =\ \_convorder.get(order1,\ order1)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00187}00187\ \ \ \ \ \ \ \ \ \ \ \ \ order2\ =\ \_convorder.get(order2,\ order2)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00188}00188\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (order1\ !=\ order2):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00189}00189\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00190}00190\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'inconsistent\ byte-\/order\ specification\ \%s\ and\ \%s'}\ \%}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00191}00191\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (order1,\ order2))}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00192}00192\ \ \ \ \ \ \ \ \ \ \ \ \ order\ =\ order1}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00193}00193\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00194}00194\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ order\ \textcolor{keywordflow}{in}\ (\textcolor{stringliteral}{'|'},\ \textcolor{stringliteral}{'='},\ \_nbo):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00195}00195\ \ \ \ \ \ \ \ \ \ \ \ \ order\ =\ \textcolor{stringliteral}{''}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00196}00196\ \ \ \ \ \ \ \ \ dtype\ =\ order\ +\ dtype}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00197}00197\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (repeats\ ==\ \textcolor{stringliteral}{''}):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00198}00198\ \ \ \ \ \ \ \ \ \ \ \ \ newitem\ =\ dtype}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00199}00199\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00200}00200\ \ \ \ \ \ \ \ \ \ \ \ \ newitem\ =\ (dtype,\ ast.literal\_eval(repeats))}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00201}00201\ \ \ \ \ \ \ \ \ result.append(newitem)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00202}00202\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00203}00203\ \ \ \ \ \textcolor{keywordflow}{return}\ result}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00204}00204\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00205}\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1dummy__ctype}{00205}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1dummy__ctype}{dummy\_ctype}}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00206}00206\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ cls):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00207}00207\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1dummy__ctype_af2e3d7f1f459e64dd7020965abd032e0}{\_cls}}\ =\ cls}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00208}00208\ \ \ \ \ \textcolor{keyword}{def\ }\_\_mul\_\_(self,\ other):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00209}00209\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00210}00210\ \ \ \ \ \textcolor{keyword}{def\ }\_\_call\_\_(self,\ *other):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00211}00211\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1dummy__ctype_af2e3d7f1f459e64dd7020965abd032e0}{\_cls}}(other)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00212}00212\ \ \ \ \ \textcolor{keyword}{def\ }\_\_eq\_\_(self,\ other):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00213}00213\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1dummy__ctype_af2e3d7f1f459e64dd7020965abd032e0}{\_cls}}\ ==\ other.\_cls}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00214}00214\ \ \ \ \ \textcolor{keyword}{def\ }\_\_ne\_\_(self,\ other):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00215}00215\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1dummy__ctype_af2e3d7f1f459e64dd7020965abd032e0}{\_cls}}\ !=\ other.\_cls}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00216}00216\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00217}00217\ \textcolor{keyword}{def\ }\_getintp\_ctype():}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00218}00218\ \ \ \ \ val\ =\ \_getintp\_ctype.cache}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00219}00219\ \ \ \ \ \textcolor{keywordflow}{if}\ val\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00220}00220\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ val}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00221}00221\ \ \ \ \ \textcolor{keywordflow}{if}\ ctypes\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00222}00222\ \ \ \ \ \ \ \ \ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00223}00223\ \ \ \ \ \ \ \ \ val\ =\ \mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1dummy__ctype}{dummy\_ctype}}(np.intp)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00224}00224\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00225}00225\ \ \ \ \ \ \ \ \ char\ =\ \mbox{\hyperlink{namespacedtype}{dtype}}(\textcolor{stringliteral}{'p'}).char}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00226}00226\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ char\ ==\ \textcolor{stringliteral}{'i'}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00227}00227\ \ \ \ \ \ \ \ \ \ \ \ \ val\ =\ ctypes.c\_int}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00228}00228\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ char\ ==\ \textcolor{stringliteral}{'l'}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00229}00229\ \ \ \ \ \ \ \ \ \ \ \ \ val\ =\ ctypes.c\_long}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00230}00230\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ char\ ==\ \textcolor{stringliteral}{'q'}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00231}00231\ \ \ \ \ \ \ \ \ \ \ \ \ val\ =\ ctypes.c\_longlong}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00232}00232\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00233}00233\ \ \ \ \ \ \ \ \ \ \ \ \ val\ =\ ctypes.c\_long}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00234}00234\ \ \ \ \ \_getintp\_ctype.cache\ =\ val}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00235}00235\ \ \ \ \ \textcolor{keywordflow}{return}\ val}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00236}00236\ \_getintp\_ctype.cache\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00237}00237\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00238}00238\ \textcolor{comment}{\#\ Used\ for\ .ctypes\ attribute\ of\ ndarray}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00239}00239\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00240}\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__missing__ctypes}{00240}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__missing__ctypes}{\_missing\_ctypes}}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00241}00241\ \ \ \ \ \textcolor{keyword}{def\ }cast(self,\ num,\ obj):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00242}00242\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ num.value}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00243}00243\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00244}\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__missing__ctypes_1_1c__void__p}{00244}}\ \ \ \ \ \textcolor{keyword}{class\ }\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__missing__ctypes_1_1c__void__p}{c\_void\_p}}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00245}00245\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ ptr):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00246}00246\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__missing__ctypes_1_1c__void__p_a594500881edf091b399eb38602fca520}{value}}\ =\ ptr}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00247}00247\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00248}00248\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00249}\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes}{00249}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes}{\_ctypes}}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00250}00250\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ array,\ ptr=None):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00251}00251\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_abf6fbd3360ac93ec9e648134656e2a3a}{\_arr}}\ =\ array}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00252}00252\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00253}00253\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ ctypes:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00254}00254\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_a193830ae3604b52f923c1e655ba5ec24}{\_ctypes}}\ =\ ctypes}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00255}00255\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_a6c4abdf48696441b69119e7eee1945e5}{\_data}}\ =\ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_a193830ae3604b52f923c1e655ba5ec24}{\_ctypes}}.c\_void\_p(ptr)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00256}00256\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00257}00257\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ fake\ a\ pointer-\/like\ object\ that\ holds\ onto\ the\ reference}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00258}00258\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_a193830ae3604b52f923c1e655ba5ec24}{\_ctypes}}\ =\ \mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__missing__ctypes}{\_missing\_ctypes}}()}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00259}00259\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_a6c4abdf48696441b69119e7eee1945e5}{\_data}}\ =\ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_a193830ae3604b52f923c1e655ba5ec24}{\_ctypes}}.c\_void\_p(ptr)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00260}00260\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_a6c4abdf48696441b69119e7eee1945e5}{\_data}}.\_objects\ =\ array}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00261}00261\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00262}00262\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_abf6fbd3360ac93ec9e648134656e2a3a}{\_arr}}.ndim\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00263}00263\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_ad30a1276c82ecc459de9e034388093b9}{\_zerod}}\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00264}00264\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00265}00265\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_ad30a1276c82ecc459de9e034388093b9}{\_zerod}}\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00266}00266\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00267}\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_ac818fed4befdb8a7d2af584a5efdd24a}{00267}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_ac818fed4befdb8a7d2af584a5efdd24a}{data\_as}}(self,\ obj):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00268}00268\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00269}00269\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Return\ the\ data\ pointer\ cast\ to\ a\ particular\ c-\/types\ object.}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00270}00270\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ For\ example,\ calling\ \`{}\`{}self.\_as\_parameter\_\`{}\`{}\ is\ equivalent\ to}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00271}00271\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}self.data\_as(ctypes.c\_void\_p)\`{}\`{}.\ Perhaps\ you\ want\ to\ use\ the\ data\ as\ a}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00272}00272\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ pointer\ to\ a\ ctypes\ array\ of\ floating-\/point\ data:}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00273}00273\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}self.data\_as(ctypes.POINTER(ctypes.c\_double))\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00274}00274\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00275}00275\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ returned\ pointer\ will\ keep\ a\ reference\ to\ the\ array.}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00276}00276\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00277}00277\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \_ctypes.cast\ function\ causes\ a\ circular\ reference\ of\ self.\_data\ in}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00278}00278\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ self.\_data.\_objects.\ Attributes\ of\ self.\_data\ cannot\ be\ released}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00279}00279\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ until\ gc.collect\ is\ called.\ Make\ a\ copy\ of\ the\ pointer\ first\ then\ let}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00280}00280\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ it\ hold\ the\ array\ reference.\ This\ is\ a\ workaround\ to\ circumvent\ the}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00281}00281\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ CPython\ bug\ https://bugs.python.org/issue12836}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00282}00282\ \ \ \ \ \ \ \ \ ptr\ =\ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_a193830ae3604b52f923c1e655ba5ec24}{\_ctypes}}.cast(self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_a6c4abdf48696441b69119e7eee1945e5}{\_data}},\ obj)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00283}00283\ \ \ \ \ \ \ \ \ ptr.\_arr\ =\ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_abf6fbd3360ac93ec9e648134656e2a3a}{\_arr}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00284}00284\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ ptr}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00285}00285\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00286}\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_aa8e7c5b4aa107c2a94ddd7f8433b3ded}{00286}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_aa8e7c5b4aa107c2a94ddd7f8433b3ded}{shape\_as}}(self,\ obj):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00287}00287\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00288}00288\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Return\ the\ shape\ tuple\ as\ an\ array\ of\ some\ other\ c-\/types}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00289}00289\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ type.\ For\ example:\ \`{}\`{}self.shape\_as(ctypes.c\_short)\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00290}00290\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00291}00291\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_ad30a1276c82ecc459de9e034388093b9}{\_zerod}}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00292}00292\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00293}00293\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ (obj*self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_abf6fbd3360ac93ec9e648134656e2a3a}{\_arr}}.ndim)(*self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_abf6fbd3360ac93ec9e648134656e2a3a}{\_arr}}.shape)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00294}00294\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00295}\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_a03cb912f904780a3e478eb3fa52edcd4}{00295}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_a03cb912f904780a3e478eb3fa52edcd4}{strides\_as}}(self,\ obj):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00296}00296\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00297}00297\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Return\ the\ strides\ tuple\ as\ an\ array\ of\ some\ other}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00298}00298\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ c-\/types\ type.\ For\ example:\ \`{}\`{}self.strides\_as(ctypes.c\_longlong)\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00299}00299\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00300}00300\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_ad30a1276c82ecc459de9e034388093b9}{\_zerod}}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00301}00301\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00302}00302\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ (obj*self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_abf6fbd3360ac93ec9e648134656e2a3a}{\_arr}}.ndim)(*self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_abf6fbd3360ac93ec9e648134656e2a3a}{\_arr}}.strides)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00303}00303\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00304}00304\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00305}\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_ae3037f585ecd044cca792e34c7a9ff96}{00305}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacedata}{data}}(self):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00306}00306\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00307}00307\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ A\ pointer\ to\ the\ memory\ area\ of\ the\ array\ as\ a\ Python\ integer.}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00308}00308\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ This\ memory\ area\ may\ contain\ data\ that\ is\ not\ aligned,\ or\ not\ in\ correct}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00309}00309\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ byte-\/order.\ The\ memory\ area\ may\ not\ even\ be\ writeable.\ The\ array}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00310}00310\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ flags\ and\ data-\/type\ of\ this\ array\ should\ be\ respected\ when\ passing\ this}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00311}00311\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ attribute\ to\ arbitrary\ C-\/code\ to\ avoid\ trouble\ that\ can\ include\ Python}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00312}00312\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ crashing.\ User\ Beware!\ The\ value\ of\ this\ attribute\ is\ exactly\ the\ same}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00313}00313\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ as\ \`{}\`{}self.\_array\_interface\_['data'][0]\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00314}00314\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00315}00315\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Note\ that\ unlike\ \`{}\`{}data\_as\`{}\`{},\ a\ reference\ will\ not\ be\ kept\ to\ the\ array:}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00316}00316\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ code\ like\ \`{}\`{}ctypes.c\_void\_p((a\ +\ b).ctypes.data)\`{}\`{}\ will\ result\ in\ a}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00317}00317\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ pointer\ to\ a\ deallocated\ array,\ and\ should\ be\ spelt}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00318}00318\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}(a\ +\ b).ctypes.data\_as(ctypes.c\_void\_p)\`{}\`{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00319}00319\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00320}00320\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_a6c4abdf48696441b69119e7eee1945e5}{\_data}}.value}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00321}00321\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00322}00322\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00323}\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_adbdbde5dcbdfa60f43b962258d361380}{00323}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_adbdbde5dcbdfa60f43b962258d361380}{shape}}(self):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00324}00324\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00325}00325\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ (c\_intp*self.ndim):\ A\ ctypes\ array\ of\ length\ self.ndim\ where}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00326}00326\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ basetype\ is\ the\ C-\/integer\ corresponding\ to\ \`{}\`{}dtype('p')\`{}\`{}\ on\ this}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00327}00327\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ platform\ (see\ \`{}\string~numpy.ctypeslib.c\_intp\`{}).\ This\ base-\/type\ could\ be}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00328}00328\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}ctypes.c\_int\`{},\ \`{}ctypes.c\_long\`{},\ or\ \`{}ctypes.c\_longlong\`{}\ depending\ on}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00329}00329\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ platform.\ The\ ctypes\ array\ contains\ the\ shape\ of}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00330}00330\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ underlying\ array.}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00331}00331\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00332}00332\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_aa8e7c5b4aa107c2a94ddd7f8433b3ded}{shape\_as}}(\_getintp\_ctype())}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00333}00333\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00334}00334\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00335}\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_a7aa3578bac98b79a254c48b54e1d265e}{00335}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_a7aa3578bac98b79a254c48b54e1d265e}{strides}}(self):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00336}00336\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00337}00337\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ (c\_intp*self.ndim):\ A\ ctypes\ array\ of\ length\ self.ndim\ where}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00338}00338\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ basetype\ is\ the\ same\ as\ for\ the\ shape\ attribute.\ This\ ctypes\ array}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00339}00339\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ contains\ the\ strides\ information\ from\ the\ underlying\ array.\ This\ strides}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00340}00340\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ information\ is\ important\ for\ showing\ how\ many\ bytes\ must\ be\ jumped\ to}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00341}00341\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ get\ to\ the\ next\ element\ in\ the\ array.}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00342}00342\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00343}00343\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_a03cb912f904780a3e478eb3fa52edcd4}{strides\_as}}(\_getintp\_ctype())}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00344}00344\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00345}00345\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00346}\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_a37e8b893cdd93ec89d9971ee006165a8}{00346}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_a37e8b893cdd93ec89d9971ee006165a8}{\_as\_parameter\_}}(self):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00347}00347\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00348}00348\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Overrides\ the\ ctypes\ semi-\/magic\ method}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00349}00349\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00350}00350\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Enables\ \`{}c\_func(some\_array.ctypes)\`{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00351}00351\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00352}00352\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_ac818fed4befdb8a7d2af584a5efdd24a}{data\_as}}(ctypes.c\_void\_p)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00353}00353\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00354}00354\ \ \ \ \ \textcolor{comment}{\#\ Numpy\ 1.21.0,\ 2021-\/05-\/18}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00355}00355\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00356}\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_a89b2a44ff0f47ad5d38013d910f3c401}{00356}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_a89b2a44ff0f47ad5d38013d910f3c401}{get\_data}}(self):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00357}00357\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Deprecated\ getter\ for\ the\ \`{}\_ctypes.data\`{}\ property.}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00358}00358\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00359}00359\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ deprecated::\ 1.21}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00360}00360\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00361}00361\ \ \ \ \ \ \ \ \ warnings.warn(\textcolor{stringliteral}{'"{}get\_data"{}\ is\ deprecated.\ Use\ "{}data"{}\ instead'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00362}00362\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ DeprecationWarning,\ stacklevel=2)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00363}00363\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_ae3037f585ecd044cca792e34c7a9ff96}{data}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00364}00364\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00365}\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_aedaf96686b67cc7d7866f6699a65877a}{00365}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_aedaf96686b67cc7d7866f6699a65877a}{get\_shape}}(self):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00366}00366\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Deprecated\ getter\ for\ the\ \`{}\_ctypes.shape\`{}\ property.}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00367}00367\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00368}00368\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ deprecated::\ 1.21}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00369}00369\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00370}00370\ \ \ \ \ \ \ \ \ warnings.warn(\textcolor{stringliteral}{'"{}get\_shape"{}\ is\ deprecated.\ Use\ "{}shape"{}\ instead'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00371}00371\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ DeprecationWarning,\ stacklevel=2)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00372}00372\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_adbdbde5dcbdfa60f43b962258d361380}{shape}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00373}00373\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00374}\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_a370633d7ef31d9739644f846e6914b20}{00374}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_a370633d7ef31d9739644f846e6914b20}{get\_strides}}(self):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00375}00375\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Deprecated\ getter\ for\ the\ \`{}\_ctypes.strides\`{}\ property.}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00376}00376\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00377}00377\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ deprecated::\ 1.21}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00378}00378\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00379}00379\ \ \ \ \ \ \ \ \ warnings.warn(\textcolor{stringliteral}{'"{}get\_strides"{}\ is\ deprecated.\ Use\ "{}strides"{}\ instead'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00380}00380\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ DeprecationWarning,\ stacklevel=2)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00381}00381\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_a7aa3578bac98b79a254c48b54e1d265e}{strides}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00382}00382\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00383}\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_a920c48f63c91c32fb6a828baf22d0e73}{00383}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_a920c48f63c91c32fb6a828baf22d0e73}{get\_as\_parameter}}(self):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00384}00384\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Deprecated\ getter\ for\ the\ \`{}\_ctypes.\_as\_parameter\_\`{}\ property.}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00385}00385\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00386}00386\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ deprecated::\ 1.21}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00387}00387\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00388}00388\ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00389}00389\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'"{}get\_as\_parameter"{}\ is\ deprecated.\ Use\ "{}\_as\_parameter\_"{}\ instead'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00390}00390\ \ \ \ \ \ \ \ \ \ \ \ \ DeprecationWarning,\ stacklevel=2,}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00391}00391\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00392}00392\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__ctypes_a37e8b893cdd93ec89d9971ee006165a8}{\_as\_parameter\_}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00393}00393\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00394}00394\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00395}\mbox{\hyperlink{namespacenumpy_1_1core_1_1__internal_aa03a2d2ae39dc5f4ee08ae7730007fcf}{00395}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacenumpy_1_1core_1_1__internal_aa03a2d2ae39dc5f4ee08ae7730007fcf}{\_newnames}}(datatype,\ order):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00396}00396\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00397}00397\ \textcolor{stringliteral}{\ \ \ \ Given\ a\ datatype\ and\ an\ order\ object,\ return\ a\ new\ names\ tuple,\ with\ the}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00398}00398\ \textcolor{stringliteral}{\ \ \ \ order\ indicated}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00399}00399\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00400}00400\ \ \ \ \ oldnames\ =\ datatype.names}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00401}00401\ \ \ \ \ nameslist\ =\ list(oldnames)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00402}00402\ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(order,\ str):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00403}00403\ \ \ \ \ \ \ \ \ order\ =\ [order]}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00404}00404\ \ \ \ \ seen\ =\ set()}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00405}00405\ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(order,\ (list,\ tuple)):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00406}00406\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ name\ \textcolor{keywordflow}{in}\ order:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00407}00407\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00408}00408\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ nameslist.remove(name)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00409}00409\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ ValueError:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00410}00410\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ name\ \textcolor{keywordflow}{in}\ seen:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00411}00411\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(f\textcolor{stringliteral}{"{}duplicate\ field\ name:\ \{name\}"{}})\ \textcolor{keyword}{from}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00412}00412\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00413}00413\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(f\textcolor{stringliteral}{"{}unknown\ field\ name:\ \{name\}"{}})\ \textcolor{keyword}{from}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00414}00414\ \ \ \ \ \ \ \ \ \ \ \ \ seen.add(name)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00415}00415\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ tuple(list(order)\ +\ nameslist)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00416}00416\ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(f\textcolor{stringliteral}{"{}unsupported\ order\ value:\ \{order\}"{}})}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00417}00417\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00418}\mbox{\hyperlink{namespacenumpy_1_1core_1_1__internal_af6403f1a61398b9ca6a7bc4458823ad2}{00418}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacenumpy_1_1core_1_1__internal_af6403f1a61398b9ca6a7bc4458823ad2}{\_copy\_fields}}(ary):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00419}00419\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Return\ copy\ of\ structured\ array\ with\ padding\ between\ fields\ removed.}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00420}00420\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00421}00421\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00422}00422\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00423}00423\ \textcolor{stringliteral}{\ \ \ \ ary\ :\ ndarray}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00424}00424\ \textcolor{stringliteral}{\ \ \ \ \ \ \ Structured\ array\ from\ which\ to\ remove\ padding\ bytes}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00425}00425\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00426}00426\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00427}00427\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00428}00428\ \textcolor{stringliteral}{\ \ \ \ ary\_copy\ :\ ndarray}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00429}00429\ \textcolor{stringliteral}{\ \ \ \ \ \ \ Copy\ of\ ary\ with\ padding\ bytes\ removed}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00430}00430\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00431}00431\ \ \ \ \ dt\ =\ ary.dtype}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00432}00432\ \ \ \ \ copy\_dtype\ =\ \{\textcolor{stringliteral}{'names'}:\ dt.names,}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00433}00433\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'formats'}:\ [dt.fields[name][0]\ \textcolor{keywordflow}{for}\ name\ \textcolor{keywordflow}{in}\ dt.names]\}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00434}00434\ \ \ \ \ \textcolor{keywordflow}{return}\ array(ary,\ dtype=copy\_dtype,\ copy=\textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00435}00435\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00436}\mbox{\hyperlink{namespacenumpy_1_1core_1_1__internal_a04e353eda1631e38e0c9bee09ee026fa}{00436}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacenumpy_1_1core_1_1__internal_a04e353eda1631e38e0c9bee09ee026fa}{\_promote\_fields}}(dt1,\ dt2):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00437}00437\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}\ Perform\ type\ promotion\ for\ two\ structured\ dtypes.}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00438}00438\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00439}00439\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00440}00440\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00441}00441\ \textcolor{stringliteral}{\ \ \ \ dt1\ :\ structured\ dtype}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00442}00442\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ First\ dtype.}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00443}00443\ \textcolor{stringliteral}{\ \ \ \ dt2\ :\ structured\ dtype}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00444}00444\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Second\ dtype.}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00445}00445\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00446}00446\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00447}00447\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00448}00448\ \textcolor{stringliteral}{\ \ \ \ out\ :\ dtype}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00449}00449\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ promoted\ dtype}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00450}00450\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00451}00451\ \textcolor{stringliteral}{\ \ \ \ Notes}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00452}00452\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00453}00453\ \textcolor{stringliteral}{\ \ \ \ If\ one\ of\ the\ inputs\ is\ aligned,\ the\ result\ will\ be.\ \ The\ titles\ of}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00454}00454\ \textcolor{stringliteral}{\ \ \ \ both\ descriptors\ must\ match\ (point\ to\ the\ same\ field).}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00455}00455\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00456}00456\ \ \ \ \ \textcolor{comment}{\#\ Both\ must\ be\ structured\ and\ have\ the\ same\ names\ in\ the\ same\ order}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00457}00457\ \ \ \ \ \textcolor{keywordflow}{if}\ (dt1.names\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{or}\ dt2.names\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None})\ \textcolor{keywordflow}{or}\ dt1.names\ !=\ dt2.names:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00458}00458\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classnumpy_1_1exceptions_1_1DTypePromotionError}{DTypePromotionError}}(}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00459}00459\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}field\ names\ \`{}\{dt1.names\}`\ and\ \`{}\{dt2.names\}`\ mismatch."{}})}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00460}00460\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00461}00461\ \ \ \ \ \textcolor{comment}{\#\ if\ both\ are\ identical,\ we\ can\ (maybe!)\ just\ return\ the\ same\ dtype.}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00462}00462\ \ \ \ \ identical\ =\ dt1\ \textcolor{keywordflow}{is}\ dt2}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00463}00463\ \ \ \ \ new\_fields\ =\ []}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00464}00464\ \ \ \ \ \textcolor{keywordflow}{for}\ name\ \textcolor{keywordflow}{in}\ dt1.names:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00465}00465\ \ \ \ \ \ \ \ \ field1\ =\ dt1.fields[name]}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00466}00466\ \ \ \ \ \ \ \ \ field2\ =\ dt2.fields[name]}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00467}00467\ \ \ \ \ \ \ \ \ new\_descr\ =\ promote\_types(field1[0],\ field2[0])}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00468}00468\ \ \ \ \ \ \ \ \ identical\ =\ identical\ \textcolor{keywordflow}{and}\ new\_descr\ \textcolor{keywordflow}{is}\ field1[0]}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00469}00469\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00470}00470\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Check\ that\ the\ titles\ match\ (if\ given):}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00471}00471\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ field1[2:]\ !=\ field2[2:]:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00472}00472\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classnumpy_1_1exceptions_1_1DTypePromotionError}{DTypePromotionError}}(}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00473}00473\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}field\ titles\ of\ field\ '\{name\}'\ mismatch"{}})}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00474}00474\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(field1)\ ==\ 2:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00475}00475\ \ \ \ \ \ \ \ \ \ \ \ \ new\_fields.append((name,\ new\_descr))}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00476}00476\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00477}00477\ \ \ \ \ \ \ \ \ \ \ \ \ new\_fields.append(((field1[2],\ name),\ new\_descr))}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00478}00478\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00479}00479\ \ \ \ \ res\ =\ \mbox{\hyperlink{namespacedtype}{dtype}}(new\_fields,\ align=dt1.isalignedstruct\ \textcolor{keywordflow}{or}\ dt2.isalignedstruct)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00480}00480\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00481}00481\ \ \ \ \ \textcolor{comment}{\#\ Might\ as\ well\ preserve\ identity\ (and\ metadata)\ if\ the\ dtype\ is\ identical}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00482}00482\ \ \ \ \ \textcolor{comment}{\#\ and\ the\ itemsize,\ offsets\ are\ also\ unmodified.\ \ This\ could\ probably\ be}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00483}00483\ \ \ \ \ \textcolor{comment}{\#\ sped\ up,\ but\ also\ probably\ just\ be\ removed\ entirely.}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00484}00484\ \ \ \ \ \textcolor{keywordflow}{if}\ identical\ \textcolor{keywordflow}{and}\ res.itemsize\ ==\ dt1.itemsize:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00485}00485\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ name\ \textcolor{keywordflow}{in}\ dt1.names:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00486}00486\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ dt1.fields[name][1]\ !=\ res.fields[name][1]:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00487}00487\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ res\ \ \textcolor{comment}{\#\ the\ dtype\ changed.}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00488}00488\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ dt1}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00489}00489\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00490}00490\ \ \ \ \ \textcolor{keywordflow}{return}\ res}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00491}00491\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00492}00492\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00493}\mbox{\hyperlink{namespacenumpy_1_1core_1_1__internal_aaa9121ce4e99bad77b0aead9bf2157cc}{00493}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacenumpy_1_1core_1_1__internal_aaa9121ce4e99bad77b0aead9bf2157cc}{\_getfield\_is\_safe}}(oldtype,\ newtype,\ offset):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00494}00494\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}\ Checks\ safety\ of\ getfield\ for\ object\ arrays.}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00495}00495\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00496}00496\ \textcolor{stringliteral}{\ \ \ \ As\ in\ \_view\_is\_safe,\ we\ need\ to\ check\ that\ memory\ containing\ objects\ is\ not}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00497}00497\ \textcolor{stringliteral}{\ \ \ \ reinterpreted\ as\ a\ non-\/object\ datatype\ and\ vice\ versa.}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00498}00498\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00499}00499\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00500}00500\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00501}00501\ \textcolor{stringliteral}{\ \ \ \ oldtype\ :\ data-\/type}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00502}00502\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Data\ type\ of\ the\ original\ ndarray.}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00503}00503\ \textcolor{stringliteral}{\ \ \ \ newtype\ :\ data-\/type}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00504}00504\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Data\ type\ of\ the\ field\ being\ accessed\ by\ ndarray.getfield}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00505}00505\ \textcolor{stringliteral}{\ \ \ \ offset\ :\ int}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00506}00506\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Offset\ of\ the\ field\ being\ accessed\ by\ ndarray.getfield}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00507}00507\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00508}00508\ \textcolor{stringliteral}{\ \ \ \ Raises}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00509}00509\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00510}00510\ \textcolor{stringliteral}{\ \ \ \ TypeError}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00511}00511\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ the\ field\ access\ is\ invalid}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00512}00512\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00513}00513\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00514}00514\ \ \ \ \ \textcolor{keywordflow}{if}\ newtype.hasobject\ \textcolor{keywordflow}{or}\ oldtype.hasobject:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00515}00515\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ offset\ ==\ 0\ \textcolor{keywordflow}{and}\ newtype\ ==\ oldtype:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00516}00516\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00517}00517\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ oldtype.names\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00518}00518\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ name\ \textcolor{keywordflow}{in}\ oldtype.names:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00519}00519\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (oldtype.fields[name][1]\ ==\ offset\ \textcolor{keywordflow}{and}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00520}00520\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ oldtype.fields[name][0]\ ==\ newtype):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00521}00521\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00522}00522\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classTypeError}{TypeError}}(\textcolor{stringliteral}{"{}Cannot\ get/set\ field\ of\ an\ object\ array"{}})}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00523}00523\ \ \ \ \ \textcolor{keywordflow}{return}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00524}00524\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00525}\mbox{\hyperlink{namespacenumpy_1_1core_1_1__internal_a0ccc7df34dd9bc4dd5631670c2f4b07a}{00525}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacenumpy_1_1core_1_1__internal_a0ccc7df34dd9bc4dd5631670c2f4b07a}{\_view\_is\_safe}}(oldtype,\ newtype):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00526}00526\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}\ Checks\ safety\ of\ a\ view\ involving\ object\ arrays,\ for\ example\ when}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00527}00527\ \textcolor{stringliteral}{\ \ \ \ doing::}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00528}00528\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00529}00529\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ np.zeros(10,\ dtype=oldtype).view(newtype)}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00530}00530\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00531}00531\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00532}00532\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00533}00533\ \textcolor{stringliteral}{\ \ \ \ oldtype\ :\ data-\/type}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00534}00534\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Data\ type\ of\ original\ ndarray}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00535}00535\ \textcolor{stringliteral}{\ \ \ \ newtype\ :\ data-\/type}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00536}00536\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Data\ type\ of\ the\ view}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00537}00537\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00538}00538\ \textcolor{stringliteral}{\ \ \ \ Raises}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00539}00539\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00540}00540\ \textcolor{stringliteral}{\ \ \ \ TypeError}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00541}00541\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ the\ new\ type\ is\ incompatible\ with\ the\ old\ type.}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00542}00542\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00543}00543\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00544}00544\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00545}00545\ \ \ \ \ \textcolor{comment}{\#\ if\ the\ types\ are\ equivalent,\ there\ is\ no\ problem.}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00546}00546\ \ \ \ \ \textcolor{comment}{\#\ for\ example:\ dtype((np.record,\ 'i4,i4'))\ ==\ dtype((np.void,\ 'i4,i4'))}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00547}00547\ \ \ \ \ \textcolor{keywordflow}{if}\ oldtype\ ==\ newtype:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00548}00548\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00549}00549\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00550}00550\ \ \ \ \ \textcolor{keywordflow}{if}\ newtype.hasobject\ \textcolor{keywordflow}{or}\ oldtype.hasobject:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00551}00551\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classTypeError}{TypeError}}(\textcolor{stringliteral}{"{}Cannot\ change\ data-\/type\ for\ object\ array."{}})}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00552}00552\ \ \ \ \ \textcolor{keywordflow}{return}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00553}00553\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00554}00554\ \textcolor{comment}{\#\ Given\ a\ string\ containing\ a\ PEP\ 3118\ format\ specifier,}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00555}00555\ \textcolor{comment}{\#\ construct\ a\ NumPy\ dtype}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00556}00556\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00557}00557\ \_pep3118\_native\_map\ =\ \{}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00558}00558\ \ \ \ \ \textcolor{stringliteral}{'?'}:\ \textcolor{stringliteral}{'?'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00559}00559\ \ \ \ \ \textcolor{stringliteral}{'c'}:\ \textcolor{stringliteral}{'S1'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00560}00560\ \ \ \ \ \textcolor{stringliteral}{'b'}:\ \textcolor{stringliteral}{'b'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00561}00561\ \ \ \ \ \textcolor{stringliteral}{'B'}:\ \textcolor{stringliteral}{'B'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00562}00562\ \ \ \ \ \textcolor{stringliteral}{'h'}:\ \textcolor{stringliteral}{'h'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00563}00563\ \ \ \ \ \textcolor{stringliteral}{'H'}:\ \textcolor{stringliteral}{'H'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00564}00564\ \ \ \ \ \textcolor{stringliteral}{'i'}:\ \textcolor{stringliteral}{'i'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00565}00565\ \ \ \ \ \textcolor{stringliteral}{'I'}:\ \textcolor{stringliteral}{'I'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00566}00566\ \ \ \ \ \textcolor{stringliteral}{'l'}:\ \textcolor{stringliteral}{'l'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00567}00567\ \ \ \ \ \textcolor{stringliteral}{'L'}:\ \textcolor{stringliteral}{'L'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00568}00568\ \ \ \ \ \textcolor{stringliteral}{'q'}:\ \textcolor{stringliteral}{'q'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00569}00569\ \ \ \ \ \textcolor{stringliteral}{'Q'}:\ \textcolor{stringliteral}{'Q'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00570}00570\ \ \ \ \ \textcolor{stringliteral}{'e'}:\ \textcolor{stringliteral}{'e'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00571}00571\ \ \ \ \ \textcolor{stringliteral}{'f'}:\ \textcolor{stringliteral}{'f'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00572}00572\ \ \ \ \ \textcolor{stringliteral}{'d'}:\ \textcolor{stringliteral}{'d'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00573}00573\ \ \ \ \ \textcolor{stringliteral}{'g'}:\ \textcolor{stringliteral}{'g'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00574}00574\ \ \ \ \ \textcolor{stringliteral}{'Zf'}:\ \textcolor{stringliteral}{'F'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00575}00575\ \ \ \ \ \textcolor{stringliteral}{'Zd'}:\ \textcolor{stringliteral}{'D'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00576}00576\ \ \ \ \ \textcolor{stringliteral}{'Zg'}:\ \textcolor{stringliteral}{'G'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00577}00577\ \ \ \ \ \textcolor{stringliteral}{'s'}:\ \textcolor{stringliteral}{'S'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00578}00578\ \ \ \ \ \textcolor{stringliteral}{'w'}:\ \textcolor{stringliteral}{'U'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00579}00579\ \ \ \ \ \textcolor{stringliteral}{'O'}:\ \textcolor{stringliteral}{'O'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00580}00580\ \ \ \ \ \textcolor{stringliteral}{'x'}:\ \textcolor{stringliteral}{'V'},\ \ \textcolor{comment}{\#\ padding}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00581}00581\ \}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00582}00582\ \_pep3118\_native\_typechars\ =\ \textcolor{stringliteral}{''}.join(\_pep3118\_native\_map.keys())}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00583}00583\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00584}00584\ \_pep3118\_standard\_map\ =\ \{}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00585}00585\ \ \ \ \ \textcolor{stringliteral}{'?'}:\ \textcolor{stringliteral}{'?'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00586}00586\ \ \ \ \ \textcolor{stringliteral}{'c'}:\ \textcolor{stringliteral}{'S1'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00587}00587\ \ \ \ \ \textcolor{stringliteral}{'b'}:\ \textcolor{stringliteral}{'b'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00588}00588\ \ \ \ \ \textcolor{stringliteral}{'B'}:\ \textcolor{stringliteral}{'B'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00589}00589\ \ \ \ \ \textcolor{stringliteral}{'h'}:\ \textcolor{stringliteral}{'i2'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00590}00590\ \ \ \ \ \textcolor{stringliteral}{'H'}:\ \textcolor{stringliteral}{'u2'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00591}00591\ \ \ \ \ \textcolor{stringliteral}{'i'}:\ \textcolor{stringliteral}{'i4'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00592}00592\ \ \ \ \ \textcolor{stringliteral}{'I'}:\ \textcolor{stringliteral}{'u4'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00593}00593\ \ \ \ \ \textcolor{stringliteral}{'l'}:\ \textcolor{stringliteral}{'i4'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00594}00594\ \ \ \ \ \textcolor{stringliteral}{'L'}:\ \textcolor{stringliteral}{'u4'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00595}00595\ \ \ \ \ \textcolor{stringliteral}{'q'}:\ \textcolor{stringliteral}{'i8'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00596}00596\ \ \ \ \ \textcolor{stringliteral}{'Q'}:\ \textcolor{stringliteral}{'u8'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00597}00597\ \ \ \ \ \textcolor{stringliteral}{'e'}:\ \textcolor{stringliteral}{'f2'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00598}00598\ \ \ \ \ \textcolor{stringliteral}{'f'}:\ \textcolor{stringliteral}{'f'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00599}00599\ \ \ \ \ \textcolor{stringliteral}{'d'}:\ \textcolor{stringliteral}{'d'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00600}00600\ \ \ \ \ \textcolor{stringliteral}{'Zf'}:\ \textcolor{stringliteral}{'F'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00601}00601\ \ \ \ \ \textcolor{stringliteral}{'Zd'}:\ \textcolor{stringliteral}{'D'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00602}00602\ \ \ \ \ \textcolor{stringliteral}{'s'}:\ \textcolor{stringliteral}{'S'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00603}00603\ \ \ \ \ \textcolor{stringliteral}{'w'}:\ \textcolor{stringliteral}{'U'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00604}00604\ \ \ \ \ \textcolor{stringliteral}{'O'}:\ \textcolor{stringliteral}{'O'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00605}00605\ \ \ \ \ \textcolor{stringliteral}{'x'}:\ \textcolor{stringliteral}{'V'},\ \ \textcolor{comment}{\#\ padding}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00606}00606\ \}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00607}00607\ \_pep3118\_standard\_typechars\ =\ \textcolor{stringliteral}{''}.join(\_pep3118\_standard\_map.keys())}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00608}00608\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00609}00609\ \_pep3118\_unsupported\_map\ =\ \{}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00610}00610\ \ \ \ \ \textcolor{stringliteral}{'u'}:\ \textcolor{stringliteral}{'UCS-\/2\ strings'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00611}00611\ \ \ \ \ \textcolor{stringliteral}{'\&'}:\ \textcolor{stringliteral}{'pointers'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00612}00612\ \ \ \ \ \textcolor{stringliteral}{'t'}:\ \textcolor{stringliteral}{'bitfields'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00613}00613\ \ \ \ \ \textcolor{stringliteral}{'X'}:\ \textcolor{stringliteral}{'function\ pointers'},}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00614}00614\ \}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00615}00615\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00616}\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__Stream}{00616}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__Stream}{\_Stream}}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00617}00617\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ s):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00618}00618\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__Stream_a3993723cd895aebd46025aab8b023725}{s}}\ =\ s}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00619}00619\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__Stream_ac4b69d75c3dc4ea9bdb9e931788cf3b6}{byteorder}}\ =\ \textcolor{stringliteral}{'@'}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00620}00620\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00621}00621\ \ \ \ \ \textcolor{keyword}{def\ }advance(self,\ n):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00622}00622\ \ \ \ \ \ \ \ \ res\ =\ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__Stream_a3993723cd895aebd46025aab8b023725}{s}}[:n]}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00623}00623\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__Stream_a3993723cd895aebd46025aab8b023725}{s}}\ =\ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__Stream_a3993723cd895aebd46025aab8b023725}{s}}[n:]}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00624}00624\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ res}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00625}00625\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00626}00626\ \ \ \ \ \textcolor{keyword}{def\ }consume(self,\ c):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00627}00627\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__Stream_a3993723cd895aebd46025aab8b023725}{s}}[:len(c)]\ ==\ c:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00628}00628\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__Stream_ad11ff431a45789364a4bb54de764654a}{advance}}(len(c))}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00629}00629\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00630}00630\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00631}00631\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00632}00632\ \ \ \ \ \textcolor{keyword}{def\ }consume\_until(self,\ c):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00633}00633\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ callable(c):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00634}00634\ \ \ \ \ \ \ \ \ \ \ \ \ i\ =\ 0}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00635}00635\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{while}\ i\ <\ len(self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__Stream_a3993723cd895aebd46025aab8b023725}{s}})\ \textcolor{keywordflow}{and}\ \textcolor{keywordflow}{not}\ c(self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__Stream_a3993723cd895aebd46025aab8b023725}{s}}[i]):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00636}00636\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ i\ =\ i\ +\ 1}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00637}00637\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__Stream_ad11ff431a45789364a4bb54de764654a}{advance}}(i)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00638}00638\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00639}00639\ \ \ \ \ \ \ \ \ \ \ \ \ i\ =\ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__Stream_a3993723cd895aebd46025aab8b023725}{s}}.index(c)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00640}00640\ \ \ \ \ \ \ \ \ \ \ \ \ res\ =\ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__Stream_ad11ff431a45789364a4bb54de764654a}{advance}}(i)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00641}00641\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__Stream_ad11ff431a45789364a4bb54de764654a}{advance}}(len(c))}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00642}00642\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ res}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00643}00643\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00644}00644\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00645}00645\ \ \ \ \ \textcolor{keyword}{def\ }next(self):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00646}00646\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__Stream_a3993723cd895aebd46025aab8b023725}{s}}[0]}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00647}00647\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00648}00648\ \ \ \ \ \textcolor{keyword}{def\ }\_\_bool\_\_(self):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00649}00649\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ bool(self.\mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__Stream_a3993723cd895aebd46025aab8b023725}{s}})}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00650}00650\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00651}00651\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00652}00652\ \textcolor{keyword}{def\ }\_dtype\_from\_pep3118(spec):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00653}00653\ \ \ \ \ stream\ =\ \mbox{\hyperlink{classnumpy_1_1core_1_1__internal_1_1__Stream}{\_Stream}}(spec)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00654}00654\ \ \ \ \ dtype,\ align\ =\ \_\_dtype\_from\_pep3118(stream,\ is\_subdtype=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00655}00655\ \ \ \ \ \textcolor{keywordflow}{return}\ dtype}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00656}00656\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00657}00657\ \textcolor{keyword}{def\ }\_\_dtype\_from\_pep3118(stream,\ is\_subdtype):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00658}00658\ \ \ \ \ field\_spec\ =\ dict(}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00659}00659\ \ \ \ \ \ \ \ \ names=[],}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00660}00660\ \ \ \ \ \ \ \ \ formats=[],}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00661}00661\ \ \ \ \ \ \ \ \ offsets=[],}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00662}00662\ \ \ \ \ \ \ \ \ itemsize=0}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00663}00663\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00664}00664\ \ \ \ \ offset\ =\ 0}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00665}00665\ \ \ \ \ common\_alignment\ =\ 1}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00666}00666\ \ \ \ \ is\_padding\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00667}00667\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00668}00668\ \ \ \ \ \textcolor{comment}{\#\ Parse\ spec}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00669}00669\ \ \ \ \ \textcolor{keywordflow}{while}\ stream:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00670}00670\ \ \ \ \ \ \ \ \ value\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00671}00671\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00672}00672\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ End\ of\ structure,\ bail\ out\ to\ upper\ level}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00673}00673\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ stream.consume(\textcolor{stringliteral}{'\}'}):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00674}00674\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00675}00675\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00676}00676\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Sub-\/arrays\ (1)}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00677}00677\ \ \ \ \ \ \ \ \ shape\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00678}00678\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ stream.consume(\textcolor{stringliteral}{'('}):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00679}00679\ \ \ \ \ \ \ \ \ \ \ \ \ shape\ =\ stream.consume\_until(\textcolor{stringliteral}{')'})}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00680}00680\ \ \ \ \ \ \ \ \ \ \ \ \ shape\ =\ tuple(map(int,\ shape.split(\textcolor{stringliteral}{','})))}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00681}00681\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00682}00682\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Byte\ order}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00683}00683\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ stream.next\ \textcolor{keywordflow}{in}\ (\textcolor{stringliteral}{'@'},\ \textcolor{stringliteral}{'='},\ \textcolor{stringliteral}{'<'},\ \textcolor{stringliteral}{'>'},\ \textcolor{stringliteral}{'\string^'},\ \textcolor{stringliteral}{'!'}):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00684}00684\ \ \ \ \ \ \ \ \ \ \ \ \ byteorder\ =\ stream.advance(1)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00685}00685\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ byteorder\ ==\ \textcolor{stringliteral}{'!'}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00686}00686\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ byteorder\ =\ \textcolor{stringliteral}{'>'}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00687}00687\ \ \ \ \ \ \ \ \ \ \ \ \ stream.byteorder\ =\ byteorder}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00688}00688\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00689}00689\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Byte\ order\ characters\ also\ control\ native\ vs.\ standard\ type\ sizes}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00690}00690\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ stream.byteorder\ \textcolor{keywordflow}{in}\ (\textcolor{stringliteral}{'@'},\ \textcolor{stringliteral}{'\string^'}):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00691}00691\ \ \ \ \ \ \ \ \ \ \ \ \ type\_map\ =\ \_pep3118\_native\_map}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00692}00692\ \ \ \ \ \ \ \ \ \ \ \ \ type\_map\_chars\ =\ \_pep3118\_native\_typechars}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00693}00693\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00694}00694\ \ \ \ \ \ \ \ \ \ \ \ \ type\_map\ =\ \_pep3118\_standard\_map}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00695}00695\ \ \ \ \ \ \ \ \ \ \ \ \ type\_map\_chars\ =\ \_pep3118\_standard\_typechars}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00696}00696\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00697}00697\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Item\ sizes}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00698}00698\ \ \ \ \ \ \ \ \ itemsize\_str\ =\ stream.consume\_until(\textcolor{keyword}{lambda}\ c:\ \textcolor{keywordflow}{not}\ c.isdigit())}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00699}00699\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ itemsize\_str:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00700}00700\ \ \ \ \ \ \ \ \ \ \ \ \ itemsize\ =\ int(itemsize\_str)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00701}00701\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00702}00702\ \ \ \ \ \ \ \ \ \ \ \ \ itemsize\ =\ 1}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00703}00703\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00704}00704\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Data\ types}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00705}00705\ \ \ \ \ \ \ \ \ is\_padding\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00706}00706\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00707}00707\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ stream.consume(\textcolor{stringliteral}{'T\{'}):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00708}00708\ \ \ \ \ \ \ \ \ \ \ \ \ value,\ align\ =\ \_\_dtype\_from\_pep3118(}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00709}00709\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ stream,\ is\_subdtype=\textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00710}00710\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ stream.next\ \textcolor{keywordflow}{in}\ type\_map\_chars:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00711}00711\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ stream.next\ ==\ \textcolor{stringliteral}{'Z'}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00712}00712\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ typechar\ =\ stream.advance(2)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00713}00713\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00714}00714\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ typechar\ =\ stream.advance(1)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00715}00715\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00716}00716\ \ \ \ \ \ \ \ \ \ \ \ \ is\_padding\ =\ (typechar\ ==\ \textcolor{stringliteral}{'x'})}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00717}00717\ \ \ \ \ \ \ \ \ \ \ \ \ dtypechar\ =\ type\_map[typechar]}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00718}00718\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ dtypechar\ \textcolor{keywordflow}{in}\ \textcolor{stringliteral}{'USV'}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00719}00719\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ dtypechar\ +=\ \textcolor{stringliteral}{'\%d'}\ \%\ itemsize}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00720}00720\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ itemsize\ =\ 1}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00721}00721\ \ \ \ \ \ \ \ \ \ \ \ \ numpy\_byteorder\ =\ \{\textcolor{stringliteral}{'@'}:\ \textcolor{stringliteral}{'='},\ \textcolor{stringliteral}{'\string^'}:\ \textcolor{stringliteral}{'='}\}.get(}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00722}00722\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ stream.byteorder,\ stream.byteorder)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00723}00723\ \ \ \ \ \ \ \ \ \ \ \ \ value\ =\ \mbox{\hyperlink{namespacedtype}{dtype}}(numpy\_byteorder\ +\ dtypechar)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00724}00724\ \ \ \ \ \ \ \ \ \ \ \ \ align\ =\ value.alignment}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00725}00725\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ stream.next\ \textcolor{keywordflow}{in}\ \_pep3118\_unsupported\_map:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00726}00726\ \ \ \ \ \ \ \ \ \ \ \ \ desc\ =\ \_pep3118\_unsupported\_map[stream.next]}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00727}00727\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classNotImplementedError}{NotImplementedError}}(}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00728}00728\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Unrepresentable\ PEP\ 3118\ data\ type\ \{!r\}\ (\{\})"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00729}00729\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ .format(stream.next,\ desc))}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00730}00730\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00731}00731\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}Unknown\ PEP\ 3118\ data\ type\ specifier\ \%r"{}}\ \%\ stream.s)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00732}00732\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00733}00733\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00734}00734\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Native\ alignment\ may\ require\ padding}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00735}00735\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00736}00736\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Here\ we\ assume\ that\ the\ presence\ of\ a\ '@'\ character\ implicitly\ implies}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00737}00737\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ that\ the\ start\ of\ the\ array\ is\ *already*\ aligned.}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00738}00738\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00739}00739\ \ \ \ \ \ \ \ \ extra\_offset\ =\ 0}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00740}00740\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ stream.byteorder\ ==\ \textcolor{stringliteral}{'@'}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00741}00741\ \ \ \ \ \ \ \ \ \ \ \ \ start\_padding\ =\ (-\/offset)\ \%\ align}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00742}00742\ \ \ \ \ \ \ \ \ \ \ \ \ intra\_padding\ =\ (-\/value.itemsize)\ \%\ align}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00743}00743\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00744}00744\ \ \ \ \ \ \ \ \ \ \ \ \ offset\ +=\ start\_padding}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00745}00745\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00746}00746\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ intra\_padding\ !=\ 0:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00747}00747\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ itemsize\ >\ 1\ \textcolor{keywordflow}{or}\ (shape\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{and}\ \_prod(shape)\ >\ 1):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00748}00748\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Inject\ internal\ padding\ to\ the\ end\ of\ the\ sub-\/item}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00749}00749\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ value\ =\ \mbox{\hyperlink{namespacenumpy_1_1core_1_1__internal_a425e58169db94a22cf34b2c5e57dedfd}{\_add\_trailing\_padding}}(value,\ intra\_padding)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00750}00750\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00751}00751\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ We\ can\ postpone\ the\ injection\ of\ internal\ padding,}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00752}00752\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ as\ the\ item\ appears\ at\ most\ once}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00753}00753\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ extra\_offset\ +=\ intra\_padding}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00754}00754\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00755}00755\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Update\ common\ alignment}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00756}00756\ \ \ \ \ \ \ \ \ \ \ \ \ common\_alignment\ =\ \_lcm(align,\ common\_alignment)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00757}00757\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00758}00758\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Convert\ itemsize\ to\ sub-\/array}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00759}00759\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ itemsize\ !=\ 1:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00760}00760\ \ \ \ \ \ \ \ \ \ \ \ \ value\ =\ \mbox{\hyperlink{namespacedtype}{dtype}}((value,\ (itemsize,)))}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00761}00761\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00762}00762\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Sub-\/arrays\ (2)}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00763}00763\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ shape\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00764}00764\ \ \ \ \ \ \ \ \ \ \ \ \ value\ =\ \mbox{\hyperlink{namespacedtype}{dtype}}((value,\ shape))}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00765}00765\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00766}00766\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Field\ name}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00767}00767\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ stream.consume(\textcolor{stringliteral}{':'}):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00768}00768\ \ \ \ \ \ \ \ \ \ \ \ \ name\ =\ stream.consume\_until(\textcolor{stringliteral}{':'})}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00769}00769\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00770}00770\ \ \ \ \ \ \ \ \ \ \ \ \ name\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00771}00771\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00772}00772\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ (is\_padding\ \textcolor{keywordflow}{and}\ name\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00773}00773\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ name\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{and}\ name\ \textcolor{keywordflow}{in}\ field\_spec[\textcolor{stringliteral}{'names'}]:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00774}00774\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classRuntimeError}{RuntimeError}}(f\textcolor{stringliteral}{"{}Duplicate\ field\ name\ '\{name\}'\ in\ PEP3118\ format"{}})}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00775}00775\ \ \ \ \ \ \ \ \ \ \ \ \ field\_spec[\textcolor{stringliteral}{'names'}].\mbox{\hyperlink{namespacenumpy_1_1lib_1_1function__base_a13549a07e8b31d8a0658c402bd920251}{append}}(name)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00776}00776\ \ \ \ \ \ \ \ \ \ \ \ \ field\_spec[\textcolor{stringliteral}{'formats'}].\mbox{\hyperlink{namespacenumpy_1_1lib_1_1function__base_a13549a07e8b31d8a0658c402bd920251}{append}}(value)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00777}00777\ \ \ \ \ \ \ \ \ \ \ \ \ field\_spec[\textcolor{stringliteral}{'offsets'}].\mbox{\hyperlink{namespacenumpy_1_1lib_1_1function__base_a13549a07e8b31d8a0658c402bd920251}{append}}(offset)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00778}00778\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00779}00779\ \ \ \ \ \ \ \ \ offset\ +=\ value.itemsize}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00780}00780\ \ \ \ \ \ \ \ \ offset\ +=\ extra\_offset}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00781}00781\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00782}00782\ \ \ \ \ \ \ \ \ field\_spec[\textcolor{stringliteral}{'itemsize'}]\ =\ offset}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00783}00783\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00784}00784\ \ \ \ \ \textcolor{comment}{\#\ extra\ final\ padding\ for\ aligned\ types}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00785}00785\ \ \ \ \ \textcolor{keywordflow}{if}\ stream.byteorder\ ==\ \textcolor{stringliteral}{'@'}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00786}00786\ \ \ \ \ \ \ \ \ field\_spec[\textcolor{stringliteral}{'itemsize'}]\ +=\ (-\/offset)\ \%\ common\_alignment}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00787}00787\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00788}00788\ \ \ \ \ \textcolor{comment}{\#\ Check\ if\ this\ was\ a\ simple\ 1-\/item\ type,\ and\ unwrap\ it}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00789}00789\ \ \ \ \ \textcolor{keywordflow}{if}\ (field\_spec[\textcolor{stringliteral}{'names'}]\ ==\ [\textcolor{keywordtype}{None}]}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00790}00790\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}\ field\_spec[\textcolor{stringliteral}{'offsets'}][0]\ ==\ 0}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00791}00791\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}\ field\_spec[\textcolor{stringliteral}{'itemsize'}]\ ==\ field\_spec[\textcolor{stringliteral}{'formats'}][0].itemsize}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00792}00792\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}\ \textcolor{keywordflow}{not}\ is\_subdtype):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00793}00793\ \ \ \ \ \ \ \ \ ret\ =\ field\_spec[\textcolor{stringliteral}{'formats'}][0]}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00794}00794\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00795}00795\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{namespacenumpy_1_1core_1_1__internal_a6723c622636b5954681409d415b427e8}{\_fix\_names}}(field\_spec)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00796}00796\ \ \ \ \ \ \ \ \ ret\ =\ \mbox{\hyperlink{namespacedtype}{dtype}}(field\_spec)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00797}00797\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00798}00798\ \ \ \ \ \textcolor{comment}{\#\ Finished}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00799}00799\ \ \ \ \ \textcolor{keywordflow}{return}\ ret,\ common\_alignment}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00800}00800\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00801}\mbox{\hyperlink{namespacenumpy_1_1core_1_1__internal_a6723c622636b5954681409d415b427e8}{00801}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacenumpy_1_1core_1_1__internal_a6723c622636b5954681409d415b427e8}{\_fix\_names}}(field\_spec):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00802}00802\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}\ Replace\ names\ which\ are\ None\ with\ the\ next\ unused\ f\%d\ name\ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00803}00803\ \ \ \ \ names\ =\ field\_spec[\textcolor{stringliteral}{'names'}]}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00804}00804\ \ \ \ \ \textcolor{keywordflow}{for}\ i,\ name\ \textcolor{keywordflow}{in}\ enumerate(names):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00805}00805\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ name\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00806}00806\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00807}00807\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00808}00808\ \ \ \ \ \ \ \ \ j\ =\ 0}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00809}00809\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{while}\ \textcolor{keyword}{True}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00810}00810\ \ \ \ \ \ \ \ \ \ \ \ \ name\ =\ f\textcolor{stringliteral}{'f\{j\}'}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00811}00811\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ name\ \textcolor{keywordflow}{not}\ \textcolor{keywordflow}{in}\ names:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00812}00812\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00813}00813\ \ \ \ \ \ \ \ \ \ \ \ \ j\ =\ j\ +\ 1}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00814}00814\ \ \ \ \ \ \ \ \ names[i]\ =\ name}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00815}00815\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00816}\mbox{\hyperlink{namespacenumpy_1_1core_1_1__internal_a425e58169db94a22cf34b2c5e57dedfd}{00816}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacenumpy_1_1core_1_1__internal_a425e58169db94a22cf34b2c5e57dedfd}{\_add\_trailing\_padding}}(value,\ padding):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00817}00817\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Inject\ the\ specified\ number\ of\ padding\ bytes\ at\ the\ end\ of\ a\ dtype"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00818}00818\ \ \ \ \ \textcolor{keywordflow}{if}\ value.fields\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00819}00819\ \ \ \ \ \ \ \ \ field\_spec\ =\ dict(}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00820}00820\ \ \ \ \ \ \ \ \ \ \ \ \ names=[\textcolor{stringliteral}{'f0'}],}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00821}00821\ \ \ \ \ \ \ \ \ \ \ \ \ formats=[value],}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00822}00822\ \ \ \ \ \ \ \ \ \ \ \ \ offsets=[0],}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00823}00823\ \ \ \ \ \ \ \ \ \ \ \ \ itemsize=value.itemsize}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00824}00824\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00825}00825\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00826}00826\ \ \ \ \ \ \ \ \ fields\ =\ value.fields}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00827}00827\ \ \ \ \ \ \ \ \ names\ =\ value.names}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00828}00828\ \ \ \ \ \ \ \ \ field\_spec\ =\ dict(}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00829}00829\ \ \ \ \ \ \ \ \ \ \ \ \ names=names,}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00830}00830\ \ \ \ \ \ \ \ \ \ \ \ \ formats=[fields[name][0]\ \textcolor{keywordflow}{for}\ name\ \textcolor{keywordflow}{in}\ names],}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00831}00831\ \ \ \ \ \ \ \ \ \ \ \ \ offsets=[fields[name][1]\ \textcolor{keywordflow}{for}\ name\ \textcolor{keywordflow}{in}\ names],}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00832}00832\ \ \ \ \ \ \ \ \ \ \ \ \ itemsize=value.itemsize}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00833}00833\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00834}00834\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00835}00835\ \ \ \ \ field\_spec[\textcolor{stringliteral}{'itemsize'}]\ +=\ padding}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00836}00836\ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{namespacedtype}{dtype}}(field\_spec)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00837}00837\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00838}00838\ \textcolor{keyword}{def\ }\_prod(a):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00839}00839\ \ \ \ \ p\ =\ 1}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00840}00840\ \ \ \ \ \textcolor{keywordflow}{for}\ x\ \textcolor{keywordflow}{in}\ a:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00841}00841\ \ \ \ \ \ \ \ \ p\ *=\ x}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00842}00842\ \ \ \ \ \textcolor{keywordflow}{return}\ p}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00843}00843\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00844}\mbox{\hyperlink{namespacenumpy_1_1core_1_1__internal_aeaec541a416510f1f2dee9c81e6104c6}{00844}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacenumpy_1_1core_1_1__internal_aeaec541a416510f1f2dee9c81e6104c6}{\_gcd}}(a,\ b):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00845}00845\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Calculate\ the\ greatest\ common\ divisor\ of\ a\ and\ b"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00846}00846\ \ \ \ \ \textcolor{keywordflow}{while}\ b:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00847}00847\ \ \ \ \ \ \ \ \ a,\ b\ =\ b,\ a\ \%\ b}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00848}00848\ \ \ \ \ \textcolor{keywordflow}{return}\ a}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00849}00849\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00850}00850\ \textcolor{keyword}{def\ }\_lcm(a,\ b):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00851}00851\ \ \ \ \ \textcolor{keywordflow}{return}\ a\ //\ \mbox{\hyperlink{namespacenumpy_1_1core_1_1__internal_aeaec541a416510f1f2dee9c81e6104c6}{\_gcd}}(a,\ b)\ *\ b}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00852}00852\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00853}\mbox{\hyperlink{namespacenumpy_1_1core_1_1__internal_af3a56cbe7f2cdbb26fdafcde34ac461f}{00853}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacenumpy_1_1core_1_1__internal_af3a56cbe7f2cdbb26fdafcde34ac461f}{array\_ufunc\_errmsg\_formatter}}(dummy,\ ufunc,\ method,\ *inputs,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00854}00854\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}\ Format\ the\ error\ message\ for\ when\ \_\_array\_ufunc\_\_\ gives\ up.\ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00855}00855\ \ \ \ \ args\_string\ =\ \textcolor{stringliteral}{',\ '}.join([\textcolor{stringliteral}{'\{!r\}'}.format(arg)\ \textcolor{keywordflow}{for}\ arg\ \textcolor{keywordflow}{in}\ inputs]\ +}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00856}00856\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ [\textcolor{stringliteral}{'\{\}=\{!r\}'}.format(k,\ v)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00857}00857\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ k,\ v\ \textcolor{keywordflow}{in}\ kwargs.items()])}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00858}00858\ \ \ \ \ args\ =\ inputs\ +\ kwargs.get(\textcolor{stringliteral}{'out'},\ ())}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00859}00859\ \ \ \ \ types\_string\ =\ \textcolor{stringliteral}{',\ '}.join(repr(type(arg).\_\_name\_\_)\ \textcolor{keywordflow}{for}\ arg\ \textcolor{keywordflow}{in}\ args)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00860}00860\ \ \ \ \ \textcolor{keywordflow}{return}\ (\textcolor{stringliteral}{'operand\ type(s)\ all\ returned\ NotImplemented\ from\ '}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00861}00861\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'\_\_array\_ufunc\_\_(\{!r\},\ \{!r\},\ \{\}):\ \{\}'}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00862}00862\ \ \ \ \ \ \ \ \ \ \ \ \ .format(ufunc,\ method,\ args\_string,\ types\_string))}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00863}00863\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00864}00864\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00865}\mbox{\hyperlink{namespacenumpy_1_1core_1_1__internal_a8656b1e62ee1da94cd764f2f978031d4}{00865}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacenumpy_1_1core_1_1__internal_a8656b1e62ee1da94cd764f2f978031d4}{array\_function\_errmsg\_formatter}}(public\_api,\ types):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00866}00866\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}\ Format\ the\ error\ message\ for\ when\ \_\_array\_ufunc\_\_\ gives\ up.\ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00867}00867\ \ \ \ \ func\_name\ =\ \textcolor{stringliteral}{'\{\}.\{\}'}.format(public\_api.\_\_module\_\_,\ public\_api.\_\_name\_\_)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00868}00868\ \ \ \ \ \textcolor{keywordflow}{return}\ (\textcolor{stringliteral}{"{}no\ implementation\ found\ for\ '\{\}'\ on\ types\ that\ implement\ "{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00869}00869\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'\_\_array\_function\_\_:\ \{\}'}.format(func\_name,\ list(types)))}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00870}00870\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00871}00871\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00872}\mbox{\hyperlink{namespacenumpy_1_1core_1_1__internal_aa6d1cf1fede66ec59cae310527899ea7}{00872}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacenumpy_1_1core_1_1__internal_aa6d1cf1fede66ec59cae310527899ea7}{\_ufunc\_doc\_signature\_formatter}}(ufunc):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00873}00873\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00874}00874\ \textcolor{stringliteral}{\ \ \ \ Builds\ a\ signature\ string\ which\ resembles\ PEP\ 457}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00875}00875\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00876}00876\ \textcolor{stringliteral}{\ \ \ \ This\ is\ used\ to\ construct\ the\ first\ line\ of\ the\ docstring}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00877}00877\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00878}00878\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00879}00879\ \ \ \ \ \textcolor{comment}{\#\ input\ arguments\ are\ simple}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00880}00880\ \ \ \ \ \textcolor{keywordflow}{if}\ ufunc.nin\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00881}00881\ \ \ \ \ \ \ \ \ in\_args\ =\ \textcolor{stringliteral}{'x'}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00882}00882\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00883}00883\ \ \ \ \ \ \ \ \ in\_args\ =\ \textcolor{stringliteral}{',\ '}.join(f\textcolor{stringliteral}{'x\{i+1\}'}\ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(ufunc.nin))}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00884}00884\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00885}00885\ \ \ \ \ \textcolor{comment}{\#\ output\ arguments\ are\ both\ keyword\ or\ positional}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00886}00886\ \ \ \ \ \textcolor{keywordflow}{if}\ ufunc.nout\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00887}00887\ \ \ \ \ \ \ \ \ out\_args\ =\ \textcolor{stringliteral}{',\ /,\ out=()'}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00888}00888\ \ \ \ \ \textcolor{keywordflow}{elif}\ ufunc.nout\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00889}00889\ \ \ \ \ \ \ \ \ out\_args\ =\ \textcolor{stringliteral}{',\ /,\ out=None'}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00890}00890\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00891}00891\ \ \ \ \ \ \ \ \ out\_args\ =\ \textcolor{stringliteral}{'[,\ \{positional\}],\ /\ [,\ out=\{default\}]'}.format(}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00892}00892\ \ \ \ \ \ \ \ \ \ \ \ \ positional=\textcolor{stringliteral}{',\ '}.join(}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00893}00893\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'out\{\}'}.format(i+1)\ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(ufunc.nout)),}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00894}00894\ \ \ \ \ \ \ \ \ \ \ \ \ default=repr((\textcolor{keywordtype}{None},)*ufunc.nout)}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00895}00895\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00896}00896\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00897}00897\ \ \ \ \ \textcolor{comment}{\#\ keyword\ only\ args\ depend\ on\ whether\ this\ is\ a\ gufunc}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00898}00898\ \ \ \ \ kwargs\ =\ (}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00899}00899\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{},\ casting='same\_kind'"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00900}00900\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{},\ order='K'"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00901}00901\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{},\ dtype=None"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00902}00902\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{},\ subok=True"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00903}00903\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00904}00904\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00905}00905\ \ \ \ \ \textcolor{comment}{\#\ NOTE:\ gufuncs\ may\ or\ may\ not\ support\ the\ \`{}axis`\ parameter}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00906}00906\ \ \ \ \ \textcolor{keywordflow}{if}\ ufunc.signature\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00907}00907\ \ \ \ \ \ \ \ \ kwargs\ =\ f\textcolor{stringliteral}{"{},\ where=True\{kwargs\}[,\ signature,\ extobj]"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00908}00908\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00909}00909\ \ \ \ \ \ \ \ \ kwargs\ +=\ \textcolor{stringliteral}{"{}[,\ signature,\ extobj,\ axes,\ axis]"{}}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00910}00910\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00911}00911\ \ \ \ \ \textcolor{comment}{\#\ join\ all\ the\ parts\ together}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00912}00912\ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{stringliteral}{'\{name\}(\{in\_args\}\{out\_args\},\ *\{kwargs\})'}.format(}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00913}00913\ \ \ \ \ \ \ \ \ name=ufunc.\_\_name\_\_,}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00914}00914\ \ \ \ \ \ \ \ \ in\_args=in\_args,}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00915}00915\ \ \ \ \ \ \ \ \ out\_args=out\_args,}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00916}00916\ \ \ \ \ \ \ \ \ kwargs=kwargs}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00917}00917\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00918}00918\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00919}00919\ }
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00920}00920\ \textcolor{keyword}{def\ }npy\_ctypes\_check(cls):}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00921}00921\ \ \ \ \ \textcolor{comment}{\#\ determine\ if\ a\ class\ comes\ from\ ctypes,\ in\ order\ to\ work\ around}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00922}00922\ \ \ \ \ \textcolor{comment}{\#\ a\ bug\ in\ the\ buffer\ protocol\ for\ those\ objects,\ bpo-\/10746}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00923}00923\ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00924}00924\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ ctypes\ class\ are\ new-\/style,\ so\ have\ an\ \_\_mro\_\_.\ This\ probably\ fails}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00925}00925\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ for\ ctypes\ classes\ with\ multiple\ inheritance.}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00926}00926\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ IS\_PYPY:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00927}00927\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ (...,\ \_ctypes.basics.\_CData,\ Bufferable,\ object)}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00928}00928\ \ \ \ \ \ \ \ \ \ \ \ \ ctype\_base\ =\ cls.\_\_mro\_\_[-\/3]}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00929}00929\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00930}00930\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \#\ (...,\ \_ctypes.\_CData,\ object)}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00931}00931\ \ \ \ \ \ \ \ \ \ \ \ \ ctype\_base\ =\ cls.\_\_mro\_\_[-\/2]}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00932}00932\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ right\ now,\ they're\ part\ of\ the\ \_ctypes\ module}}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00933}00933\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{stringliteral}{'\_ctypes'}\ \textcolor{keywordflow}{in}\ ctype\_base.\_\_module\_\_}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00934}00934\ \ \ \ \ \textcolor{keywordflow}{except}\ Exception:}
+\DoxyCodeLine{\Hypertarget{numpy_2core_2__internal_8py_source_l00935}00935\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+
+\end{DoxyCode}

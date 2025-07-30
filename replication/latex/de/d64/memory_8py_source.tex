@@ -1,0 +1,1234 @@
+\doxysection{memory.\+py}
+\hypertarget{memory_8py_source}{}\label{memory_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/joblib/memory.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/joblib/memory.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00001}\mbox{\hyperlink{namespacejoblib_1_1memory}{00001}}\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00002}00002\ \textcolor{stringliteral}{A\ context\ object\ for\ caching\ a\ function's\ return\ value\ each\ time\ it}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00003}00003\ \textcolor{stringliteral}{is\ called\ with\ the\ same\ input\ arguments.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00004}00004\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00005}00005\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00006}00006\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00007}00007\ \textcolor{comment}{\#\ Author:\ Gael\ Varoquaux\ <gael\ dot\ varoquaux\ at\ normalesup\ dot\ org>}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00008}00008\ \textcolor{comment}{\#\ Copyright\ (c)\ 2009\ Gael\ Varoquaux}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00009}00009\ \textcolor{comment}{\#\ License:\ BSD\ Style,\ 3\ clauses.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00010}00010\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00011}00011\ \textcolor{keyword}{import}\ asyncio}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00012}00012\ \textcolor{keyword}{import}\ datetime}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00013}00013\ \textcolor{keyword}{import}\ functools}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00014}00014\ \textcolor{keyword}{import}\ inspect}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00015}00015\ \textcolor{keyword}{import}\ logging}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00016}00016\ \textcolor{keyword}{import}\ os}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00017}00017\ \textcolor{keyword}{import}\ pathlib}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00018}00018\ \textcolor{keyword}{import}\ pydoc}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00019}00019\ \textcolor{keyword}{import}\ re}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00020}00020\ \textcolor{keyword}{import}\ textwrap}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00021}00021\ \textcolor{keyword}{import}\ time}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00022}00022\ \textcolor{keyword}{import}\ tokenize}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00023}00023\ \textcolor{keyword}{import}\ traceback}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00024}00024\ \textcolor{keyword}{import}\ warnings}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00025}00025\ \textcolor{keyword}{import}\ weakref}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00026}00026\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00027}00027\ \textcolor{keyword}{from}\ .\ \textcolor{keyword}{import}\ hashing}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00028}00028\ \textcolor{keyword}{from}\ .\_store\_backends\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00029}00029\ \ \ \ \ CacheWarning,\ \ \textcolor{comment}{\#\ noqa}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00030}00030\ \ \ \ \ FileSystemStoreBackend,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00031}00031\ \ \ \ \ StoreBackendBase,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00032}00032\ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00033}00033\ \textcolor{keyword}{from}\ .func\_inspect\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00034}00034\ \ \ \ \ filter\_args,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00035}00035\ \ \ \ \ format\_call,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00036}00036\ \ \ \ \ format\_signature,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00037}00037\ \ \ \ \ get\_func\_code,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00038}00038\ \ \ \ \ get\_func\_name,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00039}00039\ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00040}00040\ \textcolor{keyword}{from}\ .logger\ \textcolor{keyword}{import}\ Logger,\ format\_time,\ pformat}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00041}00041\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00042}00042\ FIRST\_LINE\_TEXT\ =\ \textcolor{stringliteral}{"{}\#\ first\ line:"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00043}00043\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00044}00044\ \textcolor{comment}{\#\ TODO:\ The\ following\ object\ should\ have\ a\ data\ store\ object\ as\ a\ sub}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00045}00045\ \textcolor{comment}{\#\ object,\ and\ the\ interface\ to\ persist\ and\ query\ should\ be\ separated\ in}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00046}00046\ \textcolor{comment}{\#\ the\ data\ store.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00047}00047\ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00048}00048\ \textcolor{comment}{\#\ This\ would\ enable\ creating\ 'Memory'\ objects\ with\ a\ different\ logic\ for}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00049}00049\ \textcolor{comment}{\#\ pickling\ that\ would\ simply\ span\ a\ MemorizedFunc\ with\ the\ same}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00050}00050\ \textcolor{comment}{\#\ store\ (or\ do\ we\ want\ to\ copy\ it\ to\ avoid\ cross-\/talks?),\ for\ instance\ to}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00051}00051\ \textcolor{comment}{\#\ implement\ HDF5\ pickling.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00052}00052\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00053}00053\ \textcolor{comment}{\#\ TODO:\ Same\ remark\ for\ the\ logger,\ and\ probably\ use\ the\ Python\ logging}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00054}00054\ \textcolor{comment}{\#\ mechanism.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00055}00055\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00056}00056\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00057}\mbox{\hyperlink{namespacejoblib_1_1memory_a68f52050d160fe518902e2d361de6f1d}{00057}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1memory_a68f52050d160fe518902e2d361de6f1d}{extract\_first\_line}}(func\_code):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00058}00058\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Extract\ the\ first\ line\ information\ from\ the\ function\ code}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00059}00059\ \textcolor{stringliteral}{\ \ \ \ text\ if\ available.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00060}00060\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00061}00061\ \ \ \ \ \textcolor{keywordflow}{if}\ func\_code.startswith(FIRST\_LINE\_TEXT):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00062}00062\ \ \ \ \ \ \ \ \ func\_code\ =\ func\_code.split(\textcolor{stringliteral}{"{}\(\backslash\)n"{}})}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00063}00063\ \ \ \ \ \ \ \ \ first\_line\ =\ int(func\_code[0][len(FIRST\_LINE\_TEXT)\ :])}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00064}00064\ \ \ \ \ \ \ \ \ func\_code\ =\ \textcolor{stringliteral}{"{}\(\backslash\)n"{}}.join(func\_code[1:])}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00065}00065\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00066}00066\ \ \ \ \ \ \ \ \ first\_line\ =\ -\/1}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00067}00067\ \ \ \ \ \textcolor{keywordflow}{return}\ func\_code,\ first\_line}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00068}00068\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00069}00069\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00070}\mbox{\hyperlink{classjoblib_1_1memory_1_1JobLibCollisionWarning}{00070}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classjoblib_1_1memory_1_1JobLibCollisionWarning}{JobLibCollisionWarning}}(\mbox{\hyperlink{classUserWarning}{UserWarning}}):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00071}00071\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Warn\ that\ there\ might\ be\ a\ collision\ between\ names\ of\ functions."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00072}00072\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00073}00073\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00074}00074\ \_STORE\_BACKENDS\ =\ \{\textcolor{stringliteral}{"{}local"{}}:\ FileSystemStoreBackend\}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00075}00075\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00076}00076\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00077}\mbox{\hyperlink{namespacejoblib_1_1memory_aa0f0952b2f4ab34aeb756771479c266f}{00077}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1memory_aa0f0952b2f4ab34aeb756771479c266f}{register\_store\_backend}}(backend\_name,\ backend):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00078}00078\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Extend\ available\ store\ backends.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00079}00079\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00080}00080\ \textcolor{stringliteral}{\ \ \ \ The\ Memory,\ MemorizeResult\ and\ MemorizeFunc\ objects\ are\ designed\ to\ be}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00081}00081\ \textcolor{stringliteral}{\ \ \ \ agnostic\ to\ the\ type\ of\ store\ used\ behind.\ By\ default,\ the\ local\ file}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00082}00082\ \textcolor{stringliteral}{\ \ \ \ system\ is\ used\ but\ this\ function\ gives\ the\ possibility\ to\ extend\ joblib's}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00083}00083\ \textcolor{stringliteral}{\ \ \ \ memory\ pattern\ with\ other\ types\ of\ storage\ such\ as\ cloud\ storage\ (S3,\ GCS,}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00084}00084\ \textcolor{stringliteral}{\ \ \ \ OpenStack,\ HadoopFS,\ etc)\ or\ blob\ DBs.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00085}00085\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00086}00086\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00087}00087\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00088}00088\ \textcolor{stringliteral}{\ \ \ \ backend\_name:\ str}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00089}00089\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ name\ identifying\ the\ store\ backend\ being\ registered.\ For\ example,}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00090}00090\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 'local'\ is\ used\ with\ FileSystemStoreBackend.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00091}00091\ \textcolor{stringliteral}{\ \ \ \ backend:\ StoreBackendBase\ subclass}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00092}00092\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ name\ of\ a\ class\ that\ implements\ the\ StoreBackendBase\ interface.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00093}00093\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00094}00094\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00095}00095\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ isinstance(backend\_name,\ str):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00096}00096\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00097}00097\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Store\ backend\ name\ should\ be\ a\ string,\ '\{0\}'\ given."{}}.format(backend\_name)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00098}00098\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00099}00099\ \ \ \ \ \textcolor{keywordflow}{if}\ backend\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{or}\ \textcolor{keywordflow}{not}\ issubclass(backend,\ StoreBackendBase):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00100}00100\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00101}00101\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Store\ backend\ should\ inherit\ StoreBackendBase,\ '\{0\}'\ given."{}}.format(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00102}00102\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ backend}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00103}00103\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00104}00104\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00105}00105\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00106}00106\ \ \ \ \ \_STORE\_BACKENDS[backend\_name]\ =\ backend}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00107}00107\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00108}00108\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00109}\mbox{\hyperlink{namespacejoblib_1_1memory_aea457a021d73b5f4539e4b731f27ad8f}{00109}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1memory_aea457a021d73b5f4539e4b731f27ad8f}{\_store\_backend\_factory}}(backend,\ location,\ verbose=0,\ backend\_options=None):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00110}00110\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Return\ the\ correct\ store\ object\ for\ the\ given\ location."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00111}00111\ \ \ \ \ \textcolor{keywordflow}{if}\ backend\_options\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00112}00112\ \ \ \ \ \ \ \ \ backend\_options\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00113}00113\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00114}00114\ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(location,\ pathlib.Path):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00115}00115\ \ \ \ \ \ \ \ \ location\ =\ str(location)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00116}00116\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00117}00117\ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(location,\ StoreBackendBase):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00118}00118\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ location}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00119}00119\ \ \ \ \ \textcolor{keywordflow}{elif}\ isinstance(location,\ str):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00120}00120\ \ \ \ \ \ \ \ \ obj\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00121}00121\ \ \ \ \ \ \ \ \ location\ =\ os.path.expanduser(location)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00122}00122\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ location\ is\ not\ a\ local\ file\ system,\ we\ look\ in\ the}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00123}00123\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ registered\ backends\ if\ there's\ one\ matching\ the\ given\ backend}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00124}00124\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ name.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00125}00125\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ backend\_key,\ backend\_obj\ \textcolor{keywordflow}{in}\ \_STORE\_BACKENDS.items():}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00126}00126\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ backend\ ==\ backend\_key:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00127}00127\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ obj\ =\ backend\_obj()}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00128}00128\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00129}00129\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ By\ default,\ we\ assume\ the\ FileSystemStoreBackend\ can\ be\ used\ if\ no}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00130}00130\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ matching\ backend\ could\ be\ found.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00131}00131\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ obj\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00132}00132\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classTypeError}{TypeError}}(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00133}00133\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Unknown\ location\ \{0\}\ or\ backend\ \{1\}"{}}.format(location,\ backend)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00134}00134\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00135}00135\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00136}00136\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ store\ backend\ is\ configured\ with\ the\ extra\ named\ parameters,}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00137}00137\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ some\ of\ them\ are\ specific\ to\ the\ underlying\ store\ backend.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00138}00138\ \ \ \ \ \ \ \ \ obj.configure(location,\ verbose=verbose,\ backend\_options=backend\_options)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00139}00139\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ obj}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00140}00140\ \ \ \ \ \textcolor{keywordflow}{elif}\ location\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00141}00141\ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00142}00142\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Instantiating\ a\ backend\ using\ a\ \{\}\ as\ a\ location\ is\ not\ "{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00143}00143\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}supported\ by\ joblib.\ Returning\ None\ instead."{}}.format(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00144}00144\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ location.\_\_class\_\_.\_\_name\_\_}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00145}00145\ \ \ \ \ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00146}00146\ \ \ \ \ \ \ \ \ \ \ \ \ UserWarning,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00147}00147\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00148}00148\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00149}00149\ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00150}00150\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00151}00151\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00152}\mbox{\hyperlink{namespacejoblib_1_1memory_a6f5b4967a351fd405d082c054f4c0c92}{00152}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1memory_a6f5b4967a351fd405d082c054f4c0c92}{\_build\_func\_identifier}}(func):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00153}00153\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Build\ a\ roughly\ unique\ identifier\ for\ the\ cached\ function."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00154}00154\ \ \ \ \ modules,\ funcname\ =\ get\_func\_name(func)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00155}00155\ \ \ \ \ \textcolor{comment}{\#\ We\ reuse\ historical\ fs-\/like\ way\ of\ building\ a\ function\ identifier}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00156}00156\ \ \ \ \ \textcolor{keywordflow}{return}\ os.path.join(*modules,\ funcname)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00157}00157\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00158}00158\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00159}00159\ \textcolor{comment}{\#\ An\ in-\/memory\ store\ to\ avoid\ looking\ at\ the\ disk-\/based\ function}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00160}00160\ \textcolor{comment}{\#\ source\ code\ to\ check\ if\ a\ function\ definition\ has\ changed}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00161}00161\ \_FUNCTION\_HASHES\ =\ weakref.WeakKeyDictionary()}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00162}00162\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00163}00163\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00164}00164\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00167}\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedResult}{00167}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedResult}{MemorizedResult}}(\mbox{\hyperlink{classjoblib_1_1logger_1_1Logger}{Logger}}):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00168}00168\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Object\ representing\ a\ cached\ value.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00169}00169\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00170}00170\ \textcolor{stringliteral}{\ \ \ \ Attributes}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00171}00171\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00172}00172\ \textcolor{stringliteral}{\ \ \ \ location:\ str}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00173}00173\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ location\ of\ joblib\ cache.\ Depends\ on\ the\ store\ backend\ used.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00174}00174\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00175}00175\ \textcolor{stringliteral}{\ \ \ \ func:\ function\ or\ str}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00176}00176\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ function\ whose\ output\ is\ cached.\ The\ string\ case\ is\ intended\ only\ for}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00177}00177\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ instantiation\ based\ on\ the\ output\ of\ repr()\ on\ another\ instance.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00178}00178\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ (namely\ eval(repr(memorized\_instance))\ works).}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00179}00179\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00180}00180\ \textcolor{stringliteral}{\ \ \ \ argument\_hash:\ str}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00181}00181\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ hash\ of\ the\ function\ arguments.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00182}00182\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00183}00183\ \textcolor{stringliteral}{\ \ \ \ backend:\ str}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00184}00184\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Type\ of\ store\ backend\ for\ reading/writing\ cache\ files.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00185}00185\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Default\ is\ 'local'.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00186}00186\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00187}00187\ \textcolor{stringliteral}{\ \ \ \ mmap\_mode:\ \{None,\ 'r+',\ 'r',\ 'w+',\ 'c'\}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00188}00188\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ memmapping\ mode\ used\ when\ loading\ from\ cache\ numpy\ arrays.\ See}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00189}00189\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ numpy.load\ for\ the\ meaning\ of\ the\ different\ values.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00190}00190\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00191}00191\ \textcolor{stringliteral}{\ \ \ \ verbose:\ int}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00192}00192\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ verbosity\ level\ (0\ means\ no\ message).}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00193}00193\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00194}00194\ \textcolor{stringliteral}{\ \ \ \ timestamp,\ metadata:\ string}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00195}00195\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ for\ internal\ use\ only.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00196}00196\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00197}00197\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00198}00198\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00199}00199\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00200}00200\ \ \ \ \ \ \ \ \ location,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00201}00201\ \ \ \ \ \ \ \ \ call\_id,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00202}00202\ \ \ \ \ \ \ \ \ backend="{}local"{},}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00203}00203\ \ \ \ \ \ \ \ \ mmap\_mode=None,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00204}00204\ \ \ \ \ \ \ \ \ verbose=0,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00205}00205\ \ \ \ \ \ \ \ \ timestamp=None,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00206}00206\ \ \ \ \ \ \ \ \ metadata=None,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00207}00207\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00208}00208\ \ \ \ \ \ \ \ \ Logger.\_\_init\_\_(self)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00209}00209\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedResult_a5cf3afffbd28671fb8b87e4137c70402}{\_call\_id}}\ =\ call\_id}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00210}00210\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedResult_aab49c5d1e30e9ddcb7d2ad6fb188a555}{store\_backend}}\ =\ \mbox{\hyperlink{namespacejoblib_1_1memory_aea457a021d73b5f4539e4b731f27ad8f}{\_store\_backend\_factory}}(backend,\ location,\ verbose=verbose)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00211}00211\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedResult_a8f7d654489e80e46de4bb3f1c3cab964}{mmap\_mode}}\ =\ mmap\_mode}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00212}00212\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00213}00213\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ metadata\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00214}00214\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedResult_a0f8765914084970ec88d2223b562454e}{metadata}}\ =\ metadata}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00215}00215\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00216}00216\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedResult_a0f8765914084970ec88d2223b562454e}{metadata}}\ =\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedResult_aab49c5d1e30e9ddcb7d2ad6fb188a555}{store\_backend}}.get\_metadata(self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedResult_a5cf3afffbd28671fb8b87e4137c70402}{\_call\_id}})}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00217}00217\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00218}00218\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedResult_a3c50e6247a8f3baaa444ffc8f83f78db}{duration}}\ =\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedResult_a0f8765914084970ec88d2223b562454e}{metadata}}.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedResult_ad7802f16d688a55b689a99d68b26bf38}{get}}(\textcolor{stringliteral}{"{}duration"{}},\ \textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00219}00219\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedResult_ac5f4896829484aefd1ed05350bf3045c}{verbose}}\ =\ verbose}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00220}00220\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedResult_a36e5f2e17e1c0160cbb81811685e57b5}{timestamp}}\ =\ timestamp}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00221}00221\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00222}00222\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00223}00223\ \ \ \ \ \textcolor{keyword}{def\ }func(self):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00224}00224\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedResult_aad11833d331630082ee845ab318c604b}{func\_id}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00225}00225\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00226}00226\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00227}00227\ \ \ \ \ \textcolor{keyword}{def\ }func\_id(self):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00228}00228\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedResult_a5cf3afffbd28671fb8b87e4137c70402}{\_call\_id}}[0]}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00229}00229\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00230}00230\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00231}00231\ \ \ \ \ \textcolor{keyword}{def\ }args\_id(self):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00232}00232\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedResult_a5cf3afffbd28671fb8b87e4137c70402}{\_call\_id}}[1]}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00233}00233\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00234}\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedResult_ad7802f16d688a55b689a99d68b26bf38}{00234}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedResult_ad7802f16d688a55b689a99d68b26bf38}{get}}(self):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00235}00235\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Read\ value\ from\ cache\ and\ return\ it."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00236}00236\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00237}00237\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedResult_aab49c5d1e30e9ddcb7d2ad6fb188a555}{store\_backend}}.load\_item(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00238}00238\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedResult_a5cf3afffbd28671fb8b87e4137c70402}{\_call\_id}},}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00239}00239\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ timestamp=self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedResult_a36e5f2e17e1c0160cbb81811685e57b5}{timestamp}},}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00240}00240\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ metadata=self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedResult_a0f8765914084970ec88d2223b562454e}{metadata}},}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00241}00241\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ verbose=self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedResult_ac5f4896829484aefd1ed05350bf3045c}{verbose}},}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00242}00242\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00243}00243\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ ValueError\ \textcolor{keyword}{as}\ exc:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00244}00244\ \ \ \ \ \ \ \ \ \ \ \ \ new\_exc\ =\ \mbox{\hyperlink{classKeyError}{KeyError}}(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00245}00245\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Error\ while\ trying\ to\ load\ a\ MemorizedResult's\ value.\ "{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00246}00246\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}It\ seems\ that\ this\ folder\ is\ corrupted\ :\ \{\}"{}}.\mbox{\hyperlink{classjoblib_1_1logger_1_1Logger_afe4b6477884706f2a411232132a6c0e9}{format}}(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00247}00247\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ os.path.join(self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedResult_aab49c5d1e30e9ddcb7d2ad6fb188a555}{store\_backend}}.location,\ *self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedResult_a5cf3afffbd28671fb8b87e4137c70402}{\_call\_id}})}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00248}00248\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00249}00249\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00250}00250\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ new\_exc\ \textcolor{keyword}{from}\ exc}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00251}00251\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00252}\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedResult_a1de0aa01fe0694d26cfb9b564521744d}{00252}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedResult_a1de0aa01fe0694d26cfb9b564521744d}{clear}}(self):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00253}00253\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Clear\ value\ from\ cache"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00254}00254\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedResult_aab49c5d1e30e9ddcb7d2ad6fb188a555}{store\_backend}}.clear\_item(self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedResult_a5cf3afffbd28671fb8b87e4137c70402}{\_call\_id}})}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00255}00255\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00256}00256\ \ \ \ \ \textcolor{keyword}{def\ }\_\_repr\_\_(self):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00257}00257\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{stringliteral}{'\{\}(location="{}\{\}"{},\ func="{}\{\}"{},\ args\_id="{}\{\}"{})'}.\mbox{\hyperlink{classjoblib_1_1logger_1_1Logger_afe4b6477884706f2a411232132a6c0e9}{format}}(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00258}00258\ \ \ \ \ \ \ \ \ \ \ \ \ self.\_\_class\_\_.\_\_name\_\_,\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedResult_aab49c5d1e30e9ddcb7d2ad6fb188a555}{store\_backend}}.location,\ *self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedResult_a5cf3afffbd28671fb8b87e4137c70402}{\_call\_id}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00259}00259\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00260}00260\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00261}00261\ \ \ \ \ \textcolor{keyword}{def\ }\_\_getstate\_\_(self):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00262}00262\ \ \ \ \ \ \ \ \ state\ =\ self.\_\_dict\_\_.copy()}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00263}00263\ \ \ \ \ \ \ \ \ state[\textcolor{stringliteral}{"{}timestamp"{}}]\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00264}00264\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ state}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00265}00265\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00266}00266\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00267}\mbox{\hyperlink{classjoblib_1_1memory_1_1NotMemorizedResult}{00267}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classjoblib_1_1memory_1_1NotMemorizedResult}{NotMemorizedResult}}(object):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00268}00268\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Class\ representing\ an\ arbitrary\ value.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00269}00269\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00270}00270\ \textcolor{stringliteral}{\ \ \ \ This\ class\ is\ a\ replacement\ for\ MemorizedResult\ when\ there\ is\ no\ cache.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00271}00271\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00272}00272\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00273}00273\ \ \ \ \ \_\_slots\_\_\ =\ (\textcolor{stringliteral}{"{}value"{}},\ \textcolor{stringliteral}{"{}valid"{}})}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00274}00274\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00275}00275\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ value):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00276}00276\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1NotMemorizedResult_a48eac42122abf7eb63f9699e03da2dba}{value}}\ =\ value}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00277}00277\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1NotMemorizedResult_a1e1a35125ad57256adfc7b350c28f9b3}{valid}}\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00278}00278\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00279}00279\ \ \ \ \ \textcolor{keyword}{def\ }get(self):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00280}00280\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1NotMemorizedResult_a1e1a35125ad57256adfc7b350c28f9b3}{valid}}:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00281}00281\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1NotMemorizedResult_a48eac42122abf7eb63f9699e03da2dba}{value}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00282}00282\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00283}00283\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classKeyError}{KeyError}}(\textcolor{stringliteral}{"{}No\ value\ stored."{}})}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00284}00284\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00285}00285\ \ \ \ \ \textcolor{keyword}{def\ }clear(self):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00286}00286\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1NotMemorizedResult_a1e1a35125ad57256adfc7b350c28f9b3}{valid}}\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00287}00287\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1NotMemorizedResult_a48eac42122abf7eb63f9699e03da2dba}{value}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00288}00288\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00289}00289\ \ \ \ \ \textcolor{keyword}{def\ }\_\_repr\_\_(self):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00290}00290\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1NotMemorizedResult_a1e1a35125ad57256adfc7b350c28f9b3}{valid}}:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00291}00291\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{stringliteral}{"{}\{class\_name\}(\{value\})"{}}.format(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00292}00292\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ class\_name=self.\_\_class\_\_.\_\_name\_\_,\ value=pformat(self.\mbox{\hyperlink{classjoblib_1_1memory_1_1NotMemorizedResult_a48eac42122abf7eb63f9699e03da2dba}{value}})}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00293}00293\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00294}00294\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00295}00295\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\_\_class\_\_.\_\_name\_\_\ +\ \textcolor{stringliteral}{"{}\ with\ no\ value"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00296}00296\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00297}00297\ \ \ \ \ \textcolor{comment}{\#\ \_\_getstate\_\_\ and\ \_\_setstate\_\_\ are\ required\ because\ of\ \_\_slots\_\_}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00298}00298\ \ \ \ \ \textcolor{keyword}{def\ }\_\_getstate\_\_(self):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00299}00299\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \{\textcolor{stringliteral}{"{}valid"{}}:\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1NotMemorizedResult_a1e1a35125ad57256adfc7b350c28f9b3}{valid}},\ \textcolor{stringliteral}{"{}value"{}}:\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1NotMemorizedResult_a48eac42122abf7eb63f9699e03da2dba}{value}}\}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00300}00300\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00301}00301\ \ \ \ \ \textcolor{keyword}{def\ }\_\_setstate\_\_(self,\ state):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00302}00302\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1NotMemorizedResult_a1e1a35125ad57256adfc7b350c28f9b3}{valid}}\ =\ state[\textcolor{stringliteral}{"{}valid"{}}]}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00303}00303\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1NotMemorizedResult_a48eac42122abf7eb63f9699e03da2dba}{value}}\ =\ state[\textcolor{stringliteral}{"{}value"{}}]}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00304}00304\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00305}00305\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00306}00306\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00309}\mbox{\hyperlink{classjoblib_1_1memory_1_1NotMemorizedFunc}{00309}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classjoblib_1_1memory_1_1NotMemorizedFunc}{NotMemorizedFunc}}(object):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00310}00310\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}No-\/op\ object\ decorating\ a\ function.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00311}00311\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00312}00312\ \textcolor{stringliteral}{\ \ \ \ This\ class\ replaces\ MemorizedFunc\ when\ there\ is\ no\ cache.\ It\ provides\ an}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00313}00313\ \textcolor{stringliteral}{\ \ \ \ identical\ API\ but\ does\ not\ write\ anything\ on\ disk.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00314}00314\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00315}00315\ \textcolor{stringliteral}{\ \ \ \ Attributes}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00316}00316\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00317}00317\ \textcolor{stringliteral}{\ \ \ \ func:\ callable}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00318}00318\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Original\ undecorated\ function.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00319}00319\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00320}00320\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00321}00321\ \ \ \ \ \textcolor{comment}{\#\ Should\ be\ a\ light\ as\ possible\ (for\ speed)}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00322}00322\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ func):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00323}00323\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1NotMemorizedFunc_a7d97695820d72bafced7bbe63252512f}{func}}\ =\ func}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00324}00324\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00325}00325\ \ \ \ \ \textcolor{keyword}{def\ }\_\_call\_\_(self,\ *args,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00326}00326\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1NotMemorizedFunc_a7d97695820d72bafced7bbe63252512f}{func}}(*args,\ **kwargs)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00327}00327\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00328}00328\ \ \ \ \ \textcolor{keyword}{def\ }call\_and\_shelve(self,\ *args,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00329}00329\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classjoblib_1_1memory_1_1NotMemorizedResult}{NotMemorizedResult}}(self.\mbox{\hyperlink{classjoblib_1_1memory_1_1NotMemorizedFunc_a7d97695820d72bafced7bbe63252512f}{func}}(*args,\ **kwargs))}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00330}00330\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00331}00331\ \ \ \ \ \textcolor{keyword}{def\ }\_\_repr\_\_(self):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00332}00332\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{stringliteral}{"{}\{0\}(func=\{1\})"{}}.format(self.\_\_class\_\_.\_\_name\_\_,\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1NotMemorizedFunc_a7d97695820d72bafced7bbe63252512f}{func}})}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00333}00333\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00334}00334\ \ \ \ \ \textcolor{keyword}{def\ }clear(self,\ warn=True):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00335}00335\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Argument\ "{}warn"{}\ is\ for\ compatibility\ with\ MemorizedFunc.clear}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00336}00336\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{pass}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00337}00337\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00338}00338\ \ \ \ \ \textcolor{keyword}{def\ }call(self,\ *args,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00339}00339\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.func(*args,\ **kwargs),\ \{\}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00340}00340\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00341}00341\ \ \ \ \ \textcolor{keyword}{def\ }check\_call\_in\_cache(self,\ *args,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00342}00342\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00343}00343\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00344}00344\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00345}00345\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00348}\mbox{\hyperlink{classjoblib_1_1memory_1_1AsyncNotMemorizedFunc}{00348}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classjoblib_1_1memory_1_1AsyncNotMemorizedFunc}{AsyncNotMemorizedFunc}}(\mbox{\hyperlink{classjoblib_1_1memory_1_1NotMemorizedFunc}{NotMemorizedFunc}}):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00349}00349\ \ \ \ \ \textcolor{keyword}{async\ def\ }call\_and\_shelve(self,\ *args,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00350}00350\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classjoblib_1_1memory_1_1NotMemorizedResult}{NotMemorizedResult}}(await\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1NotMemorizedFunc_a7d97695820d72bafced7bbe63252512f}{func}}(*args,\ **kwargs))}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00351}00351\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00352}00352\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00353}00353\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00356}\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc}{00356}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc}{MemorizedFunc}}(\mbox{\hyperlink{classjoblib_1_1logger_1_1Logger}{Logger}}):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00357}00357\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Callable\ object\ decorating\ a\ function\ for\ caching\ its\ return\ value}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00358}00358\ \textcolor{stringliteral}{\ \ \ \ each\ time\ it\ is\ called.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00359}00359\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00360}00360\ \textcolor{stringliteral}{\ \ \ \ Methods\ are\ provided\ to\ inspect\ the\ cache\ or\ clean\ it.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00361}00361\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00362}00362\ \textcolor{stringliteral}{\ \ \ \ Attributes}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00363}00363\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00364}00364\ \textcolor{stringliteral}{\ \ \ \ func:\ callable}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00365}00365\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ original,\ undecorated,\ function.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00366}00366\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00367}00367\ \textcolor{stringliteral}{\ \ \ \ location:\ string}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00368}00368\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ location\ of\ joblib\ cache.\ Depends\ on\ the\ store\ backend\ used.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00369}00369\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00370}00370\ \textcolor{stringliteral}{\ \ \ \ backend:\ str}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00371}00371\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Type\ of\ store\ backend\ for\ reading/writing\ cache\ files.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00372}00372\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Default\ is\ 'local',\ in\ which\ case\ the\ location\ is\ the\ path\ to\ a}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00373}00373\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ disk\ storage.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00374}00374\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00375}00375\ \textcolor{stringliteral}{\ \ \ \ ignore:\ list\ or\ None}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00376}00376\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ List\ of\ variable\ names\ to\ ignore\ when\ choosing\ whether\ to}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00377}00377\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ recompute.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00378}00378\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00379}00379\ \textcolor{stringliteral}{\ \ \ \ mmap\_mode:\ \{None,\ 'r+',\ 'r',\ 'w+',\ 'c'\}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00380}00380\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ memmapping\ mode\ used\ when\ loading\ from\ cache}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00381}00381\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ numpy\ arrays.\ See\ numpy.load\ for\ the\ meaning\ of\ the\ different}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00382}00382\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ values.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00383}00383\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00384}00384\ \textcolor{stringliteral}{\ \ \ \ compress:\ boolean,\ or\ integer}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00385}00385\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Whether\ to\ zip\ the\ stored\ data\ on\ disk.\ If\ an\ integer\ is}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00386}00386\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ given,\ it\ should\ be\ between\ 1\ and\ 9,\ and\ sets\ the\ amount}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00387}00387\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ of\ compression.\ Note\ that\ compressed\ arrays\ cannot\ be}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00388}00388\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ read\ by\ memmapping.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00389}00389\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00390}00390\ \textcolor{stringliteral}{\ \ \ \ verbose:\ int,\ optional}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00391}00391\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ verbosity\ flag,\ controls\ messages\ that\ are\ issued\ as}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00392}00392\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ function\ is\ evaluated.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00393}00393\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00394}00394\ \textcolor{stringliteral}{\ \ \ \ cache\_validation\_callback:\ callable,\ optional}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00395}00395\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Callable\ to\ check\ if\ a\ result\ in\ cache\ is\ valid\ or\ is\ to\ be\ recomputed.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00396}00396\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ When\ the\ function\ is\ called\ with\ arguments\ for\ which\ a\ cache\ exists,}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00397}00397\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ callback\ is\ called\ with\ the\ cache\ entry's\ metadata\ as\ its\ sole}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00398}00398\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ argument.\ If\ it\ returns\ True,\ the\ cached\ result\ is\ returned,\ else\ the}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00399}00399\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ cache\ for\ these\ arguments\ is\ cleared\ and\ the\ result\ is\ recomputed.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00400}00400\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00401}00401\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00402}00402\ \ \ \ \ \textcolor{comment}{\#\ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00403}00403\ \ \ \ \ \textcolor{comment}{\#\ Public\ interface}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00404}00404\ \ \ \ \ \textcolor{comment}{\#\ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00405}00405\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00406}00406\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00407}00407\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00408}00408\ \ \ \ \ \ \ \ \ func,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00409}00409\ \ \ \ \ \ \ \ \ location,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00410}00410\ \ \ \ \ \ \ \ \ backend="{}local"{},}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00411}00411\ \ \ \ \ \ \ \ \ ignore=None,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00412}00412\ \ \ \ \ \ \ \ \ mmap\_mode=None,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00413}00413\ \ \ \ \ \ \ \ \ compress=False,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00414}00414\ \ \ \ \ \ \ \ \ verbose=1,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00415}00415\ \ \ \ \ \ \ \ \ timestamp=None,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00416}00416\ \ \ \ \ \ \ \ \ cache\_validation\_callback=None,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00417}00417\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00418}00418\ \ \ \ \ \ \ \ \ Logger.\_\_init\_\_(self)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00419}00419\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a423f09a45414f6aa33dc953106048526}{mmap\_mode}}\ =\ mmap\_mode}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00420}00420\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_affbcf9b55a11453610888af920c6a138}{compress}}\ =\ compress}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00421}00421\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a69b42d77903b18122a2ab75eb7d08c68}{func}}\ =\ func}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00422}00422\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_ad9d5cf3df8c34b139e023c941008a78e}{cache\_validation\_callback}}\ =\ cache\_validation\_callback}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00423}00423\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_af2b1c0fc559229dd9a95f05fda423f3f}{func\_id}}\ =\ \mbox{\hyperlink{namespacejoblib_1_1memory_a6f5b4967a351fd405d082c054f4c0c92}{\_build\_func\_identifier}}(func)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00424}00424\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_aec59ed333609eec5a0ad4063bb9d42eb}{ignore}}\ =\ ignore\ \textcolor{keywordflow}{if}\ ignore\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{else}\ []}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00425}00425\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a1cc8169796d181ac63c9793c4f4601be}{\_verbose}}\ =\ verbose}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00426}00426\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00427}00427\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ retrieve\ store\ object\ from\ backend\ type\ and\ location.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00428}00428\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a94873fe23f7cad9445499c062585eb4f}{store\_backend}}\ =\ \mbox{\hyperlink{namespacejoblib_1_1memory_aea457a021d73b5f4539e4b731f27ad8f}{\_store\_backend\_factory}}(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00429}00429\ \ \ \ \ \ \ \ \ \ \ \ \ backend,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00430}00430\ \ \ \ \ \ \ \ \ \ \ \ \ location,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00431}00431\ \ \ \ \ \ \ \ \ \ \ \ \ verbose=verbose,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00432}00432\ \ \ \ \ \ \ \ \ \ \ \ \ backend\_options=dict(compress=compress,\ mmap\_mode=mmap\_mode),}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00433}00433\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00434}00434\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a94873fe23f7cad9445499c062585eb4f}{store\_backend}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00435}00435\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Create\ func\ directory\ on\ demand.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00436}00436\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a94873fe23f7cad9445499c062585eb4f}{store\_backend}}.store\_cached\_func\_code([self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_af2b1c0fc559229dd9a95f05fda423f3f}{func\_id}}])}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00437}00437\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00438}00438\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_ad84533b6c1c13eeef91eceaace0701c7}{timestamp}}\ =\ timestamp\ \textcolor{keywordflow}{if}\ timestamp\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{else}\ time.time()}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00439}00439\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00440}00440\ \ \ \ \ \ \ \ \ \ \ \ \ functools.update\_wrapper(self,\ func)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00441}00441\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ Exception:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00442}00442\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{pass}\ \ \textcolor{comment}{\#\ Objects\ like\ ufunc\ don't\ like\ that}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00443}00443\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ inspect.isfunction(func):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00444}00444\ \ \ \ \ \ \ \ \ \ \ \ \ doc\ =\ pydoc.TextDoc().document(func)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00445}00445\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Remove\ blank\ line}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00446}00446\ \ \ \ \ \ \ \ \ \ \ \ \ doc\ =\ doc.replace(\textcolor{stringliteral}{"{}\(\backslash\)n"{}},\ \textcolor{stringliteral}{"{}\(\backslash\)n\(\backslash\)n"{}},\ 1)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00447}00447\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Strip\ backspace-\/overprints\ for\ compatibility\ with\ autodoc}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00448}00448\ \ \ \ \ \ \ \ \ \ \ \ \ doc\ =\ re.sub(\textcolor{stringliteral}{"{}\(\backslash\)x08."{}},\ \textcolor{stringliteral}{"{}"{}},\ doc)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00449}00449\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00450}00450\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Pydoc\ does\ a\ poor\ job\ on\ other\ objects}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00451}00451\ \ \ \ \ \ \ \ \ \ \ \ \ doc\ =\ func.\_\_doc\_\_}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00452}00452\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_ac1ae1b37159d21528cb54ee93f2c4f28}{\_\_doc\_\_}}\ =\ \textcolor{stringliteral}{"{}Memoized\ version\ of\ \%s"{}}\ \%\ doc}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00453}00453\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00454}00454\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_ad4979d1b10a452e7b6a182f3ca152c06}{\_func\_code\_info}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00455}00455\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_ad15a934682d84b0eba8b13cf705985ee}{\_func\_code\_id}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00456}00456\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00457}\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a2cbf6054790f083e27aa70c7d70824bf}{00457}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a2cbf6054790f083e27aa70c7d70824bf}{\_is\_in\_cache\_and\_valid}}(self,\ call\_id):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00458}00458\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Check\ if\ the\ function\ call\ is\ cached\ and\ valid\ for\ given\ arguments.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00459}00459\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00460}00460\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ Compare\ the\ function\ code\ with\ the\ one\ from\ the\ cached\ function,}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00461}00461\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ asserting\ if\ it\ has\ changed.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00462}00462\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ Check\ if\ the\ function\ call\ is\ present\ in\ the\ cache.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00463}00463\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ Call\ \`{}cache\_validation\_callback\`{}\ for\ user\ define\ cache\ validation.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00464}00464\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00465}00465\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns\ True\ if\ the\ function\ call\ is\ in\ cache\ and\ can\ be\ used,\ and}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00466}00466\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ returns\ False\ otherwise.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00467}00467\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00468}00468\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Check\ if\ the\ code\ of\ the\ function\ has\ changed}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00469}00469\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a1ca08996c37a10c43580478a96354c12}{\_check\_previous\_func\_code}}(stacklevel=4):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00470}00470\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00471}00471\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00472}00472\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Check\ if\ this\ specific\ call\ is\ in\ the\ cache}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00473}00473\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a94873fe23f7cad9445499c062585eb4f}{store\_backend}}.contains\_item(call\_id):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00474}00474\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00475}00475\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00476}00476\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Call\ the\ user\ defined\ cache\ validation\ callback}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00477}00477\ \ \ \ \ \ \ \ \ metadata\ =\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a94873fe23f7cad9445499c062585eb4f}{store\_backend}}.get\_metadata(call\_id)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00478}00478\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00479}00479\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_ad9d5cf3df8c34b139e023c941008a78e}{cache\_validation\_callback}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00480}00480\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}\ \textcolor{keywordflow}{not}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_ad9d5cf3df8c34b139e023c941008a78e}{cache\_validation\_callback}}(metadata)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00481}00481\ \ \ \ \ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00482}00482\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a94873fe23f7cad9445499c062585eb4f}{store\_backend}}.clear\_item(call\_id)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00483}00483\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00484}00484\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00485}00485\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00486}00486\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00487}\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_ab45ccda9dc0ea5a1f0046bd6a2ac605b}{00487}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_ab45ccda9dc0ea5a1f0046bd6a2ac605b}{\_cached\_call}}(self,\ args,\ kwargs,\ shelving):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00488}00488\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Call\ wrapped\ function\ and\ cache\ result,\ or\ read\ cache\ if\ available.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00489}00489\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00490}00490\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ This\ function\ returns\ the\ wrapped\ function\ output\ or\ a\ reference\ to}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00491}00491\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ cached\ result.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00492}00492\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00493}00493\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Arguments:}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00494}00494\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00495}00495\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00496}00496\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ args,\ kwargs:\ list\ and\ dict}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00497}00497\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ input\ arguments\ for\ wrapped\ function}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00498}00498\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00499}00499\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ shelving:\ bool}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00500}00500\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ True\ when\ called\ via\ the\ call\_and\_shelve\ function.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00501}00501\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00502}00502\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00503}00503\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00504}00504\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00505}00505\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ output:\ Output\ of\ the\ wrapped\ function\ if\ shelving\ is\ false,\ or\ a}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00506}00506\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ MemorizedResult\ reference\ to\ the\ value\ if\ shelving\ is\ true.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00507}00507\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ metadata:\ dict\ containing\ the\ metadata\ associated\ with\ the\ call.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00508}00508\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00509}00509\ \ \ \ \ \ \ \ \ args\_id\ =\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_af223b4db068ee10668aa62217dac24a3}{\_get\_args\_id}}(*args,\ **kwargs)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00510}00510\ \ \ \ \ \ \ \ \ call\_id\ =\ (self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_af2b1c0fc559229dd9a95f05fda423f3f}{func\_id}},\ args\_id)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00511}00511\ \ \ \ \ \ \ \ \ \_,\ func\_name\ =\ get\_func\_name(self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a69b42d77903b18122a2ab75eb7d08c68}{func}})}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00512}00512\ \ \ \ \ \ \ \ \ func\_info\ =\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a94873fe23f7cad9445499c062585eb4f}{store\_backend}}.get\_cached\_func\_info([self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_af2b1c0fc559229dd9a95f05fda423f3f}{func\_id}}])}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00513}00513\ \ \ \ \ \ \ \ \ location\ =\ func\_info[\textcolor{stringliteral}{"{}location"{}}]}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00514}00514\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00515}00515\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a1cc8169796d181ac63c9793c4f4601be}{\_verbose}}\ >=\ 20:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00516}00516\ \ \ \ \ \ \ \ \ \ \ \ \ logging.basicConfig(level=logging.INFO)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00517}00517\ \ \ \ \ \ \ \ \ \ \ \ \ \_,\ signature\ =\ format\_signature(self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a69b42d77903b18122a2ab75eb7d08c68}{func}},\ *args,\ **kwargs)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00518}00518\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1logger_1_1Logger_abaf82b2877474910d2d36210dd7f82a6}{info}}(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00519}00519\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ textwrap.dedent(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00520}00520\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00521}00521\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ Querying\ \{func\_name\}\ with\ signature}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00522}00522\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \{signature\}.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00523}00523\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00524}00524\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (argument\ hash\ \{args\_id\})}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00525}00525\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00526}00526\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ The\ store\ location\ is\ \{location\}.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00527}00527\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00528}00528\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00529}00529\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00530}00530\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00531}00531\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Compare\ the\ function\ code\ with\ the\ previous\ to\ see\ if\ the}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00532}00532\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ function\ code\ has\ changed\ and\ check\ if\ the\ results\ are\ present\ in}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00533}00533\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ the\ cache.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00534}00534\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a2cbf6054790f083e27aa70c7d70824bf}{\_is\_in\_cache\_and\_valid}}(call\_id):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00535}00535\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ shelving:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00536}00536\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_aa8b5cfcc89e025b08ed5103ebe1ede0d}{\_get\_memorized\_result}}(call\_id),\ \{\}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00537}00537\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00538}00538\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00539}00539\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ start\_time\ =\ time.time()}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00540}00540\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ output\ =\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_ae48925ce9414a06adfd0be5d84dd728f}{\_load\_item}}(call\_id)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00541}00541\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a1cc8169796d181ac63c9793c4f4601be}{\_verbose}}\ >\ 4:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00542}00542\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a14857214fc536a0718ee487f6ea3d31b}{\_print\_duration}}(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00543}00543\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ time.time()\ -\/\ start\_time,\ context=\textcolor{stringliteral}{"{}cache\ loaded\ "{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00544}00544\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00545}00545\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ output,\ \{\}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00546}00546\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ Exception:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00547}00547\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ XXX:\ Should\ use\ an\ exception\ logger}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00548}00548\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_,\ signature\ =\ format\_signature(self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a69b42d77903b18122a2ab75eb7d08c68}{func}},\ *args,\ **kwargs)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00549}00549\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1logger_1_1Logger_a5136a0a386a184e315d115860f4f261d}{warn}}(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00550}00550\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Exception\ while\ loading\ results\ for\ \{\}\(\backslash\)n\ \{\}"{}}.\mbox{\hyperlink{classjoblib_1_1logger_1_1Logger_afe4b6477884706f2a411232132a6c0e9}{format}}(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00551}00551\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ signature,\ traceback.format\_exc()}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00552}00552\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00553}00553\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00554}00554\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00555}00555\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a1cc8169796d181ac63c9793c4f4601be}{\_verbose}}\ >\ 10:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00556}00556\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1logger_1_1Logger_a5136a0a386a184e315d115860f4f261d}{warn}}(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00557}00557\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}Computing\ func\ \{func\_name\},\ argument\ hash\ \{args\_id\}\ "{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00558}00558\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}in\ location\ \{location\}"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00559}00559\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00560}00560\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00561}00561\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Returns\ the\ output\ but\ not\ the\ metadata}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00562}00562\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_ae172e41fe516c66656a65fef2052a557}{\_call}}(call\_id,\ args,\ kwargs,\ shelving)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00563}00563\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00564}00564\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00565}00565\ \ \ \ \ \textcolor{keyword}{def\ }func\_code\_info(self):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00566}00566\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ 3-\/tuple\ property\ containing:\ the\ function\ source\ code,\ source\ file,}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00567}00567\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ and\ first\ line\ of\ the\ code\ inside\ the\ source\ file}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00568}00568\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ hasattr(self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a69b42d77903b18122a2ab75eb7d08c68}{func}},\ \textcolor{stringliteral}{"{}\_\_code\_\_"{}}):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00569}00569\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_ad15a934682d84b0eba8b13cf705985ee}{\_func\_code\_id}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00570}00570\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_ad15a934682d84b0eba8b13cf705985ee}{\_func\_code\_id}}\ =\ id(self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a69b42d77903b18122a2ab75eb7d08c68}{func}}.\_\_code\_\_)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00571}00571\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ id(self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a69b42d77903b18122a2ab75eb7d08c68}{func}}.\_\_code\_\_)\ !=\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_ad15a934682d84b0eba8b13cf705985ee}{\_func\_code\_id}}:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00572}00572\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Be\ robust\ to\ dynamic\ reassignments\ of\ self.func.\_\_code\_\_}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00573}00573\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_ad4979d1b10a452e7b6a182f3ca152c06}{\_func\_code\_info}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00574}00574\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00575}00575\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_ad4979d1b10a452e7b6a182f3ca152c06}{\_func\_code\_info}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00576}00576\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Cache\ the\ source\ code\ of\ self.func\ .\ Provided\ that\ get\_func\_code}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00577}00577\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ (which\ should\ be\ called\ once\ on\ self)\ gets\ called\ in\ the\ process}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00578}00578\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ in\ which\ self.func\ was\ defined,\ this\ caching\ mechanism\ prevents}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00579}00579\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ undesired\ cache\ clearing\ when\ the\ cached\ function\ is\ called\ in}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00580}00580\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ an\ environment\ where\ the\ introspection\ utilities\ get\_func\_code}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00581}00581\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ relies\ on\ do\ not\ work\ (typically,\ in\ joblib\ child\ processes).}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00582}00582\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ See\ \#1035\ for\ \ more\ info}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00583}00583\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ TODO\ (pierreglaser):\ do\ the\ same\ with\ get\_func\_name?}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00584}00584\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_ad4979d1b10a452e7b6a182f3ca152c06}{\_func\_code\_info}}\ =\ get\_func\_code(self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a69b42d77903b18122a2ab75eb7d08c68}{func}})}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00585}00585\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_ad4979d1b10a452e7b6a182f3ca152c06}{\_func\_code\_info}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00586}00586\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00587}\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a08ab73c4c90e8201f28c989c16b3cd3e}{00587}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a08ab73c4c90e8201f28c989c16b3cd3e}{call\_and\_shelve}}(self,\ *args,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00588}00588\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Call\ wrapped\ function,\ cache\ result\ and\ return\ a\ reference.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00589}00589\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00590}00590\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ This\ method\ returns\ a\ reference\ to\ the\ cached\ result\ instead\ of\ the}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00591}00591\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ result\ itself.\ The\ reference\ object\ is\ small\ and\ picklable,\ allowing}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00592}00592\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ to\ send\ or\ store\ it\ easily.\ Call\ .get()\ on\ reference\ object\ to\ get}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00593}00593\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ result.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00594}00594\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00595}00595\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00596}00596\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00597}00597\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ cached\_result:\ MemorizedResult\ or\ NotMemorizedResult}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00598}00598\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ reference\ to\ the\ value\ returned\ by\ the\ wrapped\ function.\ The}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00599}00599\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ class\ "{}NotMemorizedResult"{}\ is\ used\ when\ there\ is\ no\ cache}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00600}00600\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ activated\ (e.g.\ location=None\ in\ Memory).}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00601}00601\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00602}00602\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Return\ the\ wrapped\ output,\ without\ the\ metadata}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00603}00603\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_ab45ccda9dc0ea5a1f0046bd6a2ac605b}{\_cached\_call}}(args,\ kwargs,\ shelving=\textcolor{keyword}{True})[0]}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00604}00604\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00605}00605\ \ \ \ \ \textcolor{keyword}{def\ }\_\_call\_\_(self,\ *args,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00606}00606\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Return\ the\ output,\ without\ the\ metadata}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00607}00607\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_ab45ccda9dc0ea5a1f0046bd6a2ac605b}{\_cached\_call}}(args,\ kwargs,\ shelving=\textcolor{keyword}{False})[0]}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00608}00608\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00609}00609\ \ \ \ \ \textcolor{keyword}{def\ }\_\_getstate\_\_(self):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00610}00610\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Make\ sure\ self.func's\ source\ is\ introspected\ prior\ to\ being\ pickled\ -\/}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00611}00611\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ code\ introspection\ utilities\ typically\ do\ not\ work\ inside\ child}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00612}00612\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ processes}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00613}00613\ \ \ \ \ \ \ \ \ \_\ =\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_ad2bba322451ed042d3f200da210bafb4}{func\_code\_info}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00614}00614\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00615}00615\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ We\ don't\ store\ the\ timestamp\ when\ pickling,\ to\ avoid\ the\ hash}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00616}00616\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ depending\ from\ it.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00617}00617\ \ \ \ \ \ \ \ \ state\ =\ self.\_\_dict\_\_.copy()}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00618}00618\ \ \ \ \ \ \ \ \ state[\textcolor{stringliteral}{"{}timestamp"{}}]\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00619}00619\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00620}00620\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Invalidate\ the\ code\ id\ as\ id(obj)\ will\ be\ different\ in\ the\ child}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00621}00621\ \ \ \ \ \ \ \ \ state[\textcolor{stringliteral}{"{}\_func\_code\_id"{}}]\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00622}00622\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00623}00623\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ state}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00624}00624\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00625}\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_ab07b8685ef1cd066563bebc3b711a7f2}{00625}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_ab07b8685ef1cd066563bebc3b711a7f2}{check\_call\_in\_cache}}(self,\ *args,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00626}00626\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Check\ if\ the\ function\ call\ is\ cached\ and\ valid\ for\ given\ arguments.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00627}00627\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00628}00628\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Does\ not\ call\ the\ function\ or\ do\ any\ work\ besides\ function\ inspection}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00629}00629\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ and\ argument\ hashing.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00630}00630\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00631}00631\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ Compare\ the\ function\ code\ with\ the\ one\ from\ the\ cached\ function,}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00632}00632\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ asserting\ if\ it\ has\ changed.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00633}00633\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ Check\ if\ the\ function\ call\ is\ present\ in\ the\ cache.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00634}00634\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ Call\ \`{}cache\_validation\_callback\`{}\ for\ user\ define\ cache\ validation.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00635}00635\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00636}00636\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00637}00637\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00638}00638\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ is\_call\_in\_cache:\ bool}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00639}00639\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Whether\ or\ not\ the\ function\ call\ is\ in\ cache\ and\ can\ be\ used.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00640}00640\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00641}00641\ \ \ \ \ \ \ \ \ call\_id\ =\ (self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_af2b1c0fc559229dd9a95f05fda423f3f}{func\_id}},\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_af223b4db068ee10668aa62217dac24a3}{\_get\_args\_id}}(*args,\ **kwargs))}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00642}00642\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a2cbf6054790f083e27aa70c7d70824bf}{\_is\_in\_cache\_and\_valid}}(call\_id)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00643}00643\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00644}00644\ \ \ \ \ \textcolor{comment}{\#\ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00645}00645\ \ \ \ \ \textcolor{comment}{\#\ Private\ interface}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00646}00646\ \ \ \ \ \textcolor{comment}{\#\ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00647}00647\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00648}\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_af223b4db068ee10668aa62217dac24a3}{00648}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_af223b4db068ee10668aa62217dac24a3}{\_get\_args\_id}}(self,\ *args,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00649}00649\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Return\ the\ input\ parameter\ hash\ of\ a\ result."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00650}00650\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ hashing.hash(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00651}00651\ \ \ \ \ \ \ \ \ \ \ \ \ filter\_args(self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a69b42d77903b18122a2ab75eb7d08c68}{func}},\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_aec59ed333609eec5a0ad4063bb9d42eb}{ignore}},\ args,\ kwargs),}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00652}00652\ \ \ \ \ \ \ \ \ \ \ \ \ coerce\_mmap=self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a423f09a45414f6aa33dc953106048526}{mmap\_mode}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00653}00653\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00654}00654\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00655}\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_ae9a85ab18f44fbe1c52947c6501ed728}{00655}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_ae9a85ab18f44fbe1c52947c6501ed728}{\_hash\_func}}(self):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00656}00656\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Hash\ a\ function\ to\ key\ the\ online\ cache"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00657}00657\ \ \ \ \ \ \ \ \ func\_code\_h\ =\ hash(getattr(self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a69b42d77903b18122a2ab75eb7d08c68}{func}},\ \textcolor{stringliteral}{"{}\_\_code\_\_"{}},\ \textcolor{keywordtype}{None}))}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00658}00658\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ id(self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a69b42d77903b18122a2ab75eb7d08c68}{func}}),\ hash(self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a69b42d77903b18122a2ab75eb7d08c68}{func}}),\ func\_code\_h}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00659}00659\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00660}\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a98b63c7fab8f8e48c0876496c81433c8}{00660}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a98b63c7fab8f8e48c0876496c81433c8}{\_write\_func\_code}}(self,\ func\_code,\ first\_line):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00661}00661\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Write\ the\ function\ code\ and\ the\ filename\ to\ a\ file."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00662}00662\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ We\ store\ the\ first\ line\ because\ the\ filename\ and\ the\ function}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00663}00663\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ name\ is\ not\ always\ enough\ to\ identify\ a\ function:\ people}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00664}00664\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ sometimes\ have\ several\ functions\ named\ the\ same\ way\ in\ a}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00665}00665\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ file.\ This\ is\ bad\ practice,\ but\ joblib\ should\ be\ robust\ to\ bad}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00666}00666\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ practice.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00667}00667\ \ \ \ \ \ \ \ \ func\_code\ =\ \textcolor{stringliteral}{"{}\%s\ \%i\(\backslash\)n\%s"{}}\ \%\ (FIRST\_LINE\_TEXT,\ first\_line,\ func\_code)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00668}00668\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a94873fe23f7cad9445499c062585eb4f}{store\_backend}}.store\_cached\_func\_code([self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_af2b1c0fc559229dd9a95f05fda423f3f}{func\_id}}],\ func\_code)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00669}00669\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00670}00670\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Also\ store\ in\ the\ in-\/memory\ store\ of\ function\ hashes}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00671}00671\ \ \ \ \ \ \ \ \ is\_named\_callable\ =\ (}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00672}00672\ \ \ \ \ \ \ \ \ \ \ \ \ hasattr(self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a69b42d77903b18122a2ab75eb7d08c68}{func}},\ \textcolor{stringliteral}{"{}\_\_name\_\_"{}})\ \textcolor{keywordflow}{and}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a69b42d77903b18122a2ab75eb7d08c68}{func}}.\_\_name\_\_\ !=\ \textcolor{stringliteral}{"{}<lambda>"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00673}00673\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00674}00674\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ is\_named\_callable:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00675}00675\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Don't\ do\ this\ for\ lambda\ functions\ or\ strange\ callable}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00676}00676\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ objects,\ as\ it\ ends\ up\ being\ too\ fragile}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00677}00677\ \ \ \ \ \ \ \ \ \ \ \ \ func\_hash\ =\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_ae9a85ab18f44fbe1c52947c6501ed728}{\_hash\_func}}()}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00678}00678\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00679}00679\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_FUNCTION\_HASHES[self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a69b42d77903b18122a2ab75eb7d08c68}{func}}]\ =\ func\_hash}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00680}00680\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ TypeError:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00681}00681\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Some\ callable\ are\ not\ hashable}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00682}00682\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{pass}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00683}00683\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00684}\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a1ca08996c37a10c43580478a96354c12}{00684}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a1ca08996c37a10c43580478a96354c12}{\_check\_previous\_func\_code}}(self,\ stacklevel=2):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00685}00685\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00686}00686\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ stacklevel\ is\ the\ depth\ a\ which\ this\ function\ is\ called,\ to}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00687}00687\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ issue\ useful\ warnings\ to\ the\ user.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00688}00688\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00689}00689\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ First\ check\ if\ our\ function\ is\ in\ the\ in-\/memory\ store.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00690}00690\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Using\ the\ in-\/memory\ store\ not\ only\ makes\ things\ faster,\ but\ it}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00691}00691\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ also\ renders\ us\ robust\ to\ variations\ of\ the\ files\ when\ the}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00692}00692\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ in-\/memory\ version\ of\ the\ code\ does\ not\ vary}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00693}00693\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00694}00694\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a69b42d77903b18122a2ab75eb7d08c68}{func}}\ \textcolor{keywordflow}{in}\ \_FUNCTION\_HASHES:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00695}00695\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ We\ use\ as\ an\ identifier\ the\ id\ of\ the\ function\ and\ its}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00696}00696\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ hash.\ This\ is\ more\ likely\ to\ falsely\ change\ than\ have\ hash}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00697}00697\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ collisions,\ thus\ we\ are\ on\ the\ safe\ side.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00698}00698\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ func\_hash\ =\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_ae9a85ab18f44fbe1c52947c6501ed728}{\_hash\_func}}()}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00699}00699\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ func\_hash\ ==\ \_FUNCTION\_HASHES[self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a69b42d77903b18122a2ab75eb7d08c68}{func}}]:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00700}00700\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00701}00701\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ TypeError:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00702}00702\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Some\ callables\ are\ not\ hashable}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00703}00703\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{pass}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00704}00704\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00705}00705\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Here,\ we\ go\ through\ some\ effort\ to\ be\ robust\ to\ dynamically}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00706}00706\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ changing\ code\ and\ collision.\ We\ cannot\ inspect.getsource}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00707}00707\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ because\ it\ is\ not\ reliable\ when\ using\ IPython's\ magic\ "{}\%run"{}.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00708}00708\ \ \ \ \ \ \ \ \ func\_code,\ source\_file,\ first\_line\ =\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_ad2bba322451ed042d3f200da210bafb4}{func\_code\_info}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00709}00709\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00710}00710\ \ \ \ \ \ \ \ \ \ \ \ \ old\_func\_code,\ old\_first\_line\ =\ \mbox{\hyperlink{namespacejoblib_1_1memory_a68f52050d160fe518902e2d361de6f1d}{extract\_first\_line}}(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00711}00711\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a94873fe23f7cad9445499c062585eb4f}{store\_backend}}.get\_cached\_func\_code([self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_af2b1c0fc559229dd9a95f05fda423f3f}{func\_id}}])}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00712}00712\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00713}00713\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ (IOError,\ OSError):\ \ \textcolor{comment}{\#\ some\ backend\ can\ also\ raise\ OSError}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00714}00714\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a98b63c7fab8f8e48c0876496c81433c8}{\_write\_func\_code}}(func\_code,\ first\_line)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00715}00715\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00716}00716\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ old\_func\_code\ ==\ func\_code:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00717}00717\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00718}00718\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00719}00719\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ We\ have\ differing\ code,\ is\ this\ because\ we\ are\ referring\ to}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00720}00720\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ different\ functions,\ or\ because\ the\ function\ we\ are\ referring\ to\ has}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00721}00721\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ changed?}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00722}00722\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00723}00723\ \ \ \ \ \ \ \ \ \_,\ func\_name\ =\ get\_func\_name(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00724}00724\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a69b42d77903b18122a2ab75eb7d08c68}{func}},\ resolv\_alias=\textcolor{keyword}{False},\ win\_characters=\textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00725}00725\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00726}00726\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ old\_first\_line\ ==\ first\_line\ ==\ -\/1\ \textcolor{keywordflow}{or}\ func\_name\ ==\ \textcolor{stringliteral}{"{}<lambda>"{}}:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00727}00727\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ first\_line\ ==\ -\/1:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00728}00728\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ func\_description\ =\ \textcolor{stringliteral}{"{}\{0\}\ (\{1\}:\{2\})"{}}.\mbox{\hyperlink{classjoblib_1_1logger_1_1Logger_afe4b6477884706f2a411232132a6c0e9}{format}}(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00729}00729\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ func\_name,\ source\_file,\ first\_line}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00730}00730\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00731}00731\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00732}00732\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ func\_description\ =\ func\_name}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00733}00733\ \ \ \ \ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00734}00734\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classjoblib_1_1memory_1_1JobLibCollisionWarning}{JobLibCollisionWarning}}(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00735}00735\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Cannot\ detect\ name\ collisions\ for\ function\ '\{0\}'"{}}.\mbox{\hyperlink{classjoblib_1_1logger_1_1Logger_afe4b6477884706f2a411232132a6c0e9}{format}}(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00736}00736\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ func\_description}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00737}00737\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00738}00738\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00739}00739\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ stacklevel=stacklevel,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00740}00740\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00741}00741\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00742}00742\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Fetch\ the\ code\ at\ the\ old\ location\ and\ compare\ it.\ If\ it\ is\ the}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00743}00743\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ same\ than\ the\ code\ store,\ we\ have\ a\ collision:\ the\ code\ in\ the}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00744}00744\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ file\ has\ not\ changed,\ but\ the\ name\ we\ have\ is\ pointing\ to\ a\ new}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00745}00745\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ code\ block.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00746}00746\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ old\_first\_line\ ==\ first\_line\ \textcolor{keywordflow}{and}\ source\_file\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00747}00747\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ os.path.exists(source\_file):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00748}00748\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_,\ func\_name\ =\ get\_func\_name(self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a69b42d77903b18122a2ab75eb7d08c68}{func}},\ resolv\_alias=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00749}00749\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ num\_lines\ =\ len(func\_code.split(\textcolor{stringliteral}{"{}\(\backslash\)n"{}}))}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00750}00750\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ tokenize.open(source\_file)\ \textcolor{keyword}{as}\ f:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00751}00751\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ on\_disk\_func\_code\ =\ f.readlines()[}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00752}00752\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ old\_first\_line\ -\/\ 1\ :\ old\_first\_line\ -\/\ 1\ +\ num\_lines\ -\/\ 1}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00753}00753\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ]}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00754}00754\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ on\_disk\_func\_code\ =\ \textcolor{stringliteral}{"{}"{}}.join(on\_disk\_func\_code)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00755}00755\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ possible\_collision\ =\ (}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00756}00756\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ on\_disk\_func\_code.rstrip()\ ==\ old\_func\_code.rstrip()}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00757}00757\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00758}00758\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00759}00759\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ possible\_collision\ =\ source\_file.startswith(\textcolor{stringliteral}{"{}<doctest\ "{}})}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00760}00760\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ possible\_collision:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00761}00761\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00762}00762\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classjoblib_1_1memory_1_1JobLibCollisionWarning}{JobLibCollisionWarning}}(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00763}00763\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Possible\ name\ collisions\ between\ functions\ "{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00764}00764\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}'\%s'\ (\%s:\%i)\ and\ '\%s'\ (\%s:\%i)"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00765}00765\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \%\ (}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00766}00766\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ func\_name,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00767}00767\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ source\_file,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00768}00768\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ old\_first\_line,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00769}00769\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ func\_name,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00770}00770\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ source\_file,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00771}00771\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ first\_line,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00772}00772\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00773}00773\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00774}00774\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ stacklevel=stacklevel,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00775}00775\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00776}00776\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00777}00777\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ function\ has\ changed,\ wipe\ the\ cache\ directory.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00778}00778\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ XXX:\ Should\ be\ using\ warnings,\ and\ giving\ stacklevel}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00779}00779\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a1cc8169796d181ac63c9793c4f4601be}{\_verbose}}\ >\ 10:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00780}00780\ \ \ \ \ \ \ \ \ \ \ \ \ \_,\ func\_name\ =\ get\_func\_name(self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a69b42d77903b18122a2ab75eb7d08c68}{func}},\ resolv\_alias=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00781}00781\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1logger_1_1Logger_a5136a0a386a184e315d115860f4f261d}{warn}}(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00782}00782\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Function\ \{0\}\ (identified\ by\ \{1\})\ has\ changed."{}}.\mbox{\hyperlink{classjoblib_1_1logger_1_1Logger_afe4b6477884706f2a411232132a6c0e9}{format}}(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00783}00783\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ func\_name,\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_af2b1c0fc559229dd9a95f05fda423f3f}{func\_id}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00784}00784\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00785}00785\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00786}00786\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a5f6ae1d929bdc1ecbe496bdf434e5947}{clear}}(warn=\textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00787}00787\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00788}00788\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00789}\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a5f6ae1d929bdc1ecbe496bdf434e5947}{00789}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a5f6ae1d929bdc1ecbe496bdf434e5947}{clear}}(self,\ warn=True):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00790}00790\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Empty\ the\ function's\ cache."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00791}00791\ \ \ \ \ \ \ \ \ func\_id\ =\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_af2b1c0fc559229dd9a95f05fda423f3f}{func\_id}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00792}00792\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a1cc8169796d181ac63c9793c4f4601be}{\_verbose}}\ >\ 0\ \textcolor{keywordflow}{and}\ warn:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00793}00793\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1logger_1_1Logger_a5136a0a386a184e315d115860f4f261d}{warn}}(\textcolor{stringliteral}{"{}Clearing\ function\ cache\ identified\ by\ \%s"{}}\ \%\ func\_id)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00794}00794\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a94873fe23f7cad9445499c062585eb4f}{store\_backend}}.clear\_path(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00795}00795\ \ \ \ \ \ \ \ \ \ \ \ \ [}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00796}00796\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ func\_id,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00797}00797\ \ \ \ \ \ \ \ \ \ \ \ \ ]}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00798}00798\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00799}00799\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00800}00800\ \ \ \ \ \ \ \ \ func\_code,\ \_,\ first\_line\ =\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_ad2bba322451ed042d3f200da210bafb4}{func\_code\_info}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00801}00801\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a98b63c7fab8f8e48c0876496c81433c8}{\_write\_func\_code}}(func\_code,\ first\_line)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00802}00802\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00803}\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_afa7485f5c87728aa265eede51f82454b}{00803}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_afa7485f5c87728aa265eede51f82454b}{call}}(self,\ *args,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00804}00804\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Force\ the\ execution\ of\ the\ function\ with\ the\ given\ arguments.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00805}00805\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00806}00806\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ output\ values\ will\ be\ persisted,\ i.e.,\ the\ cache\ will\ be\ updated}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00807}00807\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ with\ any\ new\ values.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00808}00808\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00809}00809\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00810}00810\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00811}00811\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ *args:\ arguments}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00812}00812\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ arguments.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00813}00813\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ **kwargs:\ keyword\ arguments}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00814}00814\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Keyword\ arguments.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00815}00815\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00816}00816\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00817}00817\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00818}00818\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ output\ :\ object}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00819}00819\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ output\ of\ the\ function\ call.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00820}00820\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ metadata\ :\ dict}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00821}00821\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ metadata\ associated\ with\ the\ call.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00822}00822\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00823}00823\ \ \ \ \ \ \ \ \ call\_id\ =\ (self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_af2b1c0fc559229dd9a95f05fda423f3f}{func\_id}},\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_af223b4db068ee10668aa62217dac24a3}{\_get\_args\_id}}(*args,\ **kwargs))}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00824}00824\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00825}00825\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Return\ the\ output\ and\ the\ metadata}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00826}00826\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_ae172e41fe516c66656a65fef2052a557}{\_call}}(call\_id,\ args,\ kwargs)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00827}00827\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00828}00828\ \ \ \ \ \textcolor{keyword}{def\ }\_call(self,\ call\_id,\ args,\ kwargs,\ shelving=False):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00829}00829\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Return\ the\ output\ and\ the\ metadata}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00830}00830\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_acc8d571fb3c4f202bfaa82a86d27dfbb}{\_before\_call}}(args,\ kwargs)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00831}00831\ \ \ \ \ \ \ \ \ start\_time\ =\ time.time()}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00832}00832\ \ \ \ \ \ \ \ \ output\ =\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a69b42d77903b18122a2ab75eb7d08c68}{func}}(*args,\ **kwargs)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00833}00833\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_aa3ec97ce9e7298c623bfa2e3398e375b}{\_after\_call}}(call\_id,\ args,\ kwargs,\ shelving,\ output,\ start\_time)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00834}00834\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00835}00835\ \ \ \ \ \textcolor{keyword}{def\ }\_before\_call(self,\ args,\ kwargs):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00836}00836\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a1cc8169796d181ac63c9793c4f4601be}{\_verbose}}\ >\ 0:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00837}00837\ \ \ \ \ \ \ \ \ \ \ \ \ print(format\_call(self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a69b42d77903b18122a2ab75eb7d08c68}{func}},\ args,\ kwargs))}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00838}00838\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00839}00839\ \ \ \ \ \textcolor{keyword}{def\ }\_after\_call(self,\ call\_id,\ args,\ kwargs,\ shelving,\ output,\ start\_time):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00840}00840\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a94873fe23f7cad9445499c062585eb4f}{store\_backend}}.dump\_item(call\_id,\ output,\ verbose=self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a1cc8169796d181ac63c9793c4f4601be}{\_verbose}})}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00841}00841\ \ \ \ \ \ \ \ \ duration\ =\ time.time()\ -\/\ start\_time}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00842}00842\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a1cc8169796d181ac63c9793c4f4601be}{\_verbose}}\ >\ 0:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00843}00843\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a14857214fc536a0718ee487f6ea3d31b}{\_print\_duration}}(duration)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00844}00844\ \ \ \ \ \ \ \ \ metadata\ =\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_acc2858e884ba0685ae9c577d8fe57154}{\_persist\_input}}(duration,\ call\_id,\ args,\ kwargs)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00845}00845\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ shelving:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00846}00846\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_aa8b5cfcc89e025b08ed5103ebe1ede0d}{\_get\_memorized\_result}}(call\_id,\ metadata),\ metadata}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00847}00847\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00848}00848\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a423f09a45414f6aa33dc953106048526}{mmap\_mode}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00849}00849\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Memmap\ the\ output\ at\ the\ first\ call\ to\ be\ consistent\ with}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00850}00850\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ later\ calls}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00851}00851\ \ \ \ \ \ \ \ \ \ \ \ \ output\ =\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_ae48925ce9414a06adfd0be5d84dd728f}{\_load\_item}}(call\_id,\ metadata)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00852}00852\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ output,\ metadata}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00853}00853\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00854}\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_acc2858e884ba0685ae9c577d8fe57154}{00854}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_acc2858e884ba0685ae9c577d8fe57154}{\_persist\_input}}(self,\ duration,\ call\_id,\ args,\ kwargs,\ this\_duration\_limit=0.5):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00855}00855\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Save\ a\ small\ summary\ of\ the\ call\ using\ json\ format\ in\ the}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00856}00856\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ output\ directory.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00857}00857\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00858}00858\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ output\_dir:\ string}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00859}00859\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ directory\ where\ to\ write\ metadata.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00860}00860\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00861}00861\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ duration:\ float}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00862}00862\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ time\ taken\ by\ hashing\ input\ arguments,\ calling\ the\ wrapped}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00863}00863\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ function\ and\ persisting\ its\ output.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00864}00864\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00865}00865\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ args,\ kwargs:\ list\ and\ dict}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00866}00866\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ input\ arguments\ for\ wrapped\ function}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00867}00867\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00868}00868\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ this\_duration\_limit:\ float}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00869}00869\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Max\ execution\ time\ for\ this\ function\ before\ issuing\ a\ warning.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00870}00870\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00871}00871\ \ \ \ \ \ \ \ \ start\_time\ =\ time.time()}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00872}00872\ \ \ \ \ \ \ \ \ argument\_dict\ =\ filter\_args(self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a69b42d77903b18122a2ab75eb7d08c68}{func}},\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_aec59ed333609eec5a0ad4063bb9d42eb}{ignore}},\ args,\ kwargs)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00873}00873\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00874}00874\ \ \ \ \ \ \ \ \ input\_repr\ =\ dict((k,\ repr(v))\ \textcolor{keywordflow}{for}\ k,\ v\ \textcolor{keywordflow}{in}\ argument\_dict.items())}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00875}00875\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ This\ can\ fail\ due\ to\ race-\/conditions\ with\ multiple}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00876}00876\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ concurrent\ joblibs\ removing\ the\ file\ or\ the\ directory}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00877}00877\ \ \ \ \ \ \ \ \ metadata\ =\ \{}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00878}00878\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}duration"{}}:\ duration,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00879}00879\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}input\_args"{}}:\ input\_repr,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00880}00880\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}time"{}}:\ start\_time,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00881}00881\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00882}00882\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00883}00883\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a94873fe23f7cad9445499c062585eb4f}{store\_backend}}.store\_metadata(call\_id,\ metadata)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00884}00884\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00885}00885\ \ \ \ \ \ \ \ \ this\_duration\ =\ time.time()\ -\/\ start\_time}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00886}00886\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ this\_duration\ >\ this\_duration\_limit:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00887}00887\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ This\ persistence\ should\ be\ fast.\ It\ will\ not\ be\ if\ repr()\ takes}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00888}00888\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ time\ and\ its\ output\ is\ large,\ because\ json.dump\ will\ have\ to}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00889}00889\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ write\ a\ large\ file.\ This\ should\ not\ be\ an\ issue\ with\ numpy\ arrays}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00890}00890\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ for\ which\ repr()\ always\ output\ a\ short\ representation,\ but\ can}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00891}00891\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ be\ with\ complex\ dictionaries.\ Fixing\ the\ problem\ should\ be\ a}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00892}00892\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ matter\ of\ replacing\ repr()\ above\ by\ something\ smarter.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00893}00893\ \ \ \ \ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00894}00894\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Persisting\ input\ arguments\ took\ \%.2fs\ to\ run."{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00895}00895\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}If\ this\ happens\ often\ in\ your\ code,\ it\ can\ cause\ "{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00896}00896\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}performance\ problems\ "{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00897}00897\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}(results\ will\ be\ correct\ in\ all\ cases).\ "{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00898}00898\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}The\ reason\ for\ this\ is\ probably\ some\ large\ input\ "{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00899}00899\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}arguments\ for\ a\ wrapped\ function."{}}\ \%\ this\_duration,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00900}00900\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ stacklevel=5,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00901}00901\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00902}00902\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ metadata}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00903}00903\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00904}00904\ \ \ \ \ \textcolor{keyword}{def\ }\_get\_memorized\_result(self,\ call\_id,\ metadata=None):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00905}00905\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedResult}{MemorizedResult}}(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00906}00906\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a94873fe23f7cad9445499c062585eb4f}{store\_backend}},}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00907}00907\ \ \ \ \ \ \ \ \ \ \ \ \ call\_id,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00908}00908\ \ \ \ \ \ \ \ \ \ \ \ \ metadata=metadata,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00909}00909\ \ \ \ \ \ \ \ \ \ \ \ \ timestamp=self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_ad84533b6c1c13eeef91eceaace0701c7}{timestamp}},}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00910}00910\ \ \ \ \ \ \ \ \ \ \ \ \ verbose=self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a1cc8169796d181ac63c9793c4f4601be}{\_verbose}}\ -\/\ 1,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00911}00911\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00912}00912\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00913}00913\ \ \ \ \ \textcolor{keyword}{def\ }\_load\_item(self,\ call\_id,\ metadata=None):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00914}00914\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a94873fe23f7cad9445499c062585eb4f}{store\_backend}}.load\_item(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00915}00915\ \ \ \ \ \ \ \ \ \ \ \ \ call\_id,\ metadata=metadata,\ timestamp=self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_ad84533b6c1c13eeef91eceaace0701c7}{timestamp}},\ verbose=self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a1cc8169796d181ac63c9793c4f4601be}{\_verbose}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00916}00916\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00917}00917\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00918}00918\ \ \ \ \ \textcolor{keyword}{def\ }\_print\_duration(self,\ duration,\ context="{}"{}):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00919}00919\ \ \ \ \ \ \ \ \ \_,\ name\ =\ get\_func\_name(self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a69b42d77903b18122a2ab75eb7d08c68}{func}})}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00920}00920\ \ \ \ \ \ \ \ \ msg\ =\ f\textcolor{stringliteral}{"{}\{name\}\ \{context\}-\/\ \{format\_time(duration)\}"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00921}00921\ \ \ \ \ \ \ \ \ print(max(0,\ (80\ -\/\ len(msg)))\ *\ \textcolor{stringliteral}{"{}\_"{}}\ +\ msg)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00922}00922\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00923}00923\ \ \ \ \ \textcolor{comment}{\#\ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00924}00924\ \ \ \ \ \textcolor{comment}{\#\ Private\ \`{}object`\ interface}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00925}00925\ \ \ \ \ \textcolor{comment}{\#\ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00926}00926\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00927}00927\ \ \ \ \ \textcolor{keyword}{def\ }\_\_repr\_\_(self):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00928}00928\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{stringliteral}{"{}\{class\_name\}(func=\{func\},\ location=\{location\})"{}}.\mbox{\hyperlink{classjoblib_1_1logger_1_1Logger_afe4b6477884706f2a411232132a6c0e9}{format}}(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00929}00929\ \ \ \ \ \ \ \ \ \ \ \ \ class\_name=self.\_\_class\_\_.\_\_name\_\_,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00930}00930\ \ \ \ \ \ \ \ \ \ \ \ \ func=self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a69b42d77903b18122a2ab75eb7d08c68}{func}},}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00931}00931\ \ \ \ \ \ \ \ \ \ \ \ \ location=self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a94873fe23f7cad9445499c062585eb4f}{store\_backend}}.location,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00932}00932\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00933}00933\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00934}00934\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00935}00935\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00938}\mbox{\hyperlink{classjoblib_1_1memory_1_1AsyncMemorizedFunc}{00938}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classjoblib_1_1memory_1_1AsyncMemorizedFunc}{AsyncMemorizedFunc}}(\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc}{MemorizedFunc}}):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00939}00939\ \ \ \ \ \textcolor{keyword}{async\ def\ }\_\_call\_\_(self,\ *args,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00940}00940\ \ \ \ \ \ \ \ \ out\ =\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_ab45ccda9dc0ea5a1f0046bd6a2ac605b}{\_cached\_call}}(args,\ kwargs,\ shelving=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00941}00941\ \ \ \ \ \ \ \ \ out\ =\ await\ out\ \textcolor{keywordflow}{if}\ asyncio.iscoroutine(out)\ \textcolor{keywordflow}{else}\ out}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00942}00942\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ out[0]\ \ \textcolor{comment}{\#\ Don't\ return\ metadata}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00943}00943\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00944}\mbox{\hyperlink{classjoblib_1_1memory_1_1AsyncMemorizedFunc_a73c772831eb144e60689a652a3711916}{00944}}\ \ \ \ \ \textcolor{keyword}{async\ def\ }\mbox{\hyperlink{classjoblib_1_1memory_1_1AsyncMemorizedFunc_a73c772831eb144e60689a652a3711916}{call\_and\_shelve}}(self,\ *args,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00945}00945\ \ \ \ \ \ \ \ \ out\ =\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_ab45ccda9dc0ea5a1f0046bd6a2ac605b}{\_cached\_call}}(args,\ kwargs,\ shelving=\textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00946}00946\ \ \ \ \ \ \ \ \ out\ =\ await\ out\ \textcolor{keywordflow}{if}\ asyncio.iscoroutine(out)\ \textcolor{keywordflow}{else}\ out}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00947}00947\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ out[0]\ \ \textcolor{comment}{\#\ Don't\ return\ metadata}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00948}00948\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00949}\mbox{\hyperlink{classjoblib_1_1memory_1_1AsyncMemorizedFunc_a0e35df373674f96748e7a5253a3f9f01}{00949}}\ \ \ \ \ \textcolor{keyword}{async\ def\ }\mbox{\hyperlink{classjoblib_1_1memory_1_1AsyncMemorizedFunc_a0e35df373674f96748e7a5253a3f9f01}{call}}(self,\ *args,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00950}00950\ \ \ \ \ \ \ \ \ out\ =\ super().\mbox{\hyperlink{classjoblib_1_1memory_1_1AsyncMemorizedFunc_a0e35df373674f96748e7a5253a3f9f01}{call}}(*args,\ **kwargs)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00951}00951\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ await\ out\ \textcolor{keywordflow}{if}\ asyncio.iscoroutine(out)\ \textcolor{keywordflow}{else}\ out}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00952}00952\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00953}00953\ \ \ \ \ \textcolor{keyword}{async\ def\ }\_call(self,\ call\_id,\ args,\ kwargs,\ shelving=False):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00954}00954\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_acc8d571fb3c4f202bfaa82a86d27dfbb}{\_before\_call}}(args,\ kwargs)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00955}00955\ \ \ \ \ \ \ \ \ start\_time\ =\ time.time()}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00956}00956\ \ \ \ \ \ \ \ \ output\ =\ await\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_a69b42d77903b18122a2ab75eb7d08c68}{func}}(*args,\ **kwargs)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00957}00957\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1MemorizedFunc_aa3ec97ce9e7298c623bfa2e3398e375b}{\_after\_call}}(call\_id,\ args,\ kwargs,\ shelving,\ output,\ start\_time)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00958}00958\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00959}00959\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00960}00960\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00963}\mbox{\hyperlink{classjoblib_1_1memory_1_1Memory}{00963}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classjoblib_1_1memory_1_1Memory}{Memory}}(\mbox{\hyperlink{classjoblib_1_1logger_1_1Logger}{Logger}}):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00964}00964\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}A\ context\ object\ for\ caching\ a\ function's\ return\ value\ each\ time\ it}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00965}00965\ \textcolor{stringliteral}{\ \ \ \ is\ called\ with\ the\ same\ input\ arguments.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00966}00966\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00967}00967\ \textcolor{stringliteral}{\ \ \ \ All\ values\ are\ cached\ on\ the\ filesystem,\ in\ a\ deep\ directory}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00968}00968\ \textcolor{stringliteral}{\ \ \ \ structure.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00969}00969\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00970}00970\ \textcolor{stringliteral}{\ \ \ \ Read\ more\ in\ the\ :ref:\`{}User\ Guide\ <memory>\`{}.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00971}00971\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00972}00972\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00973}00973\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00974}00974\ \textcolor{stringliteral}{\ \ \ \ location:\ str,\ pathlib.Path\ or\ None}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00975}00975\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ path\ of\ the\ base\ directory\ to\ use\ as\ a\ data\ store}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00976}00976\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ or\ None.\ If\ None\ is\ given,\ no\ caching\ is\ done\ and}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00977}00977\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ Memory\ object\ is\ completely\ transparent.\ This\ option}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00978}00978\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ replaces\ cachedir\ since\ version\ 0.12.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00979}00979\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00980}00980\ \textcolor{stringliteral}{\ \ \ \ backend:\ str,\ optional,\ default='local'}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00981}00981\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Type\ of\ store\ backend\ for\ reading/writing\ cache\ files.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00982}00982\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ 'local'\ backend\ is\ using\ regular\ filesystem\ operations\ to}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00983}00983\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ manipulate\ data\ (open,\ mv,\ etc)\ in\ the\ backend.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00984}00984\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00985}00985\ \textcolor{stringliteral}{\ \ \ \ mmap\_mode:\ \{None,\ 'r+',\ 'r',\ 'w+',\ 'c'\},\ optional}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00986}00986\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ memmapping\ mode\ used\ when\ loading\ from\ cache}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00987}00987\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ numpy\ arrays.\ See\ numpy.load\ for\ the\ meaning\ of\ the}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00988}00988\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ arguments.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00989}00989\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00990}00990\ \textcolor{stringliteral}{\ \ \ \ compress:\ boolean,\ or\ integer,\ optional}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00991}00991\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Whether\ to\ zip\ the\ stored\ data\ on\ disk.\ If\ an\ integer\ is}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00992}00992\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ given,\ it\ should\ be\ between\ 1\ and\ 9,\ and\ sets\ the\ amount}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00993}00993\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ of\ compression.\ Note\ that\ compressed\ arrays\ cannot\ be}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00994}00994\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ read\ by\ memmapping.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00995}00995\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00996}00996\ \textcolor{stringliteral}{\ \ \ \ verbose:\ int,\ optional}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00997}00997\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Verbosity\ flag,\ controls\ the\ debug\ messages\ that\ are\ issued}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00998}00998\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ as\ functions\ are\ evaluated.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l00999}00999\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01000}01000\ \textcolor{stringliteral}{\ \ \ \ backend\_options:\ dict,\ optional}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01001}01001\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Contains\ a\ dictionary\ of\ named\ parameters\ used\ to\ configure}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01002}01002\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ store\ backend.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01003}01003\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01004}01004\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01005}01005\ \ \ \ \ \textcolor{comment}{\#\ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01006}01006\ \ \ \ \ \textcolor{comment}{\#\ Public\ interface}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01007}01007\ \ \ \ \ \textcolor{comment}{\#\ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01008}01008\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01009}01009\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01010}01010\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01011}01011\ \ \ \ \ \ \ \ \ location=None,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01012}01012\ \ \ \ \ \ \ \ \ backend="{}local"{},}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01013}01013\ \ \ \ \ \ \ \ \ mmap\_mode=None,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01014}01014\ \ \ \ \ \ \ \ \ compress=False,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01015}01015\ \ \ \ \ \ \ \ \ verbose=1,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01016}01016\ \ \ \ \ \ \ \ \ backend\_options=None,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01017}01017\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01018}01018\ \ \ \ \ \ \ \ \ Logger.\_\_init\_\_(self)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01019}01019\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1Memory_a023ffd46da6a2297bd446f1c5dee738e}{\_verbose}}\ =\ verbose}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01020}01020\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1Memory_a83e8d4069a7eef4bf92be6e077d03c3a}{mmap\_mode}}\ =\ mmap\_mode}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01021}01021\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1Memory_a966a25552da39b86ca9d9058b58aa865}{timestamp}}\ =\ time.time()}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01022}01022\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1Memory_ab9c4afaa0fa6523bceb0d553b3a19335}{backend}}\ =\ backend}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01023}01023\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1Memory_a4704e92dbf5b4de2af11c130507ce079}{compress}}\ =\ compress}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01024}01024\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ backend\_options\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01025}01025\ \ \ \ \ \ \ \ \ \ \ \ \ backend\_options\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01026}01026\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1Memory_a008a74254ec7aadfd712fbebbfa925d6}{backend\_options}}\ =\ backend\_options}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01027}01027\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01028}01028\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ compress\ \textcolor{keywordflow}{and}\ mmap\_mode\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01029}01029\ \ \ \ \ \ \ \ \ \ \ \ \ warnings.warn(\textcolor{stringliteral}{"{}Compressed\ results\ cannot\ be\ memmapped"{}},\ stacklevel=2)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01030}01030\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01031}01031\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1Memory_af19a037906062f377a3496a9590848bd}{location}}\ =\ location}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01032}01032\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(location,\ str):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01033}01033\ \ \ \ \ \ \ \ \ \ \ \ \ location\ =\ os.path.join(location,\ \textcolor{stringliteral}{"{}joblib"{}})}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01034}01034\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01035}01035\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1Memory_a7f54f957eaec7a508f605f2311ea1f04}{store\_backend}}\ =\ \mbox{\hyperlink{namespacejoblib_1_1memory_aea457a021d73b5f4539e4b731f27ad8f}{\_store\_backend\_factory}}(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01036}01036\ \ \ \ \ \ \ \ \ \ \ \ \ backend,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01037}01037\ \ \ \ \ \ \ \ \ \ \ \ \ location,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01038}01038\ \ \ \ \ \ \ \ \ \ \ \ \ verbose=self.\mbox{\hyperlink{classjoblib_1_1memory_1_1Memory_a023ffd46da6a2297bd446f1c5dee738e}{\_verbose}},}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01039}01039\ \ \ \ \ \ \ \ \ \ \ \ \ backend\_options=dict(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01040}01040\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ compress=compress,\ mmap\_mode=mmap\_mode,\ **backend\_options}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01041}01041\ \ \ \ \ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01042}01042\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01043}01043\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01044}\mbox{\hyperlink{classjoblib_1_1memory_1_1Memory_a901ba2fbbe2f625d525ccbe657c69ad7}{01044}}\ \ \ \ \ \textcolor{keyword}{def\ }cache(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01045}01045\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01046}01046\ \ \ \ \ \ \ \ \ func=None,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01047}01047\ \ \ \ \ \ \ \ \ ignore=None,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01048}01048\ \ \ \ \ \ \ \ \ verbose=None,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01049}01049\ \ \ \ \ \ \ \ \ mmap\_mode=False,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01050}01050\ \ \ \ \ \ \ \ \ cache\_validation\_callback=None,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01051}01051\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01052}01052\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Decorates\ the\ given\ function\ func\ to\ only\ compute\ its\ return}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01053}01053\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ value\ for\ input\ arguments\ not\ cached\ on\ disk.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01054}01054\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01055}01055\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01056}01056\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01057}01057\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ func:\ callable,\ optional}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01058}01058\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ function\ to\ be\ decorated}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01059}01059\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ignore:\ list\ of\ strings}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01060}01060\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ A\ list\ of\ arguments\ name\ to\ ignore\ in\ the\ hashing}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01061}01061\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ verbose:\ integer,\ optional}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01062}01062\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ verbosity\ mode\ of\ the\ function.\ By\ default\ that}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01063}01063\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ of\ the\ memory\ object\ is\ used.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01064}01064\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ mmap\_mode:\ \{None,\ 'r+',\ 'r',\ 'w+',\ 'c'\},\ optional}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01065}01065\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ memmapping\ mode\ used\ when\ loading\ from\ cache}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01066}01066\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ numpy\ arrays.\ See\ numpy.load\ for\ the\ meaning\ of\ the}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01067}01067\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ arguments.\ By\ default\ that\ of\ the\ memory\ object\ is\ used.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01068}01068\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ cache\_validation\_callback:\ callable,\ optional}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01069}01069\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Callable\ to\ validate\ whether\ or\ not\ the\ cache\ is\ valid.\ When}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01070}01070\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ the\ cached\ function\ is\ called\ with\ arguments\ for\ which\ a\ cache}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01071}01071\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ exists,\ this\ callable\ is\ called\ with\ the\ metadata\ of\ the\ cached}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01072}01072\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ result\ as\ its\ sole\ argument.\ If\ it\ returns\ True,\ then\ the}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01073}01073\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ cached\ result\ is\ returned,\ else\ the\ cache\ for\ these\ arguments}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01074}01074\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ is\ cleared\ and\ recomputed.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01075}01075\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01076}01076\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01077}01077\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01078}01078\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ decorated\_func:\ MemorizedFunc\ object}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01079}01079\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ returned\ object\ is\ a\ MemorizedFunc\ object,\ that\ is}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01080}01080\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ callable\ (behaves\ like\ a\ function),\ but\ offers\ extra}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01081}01081\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ methods\ for\ cache\ lookup\ and\ management.\ See\ the}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01082}01082\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ documentation\ for\ :class:\`{}joblib.memory.MemorizedFunc\`{}.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01083}01083\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01084}01084\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ cache\_validation\_callback\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{and}\ \textcolor{keywordflow}{not}\ callable(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01085}01085\ \ \ \ \ \ \ \ \ \ \ \ \ cache\_validation\_callback}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01086}01086\ \ \ \ \ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01087}01087\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01088}01088\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}cache\_validation\_callback\ needs\ to\ be\ callable.\ "{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01089}01089\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}Got\ \{cache\_validation\_callback\}."{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01090}01090\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01091}01091\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ func\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01092}01092\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Partial\ application,\ to\ be\ able\ to\ specify\ extra\ keyword}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01093}01093\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ arguments\ in\ decorators}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01094}01094\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ functools.partial(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01095}01095\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1Memory_a160bec38e6b987d080cc0339747dea61}{cache}},}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01096}01096\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ignore=ignore,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01097}01097\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ mmap\_mode=mmap\_mode,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01098}01098\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ verbose=verbose,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01099}01099\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ cache\_validation\_callback=cache\_validation\_callback,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01100}01100\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01101}01101\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1Memory_a7f54f957eaec7a508f605f2311ea1f04}{store\_backend}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01102}01102\ \ \ \ \ \ \ \ \ \ \ \ \ cls\ =\ (}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01103}01103\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ AsyncNotMemorizedFunc}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01104}01104\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ asyncio.iscoroutinefunction(func)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01105}01105\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}\ NotMemorizedFunc}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01106}01106\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01107}01107\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ cls(func)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01108}01108\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ verbose\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01109}01109\ \ \ \ \ \ \ \ \ \ \ \ \ verbose\ =\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1Memory_a023ffd46da6a2297bd446f1c5dee738e}{\_verbose}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01110}01110\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ mmap\_mode\ \textcolor{keywordflow}{is}\ \textcolor{keyword}{False}:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01111}01111\ \ \ \ \ \ \ \ \ \ \ \ \ mmap\_mode\ =\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1Memory_a83e8d4069a7eef4bf92be6e077d03c3a}{mmap\_mode}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01112}01112\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(func,\ MemorizedFunc):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01113}01113\ \ \ \ \ \ \ \ \ \ \ \ \ func\ =\ func.func}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01114}01114\ \ \ \ \ \ \ \ \ cls\ =\ AsyncMemorizedFunc\ \textcolor{keywordflow}{if}\ asyncio.iscoroutinefunction(func)\ \textcolor{keywordflow}{else}\ MemorizedFunc}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01115}01115\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ cls(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01116}01116\ \ \ \ \ \ \ \ \ \ \ \ \ func,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01117}01117\ \ \ \ \ \ \ \ \ \ \ \ \ location=self.\mbox{\hyperlink{classjoblib_1_1memory_1_1Memory_a7f54f957eaec7a508f605f2311ea1f04}{store\_backend}},}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01118}01118\ \ \ \ \ \ \ \ \ \ \ \ \ backend=self.\mbox{\hyperlink{classjoblib_1_1memory_1_1Memory_ab9c4afaa0fa6523bceb0d553b3a19335}{backend}},}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01119}01119\ \ \ \ \ \ \ \ \ \ \ \ \ ignore=ignore,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01120}01120\ \ \ \ \ \ \ \ \ \ \ \ \ mmap\_mode=mmap\_mode,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01121}01121\ \ \ \ \ \ \ \ \ \ \ \ \ compress=self.\mbox{\hyperlink{classjoblib_1_1memory_1_1Memory_a4704e92dbf5b4de2af11c130507ce079}{compress}},}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01122}01122\ \ \ \ \ \ \ \ \ \ \ \ \ verbose=verbose,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01123}01123\ \ \ \ \ \ \ \ \ \ \ \ \ timestamp=self.\mbox{\hyperlink{classjoblib_1_1memory_1_1Memory_a966a25552da39b86ca9d9058b58aa865}{timestamp}},}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01124}01124\ \ \ \ \ \ \ \ \ \ \ \ \ cache\_validation\_callback=cache\_validation\_callback,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01125}01125\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01126}01126\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01127}\mbox{\hyperlink{classjoblib_1_1memory_1_1Memory_a2b28d6d425fadb166012c8ba6ad366e3}{01127}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1memory_1_1Memory_a2b28d6d425fadb166012c8ba6ad366e3}{clear}}(self,\ warn=True):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01128}01128\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Erase\ the\ complete\ cache\ directory."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01129}01129\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ warn:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01130}01130\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1logger_1_1Logger_a5136a0a386a184e315d115860f4f261d}{warn}}(\textcolor{stringliteral}{"{}Flushing\ completely\ the\ cache"{}})}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01131}01131\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1Memory_a7f54f957eaec7a508f605f2311ea1f04}{store\_backend}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01132}01132\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1Memory_a7f54f957eaec7a508f605f2311ea1f04}{store\_backend}}.\mbox{\hyperlink{classjoblib_1_1memory_1_1Memory_a2b28d6d425fadb166012c8ba6ad366e3}{clear}}()}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01133}01133\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01134}01134\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ As\ the\ cache\ is\ completely\ clear,\ make\ sure\ the\ \_FUNCTION\_HASHES}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01135}01135\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ cache\ is\ also\ reset.\ Else,\ for\ a\ function\ that\ is\ present\ in\ this}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01136}01136\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ table,\ results\ cached\ after\ this\ clear\ will\ be\ have\ cache\ miss}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01137}01137\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ as\ the\ function\ code\ is\ not\ re-\/written.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01138}01138\ \ \ \ \ \ \ \ \ \ \ \ \ \_FUNCTION\_HASHES.clear()}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01139}01139\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01140}\mbox{\hyperlink{classjoblib_1_1memory_1_1Memory_a6831882fd7142b93010fe892cab8ace8}{01140}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1memory_1_1Memory_a6831882fd7142b93010fe892cab8ace8}{reduce\_size}}(self,\ bytes\_limit=None,\ items\_limit=None,\ age\_limit=None):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01141}01141\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Remove\ cache\ elements\ to\ make\ the\ cache\ fit\ its\ limits.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01142}01142\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01143}01143\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ limitation\ can\ impose\ that\ the\ cache\ size\ fits\ in\ \`{}\`{}bytes\_limit\`{}\`{},}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01144}01144\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ that\ the\ number\ of\ cache\ items\ is\ no\ more\ than\ \`{}\`{}items\_limit\`{}\`{},\ and}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01145}01145\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ that\ all\ files\ in\ cache\ are\ not\ older\ than\ \`{}\`{}age\_limit\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01146}01146\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01147}01147\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01148}01148\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01149}01149\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ bytes\_limit:\ int\ |\ str,\ optional}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01150}01150\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Limit\ in\ bytes\ of\ the\ size\ of\ the\ cache.\ By\ default,\ the\ size\ of}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01151}01151\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ the\ cache\ is\ unlimited.\ When\ reducing\ the\ size\ of\ the\ cache,}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01152}01152\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \`{}\`{}joblib\`{}\`{}\ keeps\ the\ most\ recently\ accessed\ items\ first.\ If\ a}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01153}01153\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ str\ is\ passed,\ it\ is\ converted\ to\ a\ number\ of\ bytes\ using\ units}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01154}01154\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \{\ K\ |\ M\ |\ G\}\ for\ kilo,\ mega,\ giga.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01155}01155\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01156}01156\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ items\_limit:\ int,\ optional}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01157}01157\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Number\ of\ items\ to\ limit\ the\ cache\ to.\ \ By\ default,\ the\ number\ of}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01158}01158\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ items\ in\ the\ cache\ is\ unlimited.\ \ When\ reducing\ the\ size\ of\ the}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01159}01159\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ cache,\ \`{}\`{}joblib\`{}\`{}\ keeps\ the\ most\ recently\ accessed\ items\ first.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01160}01160\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01161}01161\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ age\_limit:\ datetime.timedelta,\ optional}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01162}01162\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Maximum\ age\ of\ items\ to\ limit\ the\ cache\ to.\ \ When\ reducing\ the\ size}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01163}01163\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ of\ the\ cache,\ any\ items\ last\ accessed\ more\ than\ the\ given\ length\ of}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01164}01164\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ time\ ago\ are\ deleted.\ Example:\ to\ remove\ files\ older\ than\ 5\ days,}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01165}01165\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ use\ datetime.timedelta(days=5).\ Negative\ timedelta\ are\ not}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01166}01166\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ accepted.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01167}01167\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01168}01168\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1Memory_a7f54f957eaec7a508f605f2311ea1f04}{store\_backend}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01169}01169\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ No\ cached\ results,\ this\ function\ does\ nothing.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01170}01170\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01171}01171\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01172}01172\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ bytes\_limit\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{and}\ items\_limit\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{and}\ age\_limit\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01173}01173\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ No\ limitation\ to\ impose,\ returning}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01174}01174\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01175}01175\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01176}01176\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Defers\ the\ actual\ limits\ enforcing\ to\ the\ store\ backend.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01177}01177\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1Memory_a7f54f957eaec7a508f605f2311ea1f04}{store\_backend}}.enforce\_store\_limits(bytes\_limit,\ items\_limit,\ age\_limit)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01178}01178\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01179}\mbox{\hyperlink{classjoblib_1_1memory_1_1Memory_af1a5432aa66a28054e0ea5905e698960}{01179}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1memory_1_1Memory_af1a5432aa66a28054e0ea5905e698960}{eval}}(self,\ func,\ *args,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01180}01180\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Eval\ function\ func\ with\ arguments\ \`{}*args\`{}\ and\ \`{}**kwargs\`{},}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01181}01181\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ in\ the\ context\ of\ the\ memory.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01182}01182\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01183}01183\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ This\ method\ works\ similarly\ to\ the\ builtin\ \`{}apply\`{},\ except}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01184}01184\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ that\ the\ function\ is\ called\ only\ if\ the\ cache\ is\ not}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01185}01185\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ up\ to\ date.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01186}01186\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01187}01187\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01188}01188\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1Memory_a7f54f957eaec7a508f605f2311ea1f04}{store\_backend}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01189}01189\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ func(*args,\ **kwargs)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01190}01190\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1Memory_a160bec38e6b987d080cc0339747dea61}{cache}}(func)(*args,\ **kwargs)}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01191}01191\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01192}01192\ \ \ \ \ \textcolor{comment}{\#\ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01193}01193\ \ \ \ \ \textcolor{comment}{\#\ Private\ \`{}object`\ interface}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01194}01194\ \ \ \ \ \textcolor{comment}{\#\ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01195}01195\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01196}01196\ \ \ \ \ \textcolor{keyword}{def\ }\_\_repr\_\_(self):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01197}01197\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{stringliteral}{"{}\{class\_name\}(location=\{location\})"{}}.\mbox{\hyperlink{classjoblib_1_1logger_1_1Logger_afe4b6477884706f2a411232132a6c0e9}{format}}(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01198}01198\ \ \ \ \ \ \ \ \ \ \ \ \ class\_name=self.\_\_class\_\_.\_\_name\_\_,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01199}01199\ \ \ \ \ \ \ \ \ \ \ \ \ location=(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01200}01200\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1Memory_a7f54f957eaec7a508f605f2311ea1f04}{store\_backend}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{else}\ self.\mbox{\hyperlink{classjoblib_1_1memory_1_1Memory_a7f54f957eaec7a508f605f2311ea1f04}{store\_backend}}.location}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01201}01201\ \ \ \ \ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01202}01202\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01203}01203\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01204}\mbox{\hyperlink{classjoblib_1_1memory_1_1Memory_ab4093e145dca63ccd7bd329292f06a1d}{01204}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1memory_1_1Memory_ab4093e145dca63ccd7bd329292f06a1d}{\_\_getstate\_\_}}(self):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01205}01205\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}We\ don't\ store\ the\ timestamp\ when\ pickling,\ to\ avoid\ the\ hash}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01206}01206\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ depending\ from\ it.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01207}01207\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01208}01208\ \ \ \ \ \ \ \ \ state\ =\ self.\_\_dict\_\_.copy()}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01209}01209\ \ \ \ \ \ \ \ \ state[\textcolor{stringliteral}{"{}timestamp"{}}]\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01210}01210\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ state}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01211}01211\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01212}01212\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01213}01213\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01216}01216\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01217}01217\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01218}\mbox{\hyperlink{namespacejoblib_1_1memory_a52f8041a08202592e869f9a00095f71f}{01218}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1memory_a52f8041a08202592e869f9a00095f71f}{expires\_after}}(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01219}01219\ \ \ \ \ days=0,\ seconds=0,\ microseconds=0,\ milliseconds=0,\ minutes=0,\ hours=0,\ weeks=0}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01220}01220\ ):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01221}01221\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Helper\ cache\_validation\_callback\ to\ force\ recompute\ after\ a\ duration.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01222}01222\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01223}01223\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01224}01224\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01225}01225\ \textcolor{stringliteral}{\ \ \ \ days,\ seconds,\ microseconds,\ milliseconds,\ minutes,\ hours,\ weeks:\ numbers}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01226}01226\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ argument\ passed\ to\ a\ timedelta.}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01227}01227\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01228}01228\ \ \ \ \ delta\ =\ datetime.timedelta(}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01229}01229\ \ \ \ \ \ \ \ \ days=days,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01230}01230\ \ \ \ \ \ \ \ \ seconds=seconds,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01231}01231\ \ \ \ \ \ \ \ \ microseconds=microseconds,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01232}01232\ \ \ \ \ \ \ \ \ milliseconds=milliseconds,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01233}01233\ \ \ \ \ \ \ \ \ minutes=minutes,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01234}01234\ \ \ \ \ \ \ \ \ hours=hours,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01235}01235\ \ \ \ \ \ \ \ \ weeks=weeks,}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01236}01236\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01237}01237\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01238}01238\ \ \ \ \ \textcolor{keyword}{def\ }cache\_validation\_callback(metadata):}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01239}01239\ \ \ \ \ \ \ \ \ computation\_age\ =\ time.time()\ -\/\ metadata[\textcolor{stringliteral}{"{}time"{}}]}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01240}01240\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ computation\_age\ <\ delta.total\_seconds()}
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01241}01241\ }
+\DoxyCodeLine{\Hypertarget{memory_8py_source_l01242}01242\ \ \ \ \ \textcolor{keywordflow}{return}\ cache\_validation\_callback}
+
+\end{DoxyCode}

@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['hyp_0',['hyp',['../d5/d53/namespacehyp.html',1,'']]]
+  ['jamie_20kemman_0',['Shreya Nakum, Jamie Kemman',['../index.html#autotoc_md1',1,'']]]
 ];

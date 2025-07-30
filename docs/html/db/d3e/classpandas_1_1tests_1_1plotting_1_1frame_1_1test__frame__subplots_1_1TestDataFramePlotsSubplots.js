@@ -1,0 +1,4 @@
+var classpandas_1_1tests_1_1plotting_1_1frame_1_1test__frame__subplots_1_1TestDataFramePlotsSubplots =
+[
+    [ "test_subplots_timeseries_y_axis_not_supported", "db/d3e/classpandas_1_1tests_1_1plotting_1_1frame_1_1test__frame__subplots_1_1TestDataFramePlotsSubplots.html#a1795b5b9a695177a683a774a7d2c4445", null ]
+];

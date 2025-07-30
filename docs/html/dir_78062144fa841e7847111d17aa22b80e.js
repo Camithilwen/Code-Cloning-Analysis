@@ -1,0 +1,25 @@
+var dir_78062144fa841e7847111d17aa22b80e =
+[
+    [ "_precompute", "dir_2375d5dc8c06687f0cc4e7f9d7e101dc.html", "dir_2375d5dc8c06687f0cc4e7f9d7e101dc" ],
+    [ "tests", "dir_602779733debb9611650ed7f77a4cc01.html", "dir_602779733debb9611650ed7f77a4cc01" ],
+    [ "__init__.py", "dc/d2d/scipy_2special_2____init_____8py_source.html", null ],
+    [ "_add_newdocs.py", "d8/d10/scipy_2special_2__add__newdocs_8py_source.html", null ],
+    [ "_basic.py", "d7/d9a/special_2__basic_8py_source.html", null ],
+    [ "_ellip_harm.py", "d9/d3c/__ellip__harm_8py_source.html", null ],
+    [ "_lambertw.py", "de/d0d/__lambertw_8py_source.html", null ],
+    [ "_logsumexp.py", "d6/dc7/__logsumexp_8py_source.html", null ],
+    [ "_mptestutils.py", "d0/d0d/__mptestutils_8py_source.html", null ],
+    [ "_orthogonal.py", "d6/d64/__orthogonal_8py_source.html", null ],
+    [ "_sf_error.py", "d2/dae/__sf__error_8py_source.html", null ],
+    [ "_spfun_stats.py", "d3/d62/__spfun__stats_8py_source.html", null ],
+    [ "_spherical_bessel.py", "d0/d16/__spherical__bessel_8py_source.html", null ],
+    [ "_testutils.py", "d1/df8/special_2__testutils_8py_source.html", null ],
+    [ "_ufuncs_cxx_defs.h", "da/d24/__ufuncs__cxx__defs_8h_source.html", null ],
+    [ "_ufuncs_defs.h", "d8/dee/__ufuncs__defs_8h_source.html", null ],
+    [ "add_newdocs.py", "d3/df7/add__newdocs_8py_source.html", null ],
+    [ "basic.py", "d3/d28/special_2basic_8py_source.html", null ],
+    [ "orthogonal.py", "dc/d18/orthogonal_8py_source.html", null ],
+    [ "sf_error.py", "d5/d2e/sf__error_8py_source.html", null ],
+    [ "specfun.py", "d2/dd3/specfun_8py_source.html", null ],
+    [ "spfun_stats.py", "dc/d4a/spfun__stats_8py_source.html", null ]
+];

@@ -1,0 +1,27 @@
+var dir_814332bd57e1bf5f66b14a94b0fb7a0b =
+[
+    [ "_lib", "dir_57bc7192075f5e306eed1e0d553a9705.html", "dir_57bc7192075f5e306eed1e0d553a9705" ],
+    [ "cluster", "dir_44b02be18a13580be90f75a6331af009.html", "dir_44b02be18a13580be90f75a6331af009" ],
+    [ "constants", "dir_ac0b96b9fa9900c0d590c1ae7b89714c.html", "dir_ac0b96b9fa9900c0d590c1ae7b89714c" ],
+    [ "datasets", "dir_781eae21050c610fa2cc3c75828c9d3a.html", "dir_781eae21050c610fa2cc3c75828c9d3a" ],
+    [ "fft", "dir_9582832c0d10f76b631176a6090ec269.html", "dir_9582832c0d10f76b631176a6090ec269" ],
+    [ "fftpack", "dir_47354b8124486308ab98cc7e860500df.html", "dir_47354b8124486308ab98cc7e860500df" ],
+    [ "integrate", "dir_10c9c8e5951eba921ae7df107027d415.html", "dir_10c9c8e5951eba921ae7df107027d415" ],
+    [ "interpolate", "dir_0ee620b65639c4ea4b91186927c919a5.html", "dir_0ee620b65639c4ea4b91186927c919a5" ],
+    [ "io", "dir_2bbc6996b0d316331e3abe5bbe9eacc3.html", "dir_2bbc6996b0d316331e3abe5bbe9eacc3" ],
+    [ "linalg", "dir_1248bf7b8a07a62efef5856f6016951a.html", "dir_1248bf7b8a07a62efef5856f6016951a" ],
+    [ "misc", "dir_e583eb845c3d5ebd982a03f92c57d7ac.html", "dir_e583eb845c3d5ebd982a03f92c57d7ac" ],
+    [ "ndimage", "dir_0451c4e47b1443bc37557a9b3bf42a54.html", "dir_0451c4e47b1443bc37557a9b3bf42a54" ],
+    [ "odr", "dir_b4b6326c964ff1360b24f77fb7f70057.html", "dir_b4b6326c964ff1360b24f77fb7f70057" ],
+    [ "optimize", "dir_9b25bd0339629e5d7203141852018ced.html", "dir_9b25bd0339629e5d7203141852018ced" ],
+    [ "signal", "dir_f705628ed9c0cad18672bcadc14220e6.html", "dir_f705628ed9c0cad18672bcadc14220e6" ],
+    [ "sparse", "dir_8617b9a4974da03497f27baadccb3c94.html", "dir_8617b9a4974da03497f27baadccb3c94" ],
+    [ "spatial", "dir_38f26eebab5ca287b7b8d03ef467c8f2.html", "dir_38f26eebab5ca287b7b8d03ef467c8f2" ],
+    [ "special", "dir_78062144fa841e7847111d17aa22b80e.html", "dir_78062144fa841e7847111d17aa22b80e" ],
+    [ "stats", "dir_49a4d825d310769c20c5bbd05c58f3ef.html", "dir_49a4d825d310769c20c5bbd05c58f3ef" ],
+    [ "__config__.py", "d5/da8/scipy_2____config_____8py_source.html", null ],
+    [ "__init__.py", "d3/d0a/scipy_2____init_____8py_source.html", null ],
+    [ "_distributor_init.py", "dc/d79/scipy_2__distributor__init_8py_source.html", null ],
+    [ "conftest.py", "d4/df1/scipy_2conftest_8py_source.html", null ],
+    [ "version.py", "db/d28/scipy_2version_8py_source.html", null ]
+];

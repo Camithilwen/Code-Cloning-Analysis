@@ -1,0 +1,4 @@
+var namespacesklearn_1_1externals_1_1array__api__compat_1_1numpy_1_1__info =
+[
+    [ "__array_namespace_info__", "df/d88/classsklearn_1_1externals_1_1array__api__compat_1_1numpy_1_1__info_1_1____array__namespace__info____.html", "df/d88/classsklearn_1_1externals_1_1array__api__compat_1_1numpy_1_1__info_1_1____array__namespace__info____" ]
+];

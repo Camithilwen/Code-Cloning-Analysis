@@ -1,0 +1,759 @@
+\doxysection{\+\_\+parallel\+\_\+backends.\+py}
+\hypertarget{__parallel__backends_8py_source}{}\label{__parallel__backends_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/joblib/\_parallel\_backends.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/joblib/\_parallel\_backends.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00001}\mbox{\hyperlink{namespacejoblib_1_1__parallel__backends}{00001}}\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00002}00002\ \textcolor{stringliteral}{Backends\ for\ embarrassingly\ parallel\ code.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00003}00003\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00004}00004\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00005}00005\ \textcolor{keyword}{import}\ contextlib}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00006}00006\ \textcolor{keyword}{import}\ gc}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00007}00007\ \textcolor{keyword}{import}\ os}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00008}00008\ \textcolor{keyword}{import}\ threading}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00009}00009\ \textcolor{keyword}{import}\ warnings}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00010}00010\ \textcolor{keyword}{from}\ abc\ \textcolor{keyword}{import}\ ABCMeta,\ abstractmethod}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00011}00011\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00012}00012\ \textcolor{keyword}{from}\ .\_multiprocessing\_helpers\ \textcolor{keyword}{import}\ mp}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00013}00013\ \textcolor{keyword}{from}\ .\_utils\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00014}00014\ \ \ \ \ \_retrieve\_traceback\_capturing\_wrapped\_call,}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00015}00015\ \ \ \ \ \_TracebackCapturingWrapper,}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00016}00016\ )}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00017}00017\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00018}00018\ \textcolor{keywordflow}{if}\ mp\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00019}00019\ \ \ \ \ \textcolor{keyword}{from}\ multiprocessing.pool\ \textcolor{keyword}{import}\ ThreadPool}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00020}00020\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00021}00021\ \ \ \ \ \textcolor{keyword}{from}\ .executor\ \textcolor{keyword}{import}\ get\_memmapping\_executor}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00022}00022\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00023}00023\ \ \ \ \ \textcolor{comment}{\#\ Import\ loky\ only\ if\ multiprocessing\ is\ present}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00024}00024\ \ \ \ \ \textcolor{keyword}{from}\ .externals.loky\ \textcolor{keyword}{import}\ cpu\_count,\ process\_executor}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00025}00025\ \ \ \ \ \textcolor{keyword}{from}\ .externals.loky.process\_executor\ \textcolor{keyword}{import}\ ShutdownExecutorError}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00026}00026\ \ \ \ \ \textcolor{keyword}{from}\ .pool\ \textcolor{keyword}{import}\ MemmappingPool}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00027}00027\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00028}00028\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00029}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase}{00029}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase}{ParallelBackendBase}}(\mbox{\hyperlink{classmetaclass}{metaclass}}=ABCMeta):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00030}00030\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Helper\ abc\ which\ defines\ all\ methods\ a\ ParallelBackend\ must\ implement"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00031}00031\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00032}00032\ \ \ \ \ default\_n\_jobs\ =\ 1}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00033}00033\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00034}00034\ \ \ \ \ supports\_inner\_max\_num\_threads\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00035}00035\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00036}00036\ \ \ \ \ \textcolor{comment}{\#\ This\ flag\ was\ introduced\ for\ backward\ compatibility\ reasons.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00037}00037\ \ \ \ \ \textcolor{comment}{\#\ New\ backends\ should\ always\ set\ it\ to\ True\ and\ implement\ the}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00038}00038\ \ \ \ \ \textcolor{comment}{\#\ \`{}retrieve\_result\_callback`\ method.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00039}00039\ \ \ \ \ supports\_retrieve\_callback\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00040}00040\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00041}00041\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00042}00042\ \ \ \ \ \textcolor{keyword}{def\ }supports\_return\_generator(self):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00043}00043\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_ace61fd0bf384208573e41153a1295bc9}{supports\_retrieve\_callback}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00044}00044\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00045}00045\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00046}00046\ \ \ \ \ \textcolor{keyword}{def\ }supports\_timeout(self):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00047}00047\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_ace61fd0bf384208573e41153a1295bc9}{supports\_retrieve\_callback}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00048}00048\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00049}00049\ \ \ \ \ nesting\_level\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00050}00050\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00051}00051\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00052}00052\ \ \ \ \ \ \ \ \ self,\ nesting\_level=None,\ inner\_max\_num\_threads=None,\ **backend\_kwargs}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00053}00053\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00054}00054\ \ \ \ \ \ \ \ \ super().\_\_init\_\_()}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00055}00055\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_a642c60a7038bc73cd6fc44b4beb5defe}{nesting\_level}}\ =\ nesting\_level}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00056}00056\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_aa2b9bd0f55f0cfbf9727042355d16b12}{inner\_max\_num\_threads}}\ =\ inner\_max\_num\_threads}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00057}00057\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_a4991afb337e9d5865f4c6d0e61c95bdb}{backend\_kwargs}}\ =\ backend\_kwargs}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00058}00058\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00059}00059\ \ \ \ \ MAX\_NUM\_THREADS\_VARS\ =\ [}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00060}00060\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}OMP\_NUM\_THREADS"{}},}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00061}00061\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}OPENBLAS\_NUM\_THREADS"{}},}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00062}00062\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}MKL\_NUM\_THREADS"{}},}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00063}00063\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}BLIS\_NUM\_THREADS"{}},}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00064}00064\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}VECLIB\_MAXIMUM\_THREADS"{}},}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00065}00065\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}NUMBA\_NUM\_THREADS"{}},}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00066}00066\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}NUMEXPR\_NUM\_THREADS"{}},}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00067}00067\ \ \ \ \ ]}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00068}00068\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00069}00069\ \ \ \ \ TBB\_ENABLE\_IPC\_VAR\ =\ \textcolor{stringliteral}{"{}ENABLE\_IPC"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00070}00070\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00071}00071\ \ \ \ \ \textcolor{preprocessor}{@abstractmethod}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00072}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_aa92eac6ed05ced6a12f419ca83de38ed}{00072}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_aa92eac6ed05ced6a12f419ca83de38ed}{effective\_n\_jobs}}(self,\ n\_jobs):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00073}00073\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Determine\ the\ number\ of\ jobs\ that\ can\ actually\ run\ in\ parallel}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00074}00074\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00075}00075\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ n\_jobs\ is\ the\ number\ of\ workers\ requested\ by\ the\ callers.\ Passing}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00076}00076\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ n\_jobs=-\/1\ means\ requesting\ all\ available\ workers\ for\ instance\ matching}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00077}00077\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ number\ of\ CPU\ cores\ on\ the\ worker\ host(s).}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00078}00078\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00079}00079\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ This\ method\ should\ return\ a\ guesstimate\ of\ the\ number\ of\ workers\ that}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00080}00080\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ can\ actually\ perform\ work\ concurrently.\ The\ primary\ use\ case\ is\ to\ make}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00081}00081\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ it\ possible\ for\ the\ caller\ to\ know\ in\ how\ many\ chunks\ to\ slice\ the}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00082}00082\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ work.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00083}00083\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00084}00084\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ In\ general\ working\ on\ larger\ data\ chunks\ is\ more\ efficient\ (less}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00085}00085\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ scheduling\ overhead\ and\ better\ use\ of\ CPU\ cache\ prefetching\ heuristics)}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00086}00086\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ as\ long\ as\ all\ the\ workers\ have\ enough\ work\ to\ do.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00087}00087\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00088}00088\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00089}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_a703dbb3295311194e0ea4fbe96131667}{00089}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_a703dbb3295311194e0ea4fbe96131667}{apply\_async}}(self,\ func,\ callback=None):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00090}00090\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Deprecated:\ implement\ \`{}submit\`{}\ instead."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00091}00091\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classNotImplementedError}{NotImplementedError}}(\textcolor{stringliteral}{"{}Implement\ \`{}submit`\ instead."{}})}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00092}00092\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00093}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_a9cc552795d7d4023ec7b0be6863e0f5a}{00093}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_a9cc552795d7d4023ec7b0be6863e0f5a}{submit}}(self,\ func,\ callback=None):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00094}00094\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Schedule\ a\ function\ to\ be\ run\ and\ return\ a\ future-\/like\ object.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00095}00095\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00096}00096\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ This\ method\ should\ return\ a\ future-\/like\ object\ that\ allow\ tracking}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00097}00097\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ progress\ of\ the\ task.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00098}00098\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00099}00099\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ \`{}\`{}supports\_retrieve\_callback\`{}\`{}\ is\ False,\ the\ return\ value\ of\ this}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00100}00100\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ method\ is\ passed\ to\ \`{}\`{}retrieve\_result\`{}\`{}\ instead\ of\ calling}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00101}00101\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}retrieve\_result\_callback\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00102}00102\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00103}00103\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00104}00104\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00105}00105\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ func:\ callable}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00106}00106\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ function\ to\ be\ run\ in\ parallel.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00107}00107\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00108}00108\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ callback:\ callable}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00109}00109\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ A\ callable\ that\ will\ be\ called\ when\ the\ task\ is\ completed.\ This\ callable}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00110}00110\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ is\ a\ wrapper\ around\ \`{}\`{}retrieve\_result\_callback\`{}\`{}.\ This\ should\ be\ added}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00111}00111\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ to\ the\ future-\/like\ object\ returned\ by\ this\ method,\ so\ that\ the\ callback}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00112}00112\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ is\ called\ when\ the\ task\ is\ completed.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00113}00113\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00114}00114\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ For\ future-\/like\ backends,\ this\ can\ be\ achieved\ with\ something\ like}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00115}00115\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \`{}\`{}future.add\_done\_callback(callback)\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00116}00116\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00117}00117\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00118}00118\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00119}00119\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ future:\ future-\/like}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00120}00120\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ A\ future-\/like\ object\ to\ track\ the\ execution\ of\ the\ submitted\ function.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00121}00121\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00122}00122\ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00123}00123\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\`{}apply\_async`\ is\ deprecated,\ implement\ and\ use\ \`{}submit`\ instead."{}},}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00124}00124\ \ \ \ \ \ \ \ \ \ \ \ \ DeprecationWarning,}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00125}00125\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00126}00126\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_a703dbb3295311194e0ea4fbe96131667}{apply\_async}}(func,\ callback)}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00127}00127\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00128}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_a207fd7eb9155e34e84e29cb1d1044950}{00128}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_a207fd7eb9155e34e84e29cb1d1044950}{retrieve\_result\_callback}}(self,\ out):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00129}00129\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Called\ within\ the\ callback\ function\ passed\ to\ \`{}submit\`{}.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00130}00130\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00131}00131\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ This\ method\ can\ customise\ how\ the\ result\ of\ the\ function\ is\ retrieved}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00132}00132\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ from\ the\ future-\/like\ object.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00133}00133\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00134}00134\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00135}00135\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00136}00136\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ future:\ future-\/like}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00137}00137\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ future-\/like\ object\ returned\ by\ the\ \`{}submit\`{}\ method.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00138}00138\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00139}00139\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00140}00140\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00141}00141\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ result:\ object}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00142}00142\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ result\ of\ the\ function\ executed\ in\ parallel.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00143}00143\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00144}00144\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00145}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_ae7ac2599f98489dfc7eeb4110c8f7828}{00145}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_ae7ac2599f98489dfc7eeb4110c8f7828}{retrieve\_result}}(self,\ out,\ timeout=None):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00146}00146\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Hook\ to\ retrieve\ the\ result\ when\ support\_retrieve\_callback=False.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00147}00147\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00148}00148\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ argument\ \`{}out\`{}\ is\ the\ result\ of\ the\ \`{}submit\`{}\ call.\ This\ method}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00149}00149\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ should\ return\ the\ result\ of\ the\ computation\ or\ raise\ an\ exception\ if}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00150}00150\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ computation\ failed.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00151}00151\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00152}00152\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.supports\_timeout:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00153}00153\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ out.get(timeout=timeout)}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00154}00154\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00155}00155\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ out.get()}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00156}00156\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00157}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_a1ec0c86c0c52e70bff4283ccf6963e4a}{00157}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_a1ec0c86c0c52e70bff4283ccf6963e4a}{configure}}(}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00158}00158\ \ \ \ \ \ \ \ \ self,\ n\_jobs=1,\ parallel=None,\ prefer=None,\ require=None,\ **backend\_kwargs}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00159}00159\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00160}00160\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Reconfigure\ the\ backend\ and\ return\ the\ number\ of\ workers.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00161}00161\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00162}00162\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ This\ makes\ it\ possible\ to\ reuse\ an\ existing\ backend\ instance\ for}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00163}00163\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ successive\ independent\ calls\ to\ Parallel\ with\ different\ parameters.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00164}00164\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00165}00165\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_ae3b2f6df6169be0e44ca87f8db53e5ca}{parallel}}\ =\ parallel}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00166}00166\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_aa92eac6ed05ced6a12f419ca83de38ed}{effective\_n\_jobs}}(n\_jobs)}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00167}00167\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00168}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_acae570c543d159545cab659837478a86}{00168}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_acae570c543d159545cab659837478a86}{start\_call}}(self):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00169}00169\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Call-\/back\ method\ called\ at\ the\ beginning\ of\ a\ Parallel\ call"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00170}00170\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00171}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_a065519a8f43328a316d2dfabaa580735}{00171}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_a065519a8f43328a316d2dfabaa580735}{stop\_call}}(self):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00172}00172\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Call-\/back\ method\ called\ at\ the\ end\ of\ a\ Parallel\ call"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00173}00173\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00174}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_a534d308d551015747979728287451150}{00174}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_a534d308d551015747979728287451150}{terminate}}(self):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00175}00175\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Shutdown\ the\ workers\ and\ free\ the\ shared\ memory."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00176}00176\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00177}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_af0a856701829a9da9a9cbc4ea031f746}{00177}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_af0a856701829a9da9a9cbc4ea031f746}{compute\_batch\_size}}(self):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00178}00178\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Determine\ the\ optimal\ batch\ size"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00179}00179\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ 1}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00180}00180\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00181}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_a5b228cd5aaea2a176d9f273756d84cda}{00181}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_a5b228cd5aaea2a176d9f273756d84cda}{batch\_completed}}(self,\ batch\_size,\ duration):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00182}00182\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Callback\ indicate\ how\ long\ it\ took\ to\ run\ a\ batch"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00183}00183\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00184}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_ab5a31747fe9ef61bdd3284a862a1020b}{00184}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_ab5a31747fe9ef61bdd3284a862a1020b}{abort\_everything}}(self,\ ensure\_ready=True):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00185}00185\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Abort\ any\ running\ tasks}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00186}00186\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00187}00187\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ This\ is\ called\ when\ an\ exception\ has\ been\ raised\ when\ executing\ a\ task}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00188}00188\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ and\ all\ the\ remaining\ tasks\ will\ be\ ignored\ and\ can\ therefore\ be}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00189}00189\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ aborted\ to\ spare\ computation\ resources.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00190}00190\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00191}00191\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ ensure\_ready\ is\ True,\ the\ backend\ should\ be\ left\ in\ an\ operating}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00192}00192\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ state\ as\ future\ tasks\ might\ be\ re-\/submitted\ via\ that\ same\ backend}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00193}00193\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ instance.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00194}00194\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00195}00195\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ ensure\_ready\ is\ False,\ the\ implementer\ of\ this\ method\ can\ decide}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00196}00196\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ to\ leave\ the\ backend\ in\ a\ closed\ /\ terminated\ state\ as\ no\ new\ task}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00197}00197\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ are\ expected\ to\ be\ submitted\ to\ this\ backend.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00198}00198\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00199}00199\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Setting\ ensure\_ready\ to\ False\ is\ an\ optimization\ that\ can\ be\ leveraged}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00200}00200\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ when\ aborting\ tasks\ via\ killing\ processes\ from\ a\ local\ process\ pool}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00201}00201\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ managed\ by\ the\ backend\ it-\/self:\ if\ we\ expect\ no\ new\ tasks,\ there\ is\ no}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00202}00202\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ point\ in\ re-\/creating\ new\ workers.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00203}00203\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00204}00204\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Does\ nothing\ by\ default:\ to\ be\ overridden\ in\ subclasses\ when}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00205}00205\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ canceling\ tasks\ is\ possible.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00206}00206\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{pass}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00207}00207\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00208}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_a85bedc48352acea7511a680fc250bd3c}{00208}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_a85bedc48352acea7511a680fc250bd3c}{get\_nested\_backend}}(self):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00209}00209\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Backend\ instance\ to\ be\ used\ by\ nested\ Parallel\ calls.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00210}00210\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00211}00211\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ By\ default\ a\ thread-\/based\ backend\ is\ used\ for\ the\ first\ level\ of}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00212}00212\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ nesting.\ Beyond,\ switch\ to\ sequential\ backend\ to\ avoid\ spawning\ too}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00213}00213\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ many\ threads\ on\ the\ host.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00214}00214\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00215}00215\ \ \ \ \ \ \ \ \ nesting\_level\ =\ getattr(self,\ \textcolor{stringliteral}{"{}nesting\_level"{}},\ 0)\ +\ 1}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00216}00216\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ nesting\_level\ >\ 1:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00217}00217\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1SequentialBackend}{SequentialBackend}}(nesting\_level=nesting\_level),\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00218}00218\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00219}00219\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ThreadingBackend}{ThreadingBackend}}(nesting\_level=nesting\_level),\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00220}00220\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00221}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_ac2d4a35e50ce4da5a82ff3274e3127ac}{00221}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_ac2d4a35e50ce4da5a82ff3274e3127ac}{\_prepare\_worker\_env}}(self,\ n\_jobs):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00222}00222\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Return\ environment\ variables\ limiting\ threadpools\ in\ external\ libs.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00223}00223\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00224}00224\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ This\ function\ return\ a\ dict\ containing\ environment\ variables\ to\ pass}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00225}00225\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ when\ creating\ a\ pool\ of\ process.\ These\ environment\ variables\ limit\ the}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00226}00226\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ number\ of\ threads\ to\ \`{}n\_threads\`{}\ for\ OpenMP,\ MKL,\ Accelerated\ and}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00227}00227\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ OpenBLAS\ libraries\ in\ the\ child\ processes.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00228}00228\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00229}00229\ \ \ \ \ \ \ \ \ explicit\_n\_threads\ =\ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_aa2b9bd0f55f0cfbf9727042355d16b12}{inner\_max\_num\_threads}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00230}00230\ \ \ \ \ \ \ \ \ default\_n\_threads\ =\ max(cpu\_count()\ //\ n\_jobs,\ 1)}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00231}00231\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00232}00232\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Set\ the\ inner\ environment\ variables\ to\ self.inner\_max\_num\_threads\ if}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00233}00233\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ it\ is\ given.\ Else,\ default\ to\ cpu\_count\ //\ n\_jobs\ unless\ the\ variable}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00234}00234\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ is\ already\ present\ in\ the\ parent\ process\ environment.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00235}00235\ \ \ \ \ \ \ \ \ env\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00236}00236\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ var\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_a97101e9c34886080262ce11d6faf180a}{MAX\_NUM\_THREADS\_VARS}}:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00237}00237\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ explicit\_n\_threads\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00238}00238\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ var\_value\ =\ os.environ.get(var,\ default\_n\_threads)}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00239}00239\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00240}00240\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ var\_value\ =\ explicit\_n\_threads}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00241}00241\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00242}00242\ \ \ \ \ \ \ \ \ \ \ \ \ env[var]\ =\ str(var\_value)}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00243}00243\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00244}00244\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_a869f09be2309113af4b365d3ff310a53}{TBB\_ENABLE\_IPC\_VAR}}\ \textcolor{keywordflow}{not}\ \textcolor{keywordflow}{in}\ os.environ:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00245}00245\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ To\ avoid\ over-\/subscription\ when\ using\ TBB,\ let\ the\ TBB\ schedulers}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00246}00246\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ use\ Inter\ Process\ Communication\ to\ coordinate:}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00247}00247\ \ \ \ \ \ \ \ \ \ \ \ \ env[self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_a869f09be2309113af4b365d3ff310a53}{TBB\_ENABLE\_IPC\_VAR}}]\ =\ \textcolor{stringliteral}{"{}1"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00248}00248\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ env}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00249}00249\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00250}00250\ \ \ \ \ \textcolor{preprocessor}{@contextlib.contextmanager}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00251}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_a97f0c36b1012a88c6578e72e33f6c7cf}{00251}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_a97f0c36b1012a88c6578e72e33f6c7cf}{retrieval\_context}}(self):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00252}00252\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Context\ manager\ to\ manage\ an\ execution\ context.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00253}00253\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00254}00254\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Calls\ to\ Parallel.retrieve\ will\ be\ made\ inside\ this\ context.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00255}00255\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00256}00256\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ By\ default,\ this\ does\ nothing.\ It\ may\ be\ useful\ for\ subclasses\ to}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00257}00257\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ handle\ nested\ parallelism.\ In\ particular,\ it\ may\ be\ required\ to\ avoid}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00258}00258\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ deadlocks\ if\ a\ backend\ manages\ a\ fixed\ number\ of\ workers,\ when\ those}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00259}00259\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ workers\ may\ be\ asked\ to\ do\ nested\ Parallel\ calls.\ Without}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00260}00260\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 'retrieval\_context'\ this\ could\ lead\ to\ deadlock,\ as\ all\ the\ workers}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00261}00261\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ managed\ by\ the\ backend\ may\ be\ "{}busy"{}\ waiting\ for\ the\ nested\ parallel}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00262}00262\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ calls\ to\ finish,\ but\ the\ backend\ has\ no\ free\ workers\ to\ execute\ those}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00263}00263\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ tasks.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00264}00264\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00265}00265\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{yield}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00266}00266\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00267}00267\ \ \ \ \ \textcolor{preprocessor}{@staticmethod}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00268}00268\ \ \ \ \ \textcolor{keyword}{def\ }in\_main\_thread():}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00269}00269\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ isinstance(threading.current\_thread(),\ threading.\_MainThread)}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00270}00270\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00271}00271\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00272}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1SequentialBackend}{00272}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1SequentialBackend}{SequentialBackend}}(\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase}{ParallelBackendBase}}):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00273}00273\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}A\ ParallelBackend\ which\ will\ execute\ all\ batches\ sequentially.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00274}00274\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00275}00275\ \textcolor{stringliteral}{\ \ \ \ Does\ not\ use/create\ any\ threading\ objects,\ and\ hence\ has\ minimal}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00276}00276\ \textcolor{stringliteral}{\ \ \ \ overhead.\ Used\ when\ n\_jobs\ ==\ 1.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00277}00277\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00278}00278\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00279}00279\ \ \ \ \ uses\_threads\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00280}00280\ \ \ \ \ supports\_timeout\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00281}00281\ \ \ \ \ supports\_retrieve\_callback\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00282}00282\ \ \ \ \ supports\_sharedmem\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00283}00283\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00284}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1SequentialBackend_a30f4d176243a41fa616613fdbf7b0258}{00284}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1SequentialBackend_a30f4d176243a41fa616613fdbf7b0258}{effective\_n\_jobs}}(self,\ n\_jobs):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00285}00285\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Determine\ the\ number\ of\ jobs\ which\ are\ going\ to\ run\ in\ parallel"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00286}00286\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ n\_jobs\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00287}00287\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}n\_jobs\ ==\ 0\ in\ Parallel\ has\ no\ meaning"{}})}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00288}00288\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ 1}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00289}00289\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00290}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1SequentialBackend_ac804352c13cd6b38d654082b6d9cd9ee}{00290}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1SequentialBackend_ac804352c13cd6b38d654082b6d9cd9ee}{submit}}(self,\ func,\ callback=None):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00291}00291\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Schedule\ a\ func\ to\ be\ run"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00292}00292\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classRuntimeError}{RuntimeError}}(\textcolor{stringliteral}{"{}Should\ never\ be\ called\ for\ SequentialBackend."{}})}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00293}00293\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00294}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1SequentialBackend_a7bbccbe9e147aed3b26283db9f8951bc}{00294}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1SequentialBackend_a7bbccbe9e147aed3b26283db9f8951bc}{retrieve\_result\_callback}}(self,\ out):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00295}00295\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classRuntimeError}{RuntimeError}}(\textcolor{stringliteral}{"{}Should\ never\ be\ called\ for\ SequentialBackend."{}})}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00296}00296\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00297}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1SequentialBackend_abf0e3f9b762db307fc4d24a70d968962}{00297}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1SequentialBackend_abf0e3f9b762db307fc4d24a70d968962}{get\_nested\_backend}}(self):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00298}00298\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ import\ is\ not\ top\ level\ to\ avoid\ cyclic\ import\ errors.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00299}00299\ \ \ \ \ \ \ \ \ \textcolor{keyword}{from}\ .parallel\ \textcolor{keyword}{import}\ get\_active\_backend}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00300}00300\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00301}00301\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ SequentialBackend\ should\ neither\ change\ the\ nesting\ level,\ the}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00302}00302\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ default\ backend\ or\ the\ number\ of\ jobs.\ Just\ return\ the\ current\ one.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00303}00303\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ get\_active\_backend()}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00304}00304\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00305}00305\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00306}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1PoolManagerMixin}{00306}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1PoolManagerMixin}{PoolManagerMixin}}(object):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00307}00307\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}A\ helper\ class\ for\ managing\ pool\ of\ workers."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00308}00308\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00309}00309\ \ \ \ \ \_pool\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00310}00310\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00311}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1PoolManagerMixin_a45d5063df753bf59021cd50cf1da779b}{00311}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1PoolManagerMixin_a45d5063df753bf59021cd50cf1da779b}{effective\_n\_jobs}}(self,\ n\_jobs):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00312}00312\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Determine\ the\ number\ of\ jobs\ which\ are\ going\ to\ run\ in\ parallel"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00313}00313\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ n\_jobs\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00314}00314\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}n\_jobs\ ==\ 0\ in\ Parallel\ has\ no\ meaning"{}})}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00315}00315\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ mp\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{or}\ n\_jobs\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00316}00316\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ multiprocessing\ is\ not\ available\ or\ disabled,\ fallback}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00317}00317\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ to\ sequential\ mode}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00318}00318\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ 1}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00319}00319\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ n\_jobs\ <\ 0:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00320}00320\ \ \ \ \ \ \ \ \ \ \ \ \ n\_jobs\ =\ max(cpu\_count()\ +\ 1\ +\ n\_jobs,\ 1)}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00321}00321\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ n\_jobs}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00322}00322\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00323}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1PoolManagerMixin_aad75df183a9de9524090084c82128926}{00323}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1PoolManagerMixin_aad75df183a9de9524090084c82128926}{terminate}}(self):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00324}00324\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Shutdown\ the\ process\ or\ thread\ pool"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00325}00325\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1PoolManagerMixin_a9525725dd08b37c76380978b4f7712c5}{\_pool}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00326}00326\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1PoolManagerMixin_a9525725dd08b37c76380978b4f7712c5}{\_pool}}.close()}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00327}00327\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1PoolManagerMixin_a9525725dd08b37c76380978b4f7712c5}{\_pool}}.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1PoolManagerMixin_aad75df183a9de9524090084c82128926}{terminate}}()\ \ \textcolor{comment}{\#\ terminate\ does\ a\ join()}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00328}00328\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1PoolManagerMixin_a9525725dd08b37c76380978b4f7712c5}{\_pool}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00329}00329\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00330}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1PoolManagerMixin_a1abcc0448fd922a30ec93515607ca0d1}{00330}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1PoolManagerMixin_a1abcc0448fd922a30ec93515607ca0d1}{\_get\_pool}}(self):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00331}00331\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Used\ by\ \`{}submit\`{}\ to\ make\ it\ possible\ to\ implement\ lazy\ init"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00332}00332\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1PoolManagerMixin_a9525725dd08b37c76380978b4f7712c5}{\_pool}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00333}00333\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00334}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1PoolManagerMixin_a7d461fe3648e4161ab82a5dd99b04dea}{00334}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1PoolManagerMixin_a7d461fe3648e4161ab82a5dd99b04dea}{submit}}(self,\ func,\ callback=None):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00335}00335\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Schedule\ a\ func\ to\ be\ run"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00336}00336\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Here,\ we\ need\ a\ wrapper\ to\ avoid\ crashes\ on\ KeyboardInterruptErrors.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00337}00337\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ We\ also\ call\ the\ callback\ on\ error,\ to\ make\ sure\ the\ pool\ does\ not}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00338}00338\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ wait\ on\ crashed\ jobs.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00339}00339\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1PoolManagerMixin_a1abcc0448fd922a30ec93515607ca0d1}{\_get\_pool}}().apply\_async(}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00340}00340\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classjoblib_1_1__utils_1_1__TracebackCapturingWrapper}{\_TracebackCapturingWrapper}}(func),}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00341}00341\ \ \ \ \ \ \ \ \ \ \ \ \ (),}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00342}00342\ \ \ \ \ \ \ \ \ \ \ \ \ callback=callback,}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00343}00343\ \ \ \ \ \ \ \ \ \ \ \ \ error\_callback=callback,}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00344}00344\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00345}00345\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00346}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1PoolManagerMixin_a206ad663fea83208dd075aaccef8ff9d}{00346}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1PoolManagerMixin_a206ad663fea83208dd075aaccef8ff9d}{retrieve\_result\_callback}}(self,\ result):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00347}00347\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Mimic\ concurrent.futures\ results,\ raising\ an\ error\ if\ needed."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00348}00348\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ In\ the\ multiprocessing\ Pool\ API,\ the\ callback\ are\ called\ with\ the}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00349}00349\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ result\ value\ as\ an\ argument\ so\ \`{}result`(`out`)\ is\ the\ output\ of}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00350}00350\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ job.get().\ It's\ either\ the\ result\ or\ the\ exception\ raised\ while}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00351}00351\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ collecting\ the\ result.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00352}00352\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \_retrieve\_traceback\_capturing\_wrapped\_call(result)}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00353}00353\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00354}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1PoolManagerMixin_a9fd9649ce4436a7bac19b16123ffe622}{00354}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1PoolManagerMixin_a9fd9649ce4436a7bac19b16123ffe622}{abort\_everything}}(self,\ ensure\_ready=True):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00355}00355\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Shutdown\ the\ pool\ and\ restart\ a\ new\ one\ with\ the\ same\ parameters"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00356}00356\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1PoolManagerMixin_aad75df183a9de9524090084c82128926}{terminate}}()}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00357}00357\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ ensure\_ready:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00358}00358\ \ \ \ \ \ \ \ \ \ \ \ \ self.configure(}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00359}00359\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ n\_jobs=self.parallel.n\_jobs,}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00360}00360\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ parallel=self.parallel,}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00361}00361\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ **self.parallel.\_backend\_kwargs,}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00362}00362\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00363}00363\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00364}00364\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00365}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1AutoBatchingMixin}{00365}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1AutoBatchingMixin}{AutoBatchingMixin}}(object):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00366}00366\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}A\ helper\ class\ for\ automagically\ batching\ jobs."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00367}00367\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00368}00368\ \ \ \ \ \textcolor{comment}{\#\ In\ seconds,\ should\ be\ big\ enough\ to\ hide\ multiprocessing\ dispatching}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00369}00369\ \ \ \ \ \textcolor{comment}{\#\ overhead.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00370}00370\ \ \ \ \ \textcolor{comment}{\#\ This\ settings\ was\ found\ by\ running\ benchmarks/bench\_auto\_batching.py}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00371}00371\ \ \ \ \ \textcolor{comment}{\#\ with\ various\ parameters\ on\ various\ platforms.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00372}00372\ \ \ \ \ MIN\_IDEAL\_BATCH\_DURATION\ =\ 0.2}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00373}00373\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00374}00374\ \ \ \ \ \textcolor{comment}{\#\ Should\ not\ be\ too\ high\ to\ avoid\ stragglers:\ long\ jobs\ running\ alone}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00375}00375\ \ \ \ \ \textcolor{comment}{\#\ on\ a\ single\ worker\ while\ other\ workers\ have\ no\ work\ to\ process\ any\ more.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00376}00376\ \ \ \ \ MAX\_IDEAL\_BATCH\_DURATION\ =\ 2}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00377}00377\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00378}00378\ \ \ \ \ \textcolor{comment}{\#\ Batching\ counters\ default\ values}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00379}00379\ \ \ \ \ \_DEFAULT\_EFFECTIVE\_BATCH\_SIZE\ =\ 1}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00380}00380\ \ \ \ \ \_DEFAULT\_SMOOTHED\_BATCH\_DURATION\ =\ 0.0}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00381}00381\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00382}00382\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00383}00383\ \ \ \ \ \ \ \ \ super().\_\_init\_\_(**kwargs)}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00384}00384\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1AutoBatchingMixin_ac0e6ebb335684293a770be11f1c586ff}{\_effective\_batch\_size}}\ =\ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1AutoBatchingMixin_acbda58686dd6eeec9f5e45aa2dd228a3}{\_DEFAULT\_EFFECTIVE\_BATCH\_SIZE}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00385}00385\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1AutoBatchingMixin_a034bfb77d0eef80d16cd1dc2c54d650e}{\_smoothed\_batch\_duration}}\ =\ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1AutoBatchingMixin_a009f8a004e2a8596ab226138290f29ae}{\_DEFAULT\_SMOOTHED\_BATCH\_DURATION}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00386}00386\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00387}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1AutoBatchingMixin_af3b341390fd5abd081ce1489d963e708}{00387}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1AutoBatchingMixin_af3b341390fd5abd081ce1489d963e708}{compute\_batch\_size}}(self):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00388}00388\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Determine\ the\ optimal\ batch\ size"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00389}00389\ \ \ \ \ \ \ \ \ old\_batch\_size\ =\ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1AutoBatchingMixin_ac0e6ebb335684293a770be11f1c586ff}{\_effective\_batch\_size}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00390}00390\ \ \ \ \ \ \ \ \ batch\_duration\ =\ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1AutoBatchingMixin_a034bfb77d0eef80d16cd1dc2c54d650e}{\_smoothed\_batch\_duration}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00391}00391\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ batch\_duration\ >\ 0\ \textcolor{keywordflow}{and}\ batch\_duration\ <\ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1AutoBatchingMixin_ae5c8aeefda1027904c64b804347f7d63}{MIN\_IDEAL\_BATCH\_DURATION}}:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00392}00392\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ current\ batch\ size\ is\ too\ small:\ the\ duration\ of\ the}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00393}00393\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ processing\ of\ a\ batch\ of\ task\ is\ not\ large\ enough\ to\ hide}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00394}00394\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ the\ scheduling\ overhead.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00395}00395\ \ \ \ \ \ \ \ \ \ \ \ \ ideal\_batch\_size\ =\ int(}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00396}00396\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ old\_batch\_size\ *\ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1AutoBatchingMixin_ae5c8aeefda1027904c64b804347f7d63}{MIN\_IDEAL\_BATCH\_DURATION}}\ /\ batch\_duration}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00397}00397\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00398}00398\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Multiply\ by\ two\ to\ limit\ oscilations\ between\ min\ and\ max.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00399}00399\ \ \ \ \ \ \ \ \ \ \ \ \ ideal\_batch\_size\ *=\ 2}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00400}00400\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00401}00401\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ dont\ increase\ the\ batch\ size\ too\ fast\ to\ limit\ huge\ batch\ sizes}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00402}00402\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ potentially\ leading\ to\ starving\ worker}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00403}00403\ \ \ \ \ \ \ \ \ \ \ \ \ batch\_size\ =\ min(2\ *\ old\_batch\_size,\ ideal\_batch\_size)}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00404}00404\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00405}00405\ \ \ \ \ \ \ \ \ \ \ \ \ batch\_size\ =\ max(batch\_size,\ 1)}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00406}00406\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00407}00407\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1AutoBatchingMixin_ac0e6ebb335684293a770be11f1c586ff}{\_effective\_batch\_size}}\ =\ batch\_size}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00408}00408\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.parallel.verbose\ >=\ 10:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00409}00409\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.parallel.\_print(}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00410}00410\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}Batch\ computation\ too\ fast\ (\{batch\_duration\}s.)\ "{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00411}00411\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}Setting\ batch\_size=\{batch\_size\}."{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00412}00412\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00413}00413\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ batch\_duration\ >\ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1AutoBatchingMixin_a8527f02e9160707be7364e1a5fb28e84}{MAX\_IDEAL\_BATCH\_DURATION}}\ \textcolor{keywordflow}{and}\ old\_batch\_size\ >=\ 2:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00414}00414\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ current\ batch\ size\ is\ too\ big.\ If\ we\ schedule\ overly\ long}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00415}00415\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ running\ batches\ some\ CPUs\ might\ wait\ with\ nothing\ left\ to\ do}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00416}00416\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ while\ a\ couple\ of\ CPUs\ a\ left\ processing\ a\ few\ long\ running}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00417}00417\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ batches.\ Better\ reduce\ the\ batch\ size\ a\ bit\ to\ limit\ the}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00418}00418\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ likelihood\ of\ scheduling\ such\ stragglers.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00419}00419\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00420}00420\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ decrease\ the\ batch\ size\ quickly\ to\ limit\ potential\ starving}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00421}00421\ \ \ \ \ \ \ \ \ \ \ \ \ ideal\_batch\_size\ =\ int(}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00422}00422\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ old\_batch\_size\ *\ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1AutoBatchingMixin_ae5c8aeefda1027904c64b804347f7d63}{MIN\_IDEAL\_BATCH\_DURATION}}\ /\ batch\_duration}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00423}00423\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00424}00424\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Multiply\ by\ two\ to\ limit\ oscilations\ between\ min\ and\ max.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00425}00425\ \ \ \ \ \ \ \ \ \ \ \ \ batch\_size\ =\ max(2\ *\ ideal\_batch\_size,\ 1)}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00426}00426\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1AutoBatchingMixin_ac0e6ebb335684293a770be11f1c586ff}{\_effective\_batch\_size}}\ =\ batch\_size}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00427}00427\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.parallel.verbose\ >=\ 10:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00428}00428\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.parallel.\_print(}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00429}00429\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}Batch\ computation\ too\ slow\ (\{batch\_duration\}s.)\ "{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00430}00430\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}Setting\ batch\_size=\{batch\_size\}."{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00431}00431\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00432}00432\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00433}00433\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ No\ batch\ size\ adjustment}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00434}00434\ \ \ \ \ \ \ \ \ \ \ \ \ batch\_size\ =\ old\_batch\_size}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00435}00435\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00436}00436\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ batch\_size\ !=\ old\_batch\_size:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00437}00437\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Reset\ estimation\ of\ the\ smoothed\ mean\ batch\ duration:\ this}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00438}00438\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ estimate\ is\ updated\ in\ the\ multiprocessing\ apply\_async}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00439}00439\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ CallBack\ as\ long\ as\ the\ batch\_size\ is\ constant.\ Therefore}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00440}00440\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ we\ need\ to\ reset\ the\ estimate\ whenever\ we\ re-\/tune\ the\ batch}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00441}00441\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ size.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00442}00442\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1AutoBatchingMixin_a034bfb77d0eef80d16cd1dc2c54d650e}{\_smoothed\_batch\_duration}}\ =\ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1AutoBatchingMixin_a009f8a004e2a8596ab226138290f29ae}{\_DEFAULT\_SMOOTHED\_BATCH\_DURATION}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00443}00443\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00444}00444\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ batch\_size}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00445}00445\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00446}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1AutoBatchingMixin_a8fcd60a705606e45ea7818111eedcb59}{00446}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1AutoBatchingMixin_a8fcd60a705606e45ea7818111eedcb59}{batch\_completed}}(self,\ batch\_size,\ duration):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00447}00447\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Callback\ indicate\ how\ long\ it\ took\ to\ run\ a\ batch"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00448}00448\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ batch\_size\ ==\ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1AutoBatchingMixin_ac0e6ebb335684293a770be11f1c586ff}{\_effective\_batch\_size}}:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00449}00449\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Update\ the\ smoothed\ streaming\ estimate\ of\ the\ duration\ of\ a\ batch}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00450}00450\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ from\ dispatch\ to\ completion}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00451}00451\ \ \ \ \ \ \ \ \ \ \ \ \ old\_duration\ =\ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1AutoBatchingMixin_a034bfb77d0eef80d16cd1dc2c54d650e}{\_smoothed\_batch\_duration}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00452}00452\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ old\_duration\ ==\ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1AutoBatchingMixin_a009f8a004e2a8596ab226138290f29ae}{\_DEFAULT\_SMOOTHED\_BATCH\_DURATION}}:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00453}00453\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ First\ record\ of\ duration\ for\ this\ batch\ size\ after\ the\ last}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00454}00454\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ reset.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00455}00455\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ new\_duration\ =\ duration}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00456}00456\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00457}00457\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Update\ the\ exponentially\ weighted\ average\ of\ the\ duration\ of}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00458}00458\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ batch\ for\ the\ current\ effective\ size.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00459}00459\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ new\_duration\ =\ 0.8\ *\ old\_duration\ +\ 0.2\ *\ duration}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00460}00460\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1AutoBatchingMixin_a034bfb77d0eef80d16cd1dc2c54d650e}{\_smoothed\_batch\_duration}}\ =\ new\_duration}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00461}00461\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00462}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1AutoBatchingMixin_af71e85dfc512d126f66f0df013d6605e}{00462}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1AutoBatchingMixin_af71e85dfc512d126f66f0df013d6605e}{reset\_batch\_stats}}(self):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00463}00463\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Reset\ batch\ statistics\ to\ default\ values.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00464}00464\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00465}00465\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ This\ avoids\ interferences\ with\ future\ jobs.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00466}00466\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00467}00467\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1AutoBatchingMixin_ac0e6ebb335684293a770be11f1c586ff}{\_effective\_batch\_size}}\ =\ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1AutoBatchingMixin_acbda58686dd6eeec9f5e45aa2dd228a3}{\_DEFAULT\_EFFECTIVE\_BATCH\_SIZE}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00468}00468\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1AutoBatchingMixin_a034bfb77d0eef80d16cd1dc2c54d650e}{\_smoothed\_batch\_duration}}\ =\ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1AutoBatchingMixin_a009f8a004e2a8596ab226138290f29ae}{\_DEFAULT\_SMOOTHED\_BATCH\_DURATION}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00469}00469\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00470}00470\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00471}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ThreadingBackend}{00471}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ThreadingBackend}{ThreadingBackend}}(\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1PoolManagerMixin}{PoolManagerMixin}},\ \mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase}{ParallelBackendBase}}):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00472}00472\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}A\ ParallelBackend\ which\ will\ use\ a\ thread\ pool\ to\ execute\ batches\ in.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00473}00473\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00474}00474\ \textcolor{stringliteral}{\ \ \ \ This\ is\ a\ low-\/overhead\ backend\ but\ it\ suffers\ from\ the\ Python\ Global}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00475}00475\ \textcolor{stringliteral}{\ \ \ \ Interpreter\ Lock\ if\ the\ called\ function\ relies\ a\ lot\ on\ Python\ objects.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00476}00476\ \textcolor{stringliteral}{\ \ \ \ Mostly\ useful\ when\ the\ execution\ bottleneck\ is\ a\ compiled\ extension\ that}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00477}00477\ \textcolor{stringliteral}{\ \ \ \ explicitly\ releases\ the\ GIL\ (for\ instance\ a\ Cython\ loop\ wrapped\ in\ a\ "{}with}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00478}00478\ \textcolor{stringliteral}{\ \ \ \ nogil"{}\ block\ or\ an\ expensive\ call\ to\ a\ library\ such\ as\ NumPy).}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00479}00479\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00480}00480\ \textcolor{stringliteral}{\ \ \ \ The\ actual\ thread\ pool\ is\ lazily\ initialized:\ the\ actual\ thread\ pool}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00481}00481\ \textcolor{stringliteral}{\ \ \ \ construction\ is\ delayed\ to\ the\ first\ call\ to\ apply\_async.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00482}00482\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00483}00483\ \textcolor{stringliteral}{\ \ \ \ ThreadingBackend\ is\ used\ as\ the\ default\ backend\ for\ nested\ calls.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00484}00484\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00485}00485\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00486}00486\ \ \ \ \ supports\_retrieve\_callback\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00487}00487\ \ \ \ \ uses\_threads\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00488}00488\ \ \ \ \ supports\_sharedmem\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00489}00489\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00490}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ThreadingBackend_a599622b34a9ed81ec7521dc5e422a13c}{00490}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ThreadingBackend_a599622b34a9ed81ec7521dc5e422a13c}{configure}}(self,\ n\_jobs=1,\ parallel=None,\ **backend\_kwargs):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00491}00491\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Build\ a\ process\ or\ thread\ pool\ and\ return\ the\ number\ of\ workers"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00492}00492\ \ \ \ \ \ \ \ \ n\_jobs\ =\ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_aa92eac6ed05ced6a12f419ca83de38ed}{effective\_n\_jobs}}(n\_jobs)}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00493}00493\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ n\_jobs\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00494}00494\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Avoid\ unnecessary\ overhead\ and\ use\ sequential\ backend\ instead.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00495}00495\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1FallbackToBackend}{FallbackToBackend}}(\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1SequentialBackend}{SequentialBackend}}(nesting\_level=self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_a642c60a7038bc73cd6fc44b4beb5defe}{nesting\_level}}))}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00496}00496\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_ae3b2f6df6169be0e44ca87f8db53e5ca}{parallel}}\ =\ parallel}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00497}00497\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ThreadingBackend_a910fbda49d558db979cd719f6f9ef7ac}{\_n\_jobs}}\ =\ n\_jobs}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00498}00498\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ n\_jobs}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00499}00499\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00500}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ThreadingBackend_a382fbb4b2126a98e97d40106322f4cb1}{00500}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ThreadingBackend_a382fbb4b2126a98e97d40106322f4cb1}{\_get\_pool}}(self):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00501}00501\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Lazily\ initialize\ the\ thread\ pool}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00502}00502\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00503}00503\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ actual\ pool\ of\ worker\ threads\ is\ only\ initialized\ at\ the\ first}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00504}00504\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ call\ to\ apply\_async.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00505}00505\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00506}00506\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1PoolManagerMixin_a9525725dd08b37c76380978b4f7712c5}{\_pool}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00507}00507\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1PoolManagerMixin_a9525725dd08b37c76380978b4f7712c5}{\_pool}}\ =\ ThreadPool(self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ThreadingBackend_a910fbda49d558db979cd719f6f9ef7ac}{\_n\_jobs}})}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00508}00508\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1PoolManagerMixin_a9525725dd08b37c76380978b4f7712c5}{\_pool}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00509}00509\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00510}00510\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00511}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1MultiprocessingBackend}{00511}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1MultiprocessingBackend}{MultiprocessingBackend}}(\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1PoolManagerMixin}{PoolManagerMixin}},\ \mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1AutoBatchingMixin}{AutoBatchingMixin}},\ \mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase}{ParallelBackendBase}}):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00512}00512\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}A\ ParallelBackend\ which\ will\ use\ a\ multiprocessing.Pool.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00513}00513\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00514}00514\ \textcolor{stringliteral}{\ \ \ \ Will\ introduce\ some\ communication\ and\ memory\ overhead\ when\ exchanging}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00515}00515\ \textcolor{stringliteral}{\ \ \ \ input\ and\ output\ data\ with\ the\ with\ the\ worker\ Python\ processes.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00516}00516\ \textcolor{stringliteral}{\ \ \ \ However,\ does\ not\ suffer\ from\ the\ Python\ Global\ Interpreter\ Lock.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00517}00517\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00518}00518\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00519}00519\ \ \ \ \ supports\_retrieve\_callback\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00520}00520\ \ \ \ \ supports\_return\_generator\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00521}00521\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00522}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1MultiprocessingBackend_a33701e286daad9640b088233bcd4820b}{00522}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1MultiprocessingBackend_a33701e286daad9640b088233bcd4820b}{effective\_n\_jobs}}(self,\ n\_jobs):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00523}00523\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Determine\ the\ number\ of\ jobs\ which\ are\ going\ to\ run\ in\ parallel.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00524}00524\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00525}00525\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ This\ also\ checks\ if\ we\ are\ attempting\ to\ create\ a\ nested\ parallel}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00526}00526\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ loop.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00527}00527\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00528}00528\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ mp\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00529}00529\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ 1}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00530}00530\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00531}00531\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ mp.current\_process().daemon:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00532}00532\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Daemonic\ processes\ cannot\ have\ children}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00533}00533\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ n\_jobs\ !=\ 1:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00534}00534\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \mbox{\hyperlink{namespacejoblib_1_1__parallel__backends_aadf16898c47b64cc3ef0f487ad5aff34}{inside\_dask\_worker}}():}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00535}00535\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ msg\ =\ (}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00536}00536\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Inside\ a\ Dask\ worker\ with\ daemon=True,\ "{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00537}00537\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}setting\ n\_jobs=1.\(\backslash\)nPossible\ work-\/arounds:\(\backslash\)n"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00538}00538\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}-\/\ dask.config.set("{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00539}00539\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\{'distributed.worker.daemon':\ False\})"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00540}00540\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}-\/\ set\ the\ environment\ variable\ "{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00541}00541\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}DASK\_DISTRIBUTED\_\_WORKER\_\_DAEMON=False\(\backslash\)n"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00542}00542\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}before\ creating\ your\ Dask\ cluster."{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00543}00543\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00544}00544\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00545}00545\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ msg\ =\ (}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00546}00546\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Multiprocessing-\/backed\ parallel\ loops\ "{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00547}00547\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}cannot\ be\ nested,\ setting\ n\_jobs=1"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00548}00548\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00549}00549\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ warnings.warn(msg,\ stacklevel=3)}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00550}00550\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ 1}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00551}00551\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00552}00552\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ process\_executor.\_CURRENT\_DEPTH\ >\ 0:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00553}00553\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Mixing\ loky\ and\ multiprocessing\ in\ nested\ loop\ is\ not\ supported}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00554}00554\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ n\_jobs\ !=\ 1:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00555}00555\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00556}00556\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Multiprocessing-\/backed\ parallel\ loops\ cannot\ be\ nested,"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00557}00557\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ below\ loky,\ setting\ n\_jobs=1"{}},}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00558}00558\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ stacklevel=3,}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00559}00559\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00560}00560\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ 1}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00561}00561\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00562}00562\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ \textcolor{keywordflow}{not}\ (self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_a079e5f8b48b395bef5cd7c4637a3a948}{in\_main\_thread}}()\ \textcolor{keywordflow}{or}\ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_a642c60a7038bc73cd6fc44b4beb5defe}{nesting\_level}}\ ==\ 0):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00563}00563\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Prevent\ posix\ fork\ inside\ in\ non-\/main\ posix\ threads}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00564}00564\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ n\_jobs\ !=\ 1:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00565}00565\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00566}00566\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Multiprocessing-\/backed\ parallel\ loops\ cannot\ be\ nested"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00567}00567\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ below\ threads,\ setting\ n\_jobs=1"{}},}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00568}00568\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ stacklevel=3,}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00569}00569\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00570}00570\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ 1}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00571}00571\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00572}00572\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ super(MultiprocessingBackend,\ self).\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1MultiprocessingBackend_a33701e286daad9640b088233bcd4820b}{effective\_n\_jobs}}(n\_jobs)}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00573}00573\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00574}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1MultiprocessingBackend_a18dfcd372fb055eaaa55df0958922ae0}{00574}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1MultiprocessingBackend_a18dfcd372fb055eaaa55df0958922ae0}{configure}}(}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00575}00575\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00576}00576\ \ \ \ \ \ \ \ \ n\_jobs=1,}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00577}00577\ \ \ \ \ \ \ \ \ parallel=None,}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00578}00578\ \ \ \ \ \ \ \ \ prefer=None,}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00579}00579\ \ \ \ \ \ \ \ \ require=None,}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00580}00580\ \ \ \ \ \ \ \ \ **memmapping\_pool\_kwargs,}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00581}00581\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00582}00582\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Build\ a\ process\ or\ thread\ pool\ and\ return\ the\ number\ of\ workers"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00583}00583\ \ \ \ \ \ \ \ \ n\_jobs\ =\ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_aa92eac6ed05ced6a12f419ca83de38ed}{effective\_n\_jobs}}(n\_jobs)}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00584}00584\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ n\_jobs\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00585}00585\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1FallbackToBackend}{FallbackToBackend}}(\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1SequentialBackend}{SequentialBackend}}(nesting\_level=self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_a642c60a7038bc73cd6fc44b4beb5defe}{nesting\_level}}))}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00586}00586\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00587}00587\ \ \ \ \ \ \ \ \ memmapping\_pool\_kwargs\ =\ \{}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00588}00588\ \ \ \ \ \ \ \ \ \ \ \ \ **self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_a4991afb337e9d5865f4c6d0e61c95bdb}{backend\_kwargs}},}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00589}00589\ \ \ \ \ \ \ \ \ \ \ \ \ **memmapping\_pool\_kwargs,}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00590}00590\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00591}00591\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00592}00592\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Make\ sure\ to\ free\ as\ much\ memory\ as\ possible\ before\ forking}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00593}00593\ \ \ \ \ \ \ \ \ gc.collect()}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00594}00594\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1PoolManagerMixin_a9525725dd08b37c76380978b4f7712c5}{\_pool}}\ =\ \mbox{\hyperlink{classjoblib_1_1pool_1_1MemmappingPool}{MemmappingPool}}(n\_jobs,\ **memmapping\_pool\_kwargs)}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00595}00595\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_ae3b2f6df6169be0e44ca87f8db53e5ca}{parallel}}\ =\ parallel}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00596}00596\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ n\_jobs}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00597}00597\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00598}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1MultiprocessingBackend_a17f83c9935a83ef7026f5384eacbca48}{00598}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1MultiprocessingBackend_a17f83c9935a83ef7026f5384eacbca48}{terminate}}(self):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00599}00599\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Shutdown\ the\ process\ or\ thread\ pool"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00600}00600\ \ \ \ \ \ \ \ \ super(MultiprocessingBackend,\ self).\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1MultiprocessingBackend_a17f83c9935a83ef7026f5384eacbca48}{terminate}}()}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00601}00601\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1AutoBatchingMixin_af71e85dfc512d126f66f0df013d6605e}{reset\_batch\_stats}}()}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00602}00602\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00603}00603\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00604}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1LokyBackend}{00604}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1LokyBackend}{LokyBackend}}(\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1AutoBatchingMixin}{AutoBatchingMixin}},\ \mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase}{ParallelBackendBase}}):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00605}00605\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Managing\ pool\ of\ workers\ with\ loky\ instead\ of\ multiprocessing."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00606}00606\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00607}00607\ \ \ \ \ supports\_retrieve\_callback\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00608}00608\ \ \ \ \ supports\_inner\_max\_num\_threads\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00609}00609\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00610}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1LokyBackend_af97e0fea56a93db22ec316543ceba42a}{00610}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1LokyBackend_af97e0fea56a93db22ec316543ceba42a}{configure}}(}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00611}00611\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00612}00612\ \ \ \ \ \ \ \ \ n\_jobs=1,}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00613}00613\ \ \ \ \ \ \ \ \ parallel=None,}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00614}00614\ \ \ \ \ \ \ \ \ prefer=None,}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00615}00615\ \ \ \ \ \ \ \ \ require=None,}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00616}00616\ \ \ \ \ \ \ \ \ idle\_worker\_timeout=None,}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00617}00617\ \ \ \ \ \ \ \ \ **memmapping\_executor\_kwargs,}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00618}00618\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00619}00619\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Build\ a\ process\ executor\ and\ return\ the\ number\ of\ workers"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00620}00620\ \ \ \ \ \ \ \ \ n\_jobs\ =\ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_aa92eac6ed05ced6a12f419ca83de38ed}{effective\_n\_jobs}}(n\_jobs)}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00621}00621\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ n\_jobs\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00622}00622\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1FallbackToBackend}{FallbackToBackend}}(\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1SequentialBackend}{SequentialBackend}}(nesting\_level=self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_a642c60a7038bc73cd6fc44b4beb5defe}{nesting\_level}}))}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00623}00623\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00624}00624\ \ \ \ \ \ \ \ \ memmapping\_executor\_kwargs\ =\ \{}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00625}00625\ \ \ \ \ \ \ \ \ \ \ \ \ **self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_a4991afb337e9d5865f4c6d0e61c95bdb}{backend\_kwargs}},}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00626}00626\ \ \ \ \ \ \ \ \ \ \ \ \ **memmapping\_executor\_kwargs,}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00627}00627\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00628}00628\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00629}00629\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Prohibit\ the\ use\ of\ 'timeout'\ in\ the\ LokyBackend,\ as\ 'idle\_worker\_timeout'}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00630}00630\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ better\ describes\ the\ backend's\ behavior.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00631}00631\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{stringliteral}{"{}timeout"{}}\ \textcolor{keywordflow}{in}\ memmapping\_executor\_kwargs:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00632}00632\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00633}00633\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}The\ 'timeout'\ parameter\ is\ not\ supported\ by\ the\ LokyBackend.\ "{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00634}00634\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Please\ use\ the\ \`{}idle\_worker\_timeout`\ parameter\ instead."{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00635}00635\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00636}00636\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ idle\_worker\_timeout\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00637}00637\ \ \ \ \ \ \ \ \ \ \ \ \ idle\_worker\_timeout\ =\ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_a4991afb337e9d5865f4c6d0e61c95bdb}{backend\_kwargs}}.get(\textcolor{stringliteral}{"{}idle\_worker\_timeout"{}},\ 300)}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00638}00638\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00639}00639\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1LokyBackend_ae44a5a00c087b0182a12b6ce272f945f}{\_workers}}\ =\ get\_memmapping\_executor(}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00640}00640\ \ \ \ \ \ \ \ \ \ \ \ \ n\_jobs,}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00641}00641\ \ \ \ \ \ \ \ \ \ \ \ \ timeout=idle\_worker\_timeout,}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00642}00642\ \ \ \ \ \ \ \ \ \ \ \ \ env=self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_ac2d4a35e50ce4da5a82ff3274e3127ac}{\_prepare\_worker\_env}}(n\_jobs=n\_jobs),}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00643}00643\ \ \ \ \ \ \ \ \ \ \ \ \ context\_id=parallel.\_id,}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00644}00644\ \ \ \ \ \ \ \ \ \ \ \ \ **memmapping\_executor\_kwargs,}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00645}00645\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00646}00646\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_ae3b2f6df6169be0e44ca87f8db53e5ca}{parallel}}\ =\ parallel}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00647}00647\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ n\_jobs}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00648}00648\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00649}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1LokyBackend_a4cd72a4b6e88bc1cb71b3cb7f6e8f445}{00649}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1LokyBackend_a4cd72a4b6e88bc1cb71b3cb7f6e8f445}{effective\_n\_jobs}}(self,\ n\_jobs):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00650}00650\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Determine\ the\ number\ of\ jobs\ which\ are\ going\ to\ run\ in\ parallel"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00651}00651\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ n\_jobs\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00652}00652\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}n\_jobs\ ==\ 0\ in\ Parallel\ has\ no\ meaning"{}})}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00653}00653\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ mp\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{or}\ n\_jobs\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00654}00654\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ multiprocessing\ is\ not\ available\ or\ disabled,\ fallback}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00655}00655\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ to\ sequential\ mode}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00656}00656\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ 1}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00657}00657\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ mp.current\_process().daemon:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00658}00658\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Daemonic\ processes\ cannot\ have\ children}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00659}00659\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ n\_jobs\ !=\ 1:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00660}00660\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \mbox{\hyperlink{namespacejoblib_1_1__parallel__backends_aadf16898c47b64cc3ef0f487ad5aff34}{inside\_dask\_worker}}():}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00661}00661\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ msg\ =\ (}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00662}00662\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Inside\ a\ Dask\ worker\ with\ daemon=True,\ "{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00663}00663\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}setting\ n\_jobs=1.\(\backslash\)nPossible\ work-\/arounds:\(\backslash\)n"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00664}00664\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}-\/\ dask.config.set("{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00665}00665\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\{'distributed.worker.daemon':\ False\})\(\backslash\)n"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00666}00666\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}-\/\ set\ the\ environment\ variable\ "{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00667}00667\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}DASK\_DISTRIBUTED\_\_WORKER\_\_DAEMON=False\(\backslash\)n"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00668}00668\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}before\ creating\ your\ Dask\ cluster."{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00669}00669\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00670}00670\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00671}00671\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ msg\ =\ (}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00672}00672\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Loky-\/backed\ parallel\ loops\ cannot\ be\ called\ in\ a"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00673}00673\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ multiprocessing,\ setting\ n\_jobs=1"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00674}00674\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00675}00675\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ warnings.warn(msg,\ stacklevel=3)}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00676}00676\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00677}00677\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ 1}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00678}00678\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ \textcolor{keywordflow}{not}\ (self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_a079e5f8b48b395bef5cd7c4637a3a948}{in\_main\_thread}}()\ \textcolor{keywordflow}{or}\ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_a642c60a7038bc73cd6fc44b4beb5defe}{nesting\_level}}\ ==\ 0):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00679}00679\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Prevent\ posix\ fork\ inside\ in\ non-\/main\ posix\ threads}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00680}00680\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ n\_jobs\ !=\ 1:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00681}00681\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00682}00682\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Loky-\/backed\ parallel\ loops\ cannot\ be\ nested\ below\ "{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00683}00683\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}threads,\ setting\ n\_jobs=1"{}},}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00684}00684\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ stacklevel=3,}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00685}00685\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00686}00686\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ 1}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00687}00687\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ n\_jobs\ <\ 0:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00688}00688\ \ \ \ \ \ \ \ \ \ \ \ \ n\_jobs\ =\ max(cpu\_count()\ +\ 1\ +\ n\_jobs,\ 1)}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00689}00689\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ n\_jobs}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00690}00690\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00691}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1LokyBackend_a67fdfe9f5c31379d3c122e56d7043919}{00691}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1LokyBackend_a67fdfe9f5c31379d3c122e56d7043919}{submit}}(self,\ func,\ callback=None):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00692}00692\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Schedule\ a\ func\ to\ be\ run"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00693}00693\ \ \ \ \ \ \ \ \ future\ =\ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1LokyBackend_ae44a5a00c087b0182a12b6ce272f945f}{\_workers}}.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1LokyBackend_a67fdfe9f5c31379d3c122e56d7043919}{submit}}(func)}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00694}00694\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ callback\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00695}00695\ \ \ \ \ \ \ \ \ \ \ \ \ future.add\_done\_callback(callback)}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00696}00696\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ future}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00697}00697\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00698}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1LokyBackend_acd51165154f029bae4c5d09262d42ef8}{00698}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1LokyBackend_acd51165154f029bae4c5d09262d42ef8}{retrieve\_result\_callback}}(self,\ future):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00699}00699\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Retrieve\ the\ result,\ here\ out\ is\ the\ future\ given\ by\ submit"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00700}00700\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00701}00701\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ future.result()}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00702}00702\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ ShutdownExecutorError:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00703}00703\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classRuntimeError}{RuntimeError}}(}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00704}00704\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}The\ executor\ underlying\ Parallel\ has\ been\ shutdown.\ "{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00705}00705\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}This\ is\ likely\ due\ to\ the\ garbage\ collection\ of\ a\ previous\ "{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00706}00706\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}generator\ from\ a\ call\ to\ Parallel\ with\ return\_as='generator'."{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00707}00707\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ Make\ sure\ the\ generator\ is\ not\ garbage\ collected\ when\ "{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00708}00708\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}submitting\ a\ new\ job\ or\ that\ it\ is\ first\ properly\ exhausted."{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00709}00709\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00710}00710\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00711}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1LokyBackend_a59b075d1894cc41a66143376ebc3bb72}{00711}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1LokyBackend_a59b075d1894cc41a66143376ebc3bb72}{terminate}}(self):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00712}00712\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1LokyBackend_ae44a5a00c087b0182a12b6ce272f945f}{\_workers}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00713}00713\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Don't\ terminate\ the\ workers\ as\ we\ want\ to\ reuse\ them\ in\ later}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00714}00714\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ calls,\ but\ cleanup\ the\ temporary\ resources\ that\ the\ Parallel\ call}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00715}00715\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ created.\ This\ 'hack'\ requires\ a\ private,\ low-\/level\ operation.}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00716}00716\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1LokyBackend_ae44a5a00c087b0182a12b6ce272f945f}{\_workers}}.\_temp\_folder\_manager.\_clean\_temporary\_resources(}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00717}00717\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ context\_id=self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_ae3b2f6df6169be0e44ca87f8db53e5ca}{parallel}}.\_id,\ force=\textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00718}00718\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00719}00719\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1LokyBackend_ae44a5a00c087b0182a12b6ce272f945f}{\_workers}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00720}00720\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00721}00721\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1AutoBatchingMixin_af71e85dfc512d126f66f0df013d6605e}{reset\_batch\_stats}}()}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00722}00722\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00723}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1LokyBackend_ae359c03c1f8d0c0c63c87582487ad09d}{00723}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1LokyBackend_ae359c03c1f8d0c0c63c87582487ad09d}{abort\_everything}}(self,\ ensure\_ready=True):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00724}00724\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Shutdown\ the\ workers\ and\ restart\ a\ new\ one\ with\ the\ same\ parameters"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00725}00725\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1LokyBackend_ae44a5a00c087b0182a12b6ce272f945f}{\_workers}}.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1LokyBackend_a59b075d1894cc41a66143376ebc3bb72}{terminate}}(kill\_workers=\textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00726}00726\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1LokyBackend_ae44a5a00c087b0182a12b6ce272f945f}{\_workers}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00727}00727\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00728}00728\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ ensure\_ready:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00729}00729\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_a1ec0c86c0c52e70bff4283ccf6963e4a}{configure}}(n\_jobs=self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_ae3b2f6df6169be0e44ca87f8db53e5ca}{parallel}}.n\_jobs,\ parallel=self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_ae3b2f6df6169be0e44ca87f8db53e5ca}{parallel}})}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00730}00730\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00731}00731\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00732}\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1FallbackToBackend}{00732}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1FallbackToBackend}{FallbackToBackend}}(\mbox{\hyperlink{classException}{Exception}}):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00733}00733\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Raised\ when\ configuration\ should\ fallback\ to\ another\ backend"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00734}00734\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00735}00735\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ backend):}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00736}00736\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1FallbackToBackend_af026f1d6aa28353b46c68c895b5898fa}{backend}}\ =\ backend}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00737}00737\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00738}00738\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00739}\mbox{\hyperlink{namespacejoblib_1_1__parallel__backends_aadf16898c47b64cc3ef0f487ad5aff34}{00739}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1__parallel__backends_aadf16898c47b64cc3ef0f487ad5aff34}{inside\_dask\_worker}}():}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00740}00740\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Check\ whether\ the\ current\ function\ is\ executed\ inside\ a\ Dask\ worker."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00741}00741\ \ \ \ \ \textcolor{comment}{\#\ This\ function\ can\ not\ be\ in\ joblib.\_dask\ because\ there\ would\ be\ a}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00742}00742\ \ \ \ \ \textcolor{comment}{\#\ circular\ import:}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00743}00743\ \ \ \ \ \textcolor{comment}{\#\ \_dask\ imports\ \_parallel\_backend\ that\ imports\ \_dask\ ...}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00744}00744\ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00745}00745\ \ \ \ \ \ \ \ \ \textcolor{keyword}{from}\ distributed\ \textcolor{keyword}{import}\ get\_worker}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00746}00746\ \ \ \ \ \textcolor{keywordflow}{except}\ ImportError:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00747}00747\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00748}00748\ }
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00749}00749\ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00750}00750\ \ \ \ \ \ \ \ \ get\_worker()}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00751}00751\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00752}00752\ \ \ \ \ \textcolor{keywordflow}{except}\ ValueError:}
+\DoxyCodeLine{\Hypertarget{__parallel__backends_8py_source_l00753}00753\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+
+\end{DoxyCode}

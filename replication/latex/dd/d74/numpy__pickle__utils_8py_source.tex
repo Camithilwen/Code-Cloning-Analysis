@@ -1,0 +1,296 @@
+\doxysection{numpy\+\_\+pickle\+\_\+utils.\+py}
+\hypertarget{numpy__pickle__utils_8py_source}{}\label{numpy__pickle__utils_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/joblib/numpy\_pickle\_utils.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/joblib/numpy\_pickle\_utils.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00001}\mbox{\hyperlink{namespacejoblib_1_1numpy__pickle__utils}{00001}}\ \textcolor{stringliteral}{"{}"{}"{}Utilities\ for\ fast\ persistence\ of\ big\ data,\ with\ optional\ compression."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00002}00002\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00003}00003\ \textcolor{comment}{\#\ Author:\ Gael\ Varoquaux\ <gael\ dot\ varoquaux\ at\ normalesup\ dot\ org>}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00004}00004\ \textcolor{comment}{\#\ Copyright\ (c)\ 2009\ Gael\ Varoquaux}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00005}00005\ \textcolor{comment}{\#\ License:\ BSD\ Style,\ 3\ clauses.}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00006}00006\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00007}00007\ \textcolor{keyword}{import}\ contextlib}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00008}00008\ \textcolor{keyword}{import}\ io}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00009}00009\ \textcolor{keyword}{import}\ pickle}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00010}00010\ \textcolor{keyword}{import}\ sys}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00011}00011\ \textcolor{keyword}{import}\ warnings}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00012}00012\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00013}00013\ \textcolor{keyword}{from}\ .compressor\ \textcolor{keyword}{import}\ \_COMPRESSORS,\ \_ZFILE\_PREFIX}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00014}00014\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00015}00015\ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00016}00016\ \ \ \ \ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00017}00017\ \textcolor{keywordflow}{except}\ ImportError:}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00018}00018\ \ \ \ \ np\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00019}00019\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00020}00020\ Unpickler\ =\ pickle.\_Unpickler}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00021}00021\ Pickler\ =\ pickle.\_Pickler}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00022}00022\ xrange\ =\ range}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00023}00023\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00024}00024\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00025}00025\ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00026}00026\ \ \ \ \ \textcolor{comment}{\#\ The\ python\ standard\ library\ can\ be\ built\ without\ bz2\ so\ we\ make\ bz2}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00027}00027\ \ \ \ \ \textcolor{comment}{\#\ usage\ optional.}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00028}00028\ \ \ \ \ \textcolor{comment}{\#\ see\ https://github.com/scikit-\/learn/scikit-\/learn/issues/7526\ for\ more}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00029}00029\ \ \ \ \ \textcolor{comment}{\#\ details.}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00030}00030\ \ \ \ \ \textcolor{keyword}{import}\ bz2}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00031}00031\ \textcolor{keywordflow}{except}\ ImportError:}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00032}00032\ \ \ \ \ bz2\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00033}00033\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00034}00034\ \textcolor{comment}{\#\ Buffer\ size\ used\ in\ io.BufferedReader\ and\ io.BufferedWriter}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00035}00035\ \_IO\_BUFFER\_SIZE\ =\ 1024**2}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00036}00036\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00037}00037\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00038}\mbox{\hyperlink{namespacejoblib_1_1numpy__pickle__utils_a81dc3ce6f48a1b431ca1c339665643e7}{00038}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1numpy__pickle__utils_a81dc3ce6f48a1b431ca1c339665643e7}{\_is\_raw\_file}}(fileobj):}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00039}00039\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Check\ if\ fileobj\ is\ a\ raw\ file\ object,\ e.g\ created\ with\ open."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00040}00040\ \ \ \ \ fileobj\ =\ getattr(fileobj,\ \textcolor{stringliteral}{"{}raw"{}},\ fileobj)}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00041}00041\ \ \ \ \ \textcolor{keywordflow}{return}\ isinstance(fileobj,\ io.FileIO)}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00042}00042\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00043}00043\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00044}00044\ \textcolor{keyword}{def\ }\_get\_prefixes\_max\_len():}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00045}00045\ \ \ \ \ \textcolor{comment}{\#\ Compute\ the\ max\ prefix\ len\ of\ registered\ compressors.}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00046}00046\ \ \ \ \ prefixes\ =\ [len(compressor.prefix)\ \textcolor{keywordflow}{for}\ compressor\ \textcolor{keywordflow}{in}\ \_COMPRESSORS.values()]}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00047}00047\ \ \ \ \ prefixes\ +=\ [len(\_ZFILE\_PREFIX)]}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00048}00048\ \ \ \ \ \textcolor{keywordflow}{return}\ max(prefixes)}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00049}00049\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00050}00050\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00051}\mbox{\hyperlink{namespacejoblib_1_1numpy__pickle__utils_a3ca6d58c5a64c67afa7ba87249745a68}{00051}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1numpy__pickle__utils_a3ca6d58c5a64c67afa7ba87249745a68}{\_is\_numpy\_array\_byte\_order\_mismatch}}(array):}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00052}00052\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Check\ if\ numpy\ array\ is\ having\ byte\ order\ mismatch"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00053}00053\ \ \ \ \ \textcolor{keywordflow}{return}\ (}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00054}00054\ \ \ \ \ \ \ \ \ sys.byteorder\ ==\ \textcolor{stringliteral}{"{}big"{}}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00055}00055\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}\ (}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00056}00056\ \ \ \ \ \ \ \ \ \ \ \ \ array.dtype.byteorder\ ==\ \textcolor{stringliteral}{"{}<"{}}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00057}00057\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{or}\ (}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00058}00058\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ array.dtype.byteorder\ ==\ \textcolor{stringliteral}{"{}|"{}}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00059}00059\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}\ array.dtype.fields}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00060}00060\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}\ all(e[0].byteorder\ ==\ \textcolor{stringliteral}{"{}<"{}}\ \textcolor{keywordflow}{for}\ e\ \textcolor{keywordflow}{in}\ array.dtype.fields.values())}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00061}00061\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00062}00062\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00063}00063\ \ \ \ \ )\ \textcolor{keywordflow}{or}\ (}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00064}00064\ \ \ \ \ \ \ \ \ sys.byteorder\ ==\ \textcolor{stringliteral}{"{}little"{}}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00065}00065\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}\ (}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00066}00066\ \ \ \ \ \ \ \ \ \ \ \ \ array.dtype.byteorder\ ==\ \textcolor{stringliteral}{"{}>"{}}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00067}00067\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{or}\ (}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00068}00068\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ array.dtype.byteorder\ ==\ \textcolor{stringliteral}{"{}|"{}}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00069}00069\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}\ array.dtype.fields}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00070}00070\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}\ all(e[0].byteorder\ ==\ \textcolor{stringliteral}{"{}>"{}}\ \textcolor{keywordflow}{for}\ e\ \textcolor{keywordflow}{in}\ array.dtype.fields.values())}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00071}00071\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00072}00072\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00073}00073\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00074}00074\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00075}00075\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00076}\mbox{\hyperlink{namespacejoblib_1_1numpy__pickle__utils_a511a8d8cbbd71267edc2a318d024d2a8}{00076}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1numpy__pickle__utils_a511a8d8cbbd71267edc2a318d024d2a8}{\_ensure\_native\_byte\_order}}(array):}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00077}00077\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Use\ the\ byte\ order\ of\ the\ host\ while\ preserving\ values}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00078}00078\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00079}00079\ \textcolor{stringliteral}{\ \ \ \ Does\ nothing\ if\ array\ already\ uses\ the\ system\ byte\ order.}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00080}00080\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00081}00081\ \ \ \ \ \textcolor{keywordflow}{if}\ \mbox{\hyperlink{namespacejoblib_1_1numpy__pickle__utils_a3ca6d58c5a64c67afa7ba87249745a68}{\_is\_numpy\_array\_byte\_order\_mismatch}}(array):}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00082}00082\ \ \ \ \ \ \ \ \ array\ =\ array.byteswap().view(array.dtype.newbyteorder(\textcolor{stringliteral}{"{}="{}}))}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00083}00083\ \ \ \ \ \textcolor{keywordflow}{return}\ array}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00084}00084\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00085}00085\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00086}00086\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00088}\mbox{\hyperlink{namespacejoblib_1_1numpy__pickle__utils_a53b7d4e511e113b5f199beeb0161d95e}{00088}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1numpy__pickle__utils_a53b7d4e511e113b5f199beeb0161d95e}{\_detect\_compressor}}(fileobj):}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00089}00089\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Return\ the\ compressor\ matching\ fileobj.}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00090}00090\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00091}00091\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00092}00092\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00093}00093\ \textcolor{stringliteral}{\ \ \ \ fileobj:\ file\ object}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00094}00094\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00095}00095\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00096}00096\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00097}00097\ \textcolor{stringliteral}{\ \ \ \ str\ in\ \{'zlib',\ 'gzip',\ 'bz2',\ 'lzma',\ 'xz',\ 'compat',\ 'not-\/compressed'\}}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00098}00098\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00099}00099\ \ \ \ \ \textcolor{comment}{\#\ Read\ the\ magic\ number\ in\ the\ first\ bytes\ of\ the\ file.}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00100}00100\ \ \ \ \ max\_prefix\_len\ =\ \_get\_prefixes\_max\_len()}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00101}00101\ \ \ \ \ \textcolor{keywordflow}{if}\ hasattr(fileobj,\ \textcolor{stringliteral}{"{}peek"{}}):}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00102}00102\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Peek\ allows\ to\ read\ those\ bytes\ without\ moving\ the\ cursor\ in\ the}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00103}00103\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ file\ which.}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00104}00104\ \ \ \ \ \ \ \ \ first\_bytes\ =\ fileobj.peek(max\_prefix\_len)}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00105}00105\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00106}00106\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Fallback\ to\ seek\ if\ the\ fileobject\ is\ not\ peekable.}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00107}00107\ \ \ \ \ \ \ \ \ first\_bytes\ =\ fileobj.read(max\_prefix\_len)}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00108}00108\ \ \ \ \ \ \ \ \ fileobj.seek(0)}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00109}00109\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00110}00110\ \ \ \ \ \textcolor{keywordflow}{if}\ first\_bytes.startswith(\_ZFILE\_PREFIX):}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00111}00111\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{stringliteral}{"{}compat"{}}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00112}00112\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00113}00113\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ name,\ compressor\ \textcolor{keywordflow}{in}\ \_COMPRESSORS.items():}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00114}00114\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ first\_bytes.startswith(compressor.prefix):}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00115}00115\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ name}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00116}00116\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00117}00117\ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{stringliteral}{"{}not-\/compressed"{}}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00118}00118\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00119}00119\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00120}\mbox{\hyperlink{namespacejoblib_1_1numpy__pickle__utils_a782e56dc0e5a352ec8c90fdca29918d7}{00120}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1numpy__pickle__utils_a782e56dc0e5a352ec8c90fdca29918d7}{\_buffered\_read\_file}}(fobj):}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00121}00121\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Return\ a\ buffered\ version\ of\ a\ read\ file\ object."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00122}00122\ \ \ \ \ \textcolor{keywordflow}{return}\ io.BufferedReader(fobj,\ buffer\_size=\_IO\_BUFFER\_SIZE)}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00123}00123\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00124}00124\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00125}\mbox{\hyperlink{namespacejoblib_1_1numpy__pickle__utils_abf8b5b1c15bbe4b88dfe2e7a62262232}{00125}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1numpy__pickle__utils_abf8b5b1c15bbe4b88dfe2e7a62262232}{\_buffered\_write\_file}}(fobj):}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00126}00126\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Return\ a\ buffered\ version\ of\ a\ write\ file\ object."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00127}00127\ \ \ \ \ \textcolor{keywordflow}{return}\ io.BufferedWriter(fobj,\ buffer\_size=\_IO\_BUFFER\_SIZE)}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00128}00128\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00129}00129\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00130}00130\ \textcolor{preprocessor}{@contextlib.contextmanager}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00131}\mbox{\hyperlink{namespacejoblib_1_1numpy__pickle__utils_aa2731d61c21426d259bb7c362611fd82}{00131}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1numpy__pickle__utils_aa2731d61c21426d259bb7c362611fd82}{\_validate\_fileobject\_and\_memmap}}(fileobj,\ filename,\ mmap\_mode=None):}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00132}00132\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Utility\ function\ opening\ the\ right\ fileobject\ from\ a\ filename.}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00133}00133\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00134}00134\ \textcolor{stringliteral}{\ \ \ \ The\ magic\ number\ is\ used\ to\ choose\ between\ the\ type\ of\ file\ object\ to\ open:}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00135}00135\ \textcolor{stringliteral}{\ \ \ \ *\ regular\ file\ object\ (default)}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00136}00136\ \textcolor{stringliteral}{\ \ \ \ *\ zlib\ file\ object}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00137}00137\ \textcolor{stringliteral}{\ \ \ \ *\ gzip\ file\ object}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00138}00138\ \textcolor{stringliteral}{\ \ \ \ *\ bz2\ file\ object}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00139}00139\ \textcolor{stringliteral}{\ \ \ \ *\ lzma\ file\ object\ (for\ xz\ and\ lzma\ compressor)}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00140}00140\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00141}00141\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00142}00142\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00143}00143\ \textcolor{stringliteral}{\ \ \ \ fileobj:\ file\ object}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00144}00144\ \textcolor{stringliteral}{\ \ \ \ filename:\ str}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00145}00145\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ filename\ path\ corresponding\ to\ the\ fileobj\ parameter.}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00146}00146\ \textcolor{stringliteral}{\ \ \ \ mmap\_mode:\ str}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00147}00147\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ memory\ map\ mode\ that\ should\ be\ used\ to\ open\ the\ pickle\ file.\ This}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00148}00148\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ parameter\ is\ useful\ to\ verify\ that\ the\ user\ is\ not\ trying\ to\ one\ with}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00149}00149\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ compression.\ Default:\ None.}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00150}00150\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00151}00151\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00152}00152\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00153}00153\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ a\ tuple\ with\ a\ file\ like\ object,\ and\ the\ validated\ mmap\_mode.}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00154}00154\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00155}00155\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00156}00156\ \ \ \ \ \textcolor{comment}{\#\ Detect\ if\ the\ fileobj\ contains\ compressed\ data.}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00157}00157\ \ \ \ \ compressor\ =\ \mbox{\hyperlink{namespacejoblib_1_1numpy__pickle__utils_a53b7d4e511e113b5f199beeb0161d95e}{\_detect\_compressor}}(fileobj)}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00158}00158\ \ \ \ \ validated\_mmap\_mode\ =\ mmap\_mode}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00159}00159\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00160}00160\ \ \ \ \ \textcolor{keywordflow}{if}\ compressor\ ==\ \textcolor{stringliteral}{"{}compat"{}}:}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00161}00161\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Compatibility\ with\ old\ pickle\ mode:\ simply\ return\ the\ input}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00162}00162\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ filename\ "{}as-\/is"{}\ and\ let\ the\ compatibility\ function\ be\ called\ by\ the}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00163}00163\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ caller.}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00164}00164\ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00165}00165\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}The\ file\ '\%s'\ has\ been\ generated\ with\ a\ joblib\ "{}}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00166}00166\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}version\ less\ than\ 0.10.\ "{}}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00167}00167\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Please\ regenerate\ this\ pickle\ file."{}}\ \%\ filename,}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00168}00168\ \ \ \ \ \ \ \ \ \ \ \ \ DeprecationWarning,}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00169}00169\ \ \ \ \ \ \ \ \ \ \ \ \ stacklevel=2,}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00170}00170\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00171}00171\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{yield}\ filename,\ validated\_mmap\_mode}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00172}00172\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00173}00173\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ compressor\ \textcolor{keywordflow}{in}\ \_COMPRESSORS:}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00174}00174\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ based\ on\ the\ compressor\ detected\ in\ the\ file,\ we\ open\ the}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00175}00175\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ correct\ decompressor\ file\ object,\ wrapped\ in\ a\ buffer.}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00176}00176\ \ \ \ \ \ \ \ \ \ \ \ \ compressor\_wrapper\ =\ \_COMPRESSORS[compressor]}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00177}00177\ \ \ \ \ \ \ \ \ \ \ \ \ inst\ =\ compressor\_wrapper.decompressor\_file(fileobj)}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00178}00178\ \ \ \ \ \ \ \ \ \ \ \ \ fileobj\ =\ \mbox{\hyperlink{namespacejoblib_1_1numpy__pickle__utils_a782e56dc0e5a352ec8c90fdca29918d7}{\_buffered\_read\_file}}(inst)}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00179}00179\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00180}00180\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Checking\ if\ incompatible\ load\ parameters\ with\ the\ type\ of\ file:}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00181}00181\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ mmap\_mode\ cannot\ be\ used\ with\ compressed\ file\ or\ in\ memory\ buffers}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00182}00182\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ such\ as\ io.BytesIO.}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00183}00183\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ mmap\_mode\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00184}00184\ \ \ \ \ \ \ \ \ \ \ \ \ validated\_mmap\_mode\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00185}00185\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(fileobj,\ io.BytesIO):}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00186}00186\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00187}00187\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}In\ memory\ persistence\ is\ not\ compatible\ with\ "{}}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00188}00188\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'mmap\_mode\ "{}\%(mmap\_mode)s"{}\ flag\ passed.\ '}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00189}00189\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}mmap\_mode\ option\ will\ be\ ignored."{}}\ \%\ locals(),}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00190}00190\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ stacklevel=2,}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00191}00191\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00192}00192\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ compressor\ !=\ \textcolor{stringliteral}{"{}not-\/compressed"{}}:}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00193}00193\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00194}00194\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'mmap\_mode\ "{}\%(mmap\_mode)s"{}\ is\ not\ compatible\ '}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00195}00195\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}with\ compressed\ file\ \%(filename)s.\ "{}}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00196}00196\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'"{}\%(mmap\_mode)s"{}\ flag\ will\ be\ ignored.'}\ \%\ locals(),}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00197}00197\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ stacklevel=2,}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00198}00198\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00199}00199\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ \textcolor{keywordflow}{not}\ \mbox{\hyperlink{namespacejoblib_1_1numpy__pickle__utils_a81dc3ce6f48a1b431ca1c339665643e7}{\_is\_raw\_file}}(fileobj):}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00200}00200\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00201}00201\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'"{}\%(fileobj)r"{}\ is\ not\ a\ raw\ file,\ mmap\_mode\ '}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00202}00202\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'"{}\%(mmap\_mode)s"{}\ flag\ will\ be\ ignored.'}\ \%\ locals(),}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00203}00203\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ stacklevel=2,}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00204}00204\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00205}00205\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00206}00206\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ validated\_mmap\_mode\ =\ mmap\_mode}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00207}00207\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00208}00208\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{yield}\ fileobj,\ validated\_mmap\_mode}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00209}00209\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00210}00210\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00211}\mbox{\hyperlink{namespacejoblib_1_1numpy__pickle__utils_a0de1d370075bfc9a0e7def564d91e68b}{00211}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1numpy__pickle__utils_a0de1d370075bfc9a0e7def564d91e68b}{\_write\_fileobject}}(filename,\ compress=(\textcolor{stringliteral}{"{}zlib"{}},\ 3)):}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00212}00212\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Return\ the\ right\ compressor\ file\ object\ in\ write\ mode."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00213}00213\ \ \ \ \ compressmethod\ =\ compress[0]}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00214}00214\ \ \ \ \ compresslevel\ =\ compress[1]}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00215}00215\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00216}00216\ \ \ \ \ \textcolor{keywordflow}{if}\ compressmethod\ \textcolor{keywordflow}{in}\ \_COMPRESSORS.keys():}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00217}00217\ \ \ \ \ \ \ \ \ file\_instance\ =\ \_COMPRESSORS[compressmethod].compressor\_file(}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00218}00218\ \ \ \ \ \ \ \ \ \ \ \ \ filename,\ compresslevel=compresslevel}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00219}00219\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00220}00220\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{namespacejoblib_1_1numpy__pickle__utils_abf8b5b1c15bbe4b88dfe2e7a62262232}{\_buffered\_write\_file}}(file\_instance)}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00221}00221\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00222}00222\ \ \ \ \ \ \ \ \ file\_instance\ =\ \_COMPRESSORS[\textcolor{stringliteral}{"{}zlib"{}}].compressor\_file(}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00223}00223\ \ \ \ \ \ \ \ \ \ \ \ \ filename,\ compresslevel=compresslevel}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00224}00224\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00225}00225\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{namespacejoblib_1_1numpy__pickle__utils_abf8b5b1c15bbe4b88dfe2e7a62262232}{\_buffered\_write\_file}}(file\_instance)}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00226}00226\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00227}00227\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00228}00228\ \textcolor{comment}{\#\ Utility\ functions/variables\ from\ numpy\ required\ for\ writing\ arrays.}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00229}00229\ \textcolor{comment}{\#\ We\ need\ at\ least\ the\ functions\ introduced\ in\ version\ 1.9\ of\ numpy.\ Here,}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00230}00230\ \textcolor{comment}{\#\ we\ use\ the\ ones\ from\ numpy\ 1.10.2.}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00231}00231\ BUFFER\_SIZE\ =\ 2**18\ \ \textcolor{comment}{\#\ size\ of\ buffer\ for\ reading\ npz\ files\ in\ bytes}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00232}00232\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00233}00233\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00234}\mbox{\hyperlink{namespacejoblib_1_1numpy__pickle__utils_abdf4bafb97ea408669db1eec915a4da7}{00234}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1numpy__pickle__utils_abdf4bafb97ea408669db1eec915a4da7}{\_read\_bytes}}(fp,\ size,\ error\_template="{}ran\ out\ of\ data"{}):}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00235}00235\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Read\ from\ file-\/like\ object\ until\ size\ bytes\ are\ read.}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00236}00236\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00237}00237\ \textcolor{stringliteral}{\ \ \ \ TODO\ python2\_drop:\ is\ it\ still\ needed?\ The\ docstring\ mentions\ python\ 2.6}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00238}00238\ \textcolor{stringliteral}{\ \ \ \ and\ it\ looks\ like\ this\ can\ be\ at\ least\ simplified\ ...}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00239}00239\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00240}00240\ \textcolor{stringliteral}{\ \ \ \ Raises\ ValueError\ if\ not\ EOF\ is\ encountered\ before\ size\ bytes\ are\ read.}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00241}00241\ \textcolor{stringliteral}{\ \ \ \ Non-\/blocking\ objects\ only\ supported\ if\ they\ derive\ from\ io\ objects.}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00242}00242\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00243}00243\ \textcolor{stringliteral}{\ \ \ \ Required\ as\ e.g.\ ZipExtFile\ in\ python\ 2.6\ can\ return\ less\ data\ than}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00244}00244\ \textcolor{stringliteral}{\ \ \ \ requested.}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00245}00245\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00246}00246\ \textcolor{stringliteral}{\ \ \ \ This\ function\ was\ taken\ from\ numpy/lib/format.py\ in\ version\ 1.10.2.}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00247}00247\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00248}00248\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00249}00249\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00250}00250\ \textcolor{stringliteral}{\ \ \ \ fp:\ file-\/like\ object}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00251}00251\ \textcolor{stringliteral}{\ \ \ \ size:\ int}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00252}00252\ \textcolor{stringliteral}{\ \ \ \ error\_template:\ str}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00253}00253\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00254}00254\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00255}00255\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00256}00256\ \textcolor{stringliteral}{\ \ \ \ a\ bytes\ object}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00257}00257\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ data\ read\ in\ bytes.}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00258}00258\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00259}00259\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00260}00260\ \ \ \ \ data\ =\ bytes()}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00261}00261\ \ \ \ \ \textcolor{keywordflow}{while}\ \textcolor{keyword}{True}:}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00262}00262\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ io\ files\ (default\ in\ python3)\ return\ None\ or\ raise\ on}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00263}00263\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ would-\/block,\ python2\ file\ will\ truncate,\ probably\ nothing\ can\ be}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00264}00264\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ done\ about\ that.\ \ note\ that\ regular\ files\ can't\ be\ non-\/blocking}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00265}00265\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00266}00266\ \ \ \ \ \ \ \ \ \ \ \ \ r\ =\ fp.read(size\ -\/\ len(data))}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00267}00267\ \ \ \ \ \ \ \ \ \ \ \ \ data\ +=\ r}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00268}00268\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(r)\ ==\ 0\ \textcolor{keywordflow}{or}\ len(data)\ ==\ size:}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00269}00269\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00270}00270\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ io.BlockingIOError:}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00271}00271\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{pass}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00272}00272\ \ \ \ \ \textcolor{keywordflow}{if}\ len(data)\ !=\ size:}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00273}00273\ \ \ \ \ \ \ \ \ msg\ =\ \textcolor{stringliteral}{"{}EOF:\ reading\ \%s,\ expected\ \%d\ bytes\ got\ \%d"{}}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00274}00274\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(msg\ \%\ (error\_template,\ size,\ len(data)))}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00275}00275\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00276}00276\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ data}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00277}00277\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00278}00278\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00279}00279\ \textcolor{keyword}{def\ }\_reconstruct(*args,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00280}00280\ \ \ \ \ \textcolor{comment}{\#\ Wrapper\ for\ numpy.\_core.multiarray.\_reconstruct\ with\ backward\ compat}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00281}00281\ \ \ \ \ \textcolor{comment}{\#\ for\ numpy\ 1.X}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00282}00282\ \ \ \ \ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00283}00283\ \ \ \ \ \textcolor{comment}{\#\ XXX:\ Remove\ this\ function\ when\ numpy\ 1.X\ is\ not\ supported\ anymore}}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00284}00284\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00285}00285\ \ \ \ \ np\_major\_version\ =\ np.\_\_version\_\_[:2]}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00286}00286\ \ \ \ \ \textcolor{keywordflow}{if}\ np\_major\_version\ ==\ \textcolor{stringliteral}{"{}1."{}}:}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00287}00287\ \ \ \ \ \ \ \ \ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacenumpy_1_1core_1_1multiarray}{numpy.core.multiarray}}\ \textcolor{keyword}{import}\ \_reconstruct\ \textcolor{keyword}{as}\ np\_reconstruct}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00288}00288\ \ \ \ \ \textcolor{keywordflow}{elif}\ np\_major\_version\ ==\ \textcolor{stringliteral}{"{}2."{}}:}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00289}00289\ \ \ \ \ \ \ \ \ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacenumpy_1_1__core_1_1multiarray}{numpy.\_core.multiarray}}\ \textcolor{keyword}{import}\ \_reconstruct\ \textcolor{keyword}{as}\ np\_reconstruct}
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00290}00290\ }
+\DoxyCodeLine{\Hypertarget{numpy__pickle__utils_8py_source_l00291}00291\ \ \ \ \ \textcolor{keywordflow}{return}\ np\_reconstruct(*args,\ **kwargs)}
+
+\end{DoxyCode}

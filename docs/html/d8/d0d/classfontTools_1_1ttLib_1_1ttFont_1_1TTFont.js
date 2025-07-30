@@ -1,0 +1,27 @@
+var classfontTools_1_1ttLib_1_1ttFont_1_1TTFont =
+[
+    [ "_save", "d8/d0d/classfontTools_1_1ttLib_1_1ttFont_1_1TTFont.html#af9a2a661882d1e99bc3eea9aff1cbb01", null ],
+    [ "_writeTable", "d8/d0d/classfontTools_1_1ttLib_1_1ttFont_1_1TTFont.html#af4ac413936197111cde8d090fb2b0073", null ],
+    [ "close", "d8/d0d/classfontTools_1_1ttLib_1_1ttFont_1_1TTFont.html#a85b6da4eded318dc1e06e220b1e7db2d", null ],
+    [ "ensureDecompiled", "d8/d0d/classfontTools_1_1ttLib_1_1ttFont_1_1TTFont.html#a986f3a0eb1b458c31493c8a6ad93edb5", null ],
+    [ "get", "d8/d0d/classfontTools_1_1ttLib_1_1ttFont_1_1TTFont.html#a17007999b4bfc1ae10b1829d6a2a78b2", null ],
+    [ "getBestCmap", "d8/d0d/classfontTools_1_1ttLib_1_1ttFont_1_1TTFont.html#ae16bb4d3bb1d7bb4a09b30c9794b08a4", null ],
+    [ "getGlyphID", "d8/d0d/classfontTools_1_1ttLib_1_1ttFont_1_1TTFont.html#ac231722660bfeb1a95195ce509b3f42c", null ],
+    [ "getGlyphIDMany", "d8/d0d/classfontTools_1_1ttLib_1_1ttFont_1_1TTFont.html#a26c7aea8061cf2bda4fe3cc159241e12", null ],
+    [ "getGlyphName", "d8/d0d/classfontTools_1_1ttLib_1_1ttFont_1_1TTFont.html#ae5ad0470456bc95c5bb74559966044fc", null ],
+    [ "getGlyphNameMany", "d8/d0d/classfontTools_1_1ttLib_1_1ttFont_1_1TTFont.html#a3883d519e8f8b0c8e10090a66dd078d5", null ],
+    [ "getGlyphNames", "d8/d0d/classfontTools_1_1ttLib_1_1ttFont_1_1TTFont.html#a8bed97a8dcd12d1b0c96c09c47a217bb", null ],
+    [ "getGlyphNames2", "d8/d0d/classfontTools_1_1ttLib_1_1ttFont_1_1TTFont.html#ab795889cd028b1174b13d8db233dd36c", null ],
+    [ "getGlyphOrder", "d8/d0d/classfontTools_1_1ttLib_1_1ttFont_1_1TTFont.html#a4bd0f6768b1b833bccd27227653db4ce", null ],
+    [ "getGlyphSet", "d8/d0d/classfontTools_1_1ttLib_1_1ttFont_1_1TTFont.html#a3a77a5c5031796c0f132ea4eccef44dd", null ],
+    [ "getReverseGlyphMap", "d8/d0d/classfontTools_1_1ttLib_1_1ttFont_1_1TTFont.html#af9a214e93365b3f0e6ddd8d0ad4d8fb6", null ],
+    [ "getTableData", "d8/d0d/classfontTools_1_1ttLib_1_1ttFont_1_1TTFont.html#a1cdcbb44fc753b9c12ff33d842c1df87", null ],
+    [ "has_key", "d8/d0d/classfontTools_1_1ttLib_1_1ttFont_1_1TTFont.html#a2871f99c70c258a5dcb4aab96d5d5089", null ],
+    [ "importXML", "d8/d0d/classfontTools_1_1ttLib_1_1ttFont_1_1TTFont.html#a5087420b58788e467dea12ea579d61cd", null ],
+    [ "isLoaded", "d8/d0d/classfontTools_1_1ttLib_1_1ttFont_1_1TTFont.html#a95c15d05db720fd4304b5d37213f196d", null ],
+    [ "keys", "d8/d0d/classfontTools_1_1ttLib_1_1ttFont_1_1TTFont.html#aa6c2bbd5cc05313cf5ea3261c4e00a60", null ],
+    [ "normalizeLocation", "d8/d0d/classfontTools_1_1ttLib_1_1ttFont_1_1TTFont.html#aa72a390c7fcf740dfa0a095bb8621129", null ],
+    [ "save", "d8/d0d/classfontTools_1_1ttLib_1_1ttFont_1_1TTFont.html#a6be58ca8330429202279a7ae7a248ba9", null ],
+    [ "saveXML", "d8/d0d/classfontTools_1_1ttLib_1_1ttFont_1_1TTFont.html#a8a62c442f7556adf0c55f6b1cc4efb38", null ],
+    [ "setGlyphOrder", "d8/d0d/classfontTools_1_1ttLib_1_1ttFont_1_1TTFont.html#a98f684ac9510608d05e158a4a95d6bcc", null ]
+];

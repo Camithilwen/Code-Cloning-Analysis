@@ -1,0 +1,25 @@
+var namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods =
+[
+    [ "test_asof", "d4/d93/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__asof.html", "d4/d93/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__asof" ],
+    [ "test_astype", "de/d36/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__astype.html", "de/d36/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__astype" ],
+    [ "test_delete", "de/dbf/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__delete.html", "de/dbf/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__delete" ],
+    [ "test_factorize", "dc/d04/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__factorize.html", "dc/d04/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__factorize" ],
+    [ "test_fillna", "d9/d2f/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__fillna.html", "d9/d2f/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__fillna" ],
+    [ "test_insert", "db/d85/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__insert.html", "db/d85/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__insert" ],
+    [ "test_isocalendar", "df/dbe/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__isocalendar.html", null ],
+    [ "test_map", "de/d16/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__map.html", "de/d16/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__map" ],
+    [ "test_normalize", "da/da6/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__normalize.html", "da/da6/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__normalize" ],
+    [ "test_repeat", "d5/d61/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__repeat.html", "d5/d61/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__repeat" ],
+    [ "test_resolution", "de/d83/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__resolution.html", null ],
+    [ "test_round", "de/d67/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__round.html", "de/d67/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__round" ],
+    [ "test_shift", "d5/dba/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__shift.html", "d5/dba/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__shift" ],
+    [ "test_snap", "de/d30/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__snap.html", null ],
+    [ "test_to_frame", "de/da6/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__to__frame.html", "de/da6/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__to__frame" ],
+    [ "test_to_julian_date", "df/d09/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__to__julian__date.html", "df/d09/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__to__julian__date" ],
+    [ "test_to_period", "d0/df5/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__to__period.html", "d0/df5/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__to__period" ],
+    [ "test_to_pydatetime", "d4/d0d/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__to__pydatetime.html", "d4/d0d/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__to__pydatetime" ],
+    [ "test_to_series", "dd/dff/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__to__series.html", "dd/dff/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__to__series" ],
+    [ "test_tz_convert", "dd/dcc/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__tz__convert.html", "dd/dcc/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__tz__convert" ],
+    [ "test_tz_localize", "d2/dd4/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__tz__localize.html", "d2/dd4/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__tz__localize" ],
+    [ "test_unique", "de/d20/namespacepandas_1_1tests_1_1indexes_1_1datetimes_1_1methods_1_1test__unique.html", null ]
+];

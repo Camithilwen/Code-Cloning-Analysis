@@ -1,0 +1,25 @@
+var namespacepandas_1_1__version =
+[
+    [ "NotThisMethod", "d2/ddd/classpandas_1_1__version_1_1NotThisMethod.html", null ],
+    [ "VersioneerConfig", "de/dc7/classpandas_1_1__version_1_1VersioneerConfig.html", null ],
+    [ "get_config", "d1/d0c/namespacepandas_1_1__version.html#a1baad4527b9e0c33284103dc3fb5ab2d", null ],
+    [ "get_keywords", "d1/d0c/namespacepandas_1_1__version.html#aaed13549d48810cd2869a6f2e3c13191", null ],
+    [ "get_versions", "d1/d0c/namespacepandas_1_1__version.html#ae663db287911c6b8bdcfab3323b80cea", null ],
+    [ "git_get_keywords", "d1/d0c/namespacepandas_1_1__version.html#a5524a61f1f59da70881461e3f031ffc2", null ],
+    [ "git_pieces_from_vcs", "d1/d0c/namespacepandas_1_1__version.html#a0ad29865ef9638ecd3fb48b348c61107", null ],
+    [ "git_versions_from_keywords", "d1/d0c/namespacepandas_1_1__version.html#a0f40d66b357af41d456b84a12978d542", null ],
+    [ "pep440_split_post", "d1/d0c/namespacepandas_1_1__version.html#a2f8dda10d999230e8be3162e842f9a2a", null ],
+    [ "plus_or_dot", "d1/d0c/namespacepandas_1_1__version.html#a6f7b5ebaaa24587c27f8cd5a5fe9839c", null ],
+    [ "register_vcs_handler", "d1/d0c/namespacepandas_1_1__version.html#a931d3df7fdbcd8ad98b99ec2e595b1b2", null ],
+    [ "render", "d1/d0c/namespacepandas_1_1__version.html#a88551e3758012fa103dae3522c335dbf", null ],
+    [ "render_git_describe", "d1/d0c/namespacepandas_1_1__version.html#a6b3de93b6ada55f6f499e4d1018aa193", null ],
+    [ "render_git_describe_long", "d1/d0c/namespacepandas_1_1__version.html#af27f603d314c564fa16a78d2ea037b7f", null ],
+    [ "render_pep440", "d1/d0c/namespacepandas_1_1__version.html#a418d8d12ee0e9a17d204a03f2d7aca35", null ],
+    [ "render_pep440_branch", "d1/d0c/namespacepandas_1_1__version.html#a6ee1268092d82e8857373f1c93c115d2", null ],
+    [ "render_pep440_old", "d1/d0c/namespacepandas_1_1__version.html#a4886c030b4ab675cbc7473bda0085ef9", null ],
+    [ "render_pep440_post", "d1/d0c/namespacepandas_1_1__version.html#a59154df0f0ed2010b087317ea850dacf", null ],
+    [ "render_pep440_post_branch", "d1/d0c/namespacepandas_1_1__version.html#adcebdde337cabc0a5ff85ec00e8975c7", null ],
+    [ "render_pep440_pre", "d1/d0c/namespacepandas_1_1__version.html#a228cf745f14bbd9c5e7982bf8f159480", null ],
+    [ "run_command", "d1/d0c/namespacepandas_1_1__version.html#a660d727d714a153a6f6780096b3607fa", null ],
+    [ "versions_from_parentdir", "d1/d0c/namespacepandas_1_1__version.html#a44dad7ca38750619c33d6d6dad213800", null ]
+];

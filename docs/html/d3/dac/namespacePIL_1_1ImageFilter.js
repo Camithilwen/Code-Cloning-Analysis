@@ -1,0 +1,26 @@
+var namespacePIL_1_1ImageFilter =
+[
+    [ "BLUR", "d6/d55/classPIL_1_1ImageFilter_1_1BLUR.html", null ],
+    [ "BoxBlur", "da/d88/classPIL_1_1ImageFilter_1_1BoxBlur.html", null ],
+    [ "BuiltinFilter", "d6/dd1/classPIL_1_1ImageFilter_1_1BuiltinFilter.html", null ],
+    [ "Color3DLUT", "df/de9/classPIL_1_1ImageFilter_1_1Color3DLUT.html", "df/de9/classPIL_1_1ImageFilter_1_1Color3DLUT" ],
+    [ "CONTOUR", "d7/d31/classPIL_1_1ImageFilter_1_1CONTOUR.html", null ],
+    [ "DETAIL", "d2/d3d/classPIL_1_1ImageFilter_1_1DETAIL.html", null ],
+    [ "EDGE_ENHANCE", "da/d37/classPIL_1_1ImageFilter_1_1EDGE__ENHANCE.html", null ],
+    [ "EDGE_ENHANCE_MORE", "da/db7/classPIL_1_1ImageFilter_1_1EDGE__ENHANCE__MORE.html", null ],
+    [ "EMBOSS", "d3/d54/classPIL_1_1ImageFilter_1_1EMBOSS.html", null ],
+    [ "Filter", "da/dfa/classPIL_1_1ImageFilter_1_1Filter.html", null ],
+    [ "FIND_EDGES", "da/d95/classPIL_1_1ImageFilter_1_1FIND__EDGES.html", null ],
+    [ "GaussianBlur", "d0/d83/classPIL_1_1ImageFilter_1_1GaussianBlur.html", null ],
+    [ "Kernel", "d0/d8b/classPIL_1_1ImageFilter_1_1Kernel.html", null ],
+    [ "MaxFilter", "dd/d66/classPIL_1_1ImageFilter_1_1MaxFilter.html", null ],
+    [ "MedianFilter", "da/dec/classPIL_1_1ImageFilter_1_1MedianFilter.html", null ],
+    [ "MinFilter", "d4/d3c/classPIL_1_1ImageFilter_1_1MinFilter.html", null ],
+    [ "ModeFilter", "db/d41/classPIL_1_1ImageFilter_1_1ModeFilter.html", null ],
+    [ "MultibandFilter", "d5/d00/classPIL_1_1ImageFilter_1_1MultibandFilter.html", null ],
+    [ "RankFilter", "d0/d71/classPIL_1_1ImageFilter_1_1RankFilter.html", null ],
+    [ "SHARPEN", "da/d05/classPIL_1_1ImageFilter_1_1SHARPEN.html", null ],
+    [ "SMOOTH", "d0/d13/classPIL_1_1ImageFilter_1_1SMOOTH.html", null ],
+    [ "SMOOTH_MORE", "df/d46/classPIL_1_1ImageFilter_1_1SMOOTH__MORE.html", null ],
+    [ "UnsharpMask", "df/dff/classPIL_1_1ImageFilter_1_1UnsharpMask.html", null ]
+];

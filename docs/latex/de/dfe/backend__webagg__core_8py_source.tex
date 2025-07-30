@@ -1,0 +1,533 @@
+\doxysection{backend\+\_\+webagg\+\_\+core.\+py}
+\hypertarget{backend__webagg__core_8py_source}{}\label{backend__webagg__core_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/matplotlib/backends/backend\_webagg\_core.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/matplotlib/backends/backend\_webagg\_core.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00001}\mbox{\hyperlink{namespacematplotlib_1_1backends_1_1backend__webagg__core}{00001}}\ \textcolor{stringliteral}{"{}"{}"{}Displays\ Agg\ images\ in\ the\ browser,\ with\ interactivity."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00002}00002\ \textcolor{comment}{\#\ The\ WebAgg\ backend\ is\ divided\ into\ two\ modules:}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00003}00003\ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00004}00004\ \textcolor{comment}{\#\ -\/\ \`{}backend\_webagg\_core.py`\ contains\ code\ necessary\ to\ embed\ a\ WebAgg}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00005}00005\ \textcolor{comment}{\#\ \ \ plot\ inside\ of\ a\ web\ application,\ and\ communicate\ in\ an\ abstract}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00006}00006\ \textcolor{comment}{\#\ \ \ way\ over\ a\ web\ socket.}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00007}00007\ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00008}00008\ \textcolor{comment}{\#\ -\/\ \`{}backend\_webagg.py`\ contains\ a\ concrete\ implementation\ of\ a\ basic}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00009}00009\ \textcolor{comment}{\#\ \ \ application,\ implemented\ with\ asyncio.}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00010}00010\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00011}00011\ \textcolor{keyword}{import}\ asyncio}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00012}00012\ \textcolor{keyword}{import}\ datetime}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00013}00013\ \textcolor{keyword}{from}\ io\ \textcolor{keyword}{import}\ BytesIO,\ StringIO}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00014}00014\ \textcolor{keyword}{import}\ json}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00015}00015\ \textcolor{keyword}{import}\ logging}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00016}00016\ \textcolor{keyword}{import}\ os}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00017}00017\ \textcolor{keyword}{from}\ pathlib\ \textcolor{keyword}{import}\ Path}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00018}00018\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00019}00019\ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00020}00020\ \textcolor{keyword}{from}\ PIL\ \textcolor{keyword}{import}\ Image}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00021}00021\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00022}00022\ \textcolor{keyword}{from}\ matplotlib\ \textcolor{keyword}{import}\ \_api,\ backend\_bases,\ backend\_tools}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00023}00023\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacematplotlib_1_1backends}{matplotlib.backends}}\ \textcolor{keyword}{import}\ backend\_agg}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00024}00024\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacematplotlib_1_1backend__bases}{matplotlib.backend\_bases}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00025}00025\ \ \ \ \ \_Backend,\ MouseButton,\ KeyEvent,\ LocationEvent,\ MouseEvent,\ ResizeEvent)}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00026}00026\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00027}00027\ \_log\ =\ logging.getLogger(\_\_name\_\_)}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00028}00028\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00029}00029\ \_SPECIAL\_KEYS\_LUT\ =\ \{\textcolor{stringliteral}{'Alt'}:\ \textcolor{stringliteral}{'alt'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00030}00030\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'AltGraph'}:\ \textcolor{stringliteral}{'alt'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00031}00031\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'CapsLock'}:\ \textcolor{stringliteral}{'caps\_lock'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00032}00032\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'Control'}:\ \textcolor{stringliteral}{'control'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00033}00033\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'Meta'}:\ \textcolor{stringliteral}{'meta'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00034}00034\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'NumLock'}:\ \textcolor{stringliteral}{'num\_lock'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00035}00035\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'ScrollLock'}:\ \textcolor{stringliteral}{'scroll\_lock'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00036}00036\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'Shift'}:\ \textcolor{stringliteral}{'shift'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00037}00037\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'Super'}:\ \textcolor{stringliteral}{'super'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00038}00038\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'Enter'}:\ \textcolor{stringliteral}{'enter'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00039}00039\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'Tab'}:\ \textcolor{stringliteral}{'tab'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00040}00040\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'ArrowDown'}:\ \textcolor{stringliteral}{'down'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00041}00041\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'ArrowLeft'}:\ \textcolor{stringliteral}{'left'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00042}00042\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'ArrowRight'}:\ \textcolor{stringliteral}{'right'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00043}00043\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'ArrowUp'}:\ \textcolor{stringliteral}{'up'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00044}00044\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'End'}:\ \textcolor{stringliteral}{'end'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00045}00045\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'Home'}:\ \textcolor{stringliteral}{'home'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00046}00046\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'PageDown'}:\ \textcolor{stringliteral}{'pagedown'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00047}00047\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'PageUp'}:\ \textcolor{stringliteral}{'pageup'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00048}00048\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'Backspace'}:\ \textcolor{stringliteral}{'backspace'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00049}00049\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'Delete'}:\ \textcolor{stringliteral}{'delete'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00050}00050\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'Insert'}:\ \textcolor{stringliteral}{'insert'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00051}00051\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'Escape'}:\ \textcolor{stringliteral}{'escape'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00052}00052\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'Pause'}:\ \textcolor{stringliteral}{'pause'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00053}00053\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'Select'}:\ \textcolor{stringliteral}{'select'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00054}00054\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'Dead'}:\ \textcolor{stringliteral}{'dead'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00055}00055\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'F1'}:\ \textcolor{stringliteral}{'f1'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00056}00056\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'F2'}:\ \textcolor{stringliteral}{'f2'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00057}00057\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'F3'}:\ \textcolor{stringliteral}{'f3'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00058}00058\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'F4'}:\ \textcolor{stringliteral}{'f4'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00059}00059\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'F5'}:\ \textcolor{stringliteral}{'f5'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00060}00060\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'F6'}:\ \textcolor{stringliteral}{'f6'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00061}00061\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'F7'}:\ \textcolor{stringliteral}{'f7'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00062}00062\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'F8'}:\ \textcolor{stringliteral}{'f8'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00063}00063\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'F9'}:\ \textcolor{stringliteral}{'f9'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00064}00064\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'F10'}:\ \textcolor{stringliteral}{'f10'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00065}00065\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'F11'}:\ \textcolor{stringliteral}{'f11'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00066}00066\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'F12'}:\ \textcolor{stringliteral}{'f12'}\}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00067}00067\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00068}00068\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00069}\mbox{\hyperlink{namespacematplotlib_1_1backends_1_1backend__webagg__core_a91de3ba968458256cb00796670243db6}{00069}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacematplotlib_1_1backends_1_1backend__webagg__core_a91de3ba968458256cb00796670243db6}{\_handle\_key}}(key):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00070}00070\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Handle\ key\ values"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00071}00071\ \ \ \ \ value\ =\ key[key.index(\textcolor{stringliteral}{'k'})\ +\ 1:]}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00072}00072\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{stringliteral}{'shift+'}\ \textcolor{keywordflow}{in}\ key:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00073}00073\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(value)\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00074}00074\ \ \ \ \ \ \ \ \ \ \ \ \ key\ =\ key.replace(\textcolor{stringliteral}{'shift+'},\ \textcolor{stringliteral}{''})}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00075}00075\ \ \ \ \ \textcolor{keywordflow}{if}\ value\ \textcolor{keywordflow}{in}\ \_SPECIAL\_KEYS\_LUT:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00076}00076\ \ \ \ \ \ \ \ \ value\ =\ \_SPECIAL\_KEYS\_LUT[value]}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00077}00077\ \ \ \ \ key\ =\ key[:key.index(\textcolor{stringliteral}{'k'})]\ +\ value}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00078}00078\ \ \ \ \ \textcolor{keywordflow}{return}\ key}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00079}00079\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00080}00080\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00081}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1TimerTornado}{00081}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1TimerTornado}{TimerTornado}}(\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1TimerBase}{backend\_bases.TimerBase}}):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00082}00082\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ *args,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00083}00083\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1TimerTornado_aa7727d3839e7385f89836f75157352f7}{\_timer}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00084}00084\ \ \ \ \ \ \ \ \ super().\_\_init\_\_(*args,\ **kwargs)}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00085}00085\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00086}00086\ \ \ \ \ \textcolor{keyword}{def\ }\_timer\_start(self):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00087}00087\ \ \ \ \ \ \ \ \ \textcolor{keyword}{import}\ tornado}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00088}00088\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00089}00089\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1TimerBase_a3d28fa429f6a73d188f246527554416a}{\_timer\_stop}}()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00090}00090\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1TimerBase_aeac4b08ceb51968d57e6906cb5f67a64}{\_single}}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00091}00091\ \ \ \ \ \ \ \ \ \ \ \ \ ioloop\ =\ tornado.ioloop.IOLoop.instance()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00092}00092\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1TimerTornado_aa7727d3839e7385f89836f75157352f7}{\_timer}}\ =\ ioloop.add\_timeout(}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00093}00093\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ datetime.timedelta(milliseconds=self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1TimerBase_a9e8e40573bd2819058b0bef2ad0e450c}{interval}}),}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00094}00094\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1TimerBase_a9bb7e2024e0bcbcaa92ae230fc777cf6}{\_on\_timer}})}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00095}00095\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00096}00096\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1TimerTornado_aa7727d3839e7385f89836f75157352f7}{\_timer}}\ =\ tornado.ioloop.PeriodicCallback(}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00097}00097\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1TimerBase_a9bb7e2024e0bcbcaa92ae230fc777cf6}{\_on\_timer}},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00098}00098\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ max(self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1TimerBase_a9e8e40573bd2819058b0bef2ad0e450c}{interval}},\ 1e-\/6))}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00099}00099\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1TimerTornado_aa7727d3839e7385f89836f75157352f7}{\_timer}}.start()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00100}00100\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00101}00101\ \ \ \ \ \textcolor{keyword}{def\ }\_timer\_stop(self):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00102}00102\ \ \ \ \ \ \ \ \ \textcolor{keyword}{import}\ tornado}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00103}00103\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00104}00104\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1TimerTornado_aa7727d3839e7385f89836f75157352f7}{\_timer}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00105}00105\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00106}00106\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1TimerBase_aeac4b08ceb51968d57e6906cb5f67a64}{\_single}}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00107}00107\ \ \ \ \ \ \ \ \ \ \ \ \ ioloop\ =\ tornado.ioloop.IOLoop.instance()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00108}00108\ \ \ \ \ \ \ \ \ \ \ \ \ ioloop.remove\_timeout(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1TimerTornado_aa7727d3839e7385f89836f75157352f7}{\_timer}})}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00109}00109\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00110}00110\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1TimerTornado_aa7727d3839e7385f89836f75157352f7}{\_timer}}.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1TimerBase_a049affe2585337fef6a86a91d513da98}{stop}}()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00111}00111\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1TimerTornado_aa7727d3839e7385f89836f75157352f7}{\_timer}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00112}00112\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00113}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1TimerTornado_af3e73239a71ab3150a3efbcb999ce423}{00113}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1TimerTornado_af3e73239a71ab3150a3efbcb999ce423}{\_timer\_set\_interval}}(self):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00114}00114\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Only\ stop\ and\ restart\ it\ if\ the\ timer\ has\ already\ been\ started}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00115}00115\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1TimerTornado_aa7727d3839e7385f89836f75157352f7}{\_timer}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00116}00116\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1TimerBase_a3d28fa429f6a73d188f246527554416a}{\_timer\_stop}}()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00117}00117\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1TimerBase_a1dc16b94e89255571f35eb2867f0f47a}{\_timer\_start}}()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00118}00118\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00119}00119\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00120}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1TimerAsyncio}{00120}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1TimerAsyncio}{TimerAsyncio}}(\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1TimerBase}{backend\_bases.TimerBase}}):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00121}00121\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ *args,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00122}00122\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1TimerAsyncio_a46ddeef9591b44e6f9109b7293e60324}{\_task}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00123}00123\ \ \ \ \ \ \ \ \ super().\_\_init\_\_(*args,\ **kwargs)}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00124}00124\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00125}00125\ \ \ \ \ \textcolor{keyword}{async\ def\ }\_timer\_task(self,\ interval):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00126}00126\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{while}\ \textcolor{keyword}{True}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00127}00127\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00128}00128\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ await\ asyncio.sleep(interval)}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00129}00129\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1TimerBase_a9bb7e2024e0bcbcaa92ae230fc777cf6}{\_on\_timer}}()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00130}00130\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00131}00131\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1TimerBase_aeac4b08ceb51968d57e6906cb5f67a64}{\_single}}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00132}00132\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00133}00133\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ asyncio.CancelledError:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00134}00134\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00135}00135\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00136}00136\ \ \ \ \ \textcolor{keyword}{def\ }\_timer\_start(self):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00137}00137\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1TimerBase_a3d28fa429f6a73d188f246527554416a}{\_timer\_stop}}()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00138}00138\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00139}00139\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1TimerAsyncio_a46ddeef9591b44e6f9109b7293e60324}{\_task}}\ =\ asyncio.ensure\_future(}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00140}00140\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1TimerAsyncio_a97ed7341a361abdec30282f60cd9f6d7}{\_timer\_task}}(max(self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1TimerBase_a9e8e40573bd2819058b0bef2ad0e450c}{interval}}\ /\ 1\_000.,\ 1e-\/6))}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00141}00141\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00142}00142\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00143}00143\ \ \ \ \ \textcolor{keyword}{def\ }\_timer\_stop(self):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00144}00144\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1TimerAsyncio_a46ddeef9591b44e6f9109b7293e60324}{\_task}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00145}00145\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1TimerAsyncio_a46ddeef9591b44e6f9109b7293e60324}{\_task}}.cancel()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00146}00146\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1TimerAsyncio_a46ddeef9591b44e6f9109b7293e60324}{\_task}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00147}00147\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00148}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1TimerAsyncio_af22e5e71f987ba492d790a849c451792}{00148}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1TimerAsyncio_af22e5e71f987ba492d790a849c451792}{\_timer\_set\_interval}}(self):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00149}00149\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Only\ stop\ and\ restart\ it\ if\ the\ timer\ has\ already\ been\ started}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00150}00150\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1TimerAsyncio_a46ddeef9591b44e6f9109b7293e60324}{\_task}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00151}00151\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1TimerBase_a3d28fa429f6a73d188f246527554416a}{\_timer\_stop}}()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00152}00152\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1TimerBase_a1dc16b94e89255571f35eb2867f0f47a}{\_timer\_start}}()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00153}00153\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00154}00154\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00155}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureCanvasWebAggCore}{00155}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureCanvasWebAggCore}{FigureCanvasWebAggCore}}(\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__agg_1_1FigureCanvasAgg}{backend\_agg.FigureCanvasAgg}}):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00156}00156\ \ \ \ \ manager\_class\ =\ \mbox{\hyperlink{classmatplotlib_1_1__api_1_1classproperty}{\_api.classproperty}}(\textcolor{keyword}{lambda}\ cls:\ FigureManagerWebAgg)}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00157}00157\ \ \ \ \ \_timer\_cls\ =\ TimerAsyncio}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00158}00158\ \ \ \ \ \textcolor{comment}{\#\ Webagg\ and\ friends\ having\ the\ right\ methods,\ but\ still}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00159}00159\ \ \ \ \ \textcolor{comment}{\#\ having\ bugs\ in\ practice.\ \ Do\ not\ advertise\ that\ it\ works\ until}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00160}00160\ \ \ \ \ \textcolor{comment}{\#\ we\ can\ debug\ this.}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00161}00161\ \ \ \ \ supports\_blit\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00162}00162\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00163}00163\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ *args,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00164}00164\ \ \ \ \ \ \ \ \ super().\_\_init\_\_(*args,\ **kwargs)}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00165}00165\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Set\ to\ True\ when\ the\ renderer\ contains\ data\ that\ is\ newer}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00166}00166\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ than\ the\ PNG\ buffer.}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00167}00167\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureCanvasWebAggCore_a593761e4956030f8a1553e272d3acc26}{\_png\_is\_old}}\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00168}00168\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Set\ to\ True\ by\ the\ \`{}refresh`\ message\ so\ that\ the\ next\ frame}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00169}00169\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ sent\ to\ the\ clients\ will\ be\ a\ full\ frame.}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00170}00170\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureCanvasWebAggCore_ae46b92843e771d776b00e2366097e7b7}{\_force\_full}}\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00171}00171\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ last\ buffer,\ for\ diff\ mode.}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00172}00172\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureCanvasWebAggCore_ae038d7074b9a297bd6eb1d8561949e23}{\_last\_buff}}\ =\ np.empty((0,\ 0))}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00173}00173\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Store\ the\ current\ image\ mode\ so\ that\ at\ any\ point,\ clients\ can}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00174}00174\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ request\ the\ information.\ This\ should\ be\ changed\ by\ calling}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00175}00175\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ self.set\_image\_mode(mode)\ so\ that\ the\ notification\ can\ be\ given}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00176}00176\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ to\ the\ connected\ clients.}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00177}00177\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureCanvasWebAggCore_a51b72ecf4ddc2166466afe8929db28ec}{\_current\_image\_mode}}\ =\ \textcolor{stringliteral}{'full'}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00178}00178\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Track\ mouse\ events\ to\ fill\ in\ the\ x,\ y\ position\ of\ key\ events.}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00179}00179\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureCanvasWebAggCore_aaf3ad3d543fb04f6b8aace469f571819}{\_last\_mouse\_xy}}\ =\ (\textcolor{keywordtype}{None},\ \textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00180}00180\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00181}00181\ \ \ \ \ \textcolor{keyword}{def\ }show(self):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00182}00182\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ show\ the\ figure\ window}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00183}00183\ \ \ \ \ \ \ \ \ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacematplotlib_1_1pyplot}{matplotlib.pyplot}}\ \textcolor{keyword}{import}\ show}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00184}00184\ \ \ \ \ \ \ \ \ show()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00185}00185\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00186}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureCanvasWebAggCore_a8dc35fdc2dab504f6f71ccba1c6faca2}{00186}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureCanvasWebAggCore_a8dc35fdc2dab504f6f71ccba1c6faca2}{draw}}(self):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00187}00187\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureCanvasWebAggCore_a593761e4956030f8a1553e272d3acc26}{\_png\_is\_old}}\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00188}00188\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00189}00189\ \ \ \ \ \ \ \ \ \ \ \ \ super().\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureCanvasWebAggCore_a8dc35fdc2dab504f6f71ccba1c6faca2}{draw}}()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00190}00190\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{finally}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00191}00191\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1FigureCanvasBase_a58f3af7b4b580475f03845eab36ec896}{manager}}.refresh\_all()\ \ \textcolor{comment}{\#\ Swap\ the\ frames.}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00192}00192\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00193}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureCanvasWebAggCore_a677dc522a9344cf81f30e486e2cc4a00}{00193}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureCanvasWebAggCore_a677dc522a9344cf81f30e486e2cc4a00}{blit}}(self,\ bbox=None):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00194}00194\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureCanvasWebAggCore_a593761e4956030f8a1553e272d3acc26}{\_png\_is\_old}}\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00195}00195\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1FigureCanvasBase_a58f3af7b4b580475f03845eab36ec896}{manager}}.refresh\_all()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00196}00196\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00197}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureCanvasWebAggCore_a7a2a1e9b9f6c4961fa07c98e29cd095c}{00197}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureCanvasWebAggCore_a7a2a1e9b9f6c4961fa07c98e29cd095c}{draw\_idle}}(self):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00198}00198\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureCanvasWebAggCore_a532339c95bd5c4dbea8403cff93d5736}{send\_event}}(\textcolor{stringliteral}{"{}draw"{}})}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00199}00199\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00200}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureCanvasWebAggCore_a940f810499a19e9a10a266d922634b67}{00200}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureCanvasWebAggCore_a940f810499a19e9a10a266d922634b67}{set\_cursor}}(self,\ cursor):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00201}00201\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ docstring\ inherited}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00202}00202\ \ \ \ \ \ \ \ \ cursor\ =\ \_api.check\_getitem(\{}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00203}00203\ \ \ \ \ \ \ \ \ \ \ \ \ backend\_tools.Cursors.HAND:\ \textcolor{stringliteral}{'pointer'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00204}00204\ \ \ \ \ \ \ \ \ \ \ \ \ backend\_tools.Cursors.POINTER:\ \textcolor{stringliteral}{'default'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00205}00205\ \ \ \ \ \ \ \ \ \ \ \ \ backend\_tools.Cursors.SELECT\_REGION:\ \textcolor{stringliteral}{'crosshair'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00206}00206\ \ \ \ \ \ \ \ \ \ \ \ \ backend\_tools.Cursors.MOVE:\ \textcolor{stringliteral}{'move'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00207}00207\ \ \ \ \ \ \ \ \ \ \ \ \ backend\_tools.Cursors.WAIT:\ \textcolor{stringliteral}{'wait'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00208}00208\ \ \ \ \ \ \ \ \ \ \ \ \ backend\_tools.Cursors.RESIZE\_HORIZONTAL:\ \textcolor{stringliteral}{'ew-\/resize'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00209}00209\ \ \ \ \ \ \ \ \ \ \ \ \ backend\_tools.Cursors.RESIZE\_VERTICAL:\ \textcolor{stringliteral}{'ns-\/resize'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00210}00210\ \ \ \ \ \ \ \ \ \},\ cursor=cursor)}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00211}00211\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureCanvasWebAggCore_a532339c95bd5c4dbea8403cff93d5736}{send\_event}}(\textcolor{stringliteral}{'cursor'},\ cursor=cursor)}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00212}00212\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00213}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureCanvasWebAggCore_af62f79af1b9c71c2eb58905b0f795f35}{00213}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureCanvasWebAggCore_af62f79af1b9c71c2eb58905b0f795f35}{set\_image\_mode}}(self,\ mode):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00214}00214\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00215}00215\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Set\ the\ image\ mode\ for\ any\ subsequent\ images\ which\ will\ be\ sent}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00216}00216\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ to\ the\ clients.\ The\ modes\ may\ currently\ be\ either\ 'full'\ or\ 'diff'.}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00217}00217\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00218}00218\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Note:\ diff\ images\ may\ not\ contain\ transparency,\ therefore\ upon}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00219}00219\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ draw\ this\ mode\ may\ be\ changed\ if\ the\ resulting\ image\ has\ any}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00220}00220\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ transparent\ component.}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00221}00221\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00222}00222\ \ \ \ \ \ \ \ \ \_api.check\_in\_list([\textcolor{stringliteral}{'full'},\ \textcolor{stringliteral}{'diff'}],\ mode=mode)}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00223}00223\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureCanvasWebAggCore_a51b72ecf4ddc2166466afe8929db28ec}{\_current\_image\_mode}}\ !=\ mode:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00224}00224\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureCanvasWebAggCore_a51b72ecf4ddc2166466afe8929db28ec}{\_current\_image\_mode}}\ =\ mode}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00225}00225\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureCanvasWebAggCore_a1c0d53fb6696092386850ef38eac276e}{handle\_send\_image\_mode}}(\textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00226}00226\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00227}00227\ \ \ \ \ \textcolor{keyword}{def\ }get\_diff\_image(self):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00228}00228\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureCanvasWebAggCore_a593761e4956030f8a1553e272d3acc26}{\_png\_is\_old}}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00229}00229\ \ \ \ \ \ \ \ \ \ \ \ \ renderer\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__agg_1_1FigureCanvasAgg_ad9363de7c13828a45c5051b859450ea3}{get\_renderer}}()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00230}00230\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00231}00231\ \ \ \ \ \ \ \ \ \ \ \ \ pixels\ =\ np.asarray(renderer.buffer\_rgba())}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00232}00232\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ buffer\ is\ created\ as\ type\ uint32\ so\ that\ entire}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00233}00233\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ pixels\ can\ be\ compared\ in\ one\ numpy\ call,\ rather\ than}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00234}00234\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ needing\ to\ compare\ each\ plane\ separately.}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00235}00235\ \ \ \ \ \ \ \ \ \ \ \ \ buff\ =\ pixels.view(np.uint32).squeeze(2)}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00236}00236\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00237}00237\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureCanvasWebAggCore_ae46b92843e771d776b00e2366097e7b7}{\_force\_full}}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00238}00238\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ If\ the\ buffer\ has\ changed\ size\ we\ need\ to\ do\ a\ full\ draw.}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00239}00239\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{or}\ buff.shape\ !=\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureCanvasWebAggCore_ae038d7074b9a297bd6eb1d8561949e23}{\_last\_buff}}.shape}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00240}00240\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ If\ any\ pixels\ have\ transparency,\ we\ need\ to\ force\ a\ full}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00241}00241\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ draw\ as\ we\ cannot\ overlay\ new\ on\ top\ of\ old.}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00242}00242\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{or}\ (pixels[:,\ :,\ 3]\ !=\ 255).any()):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00243}00243\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureCanvasWebAggCore_af62f79af1b9c71c2eb58905b0f795f35}{set\_image\_mode}}(\textcolor{stringliteral}{'full'})}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00244}00244\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ output\ =\ buff}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00245}00245\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00246}00246\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureCanvasWebAggCore_af62f79af1b9c71c2eb58905b0f795f35}{set\_image\_mode}}(\textcolor{stringliteral}{'diff'})}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00247}00247\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ diff\ =\ buff\ !=\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureCanvasWebAggCore_ae038d7074b9a297bd6eb1d8561949e23}{\_last\_buff}}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00248}00248\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ output\ =\ np.where(diff,\ buff,\ 0)}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00249}00249\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00250}00250\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Store\ the\ current\ buffer\ so\ we\ can\ compute\ the\ next\ diff.}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00251}00251\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureCanvasWebAggCore_ae038d7074b9a297bd6eb1d8561949e23}{\_last\_buff}}\ =\ buff.copy()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00252}00252\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureCanvasWebAggCore_ae46b92843e771d776b00e2366097e7b7}{\_force\_full}}\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00253}00253\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureCanvasWebAggCore_a593761e4956030f8a1553e272d3acc26}{\_png\_is\_old}}\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00254}00254\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00255}00255\ \ \ \ \ \ \ \ \ \ \ \ \ data\ =\ output.view(dtype=np.uint8).reshape((*output.shape,\ 4))}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00256}00256\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ \mbox{\hyperlink{classBytesIO}{BytesIO}}()\ \textcolor{keyword}{as}\ png:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00257}00257\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ Image.fromarray(data).save(png,\ format=\textcolor{stringliteral}{"{}png"{}})}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00258}00258\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ png.getvalue()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00259}00259\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00260}00260\ \ \ \ \ \textcolor{keyword}{def\ }handle\_event(self,\ event):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00261}00261\ \ \ \ \ \ \ \ \ e\_type\ =\ event[\textcolor{stringliteral}{'type'}]}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00262}00262\ \ \ \ \ \ \ \ \ handler\ =\ getattr(self,\ f\textcolor{stringliteral}{'handle\_\{e\_type\}'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00263}00263\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureCanvasWebAggCore_ac8e28e1a301521a519dc1781f0f30688}{handle\_unknown\_event}})}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00264}00264\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ handler(event)}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00265}00265\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00266}00266\ \ \ \ \ \textcolor{keyword}{def\ }handle\_unknown\_event(self,\ event):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00267}00267\ \ \ \ \ \ \ \ \ \_log.warning(\textcolor{stringliteral}{'Unhandled\ message\ type\ \%s.\ \%s'},\ event[\textcolor{stringliteral}{"{}type"{}}],\ event)}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00268}00268\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00269}00269\ \ \ \ \ \textcolor{keyword}{def\ }handle\_ack(self,\ event):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00270}00270\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Network\ latency\ tends\ to\ decrease\ if\ traffic\ is\ flowing}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00271}00271\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ in\ both\ directions.\ \ Therefore,\ the\ browser\ sends\ back}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00272}00272\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ an\ "{}ack"{}\ message\ after\ each\ image\ frame\ is\ received.}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00273}00273\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ This\ could\ also\ be\ used\ as\ a\ simple\ sanity\ check\ in\ the}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00274}00274\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ future,\ but\ for\ now\ the\ performance\ increase\ is\ enough}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00275}00275\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ to\ justify\ it,\ even\ if\ the\ server\ does\ nothing\ with\ it.}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00276}00276\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{pass}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00277}00277\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00278}00278\ \ \ \ \ \textcolor{keyword}{def\ }handle\_draw(self,\ event):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00279}00279\ \ \ \ \ \ \ \ \ self.draw()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00280}00280\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00281}00281\ \ \ \ \ \textcolor{keyword}{def\ }\_handle\_mouse(self,\ event):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00282}00282\ \ \ \ \ \ \ \ \ x\ =\ event[\textcolor{stringliteral}{'x'}]}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00283}00283\ \ \ \ \ \ \ \ \ y\ =\ event[\textcolor{stringliteral}{'y'}]}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00284}00284\ \ \ \ \ \ \ \ \ y\ =\ self.get\_renderer().height\ -\/\ y}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00285}00285\ \ \ \ \ \ \ \ \ self.\_last\_mouse\_xy\ =\ x,\ y}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00286}00286\ \ \ \ \ \ \ \ \ e\_type\ =\ event[\textcolor{stringliteral}{'type'}]}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00287}00287\ \ \ \ \ \ \ \ \ button\ =\ event[\textcolor{stringliteral}{'button'}]\ +\ 1\ \ \textcolor{comment}{\#\ JS\ numbers\ off\ by\ 1\ compared\ to\ mpl.}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00288}00288\ \ \ \ \ \ \ \ \ buttons\ =\ \{\ \ \textcolor{comment}{\#\ JS\ ordering\ different\ compared\ to\ mpl.}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00289}00289\ \ \ \ \ \ \ \ \ \ \ \ \ button\ \textcolor{keywordflow}{for}\ button,\ mask\ \textcolor{keywordflow}{in}\ [}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00290}00290\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (MouseButton.LEFT,\ 1),}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00291}00291\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (MouseButton.RIGHT,\ 2),}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00292}00292\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (MouseButton.MIDDLE,\ 4),}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00293}00293\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (MouseButton.BACK,\ 8),}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00294}00294\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (MouseButton.FORWARD,\ 16),}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00295}00295\ \ \ \ \ \ \ \ \ \ \ \ \ ]\ \textcolor{keywordflow}{if}\ event[\textcolor{stringliteral}{'buttons'}]\ \&\ mask\ \ \textcolor{comment}{\#\ State\ *after*\ press/release.}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00296}00296\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00297}00297\ \ \ \ \ \ \ \ \ modifiers\ =\ event[\textcolor{stringliteral}{'modifiers'}]}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00298}00298\ \ \ \ \ \ \ \ \ guiEvent\ =\ event.get(\textcolor{stringliteral}{'guiEvent'})}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00299}00299\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ e\_type\ \textcolor{keywordflow}{in}\ [\textcolor{stringliteral}{'button\_press'},\ \textcolor{stringliteral}{'button\_release'}]:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00300}00300\ \ \ \ \ \ \ \ \ \ \ \ \ MouseEvent(e\_type\ +\ \textcolor{stringliteral}{'\_event'},\ self,\ x,\ y,\ button,}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00301}00301\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ modifiers=modifiers,\ guiEvent=guiEvent).\_process()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00302}00302\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ e\_type\ ==\ \textcolor{stringliteral}{'dblclick'}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00303}00303\ \ \ \ \ \ \ \ \ \ \ \ \ MouseEvent(\textcolor{stringliteral}{'button\_press\_event'},\ self,\ x,\ y,\ button,\ dblclick=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00304}00304\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ modifiers=modifiers,\ guiEvent=guiEvent).\_process()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00305}00305\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ e\_type\ ==\ \textcolor{stringliteral}{'scroll'}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00306}00306\ \ \ \ \ \ \ \ \ \ \ \ \ MouseEvent(\textcolor{stringliteral}{'scroll\_event'},\ self,\ x,\ y,\ step=event[\textcolor{stringliteral}{'step'}],}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00307}00307\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ modifiers=modifiers,\ guiEvent=guiEvent).\_process()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00308}00308\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ e\_type\ ==\ \textcolor{stringliteral}{'motion\_notify'}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00309}00309\ \ \ \ \ \ \ \ \ \ \ \ \ MouseEvent(e\_type\ +\ \textcolor{stringliteral}{'\_event'},\ self,\ x,\ y,}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00310}00310\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ buttons=buttons,\ modifiers=modifiers,\ guiEvent=guiEvent,}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00311}00311\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ).\_process()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00312}00312\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ e\_type\ \textcolor{keywordflow}{in}\ [\textcolor{stringliteral}{'figure\_enter'},\ \textcolor{stringliteral}{'figure\_leave'}]:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00313}00313\ \ \ \ \ \ \ \ \ \ \ \ \ LocationEvent(e\_type\ +\ \textcolor{stringliteral}{'\_event'},\ self,\ x,\ y,}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00314}00314\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ modifiers=modifiers,\ guiEvent=guiEvent).\_process()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00315}00315\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00316}00316\ \ \ \ \ handle\_button\_press\ =\ handle\_button\_release\ =\ handle\_dblclick\ =\ \(\backslash\)}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00317}00317\ \ \ \ \ \ \ \ \ handle\_figure\_enter\ =\ handle\_figure\_leave\ =\ handle\_motion\_notify\ =\ \(\backslash\)}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00318}00318\ \ \ \ \ \ \ \ \ handle\_scroll\ =\ \_handle\_mouse}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00319}00319\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00320}00320\ \ \ \ \ \textcolor{keyword}{def\ }\_handle\_key(self,\ event):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00321}00321\ \ \ \ \ \ \ \ \ KeyEvent(event[\textcolor{stringliteral}{'type'}]\ +\ \textcolor{stringliteral}{'\_event'},\ self,}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00322}00322\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_handle\_key(event[\textcolor{stringliteral}{'key'}]),\ *self.\_last\_mouse\_xy,}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00323}00323\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ guiEvent=event.get(\textcolor{stringliteral}{'guiEvent'})).\_process()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00324}00324\ \ \ \ \ handle\_key\_press\ =\ handle\_key\_release\ =\ \_handle\_key}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00325}00325\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00326}00326\ \ \ \ \ \textcolor{keyword}{def\ }handle\_toolbar\_button(self,\ event):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00327}00327\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ TODO:\ Be\ more\ suspicious\ of\ the\ input}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00328}00328\ \ \ \ \ \ \ \ \ getattr(self.toolbar,\ event[\textcolor{stringliteral}{'name'}])()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00329}00329\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00330}00330\ \ \ \ \ \textcolor{keyword}{def\ }handle\_refresh(self,\ event):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00331}00331\ \ \ \ \ \ \ \ \ figure\_label\ =\ self.figure.get\_label()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00332}00332\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ figure\_label:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00333}00333\ \ \ \ \ \ \ \ \ \ \ \ \ figure\_label\ =\ f\textcolor{stringliteral}{"{}Figure\ \{self.manager.num\}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00334}00334\ \ \ \ \ \ \ \ \ self.send\_event(\textcolor{stringliteral}{'figure\_label'},\ label=figure\_label)}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00335}00335\ \ \ \ \ \ \ \ \ self.\_force\_full\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00336}00336\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.toolbar:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00337}00337\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Normal\ toolbar\ init\ would\ refresh\ this,\ but\ it\ happens\ before\ the}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00338}00338\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ browser\ canvas\ is\ set\ up.}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00339}00339\ \ \ \ \ \ \ \ \ \ \ \ \ self.toolbar.set\_history\_buttons()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00340}00340\ \ \ \ \ \ \ \ \ self.draw\_idle()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00341}00341\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00342}00342\ \ \ \ \ \textcolor{keyword}{def\ }handle\_resize(self,\ event):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00343}00343\ \ \ \ \ \ \ \ \ x\ =\ int(event.get(\textcolor{stringliteral}{'width'},\ 800))\ *\ self.device\_pixel\_ratio}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00344}00344\ \ \ \ \ \ \ \ \ y\ =\ int(event.get(\textcolor{stringliteral}{'height'},\ 800))\ *\ self.device\_pixel\_ratio}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00345}00345\ \ \ \ \ \ \ \ \ fig\ =\ self.figure}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00346}00346\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ An\ attempt\ at\ approximating\ the\ figure\ size\ in\ pixels.}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00347}00347\ \ \ \ \ \ \ \ \ fig.set\_size\_inches(x\ /\ fig.dpi,\ y\ /\ fig.dpi,\ forward=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00348}00348\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Acknowledge\ the\ resize,\ and\ force\ the\ viewer\ to\ update\ the}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00349}00349\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ canvas\ size\ to\ the\ figure's\ new\ size\ (which\ is\ hopefully}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00350}00350\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ identical\ or\ within\ a\ pixel\ or\ so).}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00351}00351\ \ \ \ \ \ \ \ \ self.\_png\_is\_old\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00352}00352\ \ \ \ \ \ \ \ \ self.manager.resize(*fig.bbox.size,\ forward=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00353}00353\ \ \ \ \ \ \ \ \ ResizeEvent(\textcolor{stringliteral}{'resize\_event'},\ self).\_process()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00354}00354\ \ \ \ \ \ \ \ \ self.draw\_idle()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00355}00355\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00356}00356\ \ \ \ \ \textcolor{keyword}{def\ }handle\_send\_image\_mode(self,\ event):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00357}00357\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ client\ requests\ notification\ of\ what\ the\ current\ image\ mode\ is.}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00358}00358\ \ \ \ \ \ \ \ \ self.send\_event(\textcolor{stringliteral}{'image\_mode'},\ mode=self.\_current\_image\_mode)}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00359}00359\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00360}00360\ \ \ \ \ \textcolor{keyword}{def\ }handle\_set\_device\_pixel\_ratio(self,\ event):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00361}00361\ \ \ \ \ \ \ \ \ self.\_handle\_set\_device\_pixel\_ratio(event.get(\textcolor{stringliteral}{'device\_pixel\_ratio'},\ 1))}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00362}00362\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00363}00363\ \ \ \ \ \textcolor{keyword}{def\ }handle\_set\_dpi\_ratio(self,\ event):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00364}00364\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ This\ handler\ is\ for\ backwards-\/compatibility\ with\ older\ ipympl.}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00365}00365\ \ \ \ \ \ \ \ \ self.\_handle\_set\_device\_pixel\_ratio(event.get(\textcolor{stringliteral}{'dpi\_ratio'},\ 1))}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00366}00366\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00367}00367\ \ \ \ \ \textcolor{keyword}{def\ }\_handle\_set\_device\_pixel\_ratio(self,\ device\_pixel\_ratio):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00368}00368\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\_set\_device\_pixel\_ratio(device\_pixel\_ratio):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00369}00369\ \ \ \ \ \ \ \ \ \ \ \ \ self.\_force\_full\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00370}00370\ \ \ \ \ \ \ \ \ \ \ \ \ self.draw\_idle()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00371}00371\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00372}00372\ \ \ \ \ \textcolor{keyword}{def\ }send\_event(self,\ event\_type,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00373}00373\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.manager:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00374}00374\ \ \ \ \ \ \ \ \ \ \ \ \ self.manager.\_send\_event(event\_type,\ **kwargs)}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00375}00375\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00376}00376\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00377}00377\ \_ALLOWED\_TOOL\_ITEMS\ =\ \{}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00378}00378\ \ \ \ \ \textcolor{stringliteral}{'home'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00379}00379\ \ \ \ \ \textcolor{stringliteral}{'back'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00380}00380\ \ \ \ \ \textcolor{stringliteral}{'forward'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00381}00381\ \ \ \ \ \textcolor{stringliteral}{'pan'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00382}00382\ \ \ \ \ \textcolor{stringliteral}{'zoom'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00383}00383\ \ \ \ \ \textcolor{stringliteral}{'download'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00384}00384\ \ \ \ \ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00385}00385\ \}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00386}00386\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00387}00387\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00388}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1NavigationToolbar2WebAgg}{00388}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1NavigationToolbar2WebAgg}{NavigationToolbar2WebAgg}}(\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1NavigationToolbar2}{backend\_bases.NavigationToolbar2}}):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00389}00389\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00390}00390\ \ \ \ \ \textcolor{comment}{\#\ Use\ the\ standard\ toolbar\ items\ +\ download\ button}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00391}00391\ \ \ \ \ toolitems\ =\ [}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00392}00392\ \ \ \ \ \ \ \ \ (text,\ tooltip\_text,\ image\_file,\ name\_of\_method)}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00393}00393\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ text,\ tooltip\_text,\ image\_file,\ name\_of\_method}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00394}00394\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{in}\ (*backend\_bases.NavigationToolbar2.toolitems,}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00395}00395\ \ \ \ \ \ \ \ \ \ \ \ \ (\textcolor{stringliteral}{'Download'},\ \textcolor{stringliteral}{'Download\ plot'},\ \textcolor{stringliteral}{'filesave'},\ \textcolor{stringliteral}{'download'}))}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00396}00396\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ name\_of\_method\ \textcolor{keywordflow}{in}\ \_ALLOWED\_TOOL\_ITEMS}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00397}00397\ \ \ \ \ ]}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00398}00398\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00399}00399\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ canvas):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00400}00400\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1NavigationToolbar2WebAgg_ab03b4010073b9b4c9e067e2a81f8dd23}{message}}\ =\ \textcolor{stringliteral}{''}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00401}00401\ \ \ \ \ \ \ \ \ super().\_\_init\_\_(canvas)}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00402}00402\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00403}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1NavigationToolbar2WebAgg_a112b0fe72abca3cfc8aa352eaca46eda}{00403}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1NavigationToolbar2WebAgg_a112b0fe72abca3cfc8aa352eaca46eda}{set\_message}}(self,\ message):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00404}00404\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ message\ !=\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1NavigationToolbar2WebAgg_ab03b4010073b9b4c9e067e2a81f8dd23}{message}}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00405}00405\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1NavigationToolbar2_a1a87a34e3a87d05f78fffea401c5a362}{canvas}}.send\_event(\textcolor{stringliteral}{"{}message"{}},\ message=message)}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00406}00406\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1NavigationToolbar2WebAgg_ab03b4010073b9b4c9e067e2a81f8dd23}{message}}\ =\ message}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00407}00407\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00408}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1NavigationToolbar2WebAgg_a658eb6136c86d4b3f0d6d1aaeab3237a}{00408}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1NavigationToolbar2WebAgg_a658eb6136c86d4b3f0d6d1aaeab3237a}{draw\_rubberband}}(self,\ event,\ x0,\ y0,\ x1,\ y1):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00409}00409\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1NavigationToolbar2_a1a87a34e3a87d05f78fffea401c5a362}{canvas}}.send\_event(\textcolor{stringliteral}{"{}rubberband"{}},\ x0=x0,\ y0=y0,\ x1=x1,\ y1=y1)}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00410}00410\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00411}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1NavigationToolbar2WebAgg_aae0e0edf4ed0777a736313c3d9d61312}{00411}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1NavigationToolbar2WebAgg_aae0e0edf4ed0777a736313c3d9d61312}{remove\_rubberband}}(self):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00412}00412\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1NavigationToolbar2_a1a87a34e3a87d05f78fffea401c5a362}{canvas}}.send\_event(\textcolor{stringliteral}{"{}rubberband"{}},\ x0=-\/1,\ y0=-\/1,\ x1=-\/1,\ y1=-\/1)}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00413}00413\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00414}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1NavigationToolbar2WebAgg_a382003e9a8edf860d8b2df62eb363ddc}{00414}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1NavigationToolbar2WebAgg_a382003e9a8edf860d8b2df62eb363ddc}{save\_figure}}(self,\ *args):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00415}00415\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Save\ the\ current\ figure."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00416}00416\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1NavigationToolbar2_a1a87a34e3a87d05f78fffea401c5a362}{canvas}}.send\_event(\textcolor{stringliteral}{'save'})}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00417}00417\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1NavigationToolbar2_a84b34b46d834e11e8d27e5ee261197bf}{UNKNOWN\_SAVED\_STATUS}}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00418}00418\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00419}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1NavigationToolbar2WebAgg_aa580f8276e9fdf03d971e30827aeba79}{00419}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1NavigationToolbar2WebAgg_aa580f8276e9fdf03d971e30827aeba79}{pan}}(self):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00420}00420\ \ \ \ \ \ \ \ \ super().\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1NavigationToolbar2WebAgg_aa580f8276e9fdf03d971e30827aeba79}{pan}}()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00421}00421\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1NavigationToolbar2_a1a87a34e3a87d05f78fffea401c5a362}{canvas}}.send\_event(\textcolor{stringliteral}{'navigate\_mode'},\ mode=self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1NavigationToolbar2_a6bf38bfe5efa8669f93a3866b13af66a}{mode}}.name)}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00422}00422\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00423}00423\ \ \ \ \ \textcolor{keyword}{def\ }zoom(self):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00424}00424\ \ \ \ \ \ \ \ \ super().zoom()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00425}00425\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1NavigationToolbar2_a1a87a34e3a87d05f78fffea401c5a362}{canvas}}.send\_event(\textcolor{stringliteral}{'navigate\_mode'},\ mode=self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1NavigationToolbar2_a6bf38bfe5efa8669f93a3866b13af66a}{mode}}.name)}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00426}00426\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00427}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1NavigationToolbar2WebAgg_a14e44da8da7955369f7e15a609471bf9}{00427}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1NavigationToolbar2WebAgg_a14e44da8da7955369f7e15a609471bf9}{set\_history\_buttons}}(self):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00428}00428\ \ \ \ \ \ \ \ \ can\_backward\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1NavigationToolbar2_a2e104ebcb22ea2e4d337d9817bf7b62f}{\_nav\_stack}}.\_pos\ >\ 0}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00429}00429\ \ \ \ \ \ \ \ \ can\_forward\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1NavigationToolbar2_a2e104ebcb22ea2e4d337d9817bf7b62f}{\_nav\_stack}}.\_pos\ <\ len(self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1NavigationToolbar2_a2e104ebcb22ea2e4d337d9817bf7b62f}{\_nav\_stack}})\ -\/\ 1}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00430}00430\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1NavigationToolbar2_a1a87a34e3a87d05f78fffea401c5a362}{canvas}}.send\_event(\textcolor{stringliteral}{'history\_buttons'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00431}00431\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ Back=can\_backward,\ Forward=can\_forward)}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00432}00432\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00433}00433\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00434}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureManagerWebAgg}{00434}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureManagerWebAgg}{FigureManagerWebAgg}}(\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1FigureManagerBase}{backend\_bases.FigureManagerBase}}):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00435}00435\ \ \ \ \ \textcolor{comment}{\#\ This\ must\ be\ None\ to\ not\ break\ ipympl}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00436}00436\ \ \ \ \ \_toolbar2\_class\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00437}00437\ \ \ \ \ ToolbarCls\ =\ NavigationToolbar2WebAgg}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00438}00438\ \ \ \ \ \_window\_title\ =\ \textcolor{stringliteral}{"{}Matplotlib"{}}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00439}00439\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00440}00440\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ canvas,\ num):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00441}00441\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureManagerWebAgg_a06a75f6a4913bff6d468b3cf01448073}{web\_sockets}}\ =\ set()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00442}00442\ \ \ \ \ \ \ \ \ super().\_\_init\_\_(canvas,\ num)}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00443}00443\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00444}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureManagerWebAgg_a6396f7fc53baeabad546cae1ba513fd7}{00444}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureManagerWebAgg_a6396f7fc53baeabad546cae1ba513fd7}{show}}(self):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00445}00445\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{pass}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00446}00446\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00447}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureManagerWebAgg_abc47981719d66bbdb77ad5b5053b0c6f}{00447}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureManagerWebAgg_abc47981719d66bbdb77ad5b5053b0c6f}{resize}}(self,\ w,\ h,\ forward=True):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00448}00448\ \ \ \ \ \ \ \ \ self.\_send\_event(}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00449}00449\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'resize'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00450}00450\ \ \ \ \ \ \ \ \ \ \ \ \ size=(w\ /\ self.canvas.device\_pixel\_ratio,}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00451}00451\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ h\ /\ self.canvas.device\_pixel\_ratio),}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00452}00452\ \ \ \ \ \ \ \ \ \ \ \ \ forward=forward)}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00453}00453\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00454}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureManagerWebAgg_aa96c491c9d05898c7fd5f11b16a94184}{00454}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureManagerWebAgg_aa96c491c9d05898c7fd5f11b16a94184}{set\_window\_title}}(self,\ title):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00455}00455\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureManagerWebAgg_a179799014f7d964a472791d34e07bbc7}{\_send\_event}}(\textcolor{stringliteral}{'figure\_label'},\ label=title)}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00456}00456\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1FigureManagerBase_ad71cb16de35f10891ae77a7998c75fbe}{\_window\_title}}\ =\ title}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00457}00457\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00458}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureManagerWebAgg_a1350f58f205585b0acf98efc032f0275}{00458}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureManagerWebAgg_a1350f58f205585b0acf98efc032f0275}{get\_window\_title}}(self):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00459}00459\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1FigureManagerBase_ad71cb16de35f10891ae77a7998c75fbe}{\_window\_title}}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00460}00460\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00461}00461\ \ \ \ \ \textcolor{comment}{\#\ The\ following\ methods\ are\ specific\ to\ FigureManagerWebAgg}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00462}00462\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00463}00463\ \ \ \ \ \textcolor{keyword}{def\ }add\_web\_socket(self,\ web\_socket):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00464}00464\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ hasattr(web\_socket,\ \textcolor{stringliteral}{'send\_binary'})}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00465}00465\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ hasattr(web\_socket,\ \textcolor{stringliteral}{'send\_json'})}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00466}00466\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureManagerWebAgg_a06a75f6a4913bff6d468b3cf01448073}{web\_sockets}}.add(web\_socket)}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00467}00467\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1FigureManagerBase_a5ca8d9bb4d3c1eea78d7d36216b99dce}{resize}}(*self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1FigureManagerBase_ae355aa0633d6b4da5e2e698b007b4c3f}{canvas}}.figure.bbox.size)}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00468}00468\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureManagerWebAgg_a179799014f7d964a472791d34e07bbc7}{\_send\_event}}(\textcolor{stringliteral}{'refresh'})}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00469}00469\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00470}00470\ \ \ \ \ \textcolor{keyword}{def\ }remove\_web\_socket(self,\ web\_socket):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00471}00471\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureManagerWebAgg_a06a75f6a4913bff6d468b3cf01448073}{web\_sockets}}.remove(web\_socket)}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00472}00472\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00473}00473\ \ \ \ \ \textcolor{keyword}{def\ }handle\_json(self,\ content):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00474}00474\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1FigureManagerBase_ae355aa0633d6b4da5e2e698b007b4c3f}{canvas}}.handle\_event(content)}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00475}00475\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00476}00476\ \ \ \ \ \textcolor{keyword}{def\ }refresh\_all(self):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00477}00477\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureManagerWebAgg_a06a75f6a4913bff6d468b3cf01448073}{web\_sockets}}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00478}00478\ \ \ \ \ \ \ \ \ \ \ \ \ diff\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1FigureManagerBase_ae355aa0633d6b4da5e2e698b007b4c3f}{canvas}}.get\_diff\_image()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00479}00479\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ diff\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00480}00480\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ s\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureManagerWebAgg_a06a75f6a4913bff6d468b3cf01448073}{web\_sockets}}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00481}00481\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ s.send\_binary(diff)}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00482}00482\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00483}00483\ \ \ \ \ \textcolor{preprocessor}{@classmethod}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00484}00484\ \ \ \ \ \textcolor{keyword}{def\ }get\_javascript(cls,\ stream=None):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00485}00485\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ stream\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00486}00486\ \ \ \ \ \ \ \ \ \ \ \ \ output\ =\ \mbox{\hyperlink{classStringIO}{StringIO}}()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00487}00487\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00488}00488\ \ \ \ \ \ \ \ \ \ \ \ \ output\ =\ stream}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00489}00489\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00490}00490\ \ \ \ \ \ \ \ \ output.write((Path(\_\_file\_\_).parent\ /\ \textcolor{stringliteral}{"{}web\_backend/js/mpl.js"{}})}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00491}00491\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ .read\_text(encoding=\textcolor{stringliteral}{"{}utf-\/8"{}}))}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00492}00492\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00493}00493\ \ \ \ \ \ \ \ \ toolitems\ =\ []}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00494}00494\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ name,\ tooltip,\ image,\ method\ \textcolor{keywordflow}{in}\ cls.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureManagerWebAgg_a9d85ef4e234a4182f0531c412c797850}{ToolbarCls}}.toolitems:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00495}00495\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ name\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00496}00496\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ toolitems.append([\textcolor{stringliteral}{''},\ \textcolor{stringliteral}{''},\ \textcolor{stringliteral}{''},\ \textcolor{stringliteral}{''}])}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00497}00497\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00498}00498\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ toolitems.append([name,\ tooltip,\ image,\ method])}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00499}00499\ \ \ \ \ \ \ \ \ output.write(f\textcolor{stringliteral}{"{}mpl.toolbar\_items\ =\ \{json.dumps(toolitems)\};\(\backslash\)n\(\backslash\)n"{}})}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00500}00500\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00501}00501\ \ \ \ \ \ \ \ \ extensions\ =\ []}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00502}00502\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ filetype,\ ext\ \textcolor{keywordflow}{in}\ sorted(FigureCanvasWebAggCore.}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00503}00503\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ get\_supported\_filetypes\_grouped().}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00504}00504\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ items()):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00505}00505\ \ \ \ \ \ \ \ \ \ \ \ \ extensions.append(ext[0])}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00506}00506\ \ \ \ \ \ \ \ \ output.write(f\textcolor{stringliteral}{"{}mpl.extensions\ =\ \{json.dumps(extensions)\};\(\backslash\)n\(\backslash\)n"{}})}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00507}00507\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00508}00508\ \ \ \ \ \ \ \ \ output.write(\textcolor{stringliteral}{"{}mpl.default\_extension\ =\ \{\};"{}}.format(}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00509}00509\ \ \ \ \ \ \ \ \ \ \ \ \ json.dumps(FigureCanvasWebAggCore.get\_default\_filetype())))}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00510}00510\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00511}00511\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ stream\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00512}00512\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ output.getvalue()}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00513}00513\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00514}00514\ \ \ \ \ \textcolor{preprocessor}{@classmethod}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00515}00515\ \ \ \ \ \textcolor{keyword}{def\ }get\_static\_file\_path(cls):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00516}00516\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ os.path.join(os.path.dirname(\_\_file\_\_),\ \textcolor{stringliteral}{'web\_backend'})}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00517}00517\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00518}00518\ \ \ \ \ \textcolor{keyword}{def\ }\_send\_event(self,\ event\_type,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00519}00519\ \ \ \ \ \ \ \ \ payload\ =\ \{\textcolor{stringliteral}{'type'}:\ event\_type,\ **kwargs\}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00520}00520\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ s\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1FigureManagerWebAgg_a06a75f6a4913bff6d468b3cf01448073}{web\_sockets}}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00521}00521\ \ \ \ \ \ \ \ \ \ \ \ \ s.send\_json(payload)}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00522}00522\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00523}00523\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00524}00524\ \textcolor{preprocessor}{@\_Backend.export}}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00525}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1__BackendWebAggCoreAgg}{00525}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg__core_1_1__BackendWebAggCoreAgg}{\_BackendWebAggCoreAgg}}(\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1__Backend}{\_Backend}}):}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00526}00526\ \ \ \ \ FigureCanvas\ =\ FigureCanvasWebAggCore}
+\DoxyCodeLine{\Hypertarget{backend__webagg__core_8py_source_l00527}00527\ \ \ \ \ FigureManager\ =\ FigureManagerWebAgg}
+
+\end{DoxyCode}

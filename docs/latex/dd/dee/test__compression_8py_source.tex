@@ -1,0 +1,384 @@
+\doxysection{test\+\_\+compression.\+py}
+\hypertarget{test__compression_8py_source}{}\label{test__compression_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/pandas/tests/io/test\_compression.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/pandas/tests/io/test\_compression.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00001}\mbox{\hyperlink{namespacepandas_1_1tests_1_1io_1_1test__compression}{00001}}\ \textcolor{keyword}{import}\ gzip}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00002}00002\ \textcolor{keyword}{import}\ io}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00003}00003\ \textcolor{keyword}{import}\ os}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00004}00004\ \textcolor{keyword}{from}\ pathlib\ \textcolor{keyword}{import}\ Path}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00005}00005\ \textcolor{keyword}{import}\ subprocess}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00006}00006\ \textcolor{keyword}{import}\ sys}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00007}00007\ \textcolor{keyword}{import}\ tarfile}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00008}00008\ \textcolor{keyword}{import}\ textwrap}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00009}00009\ \textcolor{keyword}{import}\ time}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00010}00010\ \textcolor{keyword}{import}\ zipfile}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00011}00011\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00012}00012\ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00013}00013\ \textcolor{keyword}{import}\ pytest}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00014}00014\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00015}00015\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1compat}{pandas.compat}}\ \textcolor{keyword}{import}\ is\_platform\_windows}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00016}00016\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00017}00017\ \textcolor{keyword}{import}\ pandas\ \textcolor{keyword}{as}\ pd}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00018}00018\ \textcolor{keyword}{import}\ \mbox{\hyperlink{namespacepandas_1_1__testing}{pandas.\_testing}}\ \textcolor{keyword}{as}\ tm}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00019}00019\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00020}00020\ \textcolor{keyword}{import}\ \mbox{\hyperlink{namespacepandas_1_1io_1_1common}{pandas.io.common}}\ \textcolor{keyword}{as}\ icom}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00021}00021\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00022}00022\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00023}00023\ \textcolor{preprocessor}{@pytest.mark.parametrize}(}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00024}00024\ \ \ \ \ \textcolor{stringliteral}{"{}obj"{}},}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00025}00025\ \ \ \ \ [}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00026}00026\ \ \ \ \ \ \ \ \ pd.DataFrame(}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00027}00027\ \ \ \ \ \ \ \ \ \ \ \ \ 100\ *\ [[0.123456,\ 0.234567,\ 0.567567],\ [12.32112,\ 123123.2,\ 321321.2]],}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00028}00028\ \ \ \ \ \ \ \ \ \ \ \ \ columns=[\textcolor{stringliteral}{"{}X"{}},\ \textcolor{stringliteral}{"{}Y"{}},\ \textcolor{stringliteral}{"{}Z"{}}],}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00029}00029\ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00030}00030\ \ \ \ \ \ \ \ \ pd.Series(100\ *\ [0.123456,\ 0.234567,\ 0.567567],\ name=\textcolor{stringliteral}{"{}X"{}}),}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00031}00031\ \ \ \ \ ],}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00032}00032\ )}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00033}00033\ \textcolor{preprocessor}{@pytest.mark.parametrize("{}method"{},\ ["{}to\_pickle"{},\ "{}to\_json"{},\ "{}to\_csv"{}])}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00034}00034\ \textcolor{keyword}{def\ }test\_compression\_size(obj,\ method,\ compression\_only):}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00035}00035\ \ \ \ \ \textcolor{keywordflow}{if}\ compression\_only\ ==\ \textcolor{stringliteral}{"{}tar"{}}:}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00036}00036\ \ \ \ \ \ \ \ \ compression\_only\ =\ \{\textcolor{stringliteral}{"{}method"{}}:\ \textcolor{stringliteral}{"{}tar"{}},\ \textcolor{stringliteral}{"{}mode"{}}:\ \textcolor{stringliteral}{"{}w:gz"{}}\}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00037}00037\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00038}00038\ \ \ \ \ \textcolor{keyword}{with}\ tm.ensure\_clean()\ \textcolor{keyword}{as}\ path:}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00039}00039\ \ \ \ \ \ \ \ \ getattr(obj,\ method)(path,\ compression=compression\_only)}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00040}00040\ \ \ \ \ \ \ \ \ compressed\_size\ =\ os.path.getsize(path)}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00041}00041\ \ \ \ \ \ \ \ \ getattr(obj,\ method)(path,\ compression=\textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00042}00042\ \ \ \ \ \ \ \ \ uncompressed\_size\ =\ os.path.getsize(path)}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00043}00043\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ uncompressed\_size\ >\ compressed\_size}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00044}00044\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00045}00045\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00046}00046\ \textcolor{preprocessor}{@pytest.mark.parametrize}(}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00047}00047\ \ \ \ \ \textcolor{stringliteral}{"{}obj"{}},}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00048}00048\ \ \ \ \ [}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00049}00049\ \ \ \ \ \ \ \ \ pd.DataFrame(}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00050}00050\ \ \ \ \ \ \ \ \ \ \ \ \ 100\ *\ [[0.123456,\ 0.234567,\ 0.567567],\ [12.32112,\ 123123.2,\ 321321.2]],}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00051}00051\ \ \ \ \ \ \ \ \ \ \ \ \ columns=[\textcolor{stringliteral}{"{}X"{}},\ \textcolor{stringliteral}{"{}Y"{}},\ \textcolor{stringliteral}{"{}Z"{}}],}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00052}00052\ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00053}00053\ \ \ \ \ \ \ \ \ pd.Series(100\ *\ [0.123456,\ 0.234567,\ 0.567567],\ name=\textcolor{stringliteral}{"{}X"{}}),}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00054}00054\ \ \ \ \ ],}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00055}00055\ )}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00056}00056\ \textcolor{preprocessor}{@pytest.mark.parametrize("{}method"{},\ ["{}to\_csv"{},\ "{}to\_json"{}])}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00057}00057\ \textcolor{keyword}{def\ }test\_compression\_size\_fh(obj,\ method,\ compression\_only):}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00058}00058\ \ \ \ \ \textcolor{keyword}{with}\ tm.ensure\_clean()\ \textcolor{keyword}{as}\ path:}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00059}00059\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ icom.get\_handle(}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00060}00060\ \ \ \ \ \ \ \ \ \ \ \ \ path,}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00061}00061\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}w:gz"{}}\ \textcolor{keywordflow}{if}\ compression\_only\ ==\ \textcolor{stringliteral}{"{}tar"{}}\ \textcolor{keywordflow}{else}\ \textcolor{stringliteral}{"{}w"{}},}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00062}00062\ \ \ \ \ \ \ \ \ \ \ \ \ compression=compression\_only,}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00063}00063\ \ \ \ \ \ \ \ \ )\ \textcolor{keyword}{as}\ handles:}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00064}00064\ \ \ \ \ \ \ \ \ \ \ \ \ getattr(obj,\ method)(handles.handle)}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00065}00065\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ \textcolor{keywordflow}{not}\ handles.handle.closed}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00066}00066\ \ \ \ \ \ \ \ \ compressed\_size\ =\ os.path.getsize(path)}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00067}00067\ \ \ \ \ \textcolor{keyword}{with}\ tm.ensure\_clean()\ \textcolor{keyword}{as}\ path:}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00068}00068\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ icom.get\_handle(path,\ \textcolor{stringliteral}{"{}w"{}},\ compression=\textcolor{keywordtype}{None})\ \textcolor{keyword}{as}\ handles:}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00069}00069\ \ \ \ \ \ \ \ \ \ \ \ \ getattr(obj,\ method)(handles.handle)}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00070}00070\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ \textcolor{keywordflow}{not}\ handles.handle.closed}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00071}00071\ \ \ \ \ \ \ \ \ uncompressed\_size\ =\ os.path.getsize(path)}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00072}00072\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ uncompressed\_size\ >\ compressed\_size}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00073}00073\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00074}00074\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00075}00075\ \textcolor{preprocessor}{@pytest.mark.parametrize}(}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00076}00076\ \ \ \ \ \textcolor{stringliteral}{"{}write\_method,\ write\_kwargs,\ read\_method"{}},}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00077}00077\ \ \ \ \ [}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00078}00078\ \ \ \ \ \ \ \ \ (\textcolor{stringliteral}{"{}to\_csv"{}},\ \{\textcolor{stringliteral}{"{}index"{}}:\ \textcolor{keyword}{False}\},\ pd.read\_csv),}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00079}00079\ \ \ \ \ \ \ \ \ (\textcolor{stringliteral}{"{}to\_json"{}},\ \{\},\ pd.read\_json),}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00080}00080\ \ \ \ \ \ \ \ \ (\textcolor{stringliteral}{"{}to\_pickle"{}},\ \{\},\ pd.read\_pickle),}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00081}00081\ \ \ \ \ ],}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00082}00082\ )}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00083}00083\ \textcolor{keyword}{def\ }test\_dataframe\_compression\_defaults\_to\_infer(}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00084}00084\ \ \ \ \ write\_method,\ write\_kwargs,\ read\_method,\ compression\_only,\ compression\_to\_extension}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00085}00085\ ):}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00086}00086\ \ \ \ \ \textcolor{comment}{\#\ GH22004}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00087}00087\ \ \ \ \ input\ =\ pd.DataFrame([[1.0,\ 0,\ -\/4],\ [3.4,\ 5,\ 2]],\ columns=[\textcolor{stringliteral}{"{}X"{}},\ \textcolor{stringliteral}{"{}Y"{}},\ \textcolor{stringliteral}{"{}Z"{}}])}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00088}00088\ \ \ \ \ extension\ =\ compression\_to\_extension[compression\_only]}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00089}00089\ \ \ \ \ \textcolor{keyword}{with}\ tm.ensure\_clean(\textcolor{stringliteral}{"{}compressed"{}}\ +\ extension)\ \textcolor{keyword}{as}\ path:}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00090}00090\ \ \ \ \ \ \ \ \ getattr(input,\ write\_method)(path,\ **write\_kwargs)}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00091}00091\ \ \ \ \ \ \ \ \ output\ =\ read\_method(path,\ compression=compression\_only)}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00092}00092\ \ \ \ \ tm.assert\_frame\_equal(output,\ input)}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00093}00093\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00094}00094\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00095}00095\ \textcolor{preprocessor}{@pytest.mark.parametrize}(}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00096}00096\ \ \ \ \ \textcolor{stringliteral}{"{}write\_method,write\_kwargs,read\_method,read\_kwargs"{}},}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00097}00097\ \ \ \ \ [}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00098}00098\ \ \ \ \ \ \ \ \ (\textcolor{stringliteral}{"{}to\_csv"{}},\ \{\textcolor{stringliteral}{"{}index"{}}:\ \textcolor{keyword}{False},\ \textcolor{stringliteral}{"{}header"{}}:\ \textcolor{keyword}{True}\},\ pd.read\_csv,\ \{\textcolor{stringliteral}{"{}squeeze"{}}:\ \textcolor{keyword}{True}\}),}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00099}00099\ \ \ \ \ \ \ \ \ (\textcolor{stringliteral}{"{}to\_json"{}},\ \{\},\ pd.read\_json,\ \{\textcolor{stringliteral}{"{}typ"{}}:\ \textcolor{stringliteral}{"{}series"{}}\}),}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00100}00100\ \ \ \ \ \ \ \ \ (\textcolor{stringliteral}{"{}to\_pickle"{}},\ \{\},\ pd.read\_pickle,\ \{\}),}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00101}00101\ \ \ \ \ ],}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00102}00102\ )}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00103}00103\ \textcolor{keyword}{def\ }test\_series\_compression\_defaults\_to\_infer(}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00104}00104\ \ \ \ \ write\_method,}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00105}00105\ \ \ \ \ write\_kwargs,}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00106}00106\ \ \ \ \ read\_method,}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00107}00107\ \ \ \ \ read\_kwargs,}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00108}00108\ \ \ \ \ compression\_only,}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00109}00109\ \ \ \ \ compression\_to\_extension,}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00110}00110\ ):}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00111}00111\ \ \ \ \ \textcolor{comment}{\#\ GH22004}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00112}00112\ \ \ \ \ input\ =\ pd.Series([0,\ 5,\ -\/2,\ 10],\ name=\textcolor{stringliteral}{"{}X"{}})}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00113}00113\ \ \ \ \ extension\ =\ compression\_to\_extension[compression\_only]}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00114}00114\ \ \ \ \ \textcolor{keyword}{with}\ tm.ensure\_clean(\textcolor{stringliteral}{"{}compressed"{}}\ +\ extension)\ \textcolor{keyword}{as}\ path:}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00115}00115\ \ \ \ \ \ \ \ \ getattr(input,\ write\_method)(path,\ **write\_kwargs)}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00116}00116\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{stringliteral}{"{}squeeze"{}}\ \textcolor{keywordflow}{in}\ read\_kwargs:}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00117}00117\ \ \ \ \ \ \ \ \ \ \ \ \ kwargs\ =\ read\_kwargs.copy()}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00118}00118\ \ \ \ \ \ \ \ \ \ \ \ \ del\ kwargs[\textcolor{stringliteral}{"{}squeeze"{}}]}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00119}00119\ \ \ \ \ \ \ \ \ \ \ \ \ output\ =\ read\_method(path,\ compression=compression\_only,\ **kwargs).squeeze(}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00120}00120\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}columns"{}}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00121}00121\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00122}00122\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00123}00123\ \ \ \ \ \ \ \ \ \ \ \ \ output\ =\ read\_method(path,\ compression=compression\_only,\ **read\_kwargs)}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00124}00124\ \ \ \ \ tm.assert\_series\_equal(output,\ input,\ check\_names=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00125}00125\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00126}00126\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00127}00127\ \textcolor{keyword}{def\ }test\_compression\_warning(compression\_only):}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00128}00128\ \ \ \ \ \textcolor{comment}{\#\ Assert\ that\ passing\ a\ file\ object\ to\ to\_csv\ while\ explicitly\ specifying\ a}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00129}00129\ \ \ \ \ \textcolor{comment}{\#\ compression\ protocol\ triggers\ a\ RuntimeWarning,\ as\ per\ GH21227.}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00130}00130\ \ \ \ \ df\ =\ pd.DataFrame(}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00131}00131\ \ \ \ \ \ \ \ \ 100\ *\ [[0.123456,\ 0.234567,\ 0.567567],\ [12.32112,\ 123123.2,\ 321321.2]],}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00132}00132\ \ \ \ \ \ \ \ \ columns=[\textcolor{stringliteral}{"{}X"{}},\ \textcolor{stringliteral}{"{}Y"{}},\ \textcolor{stringliteral}{"{}Z"{}}],}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00133}00133\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00134}00134\ \ \ \ \ \textcolor{keyword}{with}\ tm.ensure\_clean()\ \textcolor{keyword}{as}\ path:}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00135}00135\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ icom.get\_handle(path,\ \textcolor{stringliteral}{"{}w"{}},\ compression=compression\_only)\ \textcolor{keyword}{as}\ handles:}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00136}00136\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ tm.assert\_produces\_warning(RuntimeWarning):}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00137}00137\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ df.to\_csv(handles.handle,\ compression=compression\_only)}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00138}00138\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00139}00139\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00140}\mbox{\hyperlink{namespacepandas_1_1tests_1_1io_1_1test__compression_af181cd67404f8e3b63fc70c88f6acf91}{00140}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1tests_1_1io_1_1test__compression_af181cd67404f8e3b63fc70c88f6acf91}{test\_compression\_binary}}(compression\_only):}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00141}00141\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00142}00142\ \textcolor{stringliteral}{\ \ \ \ Binary\ file\ handles\ support\ compression.}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00143}00143\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00144}00144\ \textcolor{stringliteral}{\ \ \ \ GH22555}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00145}00145\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00146}00146\ \ \ \ \ df\ =\ pd.DataFrame(}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00147}00147\ \ \ \ \ \ \ \ \ 1.1\ *\ np.arange(120).reshape((30,\ 4)),}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00148}00148\ \ \ \ \ \ \ \ \ columns=pd.Index(list(\textcolor{stringliteral}{"{}ABCD"{}})),}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00149}00149\ \ \ \ \ \ \ \ \ index=pd.Index([f\textcolor{stringliteral}{"{}i-\/\{i\}"{}}\ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(30)]),}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00150}00150\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00151}00151\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00152}00152\ \ \ \ \ \textcolor{comment}{\#\ with\ a\ file}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00153}00153\ \ \ \ \ \textcolor{keyword}{with}\ tm.ensure\_clean()\ \textcolor{keyword}{as}\ path:}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00154}00154\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ open(path,\ mode=\textcolor{stringliteral}{"{}wb"{}})\ \textcolor{keyword}{as}\ file:}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00155}00155\ \ \ \ \ \ \ \ \ \ \ \ \ df.to\_csv(file,\ mode=\textcolor{stringliteral}{"{}wb"{}},\ compression=compression\_only)}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00156}00156\ \ \ \ \ \ \ \ \ \ \ \ \ file.seek(0)\ \ \textcolor{comment}{\#\ file\ shouldn't\ be\ closed}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00157}00157\ \ \ \ \ \ \ \ \ tm.assert\_frame\_equal(}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00158}00158\ \ \ \ \ \ \ \ \ \ \ \ \ df,\ pd.read\_csv(path,\ index\_col=0,\ compression=compression\_only)}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00159}00159\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00160}00160\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00161}00161\ \ \ \ \ \textcolor{comment}{\#\ with\ BytesIO}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00162}00162\ \ \ \ \ file\ =\ io.BytesIO()}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00163}00163\ \ \ \ \ df.to\_csv(file,\ mode=\textcolor{stringliteral}{"{}wb"{}},\ compression=compression\_only)}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00164}00164\ \ \ \ \ file.seek(0)\ \ \textcolor{comment}{\#\ file\ shouldn't\ be\ closed}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00165}00165\ \ \ \ \ tm.assert\_frame\_equal(}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00166}00166\ \ \ \ \ \ \ \ \ df,\ pd.read\_csv(file,\ index\_col=0,\ compression=compression\_only)}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00167}00167\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00168}00168\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00169}00169\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00170}\mbox{\hyperlink{namespacepandas_1_1tests_1_1io_1_1test__compression_a4e231b05e99854de02a1f3ea5f1ed76d}{00170}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1tests_1_1io_1_1test__compression_a4e231b05e99854de02a1f3ea5f1ed76d}{test\_gzip\_reproducibility\_file\_name}}():}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00171}00171\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00172}00172\ \textcolor{stringliteral}{\ \ \ \ Gzip\ should\ create\ reproducible\ archives\ with\ mtime.}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00173}00173\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00174}00174\ \textcolor{stringliteral}{\ \ \ \ Note:\ Archives\ created\ with\ different\ filenames\ will\ still\ be\ different!}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00175}00175\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00176}00176\ \textcolor{stringliteral}{\ \ \ \ GH\ 28103}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00177}00177\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00178}00178\ \ \ \ \ df\ =\ pd.DataFrame(}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00179}00179\ \ \ \ \ \ \ \ \ 1.1\ *\ np.arange(120).reshape((30,\ 4)),}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00180}00180\ \ \ \ \ \ \ \ \ columns=pd.Index(list(\textcolor{stringliteral}{"{}ABCD"{}})),}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00181}00181\ \ \ \ \ \ \ \ \ index=pd.Index([f\textcolor{stringliteral}{"{}i-\/\{i\}"{}}\ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(30)]),}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00182}00182\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00183}00183\ \ \ \ \ compression\_options\ =\ \{\textcolor{stringliteral}{"{}method"{}}:\ \textcolor{stringliteral}{"{}gzip"{}},\ \textcolor{stringliteral}{"{}mtime"{}}:\ 1\}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00184}00184\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00185}00185\ \ \ \ \ \textcolor{comment}{\#\ test\ for\ filename}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00186}00186\ \ \ \ \ \textcolor{keyword}{with}\ tm.ensure\_clean()\ \textcolor{keyword}{as}\ path:}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00187}00187\ \ \ \ \ \ \ \ \ path\ =\ Path(path)}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00188}00188\ \ \ \ \ \ \ \ \ df.to\_csv(path,\ compression=compression\_options)}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00189}00189\ \ \ \ \ \ \ \ \ time.sleep(0.1)}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00190}00190\ \ \ \ \ \ \ \ \ output\ =\ path.read\_bytes()}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00191}00191\ \ \ \ \ \ \ \ \ df.to\_csv(path,\ compression=compression\_options)}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00192}00192\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ output\ ==\ path.read\_bytes()}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00193}00193\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00194}00194\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00195}\mbox{\hyperlink{namespacepandas_1_1tests_1_1io_1_1test__compression_a8cf82372ec5ee1b19526b0cc0af5701e}{00195}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1tests_1_1io_1_1test__compression_a8cf82372ec5ee1b19526b0cc0af5701e}{test\_gzip\_reproducibility\_file\_object}}():}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00196}00196\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00197}00197\ \textcolor{stringliteral}{\ \ \ \ Gzip\ should\ create\ reproducible\ archives\ with\ mtime.}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00198}00198\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00199}00199\ \textcolor{stringliteral}{\ \ \ \ GH\ 28103}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00200}00200\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00201}00201\ \ \ \ \ df\ =\ pd.DataFrame(}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00202}00202\ \ \ \ \ \ \ \ \ 1.1\ *\ np.arange(120).reshape((30,\ 4)),}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00203}00203\ \ \ \ \ \ \ \ \ columns=pd.Index(list(\textcolor{stringliteral}{"{}ABCD"{}})),}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00204}00204\ \ \ \ \ \ \ \ \ index=pd.Index([f\textcolor{stringliteral}{"{}i-\/\{i\}"{}}\ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(30)]),}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00205}00205\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00206}00206\ \ \ \ \ compression\_options\ =\ \{\textcolor{stringliteral}{"{}method"{}}:\ \textcolor{stringliteral}{"{}gzip"{}},\ \textcolor{stringliteral}{"{}mtime"{}}:\ 1\}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00207}00207\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00208}00208\ \ \ \ \ \textcolor{comment}{\#\ test\ for\ file\ object}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00209}00209\ \ \ \ \ buffer\ =\ io.BytesIO()}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00210}00210\ \ \ \ \ df.to\_csv(buffer,\ compression=compression\_options,\ mode=\textcolor{stringliteral}{"{}wb"{}})}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00211}00211\ \ \ \ \ output\ =\ buffer.getvalue()}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00212}00212\ \ \ \ \ time.sleep(0.1)}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00213}00213\ \ \ \ \ buffer\ =\ io.BytesIO()}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00214}00214\ \ \ \ \ df.to\_csv(buffer,\ compression=compression\_options,\ mode=\textcolor{stringliteral}{"{}wb"{}})}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00215}00215\ \ \ \ \ \textcolor{keyword}{assert}\ output\ ==\ buffer.getvalue()}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00216}00216\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00217}00217\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00218}00218\ \textcolor{preprocessor}{@pytest.mark.single\_cpu}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00219}\mbox{\hyperlink{namespacepandas_1_1tests_1_1io_1_1test__compression_a846dc906469437666d6509875d9a37a7}{00219}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1tests_1_1io_1_1test__compression_a846dc906469437666d6509875d9a37a7}{test\_with\_missing\_lzma}}():}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00220}00220\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Tests\ if\ import\ pandas\ works\ when\ lzma\ is\ not\ present."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00221}00221\ \ \ \ \ \textcolor{comment}{\#\ https://github.com/pandas-\/dev/pandas/issues/27575}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00222}00222\ \ \ \ \ code\ =\ textwrap.dedent(}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00223}00223\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}\(\backslash\)}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00224}00224\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ import\ sys}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00225}00225\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ sys.modules['lzma']\ =\ None}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00226}00226\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ import\ pandas}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00227}00227\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00228}00228\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00229}00229\ \ \ \ \ subprocess.check\_output([sys.executable,\ \textcolor{stringliteral}{"{}-\/c"{}},\ code],\ stderr=subprocess.PIPE)}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00230}00230\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00231}00231\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00232}00232\ \textcolor{preprocessor}{@pytest.mark.single\_cpu}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00233}\mbox{\hyperlink{namespacepandas_1_1tests_1_1io_1_1test__compression_aadd91fea9f9d93b2d6d90e6989eea508}{00233}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1tests_1_1io_1_1test__compression_aadd91fea9f9d93b2d6d90e6989eea508}{test\_with\_missing\_lzma\_runtime}}():}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00234}00234\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Tests\ if\ RuntimeError\ is\ hit\ when\ calling\ lzma\ without}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00235}00235\ \textcolor{stringliteral}{\ \ \ \ having\ the\ module\ available.}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00236}00236\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00237}00237\ \ \ \ \ code\ =\ textwrap.dedent(}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00238}00238\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00239}00239\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ import\ sys}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00240}00240\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ import\ pytest}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00241}00241\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ sys.modules['lzma']\ =\ None}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00242}00242\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ import\ pandas\ as\ pd}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00243}00243\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ df\ =\ pd.DataFrame()}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00244}00244\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ with\ pytest.raises(RuntimeError,\ match='lzma\ module'):}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00245}00245\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ df.to\_csv('foo.csv',\ compression='xz')}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00246}00246\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00247}00247\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00248}00248\ \ \ \ \ subprocess.check\_output([sys.executable,\ \textcolor{stringliteral}{"{}-\/c"{}},\ code],\ stderr=subprocess.PIPE)}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00249}00249\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00250}00250\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00251}00251\ \textcolor{preprocessor}{@pytest.mark.parametrize}(}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00252}00252\ \ \ \ \ \textcolor{stringliteral}{"{}obj"{}},}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00253}00253\ \ \ \ \ [}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00254}00254\ \ \ \ \ \ \ \ \ pd.DataFrame(}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00255}00255\ \ \ \ \ \ \ \ \ \ \ \ \ 100\ *\ [[0.123456,\ 0.234567,\ 0.567567],\ [12.32112,\ 123123.2,\ 321321.2]],}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00256}00256\ \ \ \ \ \ \ \ \ \ \ \ \ columns=[\textcolor{stringliteral}{"{}X"{}},\ \textcolor{stringliteral}{"{}Y"{}},\ \textcolor{stringliteral}{"{}Z"{}}],}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00257}00257\ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00258}00258\ \ \ \ \ \ \ \ \ pd.Series(100\ *\ [0.123456,\ 0.234567,\ 0.567567],\ name=\textcolor{stringliteral}{"{}X"{}}),}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00259}00259\ \ \ \ \ ],}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00260}00260\ )}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00261}00261\ \textcolor{preprocessor}{@pytest.mark.parametrize("{}method"{},\ ["{}to\_pickle"{},\ "{}to\_json"{},\ "{}to\_csv"{}])}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00262}00262\ \textcolor{keyword}{def\ }test\_gzip\_compression\_level(obj,\ method):}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00263}00263\ \ \ \ \ \textcolor{comment}{\#\ GH33196}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00264}00264\ \ \ \ \ \textcolor{keyword}{with}\ tm.ensure\_clean()\ \textcolor{keyword}{as}\ path:}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00265}00265\ \ \ \ \ \ \ \ \ getattr(obj,\ method)(path,\ compression=\textcolor{stringliteral}{"{}gzip"{}})}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00266}00266\ \ \ \ \ \ \ \ \ compressed\_size\_default\ =\ os.path.getsize(path)}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00267}00267\ \ \ \ \ \ \ \ \ getattr(obj,\ method)(path,\ compression=\{\textcolor{stringliteral}{"{}method"{}}:\ \textcolor{stringliteral}{"{}gzip"{}},\ \textcolor{stringliteral}{"{}compresslevel"{}}:\ 1\})}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00268}00268\ \ \ \ \ \ \ \ \ compressed\_size\_fast\ =\ os.path.getsize(path)}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00269}00269\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ compressed\_size\_default\ <\ compressed\_size\_fast}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00270}00270\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00271}00271\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00272}00272\ \textcolor{preprocessor}{@pytest.mark.parametrize}(}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00273}00273\ \ \ \ \ \textcolor{stringliteral}{"{}obj"{}},}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00274}00274\ \ \ \ \ [}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00275}00275\ \ \ \ \ \ \ \ \ pd.DataFrame(}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00276}00276\ \ \ \ \ \ \ \ \ \ \ \ \ 100\ *\ [[0.123456,\ 0.234567,\ 0.567567],\ [12.32112,\ 123123.2,\ 321321.2]],}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00277}00277\ \ \ \ \ \ \ \ \ \ \ \ \ columns=[\textcolor{stringliteral}{"{}X"{}},\ \textcolor{stringliteral}{"{}Y"{}},\ \textcolor{stringliteral}{"{}Z"{}}],}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00278}00278\ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00279}00279\ \ \ \ \ \ \ \ \ pd.Series(100\ *\ [0.123456,\ 0.234567,\ 0.567567],\ name=\textcolor{stringliteral}{"{}X"{}}),}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00280}00280\ \ \ \ \ ],}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00281}00281\ )}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00282}00282\ \textcolor{preprocessor}{@pytest.mark.parametrize("{}method"{},\ ["{}to\_pickle"{},\ "{}to\_json"{},\ "{}to\_csv"{}])}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00283}00283\ \textcolor{keyword}{def\ }test\_xz\_compression\_level\_read(obj,\ method):}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00284}00284\ \ \ \ \ \textcolor{keyword}{with}\ tm.ensure\_clean()\ \textcolor{keyword}{as}\ path:}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00285}00285\ \ \ \ \ \ \ \ \ getattr(obj,\ method)(path,\ compression=\textcolor{stringliteral}{"{}xz"{}})}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00286}00286\ \ \ \ \ \ \ \ \ compressed\_size\_default\ =\ os.path.getsize(path)}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00287}00287\ \ \ \ \ \ \ \ \ getattr(obj,\ method)(path,\ compression=\{\textcolor{stringliteral}{"{}method"{}}:\ \textcolor{stringliteral}{"{}xz"{}},\ \textcolor{stringliteral}{"{}preset"{}}:\ 1\})}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00288}00288\ \ \ \ \ \ \ \ \ compressed\_size\_fast\ =\ os.path.getsize(path)}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00289}00289\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ compressed\_size\_default\ <\ compressed\_size\_fast}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00290}00290\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ method\ ==\ \textcolor{stringliteral}{"{}to\_csv"{}}:}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00291}00291\ \ \ \ \ \ \ \ \ \ \ \ \ pd.read\_csv(path,\ compression=\textcolor{stringliteral}{"{}xz"{}})}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00292}00292\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00293}00293\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00294}00294\ \textcolor{preprocessor}{@pytest.mark.parametrize}(}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00295}00295\ \ \ \ \ \textcolor{stringliteral}{"{}obj"{}},}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00296}00296\ \ \ \ \ [}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00297}00297\ \ \ \ \ \ \ \ \ pd.DataFrame(}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00298}00298\ \ \ \ \ \ \ \ \ \ \ \ \ 100\ *\ [[0.123456,\ 0.234567,\ 0.567567],\ [12.32112,\ 123123.2,\ 321321.2]],}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00299}00299\ \ \ \ \ \ \ \ \ \ \ \ \ columns=[\textcolor{stringliteral}{"{}X"{}},\ \textcolor{stringliteral}{"{}Y"{}},\ \textcolor{stringliteral}{"{}Z"{}}],}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00300}00300\ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00301}00301\ \ \ \ \ \ \ \ \ pd.Series(100\ *\ [0.123456,\ 0.234567,\ 0.567567],\ name=\textcolor{stringliteral}{"{}X"{}}),}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00302}00302\ \ \ \ \ ],}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00303}00303\ )}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00304}00304\ \textcolor{preprocessor}{@pytest.mark.parametrize("{}method"{},\ ["{}to\_pickle"{},\ "{}to\_json"{},\ "{}to\_csv"{}])}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00305}\mbox{\hyperlink{namespacepandas_1_1tests_1_1io_1_1test__compression_aa52696698c8e322d07244e35f15c8fc3}{00305}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1tests_1_1io_1_1test__compression_aa52696698c8e322d07244e35f15c8fc3}{test\_bzip\_compression\_level}}(obj,\ method):}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00306}00306\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}GH33196\ bzip\ needs\ file\ size\ >\ 100k\ to\ show\ a\ size\ difference\ between}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00307}00307\ \textcolor{stringliteral}{\ \ \ \ compression\ levels,\ so\ here\ we\ just\ check\ if\ the\ call\ works\ when}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00308}00308\ \textcolor{stringliteral}{\ \ \ \ compression\ is\ passed\ as\ a\ dict.}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00309}00309\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00310}00310\ \ \ \ \ \textcolor{keyword}{with}\ tm.ensure\_clean()\ \textcolor{keyword}{as}\ path:}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00311}00311\ \ \ \ \ \ \ \ \ getattr(obj,\ method)(path,\ compression=\{\textcolor{stringliteral}{"{}method"{}}:\ \textcolor{stringliteral}{"{}bz2"{}},\ \textcolor{stringliteral}{"{}compresslevel"{}}:\ 1\})}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00312}00312\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00313}00313\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00314}00314\ \textcolor{preprocessor}{@pytest.mark.parametrize}(}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00315}00315\ \ \ \ \ \textcolor{stringliteral}{"{}suffix,archive"{}},}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00316}00316\ \ \ \ \ [}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00317}00317\ \ \ \ \ \ \ \ \ (\textcolor{stringliteral}{"{}.zip"{}},\ zipfile.ZipFile),}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00318}00318\ \ \ \ \ \ \ \ \ (\textcolor{stringliteral}{"{}.tar"{}},\ tarfile.TarFile),}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00319}00319\ \ \ \ \ ],}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00320}00320\ )}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00321}00321\ \textcolor{keyword}{def\ }test\_empty\_archive\_zip(suffix,\ archive):}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00322}00322\ \ \ \ \ \textcolor{keyword}{with}\ tm.ensure\_clean(filename=suffix)\ \textcolor{keyword}{as}\ path:}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00323}00323\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ archive(path,\ \textcolor{stringliteral}{"{}w"{}}):}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00324}00324\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{pass}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00325}00325\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ pytest.raises(ValueError,\ match=\textcolor{stringliteral}{"{}Zero\ files\ found"{}}):}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00326}00326\ \ \ \ \ \ \ \ \ \ \ \ \ pd.read\_csv(path)}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00327}00327\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00328}00328\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00329}00329\ \textcolor{keyword}{def\ }test\_ambiguous\_archive\_zip():}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00330}00330\ \ \ \ \ \textcolor{keyword}{with}\ tm.ensure\_clean(filename=\textcolor{stringliteral}{"{}.zip"{}})\ \textcolor{keyword}{as}\ path:}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00331}00331\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ zipfile.ZipFile(path,\ \textcolor{stringliteral}{"{}w"{}})\ \textcolor{keyword}{as}\ file:}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00332}00332\ \ \ \ \ \ \ \ \ \ \ \ \ file.writestr(\textcolor{stringliteral}{"{}a.csv"{}},\ \textcolor{stringliteral}{"{}foo,bar"{}})}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00333}00333\ \ \ \ \ \ \ \ \ \ \ \ \ file.writestr(\textcolor{stringliteral}{"{}b.csv"{}},\ \textcolor{stringliteral}{"{}foo,bar"{}})}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00334}00334\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ pytest.raises(ValueError,\ match=\textcolor{stringliteral}{"{}Multiple\ files\ found\ in\ ZIP\ file"{}}):}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00335}00335\ \ \ \ \ \ \ \ \ \ \ \ \ pd.read\_csv(path)}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00336}00336\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00337}00337\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00338}00338\ \textcolor{keyword}{def\ }test\_ambiguous\_archive\_tar(tmp\_path):}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00339}00339\ \ \ \ \ csvAPath\ =\ tmp\_path\ /\ \textcolor{stringliteral}{"{}a.csv"{}}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00340}00340\ \ \ \ \ \textcolor{keyword}{with}\ open(csvAPath,\ \textcolor{stringliteral}{"{}w"{}},\ encoding=\textcolor{stringliteral}{"{}utf-\/8"{}})\ \textcolor{keyword}{as}\ a:}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00341}00341\ \ \ \ \ \ \ \ \ a.write(\textcolor{stringliteral}{"{}foo,bar\(\backslash\)n"{}})}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00342}00342\ \ \ \ \ csvBPath\ =\ tmp\_path\ /\ \textcolor{stringliteral}{"{}b.csv"{}}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00343}00343\ \ \ \ \ \textcolor{keyword}{with}\ open(csvBPath,\ \textcolor{stringliteral}{"{}w"{}},\ encoding=\textcolor{stringliteral}{"{}utf-\/8"{}})\ \textcolor{keyword}{as}\ b:}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00344}00344\ \ \ \ \ \ \ \ \ b.write(\textcolor{stringliteral}{"{}foo,bar\(\backslash\)n"{}})}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00345}00345\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00346}00346\ \ \ \ \ tarpath\ =\ tmp\_path\ /\ \textcolor{stringliteral}{"{}archive.tar"{}}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00347}00347\ \ \ \ \ \textcolor{keyword}{with}\ tarfile.TarFile(tarpath,\ \textcolor{stringliteral}{"{}w"{}})\ \textcolor{keyword}{as}\ tar:}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00348}00348\ \ \ \ \ \ \ \ \ tar.add(csvAPath,\ \textcolor{stringliteral}{"{}a.csv"{}})}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00349}00349\ \ \ \ \ \ \ \ \ tar.add(csvBPath,\ \textcolor{stringliteral}{"{}b.csv"{}})}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00350}00350\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00351}00351\ \ \ \ \ \textcolor{keyword}{with}\ pytest.raises(ValueError,\ match=\textcolor{stringliteral}{"{}Multiple\ files\ found\ in\ TAR\ archive"{}}):}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00352}00352\ \ \ \ \ \ \ \ \ pd.read\_csv(tarpath)}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00353}00353\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00354}00354\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00355}00355\ \textcolor{keyword}{def\ }test\_tar\_gz\_to\_different\_filename():}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00356}00356\ \ \ \ \ \textcolor{keyword}{with}\ tm.ensure\_clean(filename=\textcolor{stringliteral}{"{}.foo"{}})\ \textcolor{keyword}{as}\ file:}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00357}00357\ \ \ \ \ \ \ \ \ pd.DataFrame(}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00358}00358\ \ \ \ \ \ \ \ \ \ \ \ \ [[\textcolor{stringliteral}{"{}1"{}},\ \textcolor{stringliteral}{"{}2"{}}]],}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00359}00359\ \ \ \ \ \ \ \ \ \ \ \ \ columns=[\textcolor{stringliteral}{"{}foo"{}},\ \textcolor{stringliteral}{"{}bar"{}}],}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00360}00360\ \ \ \ \ \ \ \ \ ).to\_csv(file,\ compression=\{\textcolor{stringliteral}{"{}method"{}}:\ \textcolor{stringliteral}{"{}tar"{}},\ \textcolor{stringliteral}{"{}mode"{}}:\ \textcolor{stringliteral}{"{}w:gz"{}}\},\ index=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00361}00361\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ gzip.open(file)\ \textcolor{keyword}{as}\ uncompressed:}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00362}00362\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ tarfile.TarFile(fileobj=uncompressed)\ \textcolor{keyword}{as}\ archive:}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00363}00363\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ members\ =\ archive.getmembers()}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00364}00364\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ len(members)\ ==\ 1}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00365}00365\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ content\ =\ archive.extractfile(members[0]).read().decode(\textcolor{stringliteral}{"{}utf8"{}})}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00366}00366\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00367}00367\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ is\_platform\_windows():}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00368}00368\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ expected\ =\ \textcolor{stringliteral}{"{}foo,bar\(\backslash\)r\(\backslash\)n1,2\(\backslash\)r\(\backslash\)n"{}}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00369}00369\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00370}00370\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ expected\ =\ \textcolor{stringliteral}{"{}foo,bar\(\backslash\)n1,2\(\backslash\)n"{}}}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00371}00371\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00372}00372\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ content\ ==\ expected}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00373}00373\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00374}00374\ }
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00375}00375\ \textcolor{keyword}{def\ }test\_tar\_no\_error\_on\_close():}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00376}00376\ \ \ \ \ \textcolor{keyword}{with}\ io.BytesIO()\ \textcolor{keyword}{as}\ buffer:}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00377}00377\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ icom.\_BytesTarFile(fileobj=buffer,\ mode=\textcolor{stringliteral}{"{}w"{}}):}
+\DoxyCodeLine{\Hypertarget{test__compression_8py_source_l00378}00378\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{pass}}
+
+\end{DoxyCode}

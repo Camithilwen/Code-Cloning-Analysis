@@ -1,0 +1,1031 @@
+\doxysection{\+\_\+rfe.\+py}
+\hypertarget{__rfe_8py_source}{}\label{__rfe_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/sklearn/feature\_selection/\_rfe.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/sklearn/feature\_selection/\_rfe.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00001}\mbox{\hyperlink{namespacesklearn_1_1feature__selection_1_1__rfe}{00001}}\ \textcolor{comment}{\#\ Authors:\ The\ scikit-\/learn\ developers}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00002}00002\ \textcolor{comment}{\#\ SPDX-\/License-\/Identifier:\ BSD-\/3-\/Clause}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00003}00003\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00004}00004\ \textcolor{stringliteral}{"{}"{}"{}Recursive\ feature\ elimination\ for\ feature\ ranking"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00005}00005\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00006}00006\ \textcolor{keyword}{import}\ warnings}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00007}00007\ \textcolor{keyword}{from}\ copy\ \textcolor{keyword}{import}\ deepcopy}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00008}00008\ \textcolor{keyword}{from}\ numbers\ \textcolor{keyword}{import}\ Integral}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00009}00009\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00010}00010\ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00011}00011\ \textcolor{keyword}{from}\ joblib\ \textcolor{keyword}{import}\ effective\_n\_jobs}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00012}00012\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00013}00013\ \textcolor{keyword}{from}\ ..base\ \textcolor{keyword}{import}\ BaseEstimator,\ MetaEstimatorMixin,\ \_fit\_context,\ clone,\ is\_classifier}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00014}00014\ \textcolor{keyword}{from}\ ..metrics\ \textcolor{keyword}{import}\ get\_scorer}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00015}00015\ \textcolor{keyword}{from}\ ..model\_selection\ \textcolor{keyword}{import}\ check\_cv}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00016}00016\ \textcolor{keyword}{from}\ ..model\_selection.\_validation\ \textcolor{keyword}{import}\ \_score}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00017}00017\ \textcolor{keyword}{from}\ ..utils\ \textcolor{keyword}{import}\ Bunch,\ metadata\_routing}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00018}00018\ \textcolor{keyword}{from}\ ..utils.\_metadata\_requests\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00019}00019\ \ \ \ \ MetadataRouter,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00020}00020\ \ \ \ \ MethodMapping,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00021}00021\ \ \ \ \ \_raise\_for\_params,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00022}00022\ \ \ \ \ \_routing\_enabled,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00023}00023\ \ \ \ \ process\_routing,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00024}00024\ )}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00025}00025\ \textcolor{keyword}{from}\ ..utils.\_param\_validation\ \textcolor{keyword}{import}\ HasMethods,\ Interval,\ RealNotInt}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00026}00026\ \textcolor{keyword}{from}\ ..utils.\_tags\ \textcolor{keyword}{import}\ get\_tags}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00027}00027\ \textcolor{keyword}{from}\ ..utils.metaestimators\ \textcolor{keyword}{import}\ \_safe\_split,\ available\_if}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00028}00028\ \textcolor{keyword}{from}\ ..utils.parallel\ \textcolor{keyword}{import}\ Parallel,\ delayed}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00029}00029\ \textcolor{keyword}{from}\ ..utils.validation\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00030}00030\ \ \ \ \ \_check\_method\_params,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00031}00031\ \ \ \ \ \_deprecate\_positional\_args,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00032}00032\ \ \ \ \ \_estimator\_has,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00033}00033\ \ \ \ \ check\_is\_fitted,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00034}00034\ \ \ \ \ validate\_data,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00035}00035\ )}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00036}00036\ \textcolor{keyword}{from}\ .\_base\ \textcolor{keyword}{import}\ SelectorMixin,\ \_get\_feature\_importances}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00037}00037\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00038}00038\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00039}\mbox{\hyperlink{namespacesklearn_1_1feature__selection_1_1__rfe_aa49176feaa9abf2bba0b6921bfebd9dc}{00039}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1feature__selection_1_1__rfe_aa49176feaa9abf2bba0b6921bfebd9dc}{\_rfe\_single\_fit}}(rfe,\ estimator,\ X,\ y,\ train,\ test,\ scorer,\ routed\_params):}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00040}00040\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00041}00041\ \textcolor{stringliteral}{\ \ \ \ Return\ the\ score\ and\ n\_features\ per\ step\ for\ a\ fit\ across\ one\ fold.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00042}00042\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00043}00043\ \ \ \ \ X\_train,\ y\_train\ =\ \_safe\_split(estimator,\ X,\ y,\ train)}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00044}00044\ \ \ \ \ X\_test,\ y\_test\ =\ \_safe\_split(estimator,\ X,\ y,\ test,\ train)}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00045}00045\ \ \ \ \ fit\_params\ =\ \_check\_method\_params(}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00046}00046\ \ \ \ \ \ \ \ \ X,\ params=routed\_params.estimator.fit,\ indices=train}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00047}00047\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00048}00048\ \ \ \ \ score\_params\ =\ \_check\_method\_params(}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00049}00049\ \ \ \ \ \ \ \ \ X=X,\ params=routed\_params.scorer.score,\ indices=test}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00050}00050\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00051}00051\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00052}00052\ \ \ \ \ rfe.\_fit(}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00053}00053\ \ \ \ \ \ \ \ \ X\_train,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00054}00054\ \ \ \ \ \ \ \ \ y\_train,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00055}00055\ \ \ \ \ \ \ \ \ \textcolor{keyword}{lambda}\ estimator,\ features:\ \_score(}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00056}00056\ \ \ \ \ \ \ \ \ \ \ \ \ estimator,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00057}00057\ \ \ \ \ \ \ \ \ \ \ \ \ X\_test[:,\ features],}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00058}00058\ \ \ \ \ \ \ \ \ \ \ \ \ y\_test,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00059}00059\ \ \ \ \ \ \ \ \ \ \ \ \ scorer,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00060}00060\ \ \ \ \ \ \ \ \ \ \ \ \ score\_params=score\_params,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00061}00061\ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00062}00062\ \ \ \ \ \ \ \ \ **fit\_params,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00063}00063\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00064}00064\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00065}00065\ \ \ \ \ \textcolor{keywordflow}{return}\ rfe.step\_scores\_,\ rfe.step\_support\_,\ rfe.step\_ranking\_,\ rfe.step\_n\_features\_}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00066}00066\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00067}00067\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00068}\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE}{00068}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE}{RFE}}(\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__base_1_1SelectorMixin}{SelectorMixin}},\ \mbox{\hyperlink{classsklearn_1_1base_1_1MetaEstimatorMixin}{MetaEstimatorMixin}},\ \mbox{\hyperlink{classsklearn_1_1base_1_1BaseEstimator}{BaseEstimator}}):}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00069}00069\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Feature\ ranking\ with\ recursive\ feature\ elimination.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00070}00070\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00071}00071\ \textcolor{stringliteral}{\ \ \ \ Given\ an\ external\ estimator\ that\ assigns\ weights\ to\ features\ (e.g.,\ the}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00072}00072\ \textcolor{stringliteral}{\ \ \ \ coefficients\ of\ a\ linear\ model),\ the\ goal\ of\ recursive\ feature\ elimination}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00073}00073\ \textcolor{stringliteral}{\ \ \ \ (RFE)\ is\ to\ select\ features\ by\ recursively\ considering\ smaller\ and\ smaller}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00074}00074\ \textcolor{stringliteral}{\ \ \ \ sets\ of\ features.\ First,\ the\ estimator\ is\ trained\ on\ the\ initial\ set\ of}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00075}00075\ \textcolor{stringliteral}{\ \ \ \ features\ and\ the\ importance\ of\ each\ feature\ is\ obtained\ either\ through}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00076}00076\ \textcolor{stringliteral}{\ \ \ \ any\ specific\ attribute\ or\ callable.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00077}00077\ \textcolor{stringliteral}{\ \ \ \ Then,\ the\ least\ important\ features\ are\ pruned\ from\ current\ set\ of\ features.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00078}00078\ \textcolor{stringliteral}{\ \ \ \ That\ procedure\ is\ recursively\ repeated\ on\ the\ pruned\ set\ until\ the\ desired}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00079}00079\ \textcolor{stringliteral}{\ \ \ \ number\ of\ features\ to\ select\ is\ eventually\ reached.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00080}00080\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00081}00081\ \textcolor{stringliteral}{\ \ \ \ Read\ more\ in\ the\ :ref:\`{}User\ Guide\ <rfe>\`{}.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00082}00082\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00083}00083\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00084}00084\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00085}00085\ \textcolor{stringliteral}{\ \ \ \ estimator\ :\ \`{}\`{}Estimator\`{}\`{}\ instance}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00086}00086\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ A\ supervised\ learning\ estimator\ with\ a\ \`{}\`{}fit\`{}\`{}\ method\ that\ provides}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00087}00087\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ information\ about\ feature\ importance}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00088}00088\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ (e.g.\ \`{}coef\_\`{},\ \`{}feature\_importances\_\`{}).}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00089}00089\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00090}00090\ \textcolor{stringliteral}{\ \ \ \ n\_features\_to\_select\ :\ int\ or\ float,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00091}00091\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ number\ of\ features\ to\ select.\ If\ \`{}None\`{},\ half\ of\ the\ features\ are}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00092}00092\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ selected.\ If\ integer,\ the\ parameter\ is\ the\ absolute\ number\ of\ features}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00093}00093\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ to\ select.\ If\ float\ between\ 0\ and\ 1,\ it\ is\ the\ fraction\ of\ features\ to}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00094}00094\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ select.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00095}00095\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00096}00096\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionchanged::\ 0.24}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00097}00097\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ Added\ float\ values\ for\ fractions.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00098}00098\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00099}00099\ \textcolor{stringliteral}{\ \ \ \ step\ :\ int\ or\ float,\ default=1}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00100}00100\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ greater\ than\ or\ equal\ to\ 1,\ then\ \`{}\`{}step\`{}\`{}\ corresponds\ to\ the}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00101}00101\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ (integer)\ number\ of\ features\ to\ remove\ at\ each\ iteration.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00102}00102\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ within\ (0.0,\ 1.0),\ then\ \`{}\`{}step\`{}\`{}\ corresponds\ to\ the\ percentage}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00103}00103\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ (rounded\ down)\ of\ features\ to\ remove\ at\ each\ iteration.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00104}00104\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00105}00105\ \textcolor{stringliteral}{\ \ \ \ verbose\ :\ int,\ default=0}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00106}00106\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Controls\ verbosity\ of\ output.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00107}00107\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00108}00108\ \textcolor{stringliteral}{\ \ \ \ importance\_getter\ :\ str\ or\ callable,\ default='auto'}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00109}00109\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ 'auto',\ uses\ the\ feature\ importance\ either\ through\ a\ \`{}coef\_\`{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00110}00110\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ or\ \`{}feature\_importances\_\`{}\ attributes\ of\ estimator.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00111}00111\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00112}00112\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Also\ accepts\ a\ string\ that\ specifies\ an\ attribute\ name/path}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00113}00113\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ for\ extracting\ feature\ importance\ (implemented\ with\ \`{}attrgetter\`{}).}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00114}00114\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ For\ example,\ give\ \`{}regressor\_.coef\_\`{}\ in\ case\ of}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00115}00115\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :class:\`{}\string~sklearn.compose.TransformedTargetRegressor\`{}\ \ or}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00116}00116\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}named\_steps.clf.feature\_importances\_\`{}\ in\ case\ of}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00117}00117\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ class:\`{}\string~sklearn.pipeline.Pipeline\`{}\ with\ its\ last\ step\ named\ \`{}clf\`{}.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00118}00118\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00119}00119\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ \`{}callable\`{},\ overrides\ the\ default\ feature\ importance\ getter.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00120}00120\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ callable\ is\ passed\ with\ the\ fitted\ estimator\ and\ it\ should}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00121}00121\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ return\ importance\ for\ each\ feature.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00122}00122\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00123}00123\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 0.24}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00124}00124\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00125}00125\ \textcolor{stringliteral}{\ \ \ \ Attributes}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00126}00126\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00127}00127\ \textcolor{stringliteral}{\ \ \ \ classes\_\ :\ ndarray\ of\ shape\ (n\_classes,)}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00128}00128\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ classes\ labels.\ Only\ available\ when\ \`{}estimator\`{}\ is\ a\ classifier.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00129}00129\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00130}00130\ \textcolor{stringliteral}{\ \ \ \ estimator\_\ :\ \`{}\`{}Estimator\`{}\`{}\ instance}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00131}00131\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ fitted\ estimator\ used\ to\ select\ features.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00132}00132\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00133}00133\ \textcolor{stringliteral}{\ \ \ \ n\_features\_\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00134}00134\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ number\ of\ selected\ features.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00135}00135\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00136}00136\ \textcolor{stringliteral}{\ \ \ \ n\_features\_in\_\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00137}00137\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ features\ seen\ during\ :term:\`{}fit\`{}.\ Only\ defined\ if\ the}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00138}00138\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ underlying\ estimator\ exposes\ such\ an\ attribute\ when\ fit.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00139}00139\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00140}00140\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 0.24}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00141}00141\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00142}00142\ \textcolor{stringliteral}{\ \ \ \ feature\_names\_in\_\ :\ ndarray\ of\ shape\ (\`{}n\_features\_in\_\`{},)}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00143}00143\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Names\ of\ features\ seen\ during\ :term:\`{}fit\`{}.\ Defined\ only\ when\ \`{}X\`{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00144}00144\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ has\ feature\ names\ that\ are\ all\ strings.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00145}00145\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00146}00146\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 1.0}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00147}00147\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00148}00148\ \textcolor{stringliteral}{\ \ \ \ ranking\_\ :\ ndarray\ of\ shape\ (n\_features,)}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00149}00149\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ feature\ ranking,\ such\ that\ \`{}\`{}ranking\_[i]\`{}\`{}\ corresponds\ to\ the}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00150}00150\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ranking\ position\ of\ the\ i-\/th\ feature.\ Selected\ (i.e.,\ estimated}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00151}00151\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ best)\ features\ are\ assigned\ rank\ 1.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00152}00152\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00153}00153\ \textcolor{stringliteral}{\ \ \ \ support\_\ :\ ndarray\ of\ shape\ (n\_features,)}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00154}00154\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ mask\ of\ selected\ features.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00155}00155\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00156}00156\ \textcolor{stringliteral}{\ \ \ \ See\ Also}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00157}00157\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00158}00158\ \textcolor{stringliteral}{\ \ \ \ RFECV\ :\ Recursive\ feature\ elimination\ with\ built-\/in\ cross-\/validated}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00159}00159\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ selection\ of\ the\ best\ number\ of\ features.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00160}00160\ \textcolor{stringliteral}{\ \ \ \ SelectFromModel\ :\ Feature\ selection\ based\ on\ thresholds\ of\ importance}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00161}00161\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ weights.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00162}00162\ \textcolor{stringliteral}{\ \ \ \ SequentialFeatureSelector\ :\ Sequential\ cross-\/validation\ based\ feature}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00163}00163\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ selection.\ Does\ not\ rely\ on\ importance\ weights.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00164}00164\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00165}00165\ \textcolor{stringliteral}{\ \ \ \ Notes}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00166}00166\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00167}00167\ \textcolor{stringliteral}{\ \ \ \ Allows\ NaN/Inf\ in\ the\ input\ if\ the\ underlying\ estimator\ does\ as\ well.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00168}00168\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00169}00169\ \textcolor{stringliteral}{\ \ \ \ References}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00170}00170\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00171}00171\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00172}00172\ \textcolor{stringliteral}{\ \ \ \ ..\ [1]\ Guyon,\ I.,\ Weston,\ J.,\ Barnhill,\ S.,\ \&\ Vapnik,\ V.,\ "{}Gene\ selection}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00173}00173\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ for\ cancer\ classification\ using\ support\ vector\ machines"{},}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00174}00174\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ Mach.\ Learn.,\ 46(1-\/3),\ 389-\/-\/422,\ 2002.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00175}00175\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00176}00176\ \textcolor{stringliteral}{\ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00177}00177\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00178}00178\ \textcolor{stringliteral}{\ \ \ \ The\ following\ example\ shows\ how\ to\ retrieve\ the\ 5\ most\ informative}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00179}00179\ \textcolor{stringliteral}{\ \ \ \ features\ in\ the\ Friedman\ \#1\ dataset.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00180}00180\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00181}00181\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.datasets\ import\ make\_friedman1}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00182}00182\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.feature\_selection\ import\ RFE}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00183}00183\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.svm\ import\ SVR}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00184}00184\ \textcolor{stringliteral}{\ \ \ \ >>>\ X,\ y\ =\ make\_friedman1(n\_samples=50,\ n\_features=10,\ random\_state=0)}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00185}00185\ \textcolor{stringliteral}{\ \ \ \ >>>\ estimator\ =\ SVR(kernel="{}linear"{})}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00186}00186\ \textcolor{stringliteral}{\ \ \ \ >>>\ selector\ =\ RFE(estimator,\ n\_features\_to\_select=5,\ step=1)}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00187}00187\ \textcolor{stringliteral}{\ \ \ \ >>>\ selector\ =\ selector.fit(X,\ y)}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00188}00188\ \textcolor{stringliteral}{\ \ \ \ >>>\ selector.support\_}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00189}00189\ \textcolor{stringliteral}{\ \ \ \ array([\ True,\ \ True,\ \ True,\ \ True,\ \ True,\ False,\ False,\ False,\ False,}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00190}00190\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ False])}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00191}00191\ \textcolor{stringliteral}{\ \ \ \ >>>\ selector.ranking\_}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00192}00192\ \textcolor{stringliteral}{\ \ \ \ array([1,\ 1,\ 1,\ 1,\ 1,\ 6,\ 4,\ 3,\ 2,\ 5])}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00193}00193\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00194}00194\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00195}00195\ \ \ \ \ \_parameter\_constraints:\ dict\ =\ \{}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00196}00196\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}estimator"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1HasMethods}{HasMethods}}([\textcolor{stringliteral}{"{}fit"{}}])],}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00197}00197\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}n\_features\_to\_select"{}}:\ [}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00198}00198\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00199}00199\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(RealNotInt,\ 0,\ 1,\ closed=\textcolor{stringliteral}{"{}right"{}}),}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00200}00200\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Integral,\ 0,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}neither"{}}),}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00201}00201\ \ \ \ \ \ \ \ \ ],}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00202}00202\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}step"{}}:\ [}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00203}00203\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Integral,\ 0,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}neither"{}}),}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00204}00204\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(RealNotInt,\ 0,\ 1,\ closed=\textcolor{stringliteral}{"{}neither"{}}),}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00205}00205\ \ \ \ \ \ \ \ \ ],}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00206}00206\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}verbose"{}}:\ [\textcolor{stringliteral}{"{}verbose"{}}],}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00207}00207\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}importance\_getter"{}}:\ [str,\ callable],}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00208}00208\ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00209}00209\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00210}00210\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00211}00211\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00212}00212\ \ \ \ \ \ \ \ \ estimator,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00213}00213\ \ \ \ \ \ \ \ \ *,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00214}00214\ \ \ \ \ \ \ \ \ n\_features\_to\_select=None,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00215}00215\ \ \ \ \ \ \ \ \ step=1,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00216}00216\ \ \ \ \ \ \ \ \ verbose=0,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00217}00217\ \ \ \ \ \ \ \ \ importance\_getter="{}auto"{},}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00218}00218\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00219}00219\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_ad43d5a1f5c27ff8177a04cb7b9fb339c}{estimator}}\ =\ estimator}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00220}00220\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_ac240fbaa3ff05398d6cbdb1bee4dc6ac}{n\_features\_to\_select}}\ =\ n\_features\_to\_select}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00221}00221\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a13b8c74c8909c10423e6978d0531adcf}{step}}\ =\ step}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00222}00222\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_ad0e8ba836e2633cce7a32ac851a5e92a}{importance\_getter}}\ =\ importance\_getter}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00223}00223\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_af08985e61d3e3da46f9b80cd8f4456b1}{verbose}}\ =\ verbose}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00224}00224\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00225}00225\ \ \ \ \ \textcolor{comment}{\#\ TODO(1.8)\ remove\ this\ property}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00226}00226\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00227}00227\ \ \ \ \ \textcolor{keyword}{def\ }\_estimator\_type(self):}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00228}00228\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_ad43d5a1f5c27ff8177a04cb7b9fb339c}{estimator}}.\_estimator\_type}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00229}00229\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00230}00230\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00231}\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a23f7a2ecaff2edc0efdd761e6c06061e}{00231}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a23f7a2ecaff2edc0efdd761e6c06061e}{classes\_}}(self):}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00232}00232\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Classes\ labels\ available\ when\ \`{}estimator\`{}\ is\ a\ classifier.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00233}00233\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00234}00234\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00235}00235\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00236}00236\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ndarray\ of\ shape\ (n\_classes,)}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00237}00237\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00238}00238\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a594276d718a812e5b93e45bb3b1c075f}{estimator\_}}.classes\_}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00239}00239\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00240}00240\ \ \ \ \ \textcolor{preprocessor}{@\_fit\_context}(}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00241}00241\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ RFE.estimator\ is\ not\ validated\ yet}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00242}00242\ \ \ \ \ \ \ \ \ prefer\_skip\_nested\_validation=\textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00243}00243\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00244}\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a749aefbf056076feaa1547ac06215ed5}{00244}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a749aefbf056076feaa1547ac06215ed5}{fit}}(self,\ X,\ y,\ **fit\_params):}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00245}00245\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Fit\ the\ RFE\ model\ and\ then\ the\ underlying\ estimator\ on\ the\ selected\ features.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00246}00246\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00247}00247\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00248}00248\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00249}00249\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\ :\ \{array-\/like,\ sparse\ matrix\}\ of\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00250}00250\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ training\ input\ samples.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00251}00251\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00252}00252\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ y\ :\ array-\/like\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00253}00253\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ target\ values.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00254}00254\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00255}00255\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ **fit\_params\ :\ dict}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00256}00256\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ -\/\ If\ \`{}enable\_metadata\_routing=False\`{}\ (default):\ Parameters\ directly\ passed}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00257}00257\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ to\ the\ \`{}\`{}fit\`{}\`{}\ method\ of\ the\ underlying\ estimator.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00258}00258\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00259}00259\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ -\/\ If\ \`{}enable\_metadata\_routing=True\`{}:\ Parameters\ safely\ routed\ to\ the\ \`{}\`{}fit\`{}\`{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00260}00260\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ method\ of\ the\ underlying\ estimator.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00261}00261\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00262}00262\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ ..\ versionchanged::\ 1.6}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00263}00263\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ See\ :ref:\`{}Metadata\ Routing\ User\ Guide\ <metadata\_routing>\`{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00264}00264\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ for\ more\ details.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00265}00265\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00266}00266\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00267}00267\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00268}00268\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ self\ :\ object}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00269}00269\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Fitted\ estimator.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00270}00270\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00271}00271\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \_routing\_enabled():}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00272}00272\ \ \ \ \ \ \ \ \ \ \ \ \ routed\_params\ =\ process\_routing(self,\ \textcolor{stringliteral}{"{}fit"{}},\ **fit\_params)}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00273}00273\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00274}00274\ \ \ \ \ \ \ \ \ \ \ \ \ routed\_params\ =\ \mbox{\hyperlink{classsklearn_1_1utils_1_1__bunch_1_1Bunch}{Bunch}}(estimator=\mbox{\hyperlink{classsklearn_1_1utils_1_1__bunch_1_1Bunch}{Bunch}}(fit=fit\_params))}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00275}00275\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00276}00276\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_aff8946bb65c168aad6c29e303d9c2a64}{\_fit}}(X,\ y,\ **routed\_params.estimator.fit)}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00277}00277\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00278}00278\ \ \ \ \ \textcolor{keyword}{def\ }\_fit(self,\ X,\ y,\ step\_score=None,\ **fit\_params):}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00279}00279\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Parameter\ step\_score\ controls\ the\ calculation\ of\ self.step\_scores\_}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00280}00280\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ step\_score\ is\ not\ exposed\ to\ users\ and\ is\ used\ when\ implementing\ RFECV}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00281}00281\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ self.step\_scores\_\ will\ not\ be\ calculated\ when\ calling\ \_fit\ through\ fit}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00282}00282\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00283}00283\ \ \ \ \ \ \ \ \ X,\ y\ =\ validate\_data(}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00284}00284\ \ \ \ \ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00285}00285\ \ \ \ \ \ \ \ \ \ \ \ \ X,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00286}00286\ \ \ \ \ \ \ \ \ \ \ \ \ y,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00287}00287\ \ \ \ \ \ \ \ \ \ \ \ \ accept\_sparse=\textcolor{stringliteral}{"{}csc"{}},}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00288}00288\ \ \ \ \ \ \ \ \ \ \ \ \ ensure\_min\_features=2,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00289}00289\ \ \ \ \ \ \ \ \ \ \ \ \ ensure\_all\_finite=\textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00290}00290\ \ \ \ \ \ \ \ \ \ \ \ \ multi\_output=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00291}00291\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00292}00292\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00293}00293\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Initialization}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00294}00294\ \ \ \ \ \ \ \ \ n\_features\ =\ X.shape[1]}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00295}00295\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_ac240fbaa3ff05398d6cbdb1bee4dc6ac}{n\_features\_to\_select}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00296}00296\ \ \ \ \ \ \ \ \ \ \ \ \ n\_features\_to\_select\ =\ n\_features\ //\ 2}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00297}00297\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ isinstance(self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_ac240fbaa3ff05398d6cbdb1bee4dc6ac}{n\_features\_to\_select}},\ Integral):\ \ \textcolor{comment}{\#\ int}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00298}00298\ \ \ \ \ \ \ \ \ \ \ \ \ n\_features\_to\_select\ =\ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_ac240fbaa3ff05398d6cbdb1bee4dc6ac}{n\_features\_to\_select}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00299}00299\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ n\_features\_to\_select\ >\ n\_features:}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00300}00300\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00301}00301\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00302}00302\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}Found\ \{n\_features\_to\_select=\}\ >\ \{n\_features=\}.\ There\ will\ be"{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00303}00303\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ no\ feature\ selection\ and\ all\ features\ will\ be\ kept."{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00304}00304\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00305}00305\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ UserWarning,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00306}00306\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00307}00307\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:\ \ \textcolor{comment}{\#\ float}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00308}00308\ \ \ \ \ \ \ \ \ \ \ \ \ n\_features\_to\_select\ =\ int(n\_features\ *\ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_ac240fbaa3ff05398d6cbdb1bee4dc6ac}{n\_features\_to\_select}})}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00309}00309\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00310}00310\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ 0.0\ <\ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a13b8c74c8909c10423e6978d0531adcf}{step}}\ <\ 1.0:}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00311}00311\ \ \ \ \ \ \ \ \ \ \ \ \ step\ =\ int(max(1,\ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a13b8c74c8909c10423e6978d0531adcf}{step}}\ *\ n\_features))}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00312}00312\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00313}00313\ \ \ \ \ \ \ \ \ \ \ \ \ step\ =\ int(self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a13b8c74c8909c10423e6978d0531adcf}{step}})}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00314}00314\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00315}00315\ \ \ \ \ \ \ \ \ support\_\ =\ np.ones(n\_features,\ dtype=bool)}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00316}00316\ \ \ \ \ \ \ \ \ ranking\_\ =\ np.ones(n\_features,\ dtype=int)}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00317}00317\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00318}00318\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ step\_score:}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00319}00319\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a7c4783c1a216e27d3914ca0908e5266e}{step\_n\_features\_}}\ =\ []}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00320}00320\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_aa5a4d73ac850e08b21600ffd60d19f02}{step\_scores\_}}\ =\ []}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00321}00321\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a1292ca49f94788d6fc7a7d9e7fbe87e2}{step\_support\_}}\ =\ []}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00322}00322\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_accb19ad0ca0741c32446ba7ee2b99e7f}{step\_ranking\_}}\ =\ []}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00323}00323\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00324}00324\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Elimination}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00325}00325\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{while}\ np.sum(support\_)\ >\ n\_features\_to\_select:}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00326}00326\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Remaining\ features}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00327}00327\ \ \ \ \ \ \ \ \ \ \ \ \ features\ =\ np.arange(n\_features)[support\_]}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00328}00328\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00329}00329\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Rank\ the\ remaining\ features}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00330}00330\ \ \ \ \ \ \ \ \ \ \ \ \ estimator\ =\ clone(self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_ad43d5a1f5c27ff8177a04cb7b9fb339c}{estimator}})}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00331}00331\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_af08985e61d3e3da46f9b80cd8f4456b1}{verbose}}\ >\ 0:}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00332}00332\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(\textcolor{stringliteral}{"{}Fitting\ estimator\ with\ \%d\ features."{}}\ \%\ np.sum(support\_))}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00333}00333\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00334}00334\ \ \ \ \ \ \ \ \ \ \ \ \ estimator.fit(X[:,\ features],\ y,\ **fit\_params)}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00335}00335\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00336}00336\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Compute\ step\ values\ on\ the\ previous\ selection\ iteration\ because}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00337}00337\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ 'estimator'\ must\ use\ features\ that\ have\ not\ been\ eliminated\ yet}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00338}00338\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ step\_score:}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00339}00339\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a7c4783c1a216e27d3914ca0908e5266e}{step\_n\_features\_}}.append(len(features))}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00340}00340\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_aa5a4d73ac850e08b21600ffd60d19f02}{step\_scores\_}}.append(step\_score(estimator,\ features))}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00341}00341\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a1292ca49f94788d6fc7a7d9e7fbe87e2}{step\_support\_}}.append(list(support\_))}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00342}00342\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_accb19ad0ca0741c32446ba7ee2b99e7f}{step\_ranking\_}}.append(list(ranking\_))}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00343}00343\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00344}00344\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Get\ importance\ and\ rank\ them}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00345}00345\ \ \ \ \ \ \ \ \ \ \ \ \ importances\ =\ \_get\_feature\_importances(}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00346}00346\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ estimator,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00347}00347\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_ad0e8ba836e2633cce7a32ac851a5e92a}{importance\_getter}},}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00348}00348\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ transform\_func=\textcolor{stringliteral}{"{}square"{}},}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00349}00349\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00350}00350\ \ \ \ \ \ \ \ \ \ \ \ \ ranks\ =\ np.argsort(importances)}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00351}00351\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00352}00352\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ for\ sparse\ case\ ranks\ is\ matrix}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00353}00353\ \ \ \ \ \ \ \ \ \ \ \ \ ranks\ =\ np.ravel(ranks)}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00354}00354\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00355}00355\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Eliminate\ the\ worse\ features}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00356}00356\ \ \ \ \ \ \ \ \ \ \ \ \ threshold\ =\ min(step,\ np.sum(support\_)\ -\/\ n\_features\_to\_select)}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00357}00357\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00358}00358\ \ \ \ \ \ \ \ \ \ \ \ \ support\_[features[ranks][:threshold]]\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00359}00359\ \ \ \ \ \ \ \ \ \ \ \ \ ranking\_[np.logical\_not(support\_)]\ +=\ 1}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00360}00360\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00361}00361\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Set\ final\ attributes}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00362}00362\ \ \ \ \ \ \ \ \ features\ =\ np.arange(n\_features)[support\_]}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00363}00363\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a594276d718a812e5b93e45bb3b1c075f}{estimator\_}}\ =\ clone(self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_ad43d5a1f5c27ff8177a04cb7b9fb339c}{estimator}})}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00364}00364\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a594276d718a812e5b93e45bb3b1c075f}{estimator\_}}.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a749aefbf056076feaa1547ac06215ed5}{fit}}(X[:,\ features],\ y,\ **fit\_params)}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00365}00365\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00366}00366\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Compute\ step\ values\ when\ only\ n\_features\_to\_select\ features\ left}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00367}00367\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ step\_score:}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00368}00368\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a7c4783c1a216e27d3914ca0908e5266e}{step\_n\_features\_}}.append(len(features))}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00369}00369\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_aa5a4d73ac850e08b21600ffd60d19f02}{step\_scores\_}}.append(step\_score(self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a594276d718a812e5b93e45bb3b1c075f}{estimator\_}},\ features))}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00370}00370\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a1292ca49f94788d6fc7a7d9e7fbe87e2}{step\_support\_}}.append(support\_)}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00371}00371\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_accb19ad0ca0741c32446ba7ee2b99e7f}{step\_ranking\_}}.append(ranking\_)}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00372}00372\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a995363a219cafed1bc4c8a6adbd2160d}{n\_features\_}}\ =\ support\_.sum()}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00373}00373\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_ab5a02ba2f14fee1b76c4411806f676be}{support\_}}\ =\ support\_}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00374}00374\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_adf1c84cc1a980a102a96f0c7d22687f5}{ranking\_}}\ =\ ranking\_}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00375}00375\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00376}00376\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00377}00377\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00378}00378\ \ \ \ \ \textcolor{preprocessor}{@available\_if(\_estimator\_has("{}predict"{})})}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00379}\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_abc1ee6120dd8cfe1c8e58112c23b83ca}{00379}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_abc1ee6120dd8cfe1c8e58112c23b83ca}{predict}}(self,\ X,\ **predict\_params):}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00380}00380\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Reduce\ X\ to\ the\ selected\ features\ and\ predict\ using\ the\ estimator.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00381}00381\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00382}00382\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00383}00383\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00384}00384\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\ :\ array\ of\ shape\ [n\_samples,\ n\_features]}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00385}00385\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ input\ samples.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00386}00386\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00387}00387\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ **predict\_params\ :\ dict}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00388}00388\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Parameters\ to\ route\ to\ the\ \`{}\`{}predict\`{}\`{}\ method\ of\ the}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00389}00389\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ underlying\ estimator.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00390}00390\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00391}00391\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ ..\ versionadded::\ 1.6}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00392}00392\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ Only\ available\ if\ \`{}enable\_metadata\_routing=True\`{},}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00393}00393\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ which\ can\ be\ set\ by\ using}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00394}00394\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \`{}\`{}sklearn.set\_config(enable\_metadata\_routing=True)\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00395}00395\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ See\ :ref:\`{}Metadata\ Routing\ User\ Guide\ <metadata\_routing>\`{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00396}00396\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ for\ more\ details.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00397}00397\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00398}00398\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00399}00399\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00400}00400\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ y\ :\ array\ of\ shape\ [n\_samples]}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00401}00401\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ predicted\ target\ values.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00402}00402\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00403}00403\ \ \ \ \ \ \ \ \ \_raise\_for\_params(predict\_params,\ self,\ \textcolor{stringliteral}{"{}predict"{}})}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00404}00404\ \ \ \ \ \ \ \ \ check\_is\_fitted(self)}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00405}00405\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \_routing\_enabled():}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00406}00406\ \ \ \ \ \ \ \ \ \ \ \ \ routed\_params\ =\ process\_routing(self,\ \textcolor{stringliteral}{"{}predict"{}},\ **predict\_params)}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00407}00407\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00408}00408\ \ \ \ \ \ \ \ \ \ \ \ \ routed\_params\ =\ \mbox{\hyperlink{classsklearn_1_1utils_1_1__bunch_1_1Bunch}{Bunch}}(estimator=\mbox{\hyperlink{classsklearn_1_1utils_1_1__bunch_1_1Bunch}{Bunch}}(predict=\{\}))}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00409}00409\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00410}00410\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a594276d718a812e5b93e45bb3b1c075f}{estimator\_}}.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_abc1ee6120dd8cfe1c8e58112c23b83ca}{predict}}(}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00411}00411\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__base_1_1SelectorMixin_a770b62e91cbb3a47ec88f32f56b9a869}{transform}}(X),\ **routed\_params.estimator.predict}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00412}00412\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00413}00413\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00414}00414\ \ \ \ \ \textcolor{preprocessor}{@available\_if(\_estimator\_has("{}score"{})})}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00415}\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_afc6ccf6f36df1b08c354233ddef29dfa}{00415}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_afc6ccf6f36df1b08c354233ddef29dfa}{score}}(self,\ X,\ y,\ **score\_params):}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00416}00416\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Reduce\ X\ to\ the\ selected\ features\ and\ return\ the\ score\ of\ the\ estimator.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00417}00417\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00418}00418\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00419}00419\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00420}00420\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\ :\ array\ of\ shape\ [n\_samples,\ n\_features]}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00421}00421\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ input\ samples.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00422}00422\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00423}00423\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ y\ :\ array\ of\ shape\ [n\_samples]}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00424}00424\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ target\ values.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00425}00425\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00426}00426\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ **score\_params\ :\ dict}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00427}00427\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ -\/\ If\ \`{}enable\_metadata\_routing=False\`{}\ (default):\ Parameters\ directly\ passed}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00428}00428\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ to\ the\ \`{}\`{}score\`{}\`{}\ method\ of\ the\ underlying\ estimator.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00429}00429\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00430}00430\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ -\/\ If\ \`{}enable\_metadata\_routing=True\`{}:\ Parameters\ safely\ routed\ to\ the\ \`{}score\`{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00431}00431\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ method\ of\ the\ underlying\ estimator.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00432}00432\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00433}00433\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ ..\ versionadded::\ 1.0}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00434}00434\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00435}00435\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ ..\ versionchanged::\ 1.6}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00436}00436\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ See\ :ref:\`{}Metadata\ Routing\ User\ Guide\ <metadata\_routing>\`{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00437}00437\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ for\ more\ details.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00438}00438\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00439}00439\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00440}00440\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00441}00441\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ score\ :\ float}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00442}00442\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Score\ of\ the\ underlying\ base\ estimator\ computed\ with\ the\ selected}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00443}00443\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ features\ returned\ by\ \`{}rfe.transform(X)\`{}\ and\ \`{}y\`{}.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00444}00444\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00445}00445\ \ \ \ \ \ \ \ \ check\_is\_fitted(self)}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00446}00446\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \_routing\_enabled():}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00447}00447\ \ \ \ \ \ \ \ \ \ \ \ \ routed\_params\ =\ process\_routing(self,\ \textcolor{stringliteral}{"{}score"{}},\ **score\_params)}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00448}00448\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00449}00449\ \ \ \ \ \ \ \ \ \ \ \ \ routed\_params\ =\ \mbox{\hyperlink{classsklearn_1_1utils_1_1__bunch_1_1Bunch}{Bunch}}(estimator=\mbox{\hyperlink{classsklearn_1_1utils_1_1__bunch_1_1Bunch}{Bunch}}(score=score\_params))}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00450}00450\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00451}00451\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a594276d718a812e5b93e45bb3b1c075f}{estimator\_}}.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_afc6ccf6f36df1b08c354233ddef29dfa}{score}}(}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00452}00452\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__base_1_1SelectorMixin_a770b62e91cbb3a47ec88f32f56b9a869}{transform}}(X),\ y,\ **routed\_params.estimator.score}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00453}00453\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00454}00454\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00455}\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a9e52a3dc1dfac1919af66d20b5ae79fc}{00455}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a9e52a3dc1dfac1919af66d20b5ae79fc}{\_get\_support\_mask}}(self):}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00456}00456\ \ \ \ \ \ \ \ \ check\_is\_fitted(self)}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00457}00457\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_ab5a02ba2f14fee1b76c4411806f676be}{support\_}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00458}00458\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00459}00459\ \ \ \ \ \textcolor{preprocessor}{@available\_if(\_estimator\_has("{}decision\_function"{})})}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00460}\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a8db11987efe10d160d03c55ccc9770fe}{00460}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a8db11987efe10d160d03c55ccc9770fe}{decision\_function}}(self,\ X):}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00461}00461\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Compute\ the\ decision\ function\ of\ \`{}\`{}X\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00462}00462\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00463}00463\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00464}00464\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00465}00465\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\ :\ \{array-\/like\ or\ sparse\ matrix\}\ of\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00466}00466\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ input\ samples.\ Internally,\ it\ will\ be\ converted\ to}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00467}00467\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \`{}\`{}dtype=np.float32\`{}\`{}\ and\ if\ a\ sparse\ matrix\ is\ provided}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00468}00468\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ to\ a\ sparse\ \`{}\`{}csr\_matrix\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00469}00469\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00470}00470\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00471}00471\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00472}00472\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ score\ :\ array,\ shape\ =\ [n\_samples,\ n\_classes]\ or\ [n\_samples]}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00473}00473\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ decision\ function\ of\ the\ input\ samples.\ The\ order\ of\ the}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00474}00474\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ classes\ corresponds\ to\ that\ in\ the\ attribute\ :term:\`{}classes\_\`{}.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00475}00475\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Regression\ and\ binary\ classification\ produce\ an\ array\ of\ shape}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00476}00476\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ [n\_samples].}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00477}00477\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00478}00478\ \ \ \ \ \ \ \ \ check\_is\_fitted(self)}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00479}00479\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a594276d718a812e5b93e45bb3b1c075f}{estimator\_}}.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a8db11987efe10d160d03c55ccc9770fe}{decision\_function}}(self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__base_1_1SelectorMixin_a770b62e91cbb3a47ec88f32f56b9a869}{transform}}(X))}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00480}00480\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00481}00481\ \ \ \ \ \textcolor{preprocessor}{@available\_if(\_estimator\_has("{}predict\_proba"{})})}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00482}\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a15f1bd3070dfbe50c63b7264bb913c20}{00482}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a15f1bd3070dfbe50c63b7264bb913c20}{predict\_proba}}(self,\ X):}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00483}00483\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Predict\ class\ probabilities\ for\ X.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00484}00484\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00485}00485\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00486}00486\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00487}00487\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\ :\ \{array-\/like\ or\ sparse\ matrix\}\ of\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00488}00488\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ input\ samples.\ Internally,\ it\ will\ be\ converted\ to}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00489}00489\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \`{}\`{}dtype=np.float32\`{}\`{}\ and\ if\ a\ sparse\ matrix\ is\ provided}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00490}00490\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ to\ a\ sparse\ \`{}\`{}csr\_matrix\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00491}00491\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00492}00492\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00493}00493\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00494}00494\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ p\ :\ array\ of\ shape\ (n\_samples,\ n\_classes)}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00495}00495\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ class\ probabilities\ of\ the\ input\ samples.\ The\ order\ of\ the}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00496}00496\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ classes\ corresponds\ to\ that\ in\ the\ attribute\ :term:\`{}classes\_\`{}.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00497}00497\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00498}00498\ \ \ \ \ \ \ \ \ check\_is\_fitted(self)}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00499}00499\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a594276d718a812e5b93e45bb3b1c075f}{estimator\_}}.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a15f1bd3070dfbe50c63b7264bb913c20}{predict\_proba}}(self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__base_1_1SelectorMixin_a770b62e91cbb3a47ec88f32f56b9a869}{transform}}(X))}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00500}00500\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00501}00501\ \ \ \ \ \textcolor{preprocessor}{@available\_if(\_estimator\_has("{}predict\_log\_proba"{})})}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00502}\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a42f076790c4f6637fba5b9ba5904d7b1}{00502}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a42f076790c4f6637fba5b9ba5904d7b1}{predict\_log\_proba}}(self,\ X):}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00503}00503\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Predict\ class\ log-\/probabilities\ for\ X.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00504}00504\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00505}00505\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00506}00506\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00507}00507\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\ :\ array\ of\ shape\ [n\_samples,\ n\_features]}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00508}00508\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ input\ samples.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00509}00509\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00510}00510\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00511}00511\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00512}00512\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ p\ :\ array\ of\ shape\ (n\_samples,\ n\_classes)}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00513}00513\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ class\ log-\/probabilities\ of\ the\ input\ samples.\ The\ order\ of\ the}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00514}00514\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ classes\ corresponds\ to\ that\ in\ the\ attribute\ :term:\`{}classes\_\`{}.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00515}00515\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00516}00516\ \ \ \ \ \ \ \ \ check\_is\_fitted(self)}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00517}00517\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a594276d718a812e5b93e45bb3b1c075f}{estimator\_}}.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a42f076790c4f6637fba5b9ba5904d7b1}{predict\_log\_proba}}(self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__base_1_1SelectorMixin_a770b62e91cbb3a47ec88f32f56b9a869}{transform}}(X))}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00518}00518\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00519}00519\ \ \ \ \ \textcolor{keyword}{def\ }\_\_sklearn\_tags\_\_(self):}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00520}00520\ \ \ \ \ \ \ \ \ tags\ =\ super().\_\_sklearn\_tags\_\_()}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00521}00521\ \ \ \ \ \ \ \ \ sub\_estimator\_tags\ =\ get\_tags(self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_ad43d5a1f5c27ff8177a04cb7b9fb339c}{estimator}})}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00522}00522\ \ \ \ \ \ \ \ \ tags.estimator\_type\ =\ sub\_estimator\_tags.estimator\_type}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00523}00523\ \ \ \ \ \ \ \ \ tags.classifier\_tags\ =\ deepcopy(sub\_estimator\_tags.classifier\_tags)}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00524}00524\ \ \ \ \ \ \ \ \ tags.regressor\_tags\ =\ deepcopy(sub\_estimator\_tags.regressor\_tags)}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00525}00525\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ tags.classifier\_tags\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00526}00526\ \ \ \ \ \ \ \ \ \ \ \ \ tags.classifier\_tags.poor\_score\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00527}00527\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ tags.regressor\_tags\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00528}00528\ \ \ \ \ \ \ \ \ \ \ \ \ tags.regressor\_tags.poor\_score\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00529}00529\ \ \ \ \ \ \ \ \ tags.target\_tags.required\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00530}00530\ \ \ \ \ \ \ \ \ tags.input\_tags.sparse\ =\ sub\_estimator\_tags.input\_tags.sparse}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00531}00531\ \ \ \ \ \ \ \ \ tags.input\_tags.allow\_nan\ =\ sub\_estimator\_tags.input\_tags.allow\_nan}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00532}00532\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ tags}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00533}00533\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00534}\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a3bc90b1c66ca5b45dc1d63419a8351c5}{00534}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a3bc90b1c66ca5b45dc1d63419a8351c5}{get\_metadata\_routing}}(self):}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00535}00535\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Get\ metadata\ routing\ of\ this\ object.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00536}00536\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00537}00537\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Please\ check\ :ref:\`{}User\ Guide\ <metadata\_routing>\`{}\ on\ how\ the\ routing}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00538}00538\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ mechanism\ works.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00539}00539\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00540}00540\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 1.6}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00541}00541\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00542}00542\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00543}00543\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00544}00544\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ routing\ :\ MetadataRouter}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00545}00545\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ A\ :class:\`{}\string~sklearn.utils.metadata\_routing.MetadataRouter\`{}\ encapsulating}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00546}00546\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ routing\ information.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00547}00547\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00548}00548\ \ \ \ \ \ \ \ \ router\ =\ \mbox{\hyperlink{classsklearn_1_1utils_1_1__metadata__requests_1_1MetadataRouter}{MetadataRouter}}(owner=self.\_\_class\_\_.\_\_name\_\_).add(}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00549}00549\ \ \ \ \ \ \ \ \ \ \ \ \ estimator=self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_ad43d5a1f5c27ff8177a04cb7b9fb339c}{estimator}},}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00550}00550\ \ \ \ \ \ \ \ \ \ \ \ \ method\_mapping=\mbox{\hyperlink{classsklearn_1_1utils_1_1__metadata__requests_1_1MethodMapping}{MethodMapping}}()}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00551}00551\ \ \ \ \ \ \ \ \ \ \ \ \ .add(caller=\textcolor{stringliteral}{"{}fit"{}},\ callee=\textcolor{stringliteral}{"{}fit"{}})}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00552}00552\ \ \ \ \ \ \ \ \ \ \ \ \ .add(caller=\textcolor{stringliteral}{"{}predict"{}},\ callee=\textcolor{stringliteral}{"{}predict"{}})}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00553}00553\ \ \ \ \ \ \ \ \ \ \ \ \ .add(caller=\textcolor{stringliteral}{"{}score"{}},\ callee=\textcolor{stringliteral}{"{}score"{}}),}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00554}00554\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00555}00555\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ router}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00556}00556\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00557}00557\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00558}\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFECV}{00558}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFECV}{RFECV}}(\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE}{RFE}}):}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00559}00559\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Recursive\ feature\ elimination\ with\ cross-\/validation\ to\ select\ features.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00560}00560\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00561}00561\ \textcolor{stringliteral}{\ \ \ \ The\ number\ of\ features\ selected\ is\ tuned\ automatically\ by\ fitting\ an\ :class:\`{}RFE\`{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00562}00562\ \textcolor{stringliteral}{\ \ \ \ selector\ on\ the\ different\ cross-\/validation\ splits\ (provided\ by\ the\ \`{}cv\`{}\ parameter).}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00563}00563\ \textcolor{stringliteral}{\ \ \ \ The\ performance\ of\ each\ :class:\`{}RFE\`{}\ selector\ is\ evaluated\ using\ \`{}scoring\`{}\ for}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00564}00564\ \textcolor{stringliteral}{\ \ \ \ different\ numbers\ of\ selected\ features\ and\ aggregated\ together.\ Finally,\ the\ scores}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00565}00565\ \textcolor{stringliteral}{\ \ \ \ are\ averaged\ across\ folds\ and\ the\ number\ of\ features\ selected\ is\ set\ to\ the\ number}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00566}00566\ \textcolor{stringliteral}{\ \ \ \ of\ features\ that\ maximize\ the\ cross-\/validation\ score.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00567}00567\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00568}00568\ \textcolor{stringliteral}{\ \ \ \ See\ glossary\ entry\ for\ :term:\`{}cross-\/validation\ estimator\`{}.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00569}00569\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00570}00570\ \textcolor{stringliteral}{\ \ \ \ Read\ more\ in\ the\ :ref:\`{}User\ Guide\ <rfe>\`{}.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00571}00571\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00572}00572\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00573}00573\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00574}00574\ \textcolor{stringliteral}{\ \ \ \ estimator\ :\ \`{}\`{}Estimator\`{}\`{}\ instance}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00575}00575\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ A\ supervised\ learning\ estimator\ with\ a\ \`{}\`{}fit\`{}\`{}\ method\ that\ provides}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00576}00576\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ information\ about\ feature\ importance\ either\ through\ a\ \`{}\`{}coef\_\`{}\`{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00577}00577\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ attribute\ or\ through\ a\ \`{}\`{}feature\_importances\_\`{}\`{}\ attribute.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00578}00578\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00579}00579\ \textcolor{stringliteral}{\ \ \ \ step\ :\ int\ or\ float,\ default=1}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00580}00580\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ greater\ than\ or\ equal\ to\ 1,\ then\ \`{}\`{}step\`{}\`{}\ corresponds\ to\ the}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00581}00581\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ (integer)\ number\ of\ features\ to\ remove\ at\ each\ iteration.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00582}00582\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ within\ (0.0,\ 1.0),\ then\ \`{}\`{}step\`{}\`{}\ corresponds\ to\ the\ percentage}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00583}00583\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ (rounded\ down)\ of\ features\ to\ remove\ at\ each\ iteration.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00584}00584\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Note\ that\ the\ last\ iteration\ may\ remove\ fewer\ than\ \`{}\`{}step\`{}\`{}\ features\ in}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00585}00585\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ order\ to\ reach\ \`{}\`{}min\_features\_to\_select\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00586}00586\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00587}00587\ \textcolor{stringliteral}{\ \ \ \ min\_features\_to\_select\ :\ int,\ default=1}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00588}00588\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ minimum\ number\ of\ features\ to\ be\ selected.\ This\ number\ of\ features}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00589}00589\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ will\ always\ be\ scored,\ even\ if\ the\ difference\ between\ the\ original}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00590}00590\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ feature\ count\ and\ \`{}\`{}min\_features\_to\_select\`{}\`{}\ isn't\ divisible\ by}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00591}00591\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}step\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00592}00592\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00593}00593\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 0.20}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00594}00594\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00595}00595\ \textcolor{stringliteral}{\ \ \ \ cv\ :\ int,\ cross-\/validation\ generator\ or\ an\ iterable,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00596}00596\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Determines\ the\ cross-\/validation\ splitting\ strategy.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00597}00597\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Possible\ inputs\ for\ cv\ are:}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00598}00598\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00599}00599\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ None,\ to\ use\ the\ default\ 5-\/fold\ cross-\/validation,}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00600}00600\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ integer,\ to\ specify\ the\ number\ of\ folds.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00601}00601\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ :term:\`{}CV\ splitter\`{},}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00602}00602\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ An\ iterable\ yielding\ (train,\ test)\ splits\ as\ arrays\ of\ indices.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00603}00603\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00604}00604\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ For\ integer/None\ inputs,\ if\ \`{}\`{}y\`{}\`{}\ is\ binary\ or\ multiclass,}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00605}00605\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :class:\`{}\string~sklearn.model\_selection.StratifiedKFold\`{}\ is\ used.\ If\ the}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00606}00606\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ estimator\ is\ not\ a\ classifier\ or\ if\ \`{}\`{}y\`{}\`{}\ is\ neither\ binary\ nor\ multiclass,}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00607}00607\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :class:\`{}\string~sklearn.model\_selection.KFold\`{}\ is\ used.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00608}00608\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00609}00609\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Refer\ :ref:\`{}User\ Guide\ <cross\_validation>\`{}\ for\ the\ various}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00610}00610\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ cross-\/validation\ strategies\ that\ can\ be\ used\ here.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00611}00611\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00612}00612\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionchanged::\ 0.22}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00613}00613\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \`{}\`{}cv\`{}\`{}\ default\ value\ of\ None\ changed\ from\ 3-\/fold\ to\ 5-\/fold.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00614}00614\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00615}00615\ \textcolor{stringliteral}{\ \ \ \ scoring\ :\ str\ or\ callable,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00616}00616\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Scoring\ method\ to\ evaluate\ the\ :class:\`{}RFE\`{}\ selectors'\ performance.\ Options:}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00617}00617\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00618}00618\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ str:\ see\ :ref:\`{}scoring\_string\_names\`{}\ for\ options.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00619}00619\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ callable:\ a\ scorer\ callable\ object\ (e.g.,\ function)\ with\ signature}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00620}00620\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \`{}\`{}scorer(estimator,\ X,\ y)\`{}\`{}.\ See\ :ref:\`{}scoring\_callable\`{}\ for\ details.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00621}00621\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ \`{}None\`{}:\ the\ \`{}estimator\`{}'s}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00622}00622\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ :ref:\`{}default\ evaluation\ criterion\ <scoring\_api\_overview>\`{}\ is\ used.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00623}00623\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00624}00624\ \textcolor{stringliteral}{\ \ \ \ verbose\ :\ int,\ default=0}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00625}00625\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Controls\ verbosity\ of\ output.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00626}00626\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00627}00627\ \textcolor{stringliteral}{\ \ \ \ n\_jobs\ :\ int\ or\ None,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00628}00628\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ cores\ to\ run\ in\ parallel\ while\ fitting\ across\ folds.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00629}00629\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}None\`{}\`{}\ means\ 1\ unless\ in\ a\ :obj:\`{}joblib.parallel\_backend\`{}\ context.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00630}00630\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}-\/1\`{}\`{}\ means\ using\ all\ processors.\ See\ :term:\`{}Glossary\ <n\_jobs>\`{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00631}00631\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ for\ more\ details.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00632}00632\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00633}00633\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 0.18}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00634}00634\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00635}00635\ \textcolor{stringliteral}{\ \ \ \ importance\_getter\ :\ str\ or\ callable,\ default='auto'}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00636}00636\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ 'auto',\ uses\ the\ feature\ importance\ either\ through\ a\ \`{}coef\_\`{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00637}00637\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ or\ \`{}feature\_importances\_\`{}\ attributes\ of\ estimator.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00638}00638\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00639}00639\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Also\ accepts\ a\ string\ that\ specifies\ an\ attribute\ name/path}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00640}00640\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ for\ extracting\ feature\ importance.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00641}00641\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ For\ example,\ give\ \`{}regressor\_.coef\_\`{}\ in\ case\ of}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00642}00642\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :class:\`{}\string~sklearn.compose.TransformedTargetRegressor\`{}\ \ or}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00643}00643\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}named\_steps.clf.feature\_importances\_\`{}\ in\ case\ of}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00644}00644\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :class:\`{}\string~sklearn.pipeline.Pipeline\`{}\ with\ its\ last\ step\ named\ \`{}clf\`{}.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00645}00645\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00646}00646\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ \`{}callable\`{},\ overrides\ the\ default\ feature\ importance\ getter.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00647}00647\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ callable\ is\ passed\ with\ the\ fitted\ estimator\ and\ it\ should}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00648}00648\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ return\ importance\ for\ each\ feature.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00649}00649\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00650}00650\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 0.24}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00651}00651\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00652}00652\ \textcolor{stringliteral}{\ \ \ \ Attributes}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00653}00653\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00654}00654\ \textcolor{stringliteral}{\ \ \ \ classes\_\ :\ ndarray\ of\ shape\ (n\_classes,)}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00655}00655\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ classes\ labels.\ Only\ available\ when\ \`{}estimator\`{}\ is\ a\ classifier.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00656}00656\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00657}00657\ \textcolor{stringliteral}{\ \ \ \ estimator\_\ :\ \`{}\`{}Estimator\`{}\`{}\ instance}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00658}00658\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ fitted\ estimator\ used\ to\ select\ features.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00659}00659\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00660}00660\ \textcolor{stringliteral}{\ \ \ \ cv\_results\_\ :\ dict\ of\ ndarrays}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00661}00661\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ All\ arrays\ (values\ of\ the\ dictionary)\ are\ sorted\ in\ ascending\ order}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00662}00662\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ by\ the\ number\ of\ features\ used\ (i.e.,\ the\ first\ element\ of\ the\ array}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00663}00663\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ represents\ the\ models\ that\ used\ the\ least\ number\ of\ features,\ while\ the}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00664}00664\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ last\ element\ represents\ the\ models\ that\ used\ all\ available\ features).}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00665}00665\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00666}00666\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 1.0}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00667}00667\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00668}00668\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ This\ dictionary\ contains\ the\ following\ keys:}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00669}00669\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00670}00670\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ split(k)\_test\_score\ :\ ndarray\ of\ shape\ (n\_subsets\_of\_features,)}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00671}00671\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ cross-\/validation\ scores\ across\ (k)th\ fold.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00672}00672\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00673}00673\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ mean\_test\_score\ :\ ndarray\ of\ shape\ (n\_subsets\_of\_features,)}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00674}00674\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Mean\ of\ scores\ over\ the\ folds.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00675}00675\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00676}00676\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ std\_test\_score\ :\ ndarray\ of\ shape\ (n\_subsets\_of\_features,)}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00677}00677\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Standard\ deviation\ of\ scores\ over\ the\ folds.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00678}00678\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00679}00679\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ n\_features\ :\ ndarray\ of\ shape\ (n\_subsets\_of\_features,)}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00680}00680\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Number\ of\ features\ used\ at\ each\ step.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00681}00681\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00682}00682\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ ..\ versionadded::\ 1.5}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00683}00683\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00684}00684\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ split(k)\_ranking\ :\ ndarray\ of\ shape\ (n\_subsets\_of\_features,)}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00685}00685\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ cross-\/validation\ rankings\ across\ (k)th\ fold.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00686}00686\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Selected\ (i.e.,\ estimated\ best)\ features\ are\ assigned\ rank\ 1.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00687}00687\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Illustration\ in}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00688}00688\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ :ref:\`{}sphx\_glr\_auto\_examples\_feature\_selection\_plot\_rfe\_with\_cross\_validation.py\`{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00689}00689\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00690}00690\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ ..\ versionadded::\ 1.7}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00691}00691\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00692}00692\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ split(k)\_support\ :\ ndarray\ of\ shape\ (n\_subsets\_of\_features,)}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00693}00693\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ cross-\/validation\ supports\ across\ (k)th\ fold.\ The\ support}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00694}00694\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ is\ the\ mask\ of\ selected\ features.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00695}00695\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00696}00696\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ ..\ versionadded::\ 1.7}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00697}00697\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00698}00698\ \textcolor{stringliteral}{\ \ \ \ n\_features\_\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00699}00699\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ number\ of\ selected\ features\ with\ cross-\/validation.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00700}00700\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00701}00701\ \textcolor{stringliteral}{\ \ \ \ n\_features\_in\_\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00702}00702\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ features\ seen\ during\ :term:\`{}fit\`{}.\ Only\ defined\ if\ the}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00703}00703\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ underlying\ estimator\ exposes\ such\ an\ attribute\ when\ fit.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00704}00704\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00705}00705\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 0.24}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00706}00706\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00707}00707\ \textcolor{stringliteral}{\ \ \ \ feature\_names\_in\_\ :\ ndarray\ of\ shape\ (\`{}n\_features\_in\_\`{},)}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00708}00708\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Names\ of\ features\ seen\ during\ :term:\`{}fit\`{}.\ Defined\ only\ when\ \`{}X\`{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00709}00709\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ has\ feature\ names\ that\ are\ all\ strings.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00710}00710\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00711}00711\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 1.0}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00712}00712\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00713}00713\ \textcolor{stringliteral}{\ \ \ \ ranking\_\ :\ narray\ of\ shape\ (n\_features,)}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00714}00714\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ feature\ ranking,\ such\ that\ \`{}ranking\_[i]\`{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00715}00715\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ corresponds\ to\ the\ ranking}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00716}00716\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ position\ of\ the\ i-\/th\ feature.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00717}00717\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Selected\ (i.e.,\ estimated\ best)}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00718}00718\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ features\ are\ assigned\ rank\ 1.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00719}00719\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00720}00720\ \textcolor{stringliteral}{\ \ \ \ support\_\ :\ ndarray\ of\ shape\ (n\_features,)}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00721}00721\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ mask\ of\ selected\ features.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00722}00722\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00723}00723\ \textcolor{stringliteral}{\ \ \ \ See\ Also}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00724}00724\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00725}00725\ \textcolor{stringliteral}{\ \ \ \ RFE\ :\ Recursive\ feature\ elimination.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00726}00726\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00727}00727\ \textcolor{stringliteral}{\ \ \ \ Notes}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00728}00728\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00729}00729\ \textcolor{stringliteral}{\ \ \ \ The\ size\ of\ all\ values\ in\ \`{}\`{}cv\_results\_\`{}\`{}\ is\ equal\ to}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00730}00730\ \textcolor{stringliteral}{\ \ \ \ \`{}\`{}ceil((n\_features\ -\/\ min\_features\_to\_select)\ /\ step)\ +\ 1\`{}\`{},}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00731}00731\ \textcolor{stringliteral}{\ \ \ \ where\ step\ is\ the\ number\ of\ features\ removed\ at\ each\ iteration.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00732}00732\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00733}00733\ \textcolor{stringliteral}{\ \ \ \ Allows\ NaN/Inf\ in\ the\ input\ if\ the\ underlying\ estimator\ does\ as\ well.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00734}00734\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00735}00735\ \textcolor{stringliteral}{\ \ \ \ References}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00736}00736\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00737}00737\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00738}00738\ \textcolor{stringliteral}{\ \ \ \ ..\ [1]\ Guyon,\ I.,\ Weston,\ J.,\ Barnhill,\ S.,\ \&\ Vapnik,\ V.,\ "{}Gene\ selection}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00739}00739\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ for\ cancer\ classification\ using\ support\ vector\ machines"{},}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00740}00740\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ Mach.\ Learn.,\ 46(1-\/3),\ 389-\/-\/422,\ 2002.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00741}00741\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00742}00742\ \textcolor{stringliteral}{\ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00743}00743\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00744}00744\ \textcolor{stringliteral}{\ \ \ \ The\ following\ example\ shows\ how\ to\ retrieve\ the\ a-\/priori\ not\ known\ 5}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00745}00745\ \textcolor{stringliteral}{\ \ \ \ informative\ features\ in\ the\ Friedman\ \#1\ dataset.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00746}00746\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00747}00747\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.datasets\ import\ make\_friedman1}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00748}00748\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.feature\_selection\ import\ RFECV}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00749}00749\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.svm\ import\ SVR}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00750}00750\ \textcolor{stringliteral}{\ \ \ \ >>>\ X,\ y\ =\ make\_friedman1(n\_samples=50,\ n\_features=10,\ random\_state=0)}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00751}00751\ \textcolor{stringliteral}{\ \ \ \ >>>\ estimator\ =\ SVR(kernel="{}linear"{})}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00752}00752\ \textcolor{stringliteral}{\ \ \ \ >>>\ selector\ =\ RFECV(estimator,\ step=1,\ cv=5)}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00753}00753\ \textcolor{stringliteral}{\ \ \ \ >>>\ selector\ =\ selector.fit(X,\ y)}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00754}00754\ \textcolor{stringliteral}{\ \ \ \ >>>\ selector.support\_}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00755}00755\ \textcolor{stringliteral}{\ \ \ \ array([\ True,\ \ True,\ \ True,\ \ True,\ \ True,\ False,\ False,\ False,\ False,}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00756}00756\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ False])}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00757}00757\ \textcolor{stringliteral}{\ \ \ \ >>>\ selector.ranking\_}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00758}00758\ \textcolor{stringliteral}{\ \ \ \ array([1,\ 1,\ 1,\ 1,\ 1,\ 6,\ 4,\ 3,\ 2,\ 5])}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00759}00759\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00760}00760\ \textcolor{stringliteral}{\ \ \ \ For\ a\ detailed\ example\ of\ using\ RFECV\ to\ select\ features\ when\ training\ a}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00761}00761\ \textcolor{stringliteral}{\ \ \ \ :class:\`{}\string~sklearn.linear\_model.LogisticRegression\`{},\ see}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00762}00762\ \textcolor{stringliteral}{\ \ \ \ :ref:\`{}sphx\_glr\_auto\_examples\_feature\_selection\_plot\_rfe\_with\_cross\_validation.py\`{}.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00763}00763\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00764}00764\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00765}00765\ \ \ \ \ \_parameter\_constraints:\ dict\ =\ \{}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00766}00766\ \ \ \ \ \ \ \ \ **RFE.\_parameter\_constraints,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00767}00767\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}min\_features\_to\_select"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Integral,\ 0,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}neither"{}})],}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00768}00768\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}cv"{}}:\ [\textcolor{stringliteral}{"{}cv\_object"{}}],}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00769}00769\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}scoring"{}}:\ [\textcolor{keywordtype}{None},\ str,\ callable],}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00770}00770\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}n\_jobs"{}}:\ [\textcolor{keywordtype}{None},\ Integral],}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00771}00771\ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00772}00772\ \ \ \ \ \_parameter\_constraints.pop(\textcolor{stringliteral}{"{}n\_features\_to\_select"{}})}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00773}00773\ \ \ \ \ \_\_metadata\_request\_\_fit\ =\ \{\textcolor{stringliteral}{"{}groups"{}}:\ metadata\_routing.UNUSED\}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00774}00774\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00775}00775\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00776}00776\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00777}00777\ \ \ \ \ \ \ \ \ estimator,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00778}00778\ \ \ \ \ \ \ \ \ *,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00779}00779\ \ \ \ \ \ \ \ \ step=1,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00780}00780\ \ \ \ \ \ \ \ \ min\_features\_to\_select=1,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00781}00781\ \ \ \ \ \ \ \ \ cv=None,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00782}00782\ \ \ \ \ \ \ \ \ scoring=None,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00783}00783\ \ \ \ \ \ \ \ \ verbose=0,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00784}00784\ \ \ \ \ \ \ \ \ n\_jobs=None,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00785}00785\ \ \ \ \ \ \ \ \ importance\_getter="{}auto"{},}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00786}00786\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00787}00787\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_ad43d5a1f5c27ff8177a04cb7b9fb339c}{estimator}}\ =\ estimator}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00788}00788\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a13b8c74c8909c10423e6978d0531adcf}{step}}\ =\ step}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00789}00789\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_ad0e8ba836e2633cce7a32ac851a5e92a}{importance\_getter}}\ =\ importance\_getter}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00790}00790\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFECV_a3cc81f8664561fe3150217685ed0cab3}{cv}}\ =\ cv}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00791}00791\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFECV_aab260b342c7a822a35f43f0536a4c05e}{scoring}}\ =\ scoring}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00792}00792\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_af08985e61d3e3da46f9b80cd8f4456b1}{verbose}}\ =\ verbose}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00793}00793\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFECV_a19edac91a8ee233c5cc9a1238aa49d1c}{n\_jobs}}\ =\ n\_jobs}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00794}00794\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFECV_a0fa2f14f268c12f1371835d018e5bb08}{min\_features\_to\_select}}\ =\ min\_features\_to\_select}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00795}00795\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00796}00796\ \ \ \ \ \textcolor{comment}{\#\ TODO(1.8):\ remove\ \`{}groups`\ from\ the\ signature\ after\ deprecation\ cycle.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00797}00797\ \ \ \ \ \textcolor{preprocessor}{@\_deprecate\_positional\_args(version="{}1.8"{})}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00798}00798\ \ \ \ \ \textcolor{preprocessor}{@\_fit\_context}(}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00799}00799\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ RFECV.estimator\ is\ not\ validated\ yet}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00800}00800\ \ \ \ \ \ \ \ \ prefer\_skip\_nested\_validation=\textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00801}00801\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00802}\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFECV_ab6966a2c36d6ed56fb119f6f675207a1}{00802}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFECV_ab6966a2c36d6ed56fb119f6f675207a1}{fit}}(self,\ X,\ y,\ *,\ groups=None,\ **params):}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00803}00803\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Fit\ the\ RFE\ model\ and\ automatically\ tune\ the\ number\ of\ selected\ features.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00804}00804\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00805}00805\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00806}00806\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00807}00807\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\ :\ \{array-\/like,\ sparse\ matrix\}\ of\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00808}00808\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Training\ vector,\ where\ \`{}n\_samples\`{}\ is\ the\ number\ of\ samples\ and}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00809}00809\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \`{}n\_features\`{}\ is\ the\ total\ number\ of\ features.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00810}00810\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00811}00811\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ y\ :\ array-\/like\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00812}00812\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Target\ values\ (integers\ for\ classification,\ real\ numbers\ for}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00813}00813\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ regression).}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00814}00814\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00815}00815\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ groups\ :\ array-\/like\ of\ shape\ (n\_samples,)\ or\ None,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00816}00816\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Group\ labels\ for\ the\ samples\ used\ while\ splitting\ the\ dataset\ into}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00817}00817\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ train/test\ set.\ Only\ used\ in\ conjunction\ with\ a\ "{}Group"{}\ :term:\`{}cv\`{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00818}00818\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ instance\ (e.g.,\ :class:\`{}\string~sklearn.model\_selection.GroupKFold\`{}).}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00819}00819\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00820}00820\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ ..\ versionadded::\ 0.20}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00821}00821\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00822}00822\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ **params\ :\ dict\ of\ str\ -\/>\ object}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00823}00823\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Parameters\ passed\ to\ the\ \`{}\`{}fit\`{}\`{}\ method\ of\ the\ estimator,}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00824}00824\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ the\ scorer,\ and\ the\ CV\ splitter.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00825}00825\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00826}00826\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ ..\ versionadded::\ 1.6}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00827}00827\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ Only\ available\ if\ \`{}enable\_metadata\_routing=True\`{},}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00828}00828\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ which\ can\ be\ set\ by\ using}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00829}00829\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \`{}\`{}sklearn.set\_config(enable\_metadata\_routing=True)\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00830}00830\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ See\ :ref:\`{}Metadata\ Routing\ User\ Guide\ <metadata\_routing>\`{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00831}00831\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ for\ more\ details.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00832}00832\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00833}00833\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00834}00834\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00835}00835\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ self\ :\ object}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00836}00836\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Fitted\ estimator.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00837}00837\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00838}00838\ \ \ \ \ \ \ \ \ \_raise\_for\_params(params,\ self,\ \textcolor{stringliteral}{"{}fit"{}})}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00839}00839\ \ \ \ \ \ \ \ \ X,\ y\ =\ validate\_data(}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00840}00840\ \ \ \ \ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00841}00841\ \ \ \ \ \ \ \ \ \ \ \ \ X,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00842}00842\ \ \ \ \ \ \ \ \ \ \ \ \ y,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00843}00843\ \ \ \ \ \ \ \ \ \ \ \ \ accept\_sparse=\textcolor{stringliteral}{"{}csr"{}},}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00844}00844\ \ \ \ \ \ \ \ \ \ \ \ \ ensure\_min\_features=2,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00845}00845\ \ \ \ \ \ \ \ \ \ \ \ \ ensure\_all\_finite=\textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00846}00846\ \ \ \ \ \ \ \ \ \ \ \ \ multi\_output=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00847}00847\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00848}00848\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00849}00849\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \_routing\_enabled():}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00850}00850\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ groups\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00851}00851\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ params.update(\{\textcolor{stringliteral}{"{}groups"{}}:\ groups\})}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00852}00852\ \ \ \ \ \ \ \ \ \ \ \ \ routed\_params\ =\ process\_routing(self,\ \textcolor{stringliteral}{"{}fit"{}},\ **params)}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00853}00853\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00854}00854\ \ \ \ \ \ \ \ \ \ \ \ \ routed\_params\ =\ \mbox{\hyperlink{classsklearn_1_1utils_1_1__bunch_1_1Bunch}{Bunch}}(}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00855}00855\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ estimator=\mbox{\hyperlink{classsklearn_1_1utils_1_1__bunch_1_1Bunch}{Bunch}}(fit=\{\}),}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00856}00856\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ splitter=\mbox{\hyperlink{classsklearn_1_1utils_1_1__bunch_1_1Bunch}{Bunch}}(split=\{\textcolor{stringliteral}{"{}groups"{}}:\ groups\}),}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00857}00857\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ scorer=\mbox{\hyperlink{classsklearn_1_1utils_1_1__bunch_1_1Bunch}{Bunch}}(score=\{\}),}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00858}00858\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00859}00859\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00860}00860\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Initialization}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00861}00861\ \ \ \ \ \ \ \ \ cv\ =\ check\_cv(self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFECV_a3cc81f8664561fe3150217685ed0cab3}{cv}},\ y,\ classifier=is\_classifier(self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_ad43d5a1f5c27ff8177a04cb7b9fb339c}{estimator}}))}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00862}00862\ \ \ \ \ \ \ \ \ scorer\ =\ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFECV_aae49e6e7a7b3b7c1b6c1f92549424aec}{\_get\_scorer}}()}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00863}00863\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00864}00864\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Build\ an\ RFE\ object,\ which\ will\ evaluate\ and\ score\ each\ possible}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00865}00865\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ feature\ count,\ down\ to\ self.min\_features\_to\_select}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00866}00866\ \ \ \ \ \ \ \ \ n\_features\ =\ X.shape[1]}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00867}00867\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFECV_a0fa2f14f268c12f1371835d018e5bb08}{min\_features\_to\_select}}\ >\ n\_features:}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00868}00868\ \ \ \ \ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00869}00869\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00870}00870\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}Found\ min\_features\_to\_select=\{self.min\_features\_to\_select\}\ >\ "{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00871}00871\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\{n\_features=\}.\ There\ will\ be\ no\ feature\ selection\ and\ all\ "{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00872}00872\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}features\ will\ be\ kept."{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00873}00873\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00874}00874\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ UserWarning,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00875}00875\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00876}00876\ \ \ \ \ \ \ \ \ rfe\ =\ \mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE}{RFE}}(}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00877}00877\ \ \ \ \ \ \ \ \ \ \ \ \ estimator=self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_ad43d5a1f5c27ff8177a04cb7b9fb339c}{estimator}},}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00878}00878\ \ \ \ \ \ \ \ \ \ \ \ \ n\_features\_to\_select=min(self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFECV_a0fa2f14f268c12f1371835d018e5bb08}{min\_features\_to\_select}},\ n\_features),}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00879}00879\ \ \ \ \ \ \ \ \ \ \ \ \ importance\_getter=self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_ad0e8ba836e2633cce7a32ac851a5e92a}{importance\_getter}},}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00880}00880\ \ \ \ \ \ \ \ \ \ \ \ \ step=self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a13b8c74c8909c10423e6978d0531adcf}{step}},}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00881}00881\ \ \ \ \ \ \ \ \ \ \ \ \ verbose=self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_af08985e61d3e3da46f9b80cd8f4456b1}{verbose}},}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00882}00882\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00883}00883\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00884}00884\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Determine\ the\ number\ of\ subsets\ of\ features\ by\ fitting\ across}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00885}00885\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ the\ train\ folds\ and\ choosing\ the\ "{}features\_to\_select"{}\ parameter}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00886}00886\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ that\ gives\ the\ least\ averaged\ error\ across\ all\ folds.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00887}00887\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00888}00888\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Note\ that\ joblib\ raises\ a\ non-\/picklable\ error\ for\ bound\ methods}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00889}00889\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ even\ if\ n\_jobs\ is\ set\ to\ 1\ with\ the\ default\ multiprocessing}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00890}00890\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ backend.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00891}00891\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ This\ branching\ is\ done\ so\ that\ to}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00892}00892\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ make\ sure\ that\ user\ code\ that\ sets\ n\_jobs\ to\ 1}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00893}00893\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ and\ provides\ bound\ methods\ as\ scorers\ is\ not\ broken\ with\ the}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00894}00894\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ addition\ of\ n\_jobs\ parameter\ in\ version\ 0.18.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00895}00895\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00896}00896\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ effective\_n\_jobs(self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFECV_a19edac91a8ee233c5cc9a1238aa49d1c}{n\_jobs}})\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00897}00897\ \ \ \ \ \ \ \ \ \ \ \ \ parallel,\ func\ =\ list,\ \_rfe\_single\_fit}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00898}00898\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00899}00899\ \ \ \ \ \ \ \ \ \ \ \ \ parallel\ =\ \mbox{\hyperlink{classsklearn_1_1utils_1_1parallel_1_1Parallel}{Parallel}}(n\_jobs=self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFECV_a19edac91a8ee233c5cc9a1238aa49d1c}{n\_jobs}})}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00900}00900\ \ \ \ \ \ \ \ \ \ \ \ \ func\ =\ delayed(\_rfe\_single\_fit)}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00901}00901\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00902}00902\ \ \ \ \ \ \ \ \ step\_results\ =\ parallel(}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00903}00903\ \ \ \ \ \ \ \ \ \ \ \ \ func(clone(rfe),\ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_ad43d5a1f5c27ff8177a04cb7b9fb339c}{estimator}},\ X,\ y,\ train,\ test,\ scorer,\ routed\_params)}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00904}00904\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ train,\ test\ \textcolor{keywordflow}{in}\ cv.split(X,\ y,\ **routed\_params.splitter.split)}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00905}00905\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00906}00906\ \ \ \ \ \ \ \ \ scores,\ supports,\ rankings,\ step\_n\_features\ =\ zip(*step\_results)}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00907}00907\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00908}00908\ \ \ \ \ \ \ \ \ step\_n\_features\_rev\ =\ np.array(step\_n\_features[0])[::-\/1]}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00909}00909\ \ \ \ \ \ \ \ \ scores\ =\ np.array(scores)}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00910}00910\ \ \ \ \ \ \ \ \ rankings\ =\ np.array(rankings)}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00911}00911\ \ \ \ \ \ \ \ \ supports\ =\ np.array(supports)}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00912}00912\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00913}00913\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Reverse\ order\ such\ that\ lowest\ number\ of\ features\ is\ selected\ in\ case\ of\ tie.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00914}00914\ \ \ \ \ \ \ \ \ scores\_sum\_rev\ =\ np.sum(scores,\ axis=0)[::-\/1]}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00915}00915\ \ \ \ \ \ \ \ \ n\_features\_to\_select\ =\ step\_n\_features\_rev[np.argmax(scores\_sum\_rev)]}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00916}00916\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00917}00917\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Re-\/execute\ an\ elimination\ with\ best\_k\ over\ the\ whole\ set}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00918}00918\ \ \ \ \ \ \ \ \ rfe\ =\ \mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE}{RFE}}(}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00919}00919\ \ \ \ \ \ \ \ \ \ \ \ \ estimator=self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_ad43d5a1f5c27ff8177a04cb7b9fb339c}{estimator}},}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00920}00920\ \ \ \ \ \ \ \ \ \ \ \ \ n\_features\_to\_select=n\_features\_to\_select,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00921}00921\ \ \ \ \ \ \ \ \ \ \ \ \ step=self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a13b8c74c8909c10423e6978d0531adcf}{step}},}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00922}00922\ \ \ \ \ \ \ \ \ \ \ \ \ importance\_getter=self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_ad0e8ba836e2633cce7a32ac851a5e92a}{importance\_getter}},}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00923}00923\ \ \ \ \ \ \ \ \ \ \ \ \ verbose=self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_af08985e61d3e3da46f9b80cd8f4456b1}{verbose}},}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00924}00924\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00925}00925\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00926}00926\ \ \ \ \ \ \ \ \ rfe.fit(X,\ y,\ **routed\_params.estimator.fit)}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00927}00927\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00928}00928\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Set\ final\ attributes}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00929}00929\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_ab5a02ba2f14fee1b76c4411806f676be}{support\_}}\ =\ rfe.support\_}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00930}00930\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a995363a219cafed1bc4c8a6adbd2160d}{n\_features\_}}\ =\ rfe.n\_features\_}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00931}00931\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_adf1c84cc1a980a102a96f0c7d22687f5}{ranking\_}}\ =\ rfe.ranking\_}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00932}00932\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a594276d718a812e5b93e45bb3b1c075f}{estimator\_}}\ =\ clone(self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_ad43d5a1f5c27ff8177a04cb7b9fb339c}{estimator}})}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00933}00933\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_a594276d718a812e5b93e45bb3b1c075f}{estimator\_}}.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFECV_ab6966a2c36d6ed56fb119f6f675207a1}{fit}}(self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__base_1_1SelectorMixin_a4b052e7ffd870c1c067b64e5cfc8d313}{\_transform}}(X),\ y,\ **routed\_params.estimator.fit)}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00934}00934\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00935}00935\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ reverse\ to\ stay\ consistent\ with\ before}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00936}00936\ \ \ \ \ \ \ \ \ scores\_rev\ =\ scores[:,\ ::-\/1]}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00937}00937\ \ \ \ \ \ \ \ \ supports\_rev\ =\ supports[:,\ ::-\/1]}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00938}00938\ \ \ \ \ \ \ \ \ rankings\_rev\ =\ rankings[:,\ ::-\/1]}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00939}00939\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFECV_a621570124b519b7eaea5c331f701b8f7}{cv\_results\_}}\ =\ \{}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00940}00940\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}mean\_test\_score"{}}:\ np.mean(scores\_rev,\ axis=0),}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00941}00941\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}std\_test\_score"{}}:\ np.std(scores\_rev,\ axis=0),}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00942}00942\ \ \ \ \ \ \ \ \ \ \ \ \ **\{f\textcolor{stringliteral}{"{}split\{i\}\_test\_score"{}}:\ scores\_rev[i]\ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(scores.shape[0])\},}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00943}00943\ \ \ \ \ \ \ \ \ \ \ \ \ **\{f\textcolor{stringliteral}{"{}split\{i\}\_ranking"{}}:\ rankings\_rev[i]\ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(rankings.shape[0])\},}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00944}00944\ \ \ \ \ \ \ \ \ \ \ \ \ **\{f\textcolor{stringliteral}{"{}split\{i\}\_support"{}}:\ supports\_rev[i]\ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(supports.shape[0])\},}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00945}00945\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}n\_features"{}}:\ step\_n\_features\_rev,}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00946}00946\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00947}00947\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00948}00948\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00949}\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFECV_a25804a229be24cf3090a5dcc29519dc4}{00949}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFECV_a25804a229be24cf3090a5dcc29519dc4}{score}}(self,\ X,\ y,\ **score\_params):}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00950}00950\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Score\ using\ the\ \`{}scoring\`{}\ option\ on\ the\ given\ test\ data\ and\ labels.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00951}00951\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00952}00952\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00953}00953\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00954}00954\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\ :\ array-\/like\ of\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00955}00955\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Test\ samples.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00956}00956\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00957}00957\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ y\ :\ array-\/like\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00958}00958\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ True\ labels\ for\ X.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00959}00959\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00960}00960\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ **score\_params\ :\ dict}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00961}00961\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Parameters\ to\ pass\ to\ the\ \`{}score\`{}\ method\ of\ the\ underlying\ scorer.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00962}00962\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00963}00963\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ ..\ versionadded::\ 1.6}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00964}00964\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ Only\ available\ if\ \`{}enable\_metadata\_routing=True\`{},}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00965}00965\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ which\ can\ be\ set\ by\ using}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00966}00966\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \`{}\`{}sklearn.set\_config(enable\_metadata\_routing=True)\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00967}00967\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ See\ :ref:\`{}Metadata\ Routing\ User\ Guide\ <metadata\_routing>\`{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00968}00968\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ for\ more\ details.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00969}00969\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00970}00970\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00971}00971\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00972}00972\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ score\ :\ float}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00973}00973\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Score\ of\ self.predict(X)\ w.r.t.\ y\ defined\ by\ \`{}scoring\`{}.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00974}00974\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00975}00975\ \ \ \ \ \ \ \ \ \_raise\_for\_params(score\_params,\ self,\ \textcolor{stringliteral}{"{}score"{}})}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00976}00976\ \ \ \ \ \ \ \ \ scoring\ =\ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFECV_aae49e6e7a7b3b7c1b6c1f92549424aec}{\_get\_scorer}}()}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00977}00977\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \_routing\_enabled():}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00978}00978\ \ \ \ \ \ \ \ \ \ \ \ \ routed\_params\ =\ process\_routing(self,\ \textcolor{stringliteral}{"{}score"{}},\ **score\_params)}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00979}00979\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00980}00980\ \ \ \ \ \ \ \ \ \ \ \ \ routed\_params\ =\ \mbox{\hyperlink{classsklearn_1_1utils_1_1__bunch_1_1Bunch}{Bunch}}()}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00981}00981\ \ \ \ \ \ \ \ \ \ \ \ \ routed\_params.scorer\ =\ \mbox{\hyperlink{classsklearn_1_1utils_1_1__bunch_1_1Bunch}{Bunch}}(score=\{\})}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00982}00982\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00983}00983\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ scoring(self,\ X,\ y,\ **routed\_params.scorer.score)}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00984}00984\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00985}\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFECV_ae85e79a7c52cc4acfa7710547a546bc3}{00985}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFECV_ae85e79a7c52cc4acfa7710547a546bc3}{get\_metadata\_routing}}(self):}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00986}00986\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Get\ metadata\ routing\ of\ this\ object.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00987}00987\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00988}00988\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Please\ check\ :ref:\`{}User\ Guide\ <metadata\_routing>\`{}\ on\ how\ the\ routing}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00989}00989\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ mechanism\ works.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00990}00990\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00991}00991\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 1.6}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00992}00992\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00993}00993\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00994}00994\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00995}00995\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ routing\ :\ MetadataRouter}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00996}00996\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ A\ :class:\`{}\string~sklearn.utils.metadata\_routing.MetadataRouter\`{}\ encapsulating}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00997}00997\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ routing\ information.}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00998}00998\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l00999}00999\ \ \ \ \ \ \ \ \ router\ =\ \mbox{\hyperlink{classsklearn_1_1utils_1_1__metadata__requests_1_1MetadataRouter}{MetadataRouter}}(owner=self.\_\_class\_\_.\_\_name\_\_)}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l01000}01000\ \ \ \ \ \ \ \ \ router.add(}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l01001}01001\ \ \ \ \ \ \ \ \ \ \ \ \ estimator=self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_ad43d5a1f5c27ff8177a04cb7b9fb339c}{estimator}},}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l01002}01002\ \ \ \ \ \ \ \ \ \ \ \ \ method\_mapping=\mbox{\hyperlink{classsklearn_1_1utils_1_1__metadata__requests_1_1MethodMapping}{MethodMapping}}().add(caller=\textcolor{stringliteral}{"{}fit"{}},\ callee=\textcolor{stringliteral}{"{}fit"{}}),}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l01003}01003\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l01004}01004\ \ \ \ \ \ \ \ \ router.add(}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l01005}01005\ \ \ \ \ \ \ \ \ \ \ \ \ splitter=check\_cv(self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFECV_a3cc81f8664561fe3150217685ed0cab3}{cv}}),}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l01006}01006\ \ \ \ \ \ \ \ \ \ \ \ \ method\_mapping=\mbox{\hyperlink{classsklearn_1_1utils_1_1__metadata__requests_1_1MethodMapping}{MethodMapping}}().add(}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l01007}01007\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ caller=\textcolor{stringliteral}{"{}fit"{}},}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l01008}01008\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ callee=\textcolor{stringliteral}{"{}split"{}},}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l01009}01009\ \ \ \ \ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l01010}01010\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l01011}01011\ \ \ \ \ \ \ \ \ router.add(}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l01012}01012\ \ \ \ \ \ \ \ \ \ \ \ \ scorer=self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFECV_aae49e6e7a7b3b7c1b6c1f92549424aec}{\_get\_scorer}}(),}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l01013}01013\ \ \ \ \ \ \ \ \ \ \ \ \ method\_mapping=\mbox{\hyperlink{classsklearn_1_1utils_1_1__metadata__requests_1_1MethodMapping}{MethodMapping}}()}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l01014}01014\ \ \ \ \ \ \ \ \ \ \ \ \ .add(caller=\textcolor{stringliteral}{"{}fit"{}},\ callee=\textcolor{stringliteral}{"{}score"{}})}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l01015}01015\ \ \ \ \ \ \ \ \ \ \ \ \ .add(caller=\textcolor{stringliteral}{"{}score"{}},\ callee=\textcolor{stringliteral}{"{}score"{}}),}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l01016}01016\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l01017}01017\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l01018}01018\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ router}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l01019}01019\ }
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l01020}01020\ \ \ \ \ \textcolor{keyword}{def\ }\_get\_scorer(self):}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l01021}01021\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFECV_aab260b342c7a822a35f43f0536a4c05e}{scoring}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l01022}01022\ \ \ \ \ \ \ \ \ \ \ \ \ scoring\ =\ \textcolor{stringliteral}{"{}accuracy"{}}\ \textcolor{keywordflow}{if}\ is\_classifier(self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFE_ad43d5a1f5c27ff8177a04cb7b9fb339c}{estimator}})\ \textcolor{keywordflow}{else}\ \textcolor{stringliteral}{"{}r2"{}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l01023}01023\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l01024}01024\ \ \ \ \ \ \ \ \ \ \ \ \ scoring\ =\ self.\mbox{\hyperlink{classsklearn_1_1feature__selection_1_1__rfe_1_1RFECV_aab260b342c7a822a35f43f0536a4c05e}{scoring}}}
+\DoxyCodeLine{\Hypertarget{__rfe_8py_source_l01025}01025\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ get\_scorer(scoring)}
+
+\end{DoxyCode}

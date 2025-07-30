@@ -1,0 +1,26 @@
+var namespacescipy_1_1stats_1_1tests_1_1test__mstats__basic =
+[
+    [ "TestBrunnerMunzel", "dd/d6a/classscipy_1_1stats_1_1tests_1_1test__mstats__basic_1_1TestBrunnerMunzel.html", null ],
+    [ "TestCompareWithStats", "dd/d34/classscipy_1_1stats_1_1tests_1_1test__mstats__basic_1_1TestCompareWithStats.html", "dd/d34/classscipy_1_1stats_1_1tests_1_1test__mstats__basic_1_1TestCompareWithStats" ],
+    [ "TestCorr", "df/d71/classscipy_1_1stats_1_1tests_1_1test__mstats__basic_1_1TestCorr.html", null ],
+    [ "TestDescribe", "d7/d60/classscipy_1_1stats_1_1tests_1_1test__mstats__basic_1_1TestDescribe.html", null ],
+    [ "TestFOneway", "df/d65/classscipy_1_1stats_1_1tests_1_1test__mstats__basic_1_1TestFOneway.html", null ],
+    [ "TestGeoMean", "de/d8d/classscipy_1_1stats_1_1tests_1_1test__mstats__basic_1_1TestGeoMean.html", null ],
+    [ "TestHarMean", "d8/d11/classscipy_1_1stats_1_1tests_1_1test__mstats__basic_1_1TestHarMean.html", null ],
+    [ "TestKruskal", "d1/dce/classscipy_1_1stats_1_1tests_1_1test__mstats__basic_1_1TestKruskal.html", null ],
+    [ "TestMannwhitneyu", "db/d2f/classscipy_1_1stats_1_1tests_1_1test__mstats__basic_1_1TestMannwhitneyu.html", null ],
+    [ "TestMisc", "d8/d9b/classscipy_1_1stats_1_1tests_1_1test__mstats__basic_1_1TestMisc.html", null ],
+    [ "TestMode", "d9/d3d/classscipy_1_1stats_1_1tests_1_1test__mstats__basic_1_1TestMode.html", null ],
+    [ "TestMoments", "db/de8/classscipy_1_1stats_1_1tests_1_1test__mstats__basic_1_1TestMoments.html", null ],
+    [ "TestMquantiles", "dc/dd6/classscipy_1_1stats_1_1tests_1_1test__mstats__basic_1_1TestMquantiles.html", null ],
+    [ "TestNormalitytests", "d7/d9e/classscipy_1_1stats_1_1tests_1_1test__mstats__basic_1_1TestNormalitytests.html", null ],
+    [ "TestPercentile", "d6/d6f/classscipy_1_1stats_1_1tests_1_1test__mstats__basic_1_1TestPercentile.html", null ],
+    [ "TestRanking", "d7/d05/classscipy_1_1stats_1_1tests_1_1test__mstats__basic_1_1TestRanking.html", null ],
+    [ "TestTrimming", "dd/d1c/classscipy_1_1stats_1_1tests_1_1test__mstats__basic_1_1TestTrimming.html", null ],
+    [ "TestTtest_1samp", "d2/d2e/classscipy_1_1stats_1_1tests_1_1test__mstats__basic_1_1TestTtest__1samp.html", null ],
+    [ "TestTtest_ind", "df/d04/classscipy_1_1stats_1_1tests_1_1test__mstats__basic_1_1TestTtest__ind.html", null ],
+    [ "TestTtest_rel", "da/d4a/classscipy_1_1stats_1_1tests_1_1test__mstats__basic_1_1TestTtest__rel.html", null ],
+    [ "TestVariability", "dd/d9a/classscipy_1_1stats_1_1tests_1_1test__mstats__basic_1_1TestVariability.html", null ],
+    [ "test_siegelslopes_namedtuple_consistency", "d0/d04/namespacescipy_1_1stats_1_1tests_1_1test__mstats__basic.html#a98c05bbae8e4eb7d0060bf37fda60d3c", null ],
+    [ "test_theilslopes_namedtuple_consistency", "d0/d04/namespacescipy_1_1stats_1_1tests_1_1test__mstats__basic.html#a2f8e925be33a81c25c468fe9d16301c2", null ]
+];

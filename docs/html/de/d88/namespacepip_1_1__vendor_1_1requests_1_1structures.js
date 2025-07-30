@@ -1,0 +1,5 @@
+var namespacepip_1_1__vendor_1_1requests_1_1structures =
+[
+    [ "CaseInsensitiveDict", "dc/de0/classpip_1_1__vendor_1_1requests_1_1structures_1_1CaseInsensitiveDict.html", "dc/de0/classpip_1_1__vendor_1_1requests_1_1structures_1_1CaseInsensitiveDict" ],
+    [ "LookupDict", "d7/d9e/classpip_1_1__vendor_1_1requests_1_1structures_1_1LookupDict.html", null ]
+];

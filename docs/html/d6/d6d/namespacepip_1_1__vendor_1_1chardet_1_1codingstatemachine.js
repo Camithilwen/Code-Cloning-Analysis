@@ -1,0 +1,4 @@
+var namespacepip_1_1__vendor_1_1chardet_1_1codingstatemachine =
+[
+    [ "CodingStateMachine", "dd/de6/classpip_1_1__vendor_1_1chardet_1_1codingstatemachine_1_1CodingStateMachine.html", null ]
+];

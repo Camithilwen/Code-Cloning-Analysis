@@ -1,0 +1,1101 @@
+\doxysection{ewm.\+py}
+\hypertarget{ewm_8py_source}{}\label{ewm_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/pandas/core/window/ewm.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/pandas/core/window/ewm.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00001}\mbox{\hyperlink{namespacepandas_1_1core_1_1window_1_1ewm}{00001}}\ \textcolor{keyword}{from}\ \_\_future\_\_\ \textcolor{keyword}{import}\ annotations}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00002}00002\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00003}00003\ \textcolor{keyword}{import}\ datetime}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00004}00004\ \textcolor{keyword}{from}\ functools\ \textcolor{keyword}{import}\ partial}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00005}00005\ \textcolor{keyword}{from}\ textwrap\ \textcolor{keyword}{import}\ dedent}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00006}00006\ \textcolor{keyword}{from}\ typing\ \textcolor{keyword}{import}\ TYPE\_CHECKING}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00007}00007\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00008}00008\ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00009}00009\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00010}00010\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1__libs_1_1tslibs}{pandas.\_libs.tslibs}}\ \textcolor{keyword}{import}\ Timedelta}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00011}00011\ \textcolor{keyword}{import}\ pandas.\_libs.window.aggregations\ \textcolor{keyword}{as}\ window\_aggregations}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00012}00012\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1util_1_1__decorators}{pandas.util.\_decorators}}\ \textcolor{keyword}{import}\ doc}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00013}00013\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00014}00014\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1dtypes_1_1common}{pandas.core.dtypes.common}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00015}00015\ \ \ \ \ is\_datetime64\_dtype,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00016}00016\ \ \ \ \ is\_numeric\_dtype,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00017}00017\ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00018}00018\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1dtypes_1_1dtypes}{pandas.core.dtypes.dtypes}}\ \textcolor{keyword}{import}\ DatetimeTZDtype}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00019}00019\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1dtypes_1_1generic}{pandas.core.dtypes.generic}}\ \textcolor{keyword}{import}\ ABCSeries}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00020}00020\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1dtypes_1_1missing}{pandas.core.dtypes.missing}}\ \textcolor{keyword}{import}\ isna}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00021}00021\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00022}00022\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core}{pandas.core}}\ \textcolor{keyword}{import}\ common}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00023}00023\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1arrays_1_1datetimelike}{pandas.core.arrays.datetimelike}}\ \textcolor{keyword}{import}\ dtype\_to\_unit}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00024}00024\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1indexers_1_1objects}{pandas.core.indexers.objects}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00025}00025\ \ \ \ \ BaseIndexer,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00026}00026\ \ \ \ \ ExponentialMovingWindowIndexer,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00027}00027\ \ \ \ \ GroupbyIndexer,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00028}00028\ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00029}00029\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1util_1_1numba__}{pandas.core.util.numba\_}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00030}00030\ \ \ \ \ get\_jit\_arguments,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00031}00031\ \ \ \ \ maybe\_use\_numba,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00032}00032\ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00033}00033\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1window_1_1common}{pandas.core.window.common}}\ \textcolor{keyword}{import}\ zsqrt}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00034}00034\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1window_1_1doc}{pandas.core.window.doc}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00035}00035\ \ \ \ \ \_shared\_docs,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00036}00036\ \ \ \ \ create\_section\_header,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00037}00037\ \ \ \ \ kwargs\_numeric\_only,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00038}00038\ \ \ \ \ numba\_notes,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00039}00039\ \ \ \ \ template\_header,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00040}00040\ \ \ \ \ template\_returns,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00041}00041\ \ \ \ \ template\_see\_also,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00042}00042\ \ \ \ \ window\_agg\_numba\_parameters,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00043}00043\ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00044}00044\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1window_1_1numba__}{pandas.core.window.numba\_}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00045}00045\ \ \ \ \ generate\_numba\_ewm\_func,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00046}00046\ \ \ \ \ generate\_numba\_ewm\_table\_func,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00047}00047\ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00048}00048\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1window_1_1online}{pandas.core.window.online}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00049}00049\ \ \ \ \ EWMMeanState,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00050}00050\ \ \ \ \ generate\_online\_numba\_ewma\_func,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00051}00051\ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00052}00052\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1window_1_1rolling}{pandas.core.window.rolling}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00053}00053\ \ \ \ \ BaseWindow,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00054}00054\ \ \ \ \ BaseWindowGroupby,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00055}00055\ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00056}00056\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00057}00057\ \textcolor{keywordflow}{if}\ TYPE\_CHECKING:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00058}00058\ \ \ \ \ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1__typing}{pandas.\_typing}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00059}00059\ \ \ \ \ \ \ \ \ Axis,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00060}00060\ \ \ \ \ \ \ \ \ TimedeltaConvertibleTypes,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00061}00061\ \ \ \ \ \ \ \ \ npt,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00062}00062\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00063}00063\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00064}00064\ \ \ \ \ \textcolor{keyword}{from}\ pandas\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00065}00065\ \ \ \ \ \ \ \ \ DataFrame,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00066}00066\ \ \ \ \ \ \ \ \ Series,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00067}00067\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00068}00068\ \ \ \ \ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1generic}{pandas.core.generic}}\ \textcolor{keyword}{import}\ NDFrame}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00069}00069\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00070}00070\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00071}00071\ \textcolor{keyword}{def\ }get\_center\_of\_mass(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00072}00072\ \ \ \ \ comass:\ float\ |\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00073}00073\ \ \ \ \ span:\ float\ |\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00074}00074\ \ \ \ \ halflife:\ float\ |\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00075}00075\ \ \ \ \ alpha:\ float\ |\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00076}00076\ )\ -\/>\ float:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00077}00077\ \ \ \ \ valid\_count\ =\ common.count\_not\_none(comass,\ span,\ halflife,\ alpha)}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00078}00078\ \ \ \ \ \textcolor{keywordflow}{if}\ valid\_count\ >\ 1:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00079}00079\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}comass,\ span,\ halflife,\ and\ alpha\ are\ mutually\ exclusive"{}})}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00080}00080\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00081}00081\ \ \ \ \ \textcolor{comment}{\#\ Convert\ to\ center\ of\ mass;\ domain\ checks\ ensure\ 0\ <\ alpha\ <=\ 1}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00082}00082\ \ \ \ \ \textcolor{keywordflow}{if}\ comass\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00083}00083\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ comass\ <\ 0:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00084}00084\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}comass\ must\ satisfy:\ comass\ >=\ 0"{}})}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00085}00085\ \ \ \ \ \textcolor{keywordflow}{elif}\ span\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00086}00086\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ span\ <\ 1:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00087}00087\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}span\ must\ satisfy:\ span\ >=\ 1"{}})}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00088}00088\ \ \ \ \ \ \ \ \ comass\ =\ (span\ -\/\ 1)\ /\ 2}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00089}00089\ \ \ \ \ \textcolor{keywordflow}{elif}\ halflife\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00090}00090\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ halflife\ <=\ 0:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00091}00091\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}halflife\ must\ satisfy:\ halflife\ >\ 0"{}})}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00092}00092\ \ \ \ \ \ \ \ \ decay\ =\ 1\ -\/\ np.exp(np.log(0.5)\ /\ halflife)}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00093}00093\ \ \ \ \ \ \ \ \ comass\ =\ 1\ /\ decay\ -\/\ 1}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00094}00094\ \ \ \ \ \textcolor{keywordflow}{elif}\ alpha\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00095}00095\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ alpha\ <=\ 0\ \textcolor{keywordflow}{or}\ alpha\ >\ 1:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00096}00096\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}alpha\ must\ satisfy:\ 0\ <\ alpha\ <=\ 1"{}})}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00097}00097\ \ \ \ \ \ \ \ \ comass\ =\ (1\ -\/\ alpha)\ /\ alpha}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00098}00098\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00099}00099\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}Must\ pass\ one\ of\ comass,\ span,\ halflife,\ or\ alpha"{}})}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00100}00100\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00101}00101\ \ \ \ \ \textcolor{keywordflow}{return}\ float(comass)}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00102}00102\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00103}00103\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00104}\mbox{\hyperlink{namespacepandas_1_1core_1_1window_1_1ewm_ac2fd07aae7a998a2840c37efba617286}{00104}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1core_1_1window_1_1ewm_ac2fd07aae7a998a2840c37efba617286}{\_calculate\_deltas}}(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00105}00105\ \ \ \ \ times:\ np.ndarray\ |\ NDFrame,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00106}00106\ \ \ \ \ halflife:\ float\ |\ TimedeltaConvertibleTypes\ |\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00107}00107\ )\ -\/>\ npt.NDArray[np.float64]:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00108}00108\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00109}00109\ \textcolor{stringliteral}{\ \ \ \ Return\ the\ diff\ of\ the\ times\ divided\ by\ the\ half-\/life.\ These\ values\ are\ used\ in}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00110}00110\ \textcolor{stringliteral}{\ \ \ \ the\ calculation\ of\ the\ ewm\ mean.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00111}00111\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00112}00112\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00113}00113\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00114}00114\ \textcolor{stringliteral}{\ \ \ \ times\ :\ np.ndarray,\ Series}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00115}00115\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Times\ corresponding\ to\ the\ observations.\ Must\ be\ monotonically\ increasing}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00116}00116\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ and\ \`{}\`{}datetime64[ns]\`{}\`{}\ dtype.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00117}00117\ \textcolor{stringliteral}{\ \ \ \ halflife\ :\ float,\ str,\ timedelta,\ optional}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00118}00118\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Half-\/life\ specifying\ the\ decay}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00119}00119\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00120}00120\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00121}00121\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00122}00122\ \textcolor{stringliteral}{\ \ \ \ np.ndarray}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00123}00123\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Diff\ of\ the\ times\ divided\ by\ the\ half-\/life}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00124}00124\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00125}00125\ \ \ \ \ unit\ =\ dtype\_to\_unit(times.dtype)}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00126}00126\ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(times,\ ABCSeries):}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00127}00127\ \ \ \ \ \ \ \ \ times\ =\ times.\_values}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00128}00128\ \ \ \ \ \_times\ =\ np.asarray(times.view(np.int64),\ dtype=np.float64)}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00129}00129\ \ \ \ \ \_halflife\ =\ float(Timedelta(halflife).as\_unit(unit).\_value)}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00130}00130\ \ \ \ \ \textcolor{keywordflow}{return}\ np.diff(\_times)\ /\ \_halflife}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00131}00131\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00132}00132\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00133}\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow}{00133}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow}{ExponentialMovingWindow}}(\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1rolling_1_1BaseWindow}{BaseWindow}}):}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00134}00134\ \ \ \ \ \textcolor{stringliteral}{r"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00135}00135\ \textcolor{stringliteral}{\ \ \ \ Provide\ exponentially\ weighted\ (EW)\ calculations.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00136}00136\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00137}00137\ \textcolor{stringliteral}{\ \ \ \ Exactly\ one\ of\ \`{}\`{}com\`{}\`{},\ \`{}\`{}span\`{}\`{},\ \`{}\`{}halflife\`{}\`{},\ or\ \`{}\`{}alpha\`{}\`{}\ must\ be}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00138}00138\ \textcolor{stringliteral}{\ \ \ \ provided\ if\ \`{}\`{}times\`{}\`{}\ is\ not\ provided.\ If\ \`{}\`{}times\`{}\`{}\ is\ provided,}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00139}00139\ \textcolor{stringliteral}{\ \ \ \ \`{}\`{}halflife\`{}\`{}\ and\ one\ of\ \`{}\`{}com\`{}\`{},\ \`{}\`{}span\`{}\`{}\ or\ \`{}\`{}alpha\`{}\`{}\ may\ be\ provided.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00140}00140\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00141}00141\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00142}00142\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00143}00143\ \textcolor{stringliteral}{\ \ \ \ com\ :\ float,\ optional}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00144}00144\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Specify\ decay\ in\ terms\ of\ center\ of\ mass}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00145}00145\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00146}00146\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :math:\`{}\(\backslash\)alpha\ =\ 1\ /\ (1\ +\ com)\`{},\ for\ :math:\`{}com\ \(\backslash\)geq\ 0\`{}.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00147}00147\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00148}00148\ \textcolor{stringliteral}{\ \ \ \ span\ :\ float,\ optional}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00149}00149\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Specify\ decay\ in\ terms\ of\ span}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00150}00150\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00151}00151\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :math:\`{}\(\backslash\)alpha\ =\ 2\ /\ (span\ +\ 1)\`{},\ for\ :math:\`{}span\ \(\backslash\)geq\ 1\`{}.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00152}00152\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00153}00153\ \textcolor{stringliteral}{\ \ \ \ halflife\ :\ float,\ str,\ timedelta,\ optional}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00154}00154\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Specify\ decay\ in\ terms\ of\ half-\/life}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00155}00155\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00156}00156\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :math:\`{}\(\backslash\)alpha\ =\ 1\ -\/\ \(\backslash\)exp\(\backslash\)left(-\/\(\backslash\)ln(2)\ /\ halflife\(\backslash\)right)\`{},\ for}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00157}00157\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :math:\`{}halflife\ >\ 0\`{}.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00158}00158\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00159}00159\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ \`{}\`{}times\`{}\`{}\ is\ specified,\ a\ timedelta\ convertible\ unit\ over\ which\ an}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00160}00160\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ observation\ decays\ to\ half\ its\ value.\ Only\ applicable\ to\ \`{}\`{}mean()\`{}\`{},}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00161}00161\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ and\ halflife\ value\ will\ not\ apply\ to\ the\ other\ functions.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00162}00162\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00163}00163\ \textcolor{stringliteral}{\ \ \ \ alpha\ :\ float,\ optional}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00164}00164\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Specify\ smoothing\ factor\ :math:\`{}\(\backslash\)alpha\`{}\ directly}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00165}00165\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00166}00166\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :math:\`{}0\ <\ \(\backslash\)alpha\ \(\backslash\)leq\ 1\`{}.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00167}00167\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00168}00168\ \textcolor{stringliteral}{\ \ \ \ min\_periods\ :\ int,\ default\ 0}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00169}00169\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Minimum\ number\ of\ observations\ in\ window\ required\ to\ have\ a\ value;}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00170}00170\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ otherwise,\ result\ is\ \`{}\`{}np.nan\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00171}00171\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00172}00172\ \textcolor{stringliteral}{\ \ \ \ adjust\ :\ bool,\ default\ True}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00173}00173\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Divide\ by\ decaying\ adjustment\ factor\ in\ beginning\ periods\ to\ account}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00174}00174\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ for\ imbalance\ in\ relative\ weightings\ (viewing\ EWMA\ as\ a\ moving\ average).}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00175}00175\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00176}00176\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ When\ \`{}\`{}adjust=True\`{}\`{}\ (default),\ the\ EW\ function\ is\ calculated\ using\ weights}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00177}00177\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ :math:\`{}w\_i\ =\ (1\ -\/\ \(\backslash\)alpha)\string^i\`{}.\ For\ example,\ the\ EW\ moving\ average\ of\ the\ series}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00178}00178\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ [:math:\`{}x\_0,\ x\_1,\ ...,\ x\_t\`{}]\ would\ be:}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00179}00179\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00180}00180\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ math::}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00181}00181\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ y\_t\ =\ \(\backslash\)frac\{x\_t\ +\ (1\ -\/\ \(\backslash\)alpha)x\_\{t-\/1\}\ +\ (1\ -\/\ \(\backslash\)alpha)\string^2\ x\_\{t-\/2\}\ +\ ...\ +\ (1\ -\/}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00182}00182\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \(\backslash\)alpha)\string^t\ x\_0\}\{1\ +\ (1\ -\/\ \(\backslash\)alpha)\ +\ (1\ -\/\ \(\backslash\)alpha)\string^2\ +\ ...\ +\ (1\ -\/\ \(\backslash\)alpha)\string^t\}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00183}00183\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00184}00184\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ When\ \`{}\`{}adjust=False\`{}\`{},\ the\ exponentially\ weighted\ function\ is\ calculated}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00185}00185\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ recursively:}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00186}00186\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00187}00187\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ math::}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00188}00188\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \(\backslash\)begin\{split\}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00189}00189\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ y\_0\ \&=\ x\_0\(\backslash\)\(\backslash\)}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00190}00190\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ y\_t\ \&=\ (1\ -\/\ \(\backslash\)alpha)\ y\_\{t-\/1\}\ +\ \(\backslash\)alpha\ x\_t,}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00191}00191\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \(\backslash\)end\{split\}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00192}00192\ \textcolor{stringliteral}{\ \ \ \ ignore\_na\ :\ bool,\ default\ False}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00193}00193\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Ignore\ missing\ values\ when\ calculating\ weights.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00194}00194\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00195}00195\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ When\ \`{}\`{}ignore\_na=False\`{}\`{}\ (default),\ weights\ are\ based\ on\ absolute\ positions.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00196}00196\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ For\ example,\ the\ weights\ of\ :math:\`{}x\_0\`{}\ and\ :math:\`{}x\_2\`{}\ used\ in\ calculating}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00197}00197\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ the\ final\ weighted\ average\ of\ [:math:\`{}x\_0\`{},\ None,\ :math:\`{}x\_2\`{}]\ are}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00198}00198\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ :math:\`{}(1-\/\(\backslash\)alpha)\string^2\`{}\ and\ :math:\`{}1\`{}\ if\ \`{}\`{}adjust=True\`{}\`{},\ and}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00199}00199\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ :math:\`{}(1-\/\(\backslash\)alpha)\string^2\`{}\ and\ :math:\`{}\(\backslash\)alpha\`{}\ if\ \`{}\`{}adjust=False\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00200}00200\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00201}00201\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ When\ \`{}\`{}ignore\_na=True\`{}\`{},\ weights\ are\ based}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00202}00202\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ on\ relative\ positions.\ For\ example,\ the\ weights\ of\ :math:\`{}x\_0\`{}\ and\ :math:\`{}x\_2\`{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00203}00203\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ used\ in\ calculating\ the\ final\ weighted\ average\ of}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00204}00204\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ [:math:\`{}x\_0\`{},\ None,\ :math:\`{}x\_2\`{}]\ are\ :math:\`{}1-\/\(\backslash\)alpha\`{}\ and\ :math:\`{}1\`{}\ if}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00205}00205\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \`{}\`{}adjust=True\`{}\`{},\ and\ :math:\`{}1-\/\(\backslash\)alpha\`{}\ and\ :math:\`{}\(\backslash\)alpha\`{}\ if\ \`{}\`{}adjust=False\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00206}00206\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00207}00207\ \textcolor{stringliteral}{\ \ \ \ axis\ :\ \{0,\ 1\},\ default\ 0}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00208}00208\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ \`{}\`{}0\`{}\`{}\ or\ \`{}\`{}'index'\`{}\`{},\ calculate\ across\ the\ rows.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00209}00209\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00210}00210\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ \`{}\`{}1\`{}\`{}\ or\ \`{}\`{}'columns'\`{}\`{},\ calculate\ across\ the\ columns.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00211}00211\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00212}00212\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ For\ \`{}Series\`{}\ this\ parameter\ is\ unused\ and\ defaults\ to\ 0.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00213}00213\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00214}00214\ \textcolor{stringliteral}{\ \ \ \ times\ :\ np.ndarray,\ Series,\ default\ None}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00215}00215\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00216}00216\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Only\ applicable\ to\ \`{}\`{}mean()\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00217}00217\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00218}00218\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Times\ corresponding\ to\ the\ observations.\ Must\ be\ monotonically\ increasing\ and}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00219}00219\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}datetime64[ns]\`{}\`{}\ dtype.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00220}00220\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00221}00221\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ 1-\/D\ array\ like,\ a\ sequence\ with\ the\ same\ shape\ as\ the\ observations.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00222}00222\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00223}00223\ \textcolor{stringliteral}{\ \ \ \ method\ :\ str\ \{'single',\ 'table'\},\ default\ 'single'}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00224}00224\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 1.4.0}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00225}00225\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00226}00226\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Execute\ the\ rolling\ operation\ per\ single\ column\ or\ row\ (\`{}\`{}'single'\`{}\`{})}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00227}00227\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ or\ over\ the\ entire\ object\ (\`{}\`{}'table'\`{}\`{}).}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00228}00228\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00229}00229\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ This\ argument\ is\ only\ implemented\ when\ specifying\ \`{}\`{}engine='numba'\`{}\`{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00230}00230\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ in\ the\ method\ call.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00231}00231\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00232}00232\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Only\ applicable\ to\ \`{}\`{}mean()\`{}\`{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00233}00233\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00234}00234\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00235}00235\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00236}00236\ \textcolor{stringliteral}{\ \ \ \ pandas.api.typing.ExponentialMovingWindow}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00237}00237\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00238}00238\ \textcolor{stringliteral}{\ \ \ \ See\ Also}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00239}00239\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00240}00240\ \textcolor{stringliteral}{\ \ \ \ rolling\ :\ Provides\ rolling\ window\ calculations.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00241}00241\ \textcolor{stringliteral}{\ \ \ \ expanding\ :\ Provides\ expanding\ transformations.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00242}00242\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00243}00243\ \textcolor{stringliteral}{\ \ \ \ Notes}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00244}00244\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00245}00245\ \textcolor{stringliteral}{\ \ \ \ See\ :ref:\`{}Windowing\ Operations\ <window.exponentially\_weighted>\`{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00246}00246\ \textcolor{stringliteral}{\ \ \ \ for\ further\ usage\ details\ and\ examples.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00247}00247\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00248}00248\ \textcolor{stringliteral}{\ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00249}00249\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00250}00250\ \textcolor{stringliteral}{\ \ \ \ >>>\ df\ =\ pd.DataFrame(\{'B':\ [0,\ 1,\ 2,\ np.nan,\ 4]\})}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00251}00251\ \textcolor{stringliteral}{\ \ \ \ >>>\ df}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00252}00252\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ B}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00253}00253\ \textcolor{stringliteral}{\ \ \ \ 0\ \ 0.0}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00254}00254\ \textcolor{stringliteral}{\ \ \ \ 1\ \ 1.0}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00255}00255\ \textcolor{stringliteral}{\ \ \ \ 2\ \ 2.0}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00256}00256\ \textcolor{stringliteral}{\ \ \ \ 3\ \ NaN}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00257}00257\ \textcolor{stringliteral}{\ \ \ \ 4\ \ 4.0}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00258}00258\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00259}00259\ \textcolor{stringliteral}{\ \ \ \ >>>\ df.ewm(com=0.5).mean()}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00260}00260\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ B}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00261}00261\ \textcolor{stringliteral}{\ \ \ \ 0\ \ 0.000000}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00262}00262\ \textcolor{stringliteral}{\ \ \ \ 1\ \ 0.750000}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00263}00263\ \textcolor{stringliteral}{\ \ \ \ 2\ \ 1.615385}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00264}00264\ \textcolor{stringliteral}{\ \ \ \ 3\ \ 1.615385}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00265}00265\ \textcolor{stringliteral}{\ \ \ \ 4\ \ 3.670213}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00266}00266\ \textcolor{stringliteral}{\ \ \ \ >>>\ df.ewm(alpha=2\ /\ 3).mean()}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00267}00267\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ B}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00268}00268\ \textcolor{stringliteral}{\ \ \ \ 0\ \ 0.000000}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00269}00269\ \textcolor{stringliteral}{\ \ \ \ 1\ \ 0.750000}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00270}00270\ \textcolor{stringliteral}{\ \ \ \ 2\ \ 1.615385}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00271}00271\ \textcolor{stringliteral}{\ \ \ \ 3\ \ 1.615385}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00272}00272\ \textcolor{stringliteral}{\ \ \ \ 4\ \ 3.670213}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00273}00273\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00274}00274\ \textcolor{stringliteral}{\ \ \ \ **adjust**}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00275}00275\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00276}00276\ \textcolor{stringliteral}{\ \ \ \ >>>\ df.ewm(com=0.5,\ adjust=True).mean()}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00277}00277\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ B}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00278}00278\ \textcolor{stringliteral}{\ \ \ \ 0\ \ 0.000000}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00279}00279\ \textcolor{stringliteral}{\ \ \ \ 1\ \ 0.750000}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00280}00280\ \textcolor{stringliteral}{\ \ \ \ 2\ \ 1.615385}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00281}00281\ \textcolor{stringliteral}{\ \ \ \ 3\ \ 1.615385}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00282}00282\ \textcolor{stringliteral}{\ \ \ \ 4\ \ 3.670213}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00283}00283\ \textcolor{stringliteral}{\ \ \ \ >>>\ df.ewm(com=0.5,\ adjust=False).mean()}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00284}00284\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ B}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00285}00285\ \textcolor{stringliteral}{\ \ \ \ 0\ \ 0.000000}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00286}00286\ \textcolor{stringliteral}{\ \ \ \ 1\ \ 0.666667}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00287}00287\ \textcolor{stringliteral}{\ \ \ \ 2\ \ 1.555556}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00288}00288\ \textcolor{stringliteral}{\ \ \ \ 3\ \ 1.555556}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00289}00289\ \textcolor{stringliteral}{\ \ \ \ 4\ \ 3.650794}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00290}00290\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00291}00291\ \textcolor{stringliteral}{\ \ \ \ **ignore\_na**}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00292}00292\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00293}00293\ \textcolor{stringliteral}{\ \ \ \ >>>\ df.ewm(com=0.5,\ ignore\_na=True).mean()}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00294}00294\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ B}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00295}00295\ \textcolor{stringliteral}{\ \ \ \ 0\ \ 0.000000}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00296}00296\ \textcolor{stringliteral}{\ \ \ \ 1\ \ 0.750000}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00297}00297\ \textcolor{stringliteral}{\ \ \ \ 2\ \ 1.615385}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00298}00298\ \textcolor{stringliteral}{\ \ \ \ 3\ \ 1.615385}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00299}00299\ \textcolor{stringliteral}{\ \ \ \ 4\ \ 3.225000}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00300}00300\ \textcolor{stringliteral}{\ \ \ \ >>>\ df.ewm(com=0.5,\ ignore\_na=False).mean()}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00301}00301\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ B}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00302}00302\ \textcolor{stringliteral}{\ \ \ \ 0\ \ 0.000000}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00303}00303\ \textcolor{stringliteral}{\ \ \ \ 1\ \ 0.750000}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00304}00304\ \textcolor{stringliteral}{\ \ \ \ 2\ \ 1.615385}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00305}00305\ \textcolor{stringliteral}{\ \ \ \ 3\ \ 1.615385}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00306}00306\ \textcolor{stringliteral}{\ \ \ \ 4\ \ 3.670213}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00307}00307\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00308}00308\ \textcolor{stringliteral}{\ \ \ \ **times**}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00309}00309\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00310}00310\ \textcolor{stringliteral}{\ \ \ \ Exponentially\ weighted\ mean\ with\ weights\ calculated\ with\ a\ timedelta\ \`{}\`{}halflife\`{}\`{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00311}00311\ \textcolor{stringliteral}{\ \ \ \ relative\ to\ \`{}\`{}times\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00312}00312\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00313}00313\ \textcolor{stringliteral}{\ \ \ \ >>>\ times\ =\ ['2020-\/01-\/01',\ '2020-\/01-\/03',\ '2020-\/01-\/10',\ '2020-\/01-\/15',\ '2020-\/01-\/17']}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00314}00314\ \textcolor{stringliteral}{\ \ \ \ >>>\ df.ewm(halflife='4\ days',\ times=pd.DatetimeIndex(times)).mean()}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00315}00315\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ B}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00316}00316\ \textcolor{stringliteral}{\ \ \ \ 0\ \ 0.000000}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00317}00317\ \textcolor{stringliteral}{\ \ \ \ 1\ \ 0.585786}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00318}00318\ \textcolor{stringliteral}{\ \ \ \ 2\ \ 1.523889}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00319}00319\ \textcolor{stringliteral}{\ \ \ \ 3\ \ 1.523889}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00320}00320\ \textcolor{stringliteral}{\ \ \ \ 4\ \ 3.233686}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00321}00321\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00322}00322\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00323}00323\ \ \ \ \ \_attributes\ =\ [}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00324}00324\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}com"{}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00325}00325\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}span"{}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00326}00326\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}halflife"{}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00327}00327\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}alpha"{}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00328}00328\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}min\_periods"{}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00329}00329\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}adjust"{}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00330}00330\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}ignore\_na"{}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00331}00331\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}axis"{}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00332}00332\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}times"{}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00333}00333\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}method"{}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00334}00334\ \ \ \ \ ]}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00335}00335\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00336}00336\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00337}00337\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00338}00338\ \ \ \ \ \ \ \ \ obj:\ NDFrame,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00339}00339\ \ \ \ \ \ \ \ \ com:\ float\ |\ \textcolor{keywordtype}{None}\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00340}00340\ \ \ \ \ \ \ \ \ span:\ float\ |\ \textcolor{keywordtype}{None}\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00341}00341\ \ \ \ \ \ \ \ \ halflife:\ float\ |\ TimedeltaConvertibleTypes\ |\ \textcolor{keywordtype}{None}\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00342}00342\ \ \ \ \ \ \ \ \ alpha:\ float\ |\ \textcolor{keywordtype}{None}\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00343}00343\ \ \ \ \ \ \ \ \ min\_periods:\ int\ |\ \textcolor{keywordtype}{None}\ =\ 0,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00344}00344\ \ \ \ \ \ \ \ \ adjust:\ bool\ =\ \textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00345}00345\ \ \ \ \ \ \ \ \ ignore\_na:\ bool\ =\ \textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00346}00346\ \ \ \ \ \ \ \ \ axis:\ Axis\ =\ 0,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00347}00347\ \ \ \ \ \ \ \ \ times:\ np.ndarray\ |\ NDFrame\ |\ \textcolor{keywordtype}{None}\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00348}00348\ \ \ \ \ \ \ \ \ method:\ str\ =\ \textcolor{stringliteral}{"{}single"{}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00349}00349\ \ \ \ \ \ \ \ \ *,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00350}00350\ \ \ \ \ \ \ \ \ selection=\textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00351}00351\ \ \ \ \ )\ -\/>\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00352}00352\ \ \ \ \ \ \ \ \ super().\_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00353}00353\ \ \ \ \ \ \ \ \ \ \ \ \ obj=obj,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00354}00354\ \ \ \ \ \ \ \ \ \ \ \ \ min\_periods=1\ \textcolor{keywordflow}{if}\ min\_periods\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{else}\ max(int(min\_periods),\ 1),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00355}00355\ \ \ \ \ \ \ \ \ \ \ \ \ on=\textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00356}00356\ \ \ \ \ \ \ \ \ \ \ \ \ center=\textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00357}00357\ \ \ \ \ \ \ \ \ \ \ \ \ closed=\textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00358}00358\ \ \ \ \ \ \ \ \ \ \ \ \ method=method,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00359}00359\ \ \ \ \ \ \ \ \ \ \ \ \ axis=axis,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00360}00360\ \ \ \ \ \ \ \ \ \ \ \ \ selection=selection,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00361}00361\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00362}00362\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_aa728d4aeb631256eb99ee16e1e37398c}{com}}\ =\ com}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00363}00363\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_ab185a2cb3c60cf6d1c40cfb6dbcd2c0c}{span}}\ =\ span}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00364}00364\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_abbc66410c914b717afe8ff918661a703}{halflife}}\ =\ halflife}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00365}00365\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_abf19b237fa8dd27aae282e4156fcb562}{alpha}}\ =\ alpha}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00366}00366\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_a4b3e78b4b7ab37e75385a019f3af5443}{adjust}}\ =\ adjust}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00367}00367\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_afd47463ac97b8279e775cc0bd8ee2734}{ignore\_na}}\ =\ ignore\_na}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00368}00368\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_aad5201cbd01612da351e653a32fffc07}{times}}\ =\ times}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00369}00369\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_aad5201cbd01612da351e653a32fffc07}{times}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00370}00370\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_a4b3e78b4b7ab37e75385a019f3af5443}{adjust}}:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00371}00371\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classNotImplementedError}{NotImplementedError}}(\textcolor{stringliteral}{"{}times\ is\ not\ supported\ with\ adjust=False."{}})}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00372}00372\ \ \ \ \ \ \ \ \ \ \ \ \ times\_dtype\ =\ getattr(self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_aad5201cbd01612da351e653a32fffc07}{times}},\ \textcolor{stringliteral}{"{}dtype"{}},\ \textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00373}00373\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ (}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00374}00374\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ is\_datetime64\_dtype(times\_dtype)}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00375}00375\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{or}\ isinstance(times\_dtype,\ DatetimeTZDtype)}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00376}00376\ \ \ \ \ \ \ \ \ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00377}00377\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}times\ must\ be\ datetime64\ dtype."{}})}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00378}00378\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_aad5201cbd01612da351e653a32fffc07}{times}})\ !=\ len(obj):}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00379}00379\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}times\ must\ be\ the\ same\ length\ as\ the\ object."{}})}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00380}00380\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ isinstance(self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_abbc66410c914b717afe8ff918661a703}{halflife}},\ (str,\ datetime.timedelta,\ np.timedelta64)):}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00381}00381\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}halflife\ must\ be\ a\ timedelta\ convertible\ object"{}})}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00382}00382\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isna(self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_aad5201cbd01612da351e653a32fffc07}{times}}).any():}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00383}00383\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}Cannot\ convert\ NaT\ values\ to\ integer"{}})}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00384}00384\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_a9104d65cdc9fa8e7018656c5ff252367}{\_deltas}}\ =\ \mbox{\hyperlink{namespacepandas_1_1core_1_1window_1_1ewm_ac2fd07aae7a998a2840c37efba617286}{\_calculate\_deltas}}(self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_aad5201cbd01612da351e653a32fffc07}{times}},\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_abbc66410c914b717afe8ff918661a703}{halflife}})}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00385}00385\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Halflife\ is\ no\ longer\ applicable\ when\ calculating\ COM}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00386}00386\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ But\ allow\ COM\ to\ still\ be\ calculated\ if\ the\ user\ passes\ other\ decay\ args}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00387}00387\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ common.count\_not\_none(self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_aa728d4aeb631256eb99ee16e1e37398c}{com}},\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_ab185a2cb3c60cf6d1c40cfb6dbcd2c0c}{span}},\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_abf19b237fa8dd27aae282e4156fcb562}{alpha}})\ >\ 0:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00388}00388\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_a10573bb873f1f18589a0faf9f766b1d6}{\_com}}\ =\ get\_center\_of\_mass(self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_aa728d4aeb631256eb99ee16e1e37398c}{com}},\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_ab185a2cb3c60cf6d1c40cfb6dbcd2c0c}{span}},\ \textcolor{keywordtype}{None},\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_abf19b237fa8dd27aae282e4156fcb562}{alpha}})}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00389}00389\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00390}00390\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_a10573bb873f1f18589a0faf9f766b1d6}{\_com}}\ =\ 1.0}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00391}00391\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00392}00392\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_abbc66410c914b717afe8ff918661a703}{halflife}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{and}\ isinstance(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00393}00393\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_abbc66410c914b717afe8ff918661a703}{halflife}},\ (str,\ datetime.timedelta,\ np.timedelta64)}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00394}00394\ \ \ \ \ \ \ \ \ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00395}00395\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00396}00396\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}halflife\ can\ only\ be\ a\ timedelta\ convertible\ argument\ if\ "{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00397}00397\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}times\ is\ not\ None."{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00398}00398\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00399}00399\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Without\ times,\ points\ are\ equally\ spaced}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00400}00400\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_a9104d65cdc9fa8e7018656c5ff252367}{\_deltas}}\ =\ np.ones(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00401}00401\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ max(self.\mbox{\hyperlink{classpandas_1_1core_1_1base_1_1SelectionMixin_a5207a79fc68d7810cc3a907a49eaf556}{obj}}.shape[self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1rolling_1_1BaseWindow_ad62c2c8ecd4e221a9828e71f6ef4dc18}{axis}}]\ -\/\ 1,\ 0),\ dtype=np.float64}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00402}00402\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00403}00403\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_a10573bb873f1f18589a0faf9f766b1d6}{\_com}}\ =\ get\_center\_of\_mass(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00404}00404\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ error:\ Argument\ 3\ to\ "{}get\_center\_of\_mass"{}\ has\ incompatible\ type}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00405}00405\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ "{}Union[float,\ Any,\ None,\ timedelta64,\ signedinteger[\_64Bit]]"{};}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00406}00406\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ expected\ "{}Optional[float]"{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00407}00407\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_aa728d4aeb631256eb99ee16e1e37398c}{com}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00408}00408\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_ab185a2cb3c60cf6d1c40cfb6dbcd2c0c}{span}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00409}00409\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_abbc66410c914b717afe8ff918661a703}{halflife}},\ \ \textcolor{comment}{\#\ type:\ ignore[arg-\/type]}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00410}00410\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_abf19b237fa8dd27aae282e4156fcb562}{alpha}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00411}00411\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00412}00412\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00413}00413\ \ \ \ \ \textcolor{keyword}{def\ }\_check\_window\_bounds(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00414}00414\ \ \ \ \ \ \ \ \ self,\ start:\ np.ndarray,\ end:\ np.ndarray,\ num\_vals:\ int}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00415}00415\ \ \ \ \ )\ -\/>\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00416}00416\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ emw\ algorithms\ are\ iterative\ with\ each\ point}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00417}00417\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ ExponentialMovingWindowIndexer\ "{}bounds"{}\ are\ the\ entire\ window}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00418}00418\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{pass}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00419}00419\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00420}\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_a1ff5c274bf385e0b6d643cc7b0868187}{00420}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_a1ff5c274bf385e0b6d643cc7b0868187}{\_get\_window\_indexer}}(self)\ -\/>\ BaseIndexer:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00421}00421\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00422}00422\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Return\ an\ indexer\ class\ that\ will\ compute\ the\ window\ start\ and\ end\ bounds}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00423}00423\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00424}00424\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classpandas_1_1core_1_1indexers_1_1objects_1_1ExponentialMovingWindowIndexer}{ExponentialMovingWindowIndexer}}()}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00425}00425\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00426}\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_a730d42d865ee1cbb0f4dd788cb344d88}{00426}}\ \ \ \ \ \textcolor{keyword}{def\ }online(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00427}00427\ \ \ \ \ \ \ \ \ self,\ engine:\ str\ =\ \textcolor{stringliteral}{"{}numba"{}},\ engine\_kwargs=\textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00428}00428\ \ \ \ \ )\ -\/>\ OnlineExponentialMovingWindow:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00429}00429\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00430}00430\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Return\ an\ \`{}\`{}OnlineExponentialMovingWindow\`{}\`{}\ object\ to\ calculate}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00431}00431\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ exponentially\ moving\ window\ aggregations\ in\ an\ online\ method.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00432}00432\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00433}00433\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 1.3.0}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00434}00434\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00435}00435\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00436}00436\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00437}00437\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ engine:\ str,\ default\ \`{}\`{}'numba'\`{}\`{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00438}00438\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Execution\ engine\ to\ calculate\ online\ aggregations.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00439}00439\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Applies\ to\ all\ supported\ aggregation\ methods.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00440}00440\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00441}00441\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ engine\_kwargs\ :\ dict,\ default\ None}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00442}00442\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Applies\ to\ all\ supported\ aggregation\ methods.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00443}00443\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00444}00444\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ *\ For\ \`{}\`{}'numba'\`{}\`{}\ engine,\ the\ engine\ can\ accept\ \`{}\`{}nopython\`{}\`{},\ \`{}\`{}nogil\`{}\`{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00445}00445\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ and\ \`{}\`{}parallel\`{}\`{}\ dictionary\ keys.\ The\ values\ must\ either\ be\ \`{}\`{}True\`{}\`{}\ or}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00446}00446\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \`{}\`{}False\`{}\`{}.\ The\ default\ \`{}\`{}engine\_kwargs\`{}\`{}\ for\ the\ \`{}\`{}'numba'\`{}\`{}\ engine\ is}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00447}00447\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \`{}\`{}\{\{'nopython':\ True,\ 'nogil':\ False,\ 'parallel':\ False\}\}\`{}\`{}\ and\ will\ be}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00448}00448\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ applied\ to\ the\ function}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00449}00449\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00450}00450\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00451}00451\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00452}00452\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ OnlineExponentialMovingWindow}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00453}00453\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00454}00454\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1OnlineExponentialMovingWindow}{OnlineExponentialMovingWindow}}(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00455}00455\ \ \ \ \ \ \ \ \ \ \ \ \ obj=self.\mbox{\hyperlink{classpandas_1_1core_1_1base_1_1SelectionMixin_a5207a79fc68d7810cc3a907a49eaf556}{obj}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00456}00456\ \ \ \ \ \ \ \ \ \ \ \ \ com=self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_aa728d4aeb631256eb99ee16e1e37398c}{com}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00457}00457\ \ \ \ \ \ \ \ \ \ \ \ \ span=self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_ab185a2cb3c60cf6d1c40cfb6dbcd2c0c}{span}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00458}00458\ \ \ \ \ \ \ \ \ \ \ \ \ halflife=self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_abbc66410c914b717afe8ff918661a703}{halflife}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00459}00459\ \ \ \ \ \ \ \ \ \ \ \ \ alpha=self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_abf19b237fa8dd27aae282e4156fcb562}{alpha}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00460}00460\ \ \ \ \ \ \ \ \ \ \ \ \ min\_periods=self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1rolling_1_1BaseWindow_ad68e2385caf79f9340362be6c1abe967}{min\_periods}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00461}00461\ \ \ \ \ \ \ \ \ \ \ \ \ adjust=self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_a4b3e78b4b7ab37e75385a019f3af5443}{adjust}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00462}00462\ \ \ \ \ \ \ \ \ \ \ \ \ ignore\_na=self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_afd47463ac97b8279e775cc0bd8ee2734}{ignore\_na}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00463}00463\ \ \ \ \ \ \ \ \ \ \ \ \ axis=self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1rolling_1_1BaseWindow_ad62c2c8ecd4e221a9828e71f6ef4dc18}{axis}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00464}00464\ \ \ \ \ \ \ \ \ \ \ \ \ times=self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_aad5201cbd01612da351e653a32fffc07}{times}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00465}00465\ \ \ \ \ \ \ \ \ \ \ \ \ engine=engine,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00466}00466\ \ \ \ \ \ \ \ \ \ \ \ \ engine\_kwargs=engine\_kwargs,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00467}00467\ \ \ \ \ \ \ \ \ \ \ \ \ selection=self.\mbox{\hyperlink{classpandas_1_1core_1_1base_1_1SelectionMixin_a4b377ecea0956413cc4e45a77d887ac5}{\_selection}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00468}00468\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00469}00469\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00470}00470\ \ \ \ \ \textcolor{preprocessor}{@doc}(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00471}00471\ \ \ \ \ \ \ \ \ \_shared\_docs[\textcolor{stringliteral}{"{}aggregate"{}}],}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00472}00472\ \ \ \ \ \ \ \ \ see\_also=dedent(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00473}00473\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00474}00474\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ See\ Also}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00475}00475\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00476}00476\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ pandas.DataFrame.rolling.aggregate}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00477}00477\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00478}00478\ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00479}00479\ \ \ \ \ \ \ \ \ examples=dedent(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00480}00480\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00481}00481\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00482}00482\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00483}00483\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ df\ =\ pd.DataFrame(\{"{}A"{}:\ [1,\ 2,\ 3],\ "{}B"{}:\ [4,\ 5,\ 6],\ "{}C"{}:\ [7,\ 8,\ 9]\})}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00484}00484\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ df}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00485}00485\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ A\ \ B\ \ C}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00486}00486\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 0\ \ 1\ \ 4\ \ 7}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00487}00487\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 1\ \ 2\ \ 5\ \ 8}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00488}00488\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 2\ \ 3\ \ 6\ \ 9}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00489}00489\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00490}00490\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ df.ewm(alpha=0.5).mean()}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00491}00491\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ A\ \ \ \ \ \ \ \ \ B\ \ \ \ \ \ \ \ \ C}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00492}00492\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 0\ \ 1.000000\ \ 4.000000\ \ 7.000000}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00493}00493\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 1\ \ 1.666667\ \ 4.666667\ \ 7.666667}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00494}00494\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 2\ \ 2.428571\ \ 5.428571\ \ 8.428571}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00495}00495\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00496}00496\ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00497}00497\ \ \ \ \ \ \ \ \ klass=\textcolor{stringliteral}{"{}Series/Dataframe"{}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00498}00498\ \ \ \ \ \ \ \ \ axis=\textcolor{stringliteral}{"{}"{}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00499}00499\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00500}00500\ \ \ \ \ \textcolor{keyword}{def\ }aggregate(self,\ func,\ *args,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00501}00501\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ super().aggregate(func,\ *args,\ **kwargs)}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00502}00502\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00503}00503\ \ \ \ \ agg\ =\ aggregate}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00504}00504\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00505}00505\ \ \ \ \ \textcolor{preprocessor}{@doc}(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00506}00506\ \ \ \ \ \ \ \ \ template\_header,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00507}00507\ \ \ \ \ \ \ \ \ create\_section\_header(\textcolor{stringliteral}{"{}Parameters"{}}),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00508}00508\ \ \ \ \ \ \ \ \ kwargs\_numeric\_only,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00509}00509\ \ \ \ \ \ \ \ \ window\_agg\_numba\_parameters(),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00510}00510\ \ \ \ \ \ \ \ \ create\_section\_header(\textcolor{stringliteral}{"{}Returns"{}}),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00511}00511\ \ \ \ \ \ \ \ \ template\_returns,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00512}00512\ \ \ \ \ \ \ \ \ create\_section\_header(\textcolor{stringliteral}{"{}See\ Also"{}}),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00513}00513\ \ \ \ \ \ \ \ \ template\_see\_also,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00514}00514\ \ \ \ \ \ \ \ \ create\_section\_header(\textcolor{stringliteral}{"{}Notes"{}}),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00515}00515\ \ \ \ \ \ \ \ \ numba\_notes,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00516}00516\ \ \ \ \ \ \ \ \ create\_section\_header(\textcolor{stringliteral}{"{}Examples"{}}),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00517}00517\ \ \ \ \ \ \ \ \ dedent(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00518}00518\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}\(\backslash\)}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00519}00519\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ ser\ =\ pd.Series([1,\ 2,\ 3,\ 4])}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00520}00520\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ ser.ewm(alpha=.2).mean()}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00521}00521\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 0\ \ \ \ 1.000000}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00522}00522\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 1\ \ \ \ 1.555556}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00523}00523\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 2\ \ \ \ 2.147541}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00524}00524\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 3\ \ \ \ 2.775068}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00525}00525\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ dtype:\ float64}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00526}00526\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00527}00527\ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00528}00528\ \ \ \ \ \ \ \ \ window\_method=\textcolor{stringliteral}{"{}ewm"{}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00529}00529\ \ \ \ \ \ \ \ \ aggregation\_description=\textcolor{stringliteral}{"{}(exponential\ weighted\ moment)\ mean"{}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00530}00530\ \ \ \ \ \ \ \ \ agg\_method=\textcolor{stringliteral}{"{}mean"{}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00531}00531\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00532}00532\ \ \ \ \ \textcolor{keyword}{def\ }mean(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00533}00533\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00534}00534\ \ \ \ \ \ \ \ \ numeric\_only:\ bool\ =\ \textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00535}00535\ \ \ \ \ \ \ \ \ engine=\textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00536}00536\ \ \ \ \ \ \ \ \ engine\_kwargs=\textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00537}00537\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00538}00538\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ maybe\_use\_numba(engine):}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00539}00539\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow}{method}}\ ==\ \textcolor{stringliteral}{"{}single"{}}:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00540}00540\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ func\ =\ generate\_numba\_ewm\_func}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00541}00541\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00542}00542\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ func\ =\ generate\_numba\_ewm\_table\_func}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00543}00543\ \ \ \ \ \ \ \ \ \ \ \ \ ewm\_func\ =\ func(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00544}00544\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ **get\_jit\_arguments(engine\_kwargs),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00545}00545\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ com=self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_a10573bb873f1f18589a0faf9f766b1d6}{\_com}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00546}00546\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ adjust=self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_a4b3e78b4b7ab37e75385a019f3af5443}{adjust}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00547}00547\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ignore\_na=self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_afd47463ac97b8279e775cc0bd8ee2734}{ignore\_na}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00548}00548\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ deltas=tuple(self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_a9104d65cdc9fa8e7018656c5ff252367}{\_deltas}}),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00549}00549\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ normalize=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00550}00550\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00551}00551\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1rolling_1_1BaseWindow_abd28847346917d5117e49016fb0e40fe}{\_apply}}(ewm\_func,\ name=\textcolor{stringliteral}{"{}mean"{}})}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00552}00552\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ engine\ \textcolor{keywordflow}{in}\ (\textcolor{stringliteral}{"{}cython"{}},\ \textcolor{keywordtype}{None}):}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00553}00553\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ engine\_kwargs\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00554}00554\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}cython\ engine\ does\ not\ accept\ engine\_kwargs"{}})}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00555}00555\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00556}00556\ \ \ \ \ \ \ \ \ \ \ \ \ deltas\ =\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_aad5201cbd01612da351e653a32fffc07}{times}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{else}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_a9104d65cdc9fa8e7018656c5ff252367}{\_deltas}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00557}00557\ \ \ \ \ \ \ \ \ \ \ \ \ window\_func\ =\ partial(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00558}00558\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ window\_aggregations.ewm,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00559}00559\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ com=self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_a10573bb873f1f18589a0faf9f766b1d6}{\_com}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00560}00560\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ adjust=self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_a4b3e78b4b7ab37e75385a019f3af5443}{adjust}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00561}00561\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ignore\_na=self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_afd47463ac97b8279e775cc0bd8ee2734}{ignore\_na}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00562}00562\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ deltas=deltas,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00563}00563\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ normalize=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00564}00564\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00565}00565\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1rolling_1_1BaseWindow_abd28847346917d5117e49016fb0e40fe}{\_apply}}(window\_func,\ name=\textcolor{stringliteral}{"{}mean"{}},\ numeric\_only=numeric\_only)}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00566}00566\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00567}00567\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}engine\ must\ be\ either\ 'numba'\ or\ 'cython'"{}})}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00568}00568\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00569}00569\ \ \ \ \ \textcolor{preprocessor}{@doc}(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00570}00570\ \ \ \ \ \ \ \ \ template\_header,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00571}00571\ \ \ \ \ \ \ \ \ create\_section\_header(\textcolor{stringliteral}{"{}Parameters"{}}),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00572}00572\ \ \ \ \ \ \ \ \ kwargs\_numeric\_only,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00573}00573\ \ \ \ \ \ \ \ \ window\_agg\_numba\_parameters(),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00574}00574\ \ \ \ \ \ \ \ \ create\_section\_header(\textcolor{stringliteral}{"{}Returns"{}}),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00575}00575\ \ \ \ \ \ \ \ \ template\_returns,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00576}00576\ \ \ \ \ \ \ \ \ create\_section\_header(\textcolor{stringliteral}{"{}See\ Also"{}}),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00577}00577\ \ \ \ \ \ \ \ \ template\_see\_also,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00578}00578\ \ \ \ \ \ \ \ \ create\_section\_header(\textcolor{stringliteral}{"{}Notes"{}}),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00579}00579\ \ \ \ \ \ \ \ \ numba\_notes,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00580}00580\ \ \ \ \ \ \ \ \ create\_section\_header(\textcolor{stringliteral}{"{}Examples"{}}),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00581}00581\ \ \ \ \ \ \ \ \ dedent(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00582}00582\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}\(\backslash\)}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00583}00583\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ ser\ =\ pd.Series([1,\ 2,\ 3,\ 4])}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00584}00584\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ ser.ewm(alpha=.2).sum()}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00585}00585\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 0\ \ \ \ 1.000}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00586}00586\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 1\ \ \ \ 2.800}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00587}00587\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 2\ \ \ \ 5.240}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00588}00588\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 3\ \ \ \ 8.192}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00589}00589\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ dtype:\ float64}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00590}00590\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00591}00591\ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00592}00592\ \ \ \ \ \ \ \ \ window\_method=\textcolor{stringliteral}{"{}ewm"{}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00593}00593\ \ \ \ \ \ \ \ \ aggregation\_description=\textcolor{stringliteral}{"{}(exponential\ weighted\ moment)\ sum"{}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00594}00594\ \ \ \ \ \ \ \ \ agg\_method=\textcolor{stringliteral}{"{}sum"{}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00595}00595\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00596}00596\ \ \ \ \ \textcolor{keyword}{def\ }sum(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00597}00597\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00598}00598\ \ \ \ \ \ \ \ \ numeric\_only:\ bool\ =\ \textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00599}00599\ \ \ \ \ \ \ \ \ engine=\textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00600}00600\ \ \ \ \ \ \ \ \ engine\_kwargs=\textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00601}00601\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00602}00602\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_a4b3e78b4b7ab37e75385a019f3af5443}{adjust}}:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00603}00603\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classNotImplementedError}{NotImplementedError}}(\textcolor{stringliteral}{"{}sum\ is\ not\ implemented\ with\ adjust=False"{}})}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00604}00604\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ maybe\_use\_numba(engine):}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00605}00605\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow}{method}}\ ==\ \textcolor{stringliteral}{"{}single"{}}:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00606}00606\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ func\ =\ generate\_numba\_ewm\_func}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00607}00607\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00608}00608\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ func\ =\ generate\_numba\_ewm\_table\_func}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00609}00609\ \ \ \ \ \ \ \ \ \ \ \ \ ewm\_func\ =\ func(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00610}00610\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ **get\_jit\_arguments(engine\_kwargs),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00611}00611\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ com=self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_a10573bb873f1f18589a0faf9f766b1d6}{\_com}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00612}00612\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ adjust=self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_a4b3e78b4b7ab37e75385a019f3af5443}{adjust}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00613}00613\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ignore\_na=self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_afd47463ac97b8279e775cc0bd8ee2734}{ignore\_na}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00614}00614\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ deltas=tuple(self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_a9104d65cdc9fa8e7018656c5ff252367}{\_deltas}}),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00615}00615\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ normalize=\textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00616}00616\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00617}00617\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1rolling_1_1BaseWindow_abd28847346917d5117e49016fb0e40fe}{\_apply}}(ewm\_func,\ name=\textcolor{stringliteral}{"{}sum"{}})}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00618}00618\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ engine\ \textcolor{keywordflow}{in}\ (\textcolor{stringliteral}{"{}cython"{}},\ \textcolor{keywordtype}{None}):}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00619}00619\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ engine\_kwargs\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00620}00620\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}cython\ engine\ does\ not\ accept\ engine\_kwargs"{}})}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00621}00621\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00622}00622\ \ \ \ \ \ \ \ \ \ \ \ \ deltas\ =\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_aad5201cbd01612da351e653a32fffc07}{times}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{else}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_a9104d65cdc9fa8e7018656c5ff252367}{\_deltas}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00623}00623\ \ \ \ \ \ \ \ \ \ \ \ \ window\_func\ =\ partial(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00624}00624\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ window\_aggregations.ewm,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00625}00625\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ com=self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_a10573bb873f1f18589a0faf9f766b1d6}{\_com}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00626}00626\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ adjust=self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_a4b3e78b4b7ab37e75385a019f3af5443}{adjust}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00627}00627\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ignore\_na=self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_afd47463ac97b8279e775cc0bd8ee2734}{ignore\_na}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00628}00628\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ deltas=deltas,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00629}00629\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ normalize=\textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00630}00630\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00631}00631\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1rolling_1_1BaseWindow_abd28847346917d5117e49016fb0e40fe}{\_apply}}(window\_func,\ name=\textcolor{stringliteral}{"{}sum"{}},\ numeric\_only=numeric\_only)}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00632}00632\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00633}00633\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}engine\ must\ be\ either\ 'numba'\ or\ 'cython'"{}})}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00634}00634\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00635}00635\ \ \ \ \ \textcolor{preprocessor}{@doc}(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00636}00636\ \ \ \ \ \ \ \ \ template\_header,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00637}00637\ \ \ \ \ \ \ \ \ create\_section\_header(\textcolor{stringliteral}{"{}Parameters"{}}),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00638}00638\ \ \ \ \ \ \ \ \ dedent(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00639}00639\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}\(\backslash\)}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00640}00640\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ bias\ :\ bool,\ default\ False}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00641}00641\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Use\ a\ standard\ estimation\ bias\ correction.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00642}00642\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00643}00643\ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00644}00644\ \ \ \ \ \ \ \ \ kwargs\_numeric\_only,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00645}00645\ \ \ \ \ \ \ \ \ create\_section\_header(\textcolor{stringliteral}{"{}Returns"{}}),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00646}00646\ \ \ \ \ \ \ \ \ template\_returns,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00647}00647\ \ \ \ \ \ \ \ \ create\_section\_header(\textcolor{stringliteral}{"{}See\ Also"{}}),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00648}00648\ \ \ \ \ \ \ \ \ template\_see\_also,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00649}00649\ \ \ \ \ \ \ \ \ create\_section\_header(\textcolor{stringliteral}{"{}Examples"{}}),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00650}00650\ \ \ \ \ \ \ \ \ dedent(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00651}00651\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}\(\backslash\)}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00652}00652\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ ser\ =\ pd.Series([1,\ 2,\ 3,\ 4])}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00653}00653\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ ser.ewm(alpha=.2).std()}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00654}00654\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 0\ \ \ \ \ \ \ \ \ NaN}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00655}00655\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 1\ \ \ \ 0.707107}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00656}00656\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 2\ \ \ \ 0.995893}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00657}00657\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 3\ \ \ \ 1.277320}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00658}00658\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ dtype:\ float64}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00659}00659\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00660}00660\ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00661}00661\ \ \ \ \ \ \ \ \ window\_method=\textcolor{stringliteral}{"{}ewm"{}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00662}00662\ \ \ \ \ \ \ \ \ aggregation\_description=\textcolor{stringliteral}{"{}(exponential\ weighted\ moment)\ standard\ deviation"{}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00663}00663\ \ \ \ \ \ \ \ \ agg\_method=\textcolor{stringliteral}{"{}std"{}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00664}00664\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00665}00665\ \ \ \ \ \textcolor{keyword}{def\ }std(self,\ bias:\ bool\ =\ \textcolor{keyword}{False},\ numeric\_only:\ bool\ =\ \textcolor{keyword}{False}):}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00666}00666\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00667}00667\ \ \ \ \ \ \ \ \ \ \ \ \ numeric\_only}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00668}00668\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow}{\_selected\_obj}}.ndim\ ==\ 1}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00669}00669\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}\ \textcolor{keywordflow}{not}\ is\_numeric\_dtype(self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow}{\_selected\_obj}}.dtype)}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00670}00670\ \ \ \ \ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00671}00671\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Raise\ directly\ so\ error\ message\ says\ std\ instead\ of\ var}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00672}00672\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classNotImplementedError}{NotImplementedError}}(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00673}00673\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\{type(self).\_\_name\_\_\}.std\ does\ not\ implement\ numeric\_only"{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00674}00674\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00675}00675\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ zsqrt(self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_a7228f54d402c24339751a22103f74ffd}{var}}(bias=bias,\ numeric\_only=numeric\_only))}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00676}00676\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00677}00677\ \ \ \ \ \textcolor{preprocessor}{@doc}(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00678}00678\ \ \ \ \ \ \ \ \ template\_header,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00679}00679\ \ \ \ \ \ \ \ \ create\_section\_header(\textcolor{stringliteral}{"{}Parameters"{}}),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00680}00680\ \ \ \ \ \ \ \ \ dedent(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00681}00681\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}\(\backslash\)}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00682}00682\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ bias\ :\ bool,\ default\ False}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00683}00683\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Use\ a\ standard\ estimation\ bias\ correction.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00684}00684\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00685}00685\ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00686}00686\ \ \ \ \ \ \ \ \ kwargs\_numeric\_only,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00687}00687\ \ \ \ \ \ \ \ \ create\_section\_header(\textcolor{stringliteral}{"{}Returns"{}}),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00688}00688\ \ \ \ \ \ \ \ \ template\_returns,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00689}00689\ \ \ \ \ \ \ \ \ create\_section\_header(\textcolor{stringliteral}{"{}See\ Also"{}}),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00690}00690\ \ \ \ \ \ \ \ \ template\_see\_also,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00691}00691\ \ \ \ \ \ \ \ \ create\_section\_header(\textcolor{stringliteral}{"{}Examples"{}}),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00692}00692\ \ \ \ \ \ \ \ \ dedent(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00693}00693\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}\(\backslash\)}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00694}00694\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ ser\ =\ pd.Series([1,\ 2,\ 3,\ 4])}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00695}00695\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ ser.ewm(alpha=.2).var()}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00696}00696\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 0\ \ \ \ \ \ \ \ \ NaN}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00697}00697\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 1\ \ \ \ 0.500000}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00698}00698\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 2\ \ \ \ 0.991803}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00699}00699\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 3\ \ \ \ 1.631547}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00700}00700\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ dtype:\ float64}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00701}00701\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00702}00702\ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00703}00703\ \ \ \ \ \ \ \ \ window\_method=\textcolor{stringliteral}{"{}ewm"{}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00704}00704\ \ \ \ \ \ \ \ \ aggregation\_description=\textcolor{stringliteral}{"{}(exponential\ weighted\ moment)\ variance"{}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00705}00705\ \ \ \ \ \ \ \ \ agg\_method=\textcolor{stringliteral}{"{}var"{}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00706}00706\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00707}00707\ \ \ \ \ \textcolor{keyword}{def\ }var(self,\ bias:\ bool\ =\ \textcolor{keyword}{False},\ numeric\_only:\ bool\ =\ \textcolor{keyword}{False}):}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00708}00708\ \ \ \ \ \ \ \ \ window\_func\ =\ window\_aggregations.ewmcov}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00709}00709\ \ \ \ \ \ \ \ \ wfunc\ =\ partial(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00710}00710\ \ \ \ \ \ \ \ \ \ \ \ \ window\_func,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00711}00711\ \ \ \ \ \ \ \ \ \ \ \ \ com=self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_a10573bb873f1f18589a0faf9f766b1d6}{\_com}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00712}00712\ \ \ \ \ \ \ \ \ \ \ \ \ adjust=self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_a4b3e78b4b7ab37e75385a019f3af5443}{adjust}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00713}00713\ \ \ \ \ \ \ \ \ \ \ \ \ ignore\_na=self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_afd47463ac97b8279e775cc0bd8ee2734}{ignore\_na}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00714}00714\ \ \ \ \ \ \ \ \ \ \ \ \ bias=bias,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00715}00715\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00716}00716\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00717}00717\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }var\_func(values,\ begin,\ end,\ min\_periods):}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00718}00718\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ wfunc(values,\ begin,\ end,\ min\_periods,\ values)}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00719}00719\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00720}00720\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1rolling_1_1BaseWindow_abd28847346917d5117e49016fb0e40fe}{\_apply}}(var\_func,\ name=\textcolor{stringliteral}{"{}var"{}},\ numeric\_only=numeric\_only)}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00721}00721\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00722}00722\ \ \ \ \ \textcolor{preprocessor}{@doc}(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00723}00723\ \ \ \ \ \ \ \ \ template\_header,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00724}00724\ \ \ \ \ \ \ \ \ create\_section\_header(\textcolor{stringliteral}{"{}Parameters"{}}),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00725}00725\ \ \ \ \ \ \ \ \ dedent(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00726}00726\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}\(\backslash\)}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00727}00727\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ other\ :\ Series\ or\ DataFrame\ ,\ optional}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00728}00728\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ If\ not\ supplied\ then\ will\ default\ to\ self\ and\ produce\ pairwise}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00729}00729\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ output.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00730}00730\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ pairwise\ :\ bool,\ default\ None}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00731}00731\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ If\ False\ then\ only\ matching\ columns\ between\ self\ and\ other\ will\ be}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00732}00732\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ used\ and\ the\ output\ will\ be\ a\ DataFrame.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00733}00733\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ If\ True\ then\ all\ pairwise\ combinations\ will\ be\ calculated\ and\ the}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00734}00734\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ output\ will\ be\ a\ MultiIndex\ DataFrame\ in\ the\ case\ of\ DataFrame}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00735}00735\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ inputs.\ In\ the\ case\ of\ missing\ elements,\ only\ complete\ pairwise}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00736}00736\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ observations\ will\ be\ used.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00737}00737\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ bias\ :\ bool,\ default\ False}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00738}00738\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Use\ a\ standard\ estimation\ bias\ correction.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00739}00739\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00740}00740\ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00741}00741\ \ \ \ \ \ \ \ \ kwargs\_numeric\_only,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00742}00742\ \ \ \ \ \ \ \ \ create\_section\_header(\textcolor{stringliteral}{"{}Returns"{}}),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00743}00743\ \ \ \ \ \ \ \ \ template\_returns,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00744}00744\ \ \ \ \ \ \ \ \ create\_section\_header(\textcolor{stringliteral}{"{}See\ Also"{}}),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00745}00745\ \ \ \ \ \ \ \ \ template\_see\_also,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00746}00746\ \ \ \ \ \ \ \ \ create\_section\_header(\textcolor{stringliteral}{"{}Examples"{}}),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00747}00747\ \ \ \ \ \ \ \ \ dedent(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00748}00748\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}\(\backslash\)}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00749}00749\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ ser1\ =\ pd.Series([1,\ 2,\ 3,\ 4])}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00750}00750\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ ser2\ =\ pd.Series([10,\ 11,\ 13,\ 16])}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00751}00751\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ ser1.ewm(alpha=.2).cov(ser2)}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00752}00752\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 0\ \ \ \ \ \ \ \ \ NaN}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00753}00753\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 1\ \ \ \ 0.500000}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00754}00754\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 2\ \ \ \ 1.524590}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00755}00755\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 3\ \ \ \ 3.408836}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00756}00756\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ dtype:\ float64}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00757}00757\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00758}00758\ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00759}00759\ \ \ \ \ \ \ \ \ window\_method=\textcolor{stringliteral}{"{}ewm"{}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00760}00760\ \ \ \ \ \ \ \ \ aggregation\_description=\textcolor{stringliteral}{"{}(exponential\ weighted\ moment)\ sample\ covariance"{}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00761}00761\ \ \ \ \ \ \ \ \ agg\_method=\textcolor{stringliteral}{"{}cov"{}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00762}00762\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00763}00763\ \ \ \ \ \textcolor{keyword}{def\ }cov(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00764}00764\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00765}00765\ \ \ \ \ \ \ \ \ other:\ DataFrame\ |\ Series\ |\ \textcolor{keywordtype}{None}\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00766}00766\ \ \ \ \ \ \ \ \ pairwise:\ bool\ |\ \textcolor{keywordtype}{None}\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00767}00767\ \ \ \ \ \ \ \ \ bias:\ bool\ =\ \textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00768}00768\ \ \ \ \ \ \ \ \ numeric\_only:\ bool\ =\ \textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00769}00769\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00770}00770\ \ \ \ \ \ \ \ \ \textcolor{keyword}{from}\ pandas\ \textcolor{keyword}{import}\ Series}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00771}00771\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00772}00772\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1rolling_1_1BaseWindow_a52c5df036895716fe461919d02c4b010}{\_validate\_numeric\_only}}(\textcolor{stringliteral}{"{}cov"{}},\ numeric\_only)}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00773}00773\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00774}00774\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }cov\_func(x,\ y):}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00775}00775\ \ \ \ \ \ \ \ \ \ \ \ \ x\_array\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1rolling_1_1BaseWindow_aed06465142e39c322d5acf984bed10a8}{\_prep\_values}}(x)}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00776}00776\ \ \ \ \ \ \ \ \ \ \ \ \ y\_array\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1rolling_1_1BaseWindow_aed06465142e39c322d5acf984bed10a8}{\_prep\_values}}(y)}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00777}00777\ \ \ \ \ \ \ \ \ \ \ \ \ window\_indexer\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_a1ff5c274bf385e0b6d643cc7b0868187}{\_get\_window\_indexer}}()}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00778}00778\ \ \ \ \ \ \ \ \ \ \ \ \ min\_periods\ =\ (}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00779}00779\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1rolling_1_1BaseWindow_ad68e2385caf79f9340362be6c1abe967}{min\_periods}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00780}00780\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1rolling_1_1BaseWindow_ad68e2385caf79f9340362be6c1abe967}{min\_periods}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00781}00781\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}\ window\_indexer.window\_size}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00782}00782\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00783}00783\ \ \ \ \ \ \ \ \ \ \ \ \ start,\ end\ =\ window\_indexer.get\_window\_bounds(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00784}00784\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ num\_values=len(x\_array),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00785}00785\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ min\_periods=min\_periods,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00786}00786\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ center=self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1rolling_1_1BaseWindow_ac6cee4efbd1ff92995515dbd6a855d96}{center}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00787}00787\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ closed=self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1rolling_1_1BaseWindow_a29c4bffeac35ab9cb1772161f358fc9b}{closed}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00788}00788\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ step=self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1rolling_1_1BaseWindow_a61ba64ebb13e8f505b9901390626489c}{step}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00789}00789\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00790}00790\ \ \ \ \ \ \ \ \ \ \ \ \ result\ =\ window\_aggregations.ewmcov(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00791}00791\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ x\_array,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00792}00792\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ start,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00793}00793\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ end,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00794}00794\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ error:\ Argument\ 4\ to\ "{}ewmcov"{}\ has\ incompatible\ type}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00795}00795\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ "{}Optional[int]"{};\ expected\ "{}int"{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00796}00796\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1rolling_1_1BaseWindow_ad68e2385caf79f9340362be6c1abe967}{min\_periods}},\ \ \textcolor{comment}{\#\ type:\ ignore[arg-\/type]}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00797}00797\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ y\_array,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00798}00798\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_a10573bb873f1f18589a0faf9f766b1d6}{\_com}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00799}00799\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_a4b3e78b4b7ab37e75385a019f3af5443}{adjust}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00800}00800\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_afd47463ac97b8279e775cc0bd8ee2734}{ignore\_na}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00801}00801\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ bias,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00802}00802\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00803}00803\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ Series(result,\ index=x.index,\ name=x.name,\ copy=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00804}00804\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00805}00805\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1rolling_1_1BaseWindow_a6c30a273f7df105fe13a6f3015e7c85b}{\_apply\_pairwise}}(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00806}00806\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow}{\_selected\_obj}},\ other,\ pairwise,\ cov\_func,\ numeric\_only}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00807}00807\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00808}00808\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00809}00809\ \ \ \ \ \textcolor{preprocessor}{@doc}(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00810}00810\ \ \ \ \ \ \ \ \ template\_header,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00811}00811\ \ \ \ \ \ \ \ \ create\_section\_header(\textcolor{stringliteral}{"{}Parameters"{}}),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00812}00812\ \ \ \ \ \ \ \ \ dedent(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00813}00813\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}\(\backslash\)}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00814}00814\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ other\ :\ Series\ or\ DataFrame,\ optional}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00815}00815\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ If\ not\ supplied\ then\ will\ default\ to\ self\ and\ produce\ pairwise}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00816}00816\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ output.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00817}00817\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ pairwise\ :\ bool,\ default\ None}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00818}00818\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ If\ False\ then\ only\ matching\ columns\ between\ self\ and\ other\ will\ be}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00819}00819\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ used\ and\ the\ output\ will\ be\ a\ DataFrame.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00820}00820\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ If\ True\ then\ all\ pairwise\ combinations\ will\ be\ calculated\ and\ the}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00821}00821\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ output\ will\ be\ a\ MultiIndex\ DataFrame\ in\ the\ case\ of\ DataFrame}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00822}00822\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ inputs.\ In\ the\ case\ of\ missing\ elements,\ only\ complete\ pairwise}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00823}00823\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ observations\ will\ be\ used.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00824}00824\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00825}00825\ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00826}00826\ \ \ \ \ \ \ \ \ kwargs\_numeric\_only,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00827}00827\ \ \ \ \ \ \ \ \ create\_section\_header(\textcolor{stringliteral}{"{}Returns"{}}),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00828}00828\ \ \ \ \ \ \ \ \ template\_returns,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00829}00829\ \ \ \ \ \ \ \ \ create\_section\_header(\textcolor{stringliteral}{"{}See\ Also"{}}),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00830}00830\ \ \ \ \ \ \ \ \ template\_see\_also,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00831}00831\ \ \ \ \ \ \ \ \ create\_section\_header(\textcolor{stringliteral}{"{}Examples"{}}),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00832}00832\ \ \ \ \ \ \ \ \ dedent(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00833}00833\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}\(\backslash\)}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00834}00834\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ ser1\ =\ pd.Series([1,\ 2,\ 3,\ 4])}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00835}00835\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ ser2\ =\ pd.Series([10,\ 11,\ 13,\ 16])}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00836}00836\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ ser1.ewm(alpha=.2).corr(ser2)}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00837}00837\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 0\ \ \ \ \ \ \ \ \ NaN}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00838}00838\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 1\ \ \ \ 1.000000}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00839}00839\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 2\ \ \ \ 0.982821}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00840}00840\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 3\ \ \ \ 0.977802}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00841}00841\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ dtype:\ float64}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00842}00842\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00843}00843\ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00844}00844\ \ \ \ \ \ \ \ \ window\_method=\textcolor{stringliteral}{"{}ewm"{}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00845}00845\ \ \ \ \ \ \ \ \ aggregation\_description=\textcolor{stringliteral}{"{}(exponential\ weighted\ moment)\ sample\ correlation"{}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00846}00846\ \ \ \ \ \ \ \ \ agg\_method=\textcolor{stringliteral}{"{}corr"{}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00847}00847\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00848}00848\ \ \ \ \ \textcolor{keyword}{def\ }corr(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00849}00849\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00850}00850\ \ \ \ \ \ \ \ \ other:\ DataFrame\ |\ Series\ |\ \textcolor{keywordtype}{None}\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00851}00851\ \ \ \ \ \ \ \ \ pairwise:\ bool\ |\ \textcolor{keywordtype}{None}\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00852}00852\ \ \ \ \ \ \ \ \ numeric\_only:\ bool\ =\ \textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00853}00853\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00854}00854\ \ \ \ \ \ \ \ \ \textcolor{keyword}{from}\ pandas\ \textcolor{keyword}{import}\ Series}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00855}00855\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00856}00856\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1rolling_1_1BaseWindow_a52c5df036895716fe461919d02c4b010}{\_validate\_numeric\_only}}(\textcolor{stringliteral}{"{}corr"{}},\ numeric\_only)}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00857}00857\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00858}00858\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }cov\_func(x,\ y):}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00859}00859\ \ \ \ \ \ \ \ \ \ \ \ \ x\_array\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1rolling_1_1BaseWindow_aed06465142e39c322d5acf984bed10a8}{\_prep\_values}}(x)}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00860}00860\ \ \ \ \ \ \ \ \ \ \ \ \ y\_array\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1rolling_1_1BaseWindow_aed06465142e39c322d5acf984bed10a8}{\_prep\_values}}(y)}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00861}00861\ \ \ \ \ \ \ \ \ \ \ \ \ window\_indexer\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_a1ff5c274bf385e0b6d643cc7b0868187}{\_get\_window\_indexer}}()}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00862}00862\ \ \ \ \ \ \ \ \ \ \ \ \ min\_periods\ =\ (}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00863}00863\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1rolling_1_1BaseWindow_ad68e2385caf79f9340362be6c1abe967}{min\_periods}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00864}00864\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1rolling_1_1BaseWindow_ad68e2385caf79f9340362be6c1abe967}{min\_periods}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00865}00865\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}\ window\_indexer.window\_size}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00866}00866\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00867}00867\ \ \ \ \ \ \ \ \ \ \ \ \ start,\ end\ =\ window\_indexer.get\_window\_bounds(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00868}00868\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ num\_values=len(x\_array),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00869}00869\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ min\_periods=min\_periods,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00870}00870\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ center=self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1rolling_1_1BaseWindow_ac6cee4efbd1ff92995515dbd6a855d96}{center}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00871}00871\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ closed=self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1rolling_1_1BaseWindow_a29c4bffeac35ab9cb1772161f358fc9b}{closed}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00872}00872\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ step=self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1rolling_1_1BaseWindow_a61ba64ebb13e8f505b9901390626489c}{step}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00873}00873\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00874}00874\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00875}00875\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }\_cov(X,\ Y):}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00876}00876\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ window\_aggregations.ewmcov(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00877}00877\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ X,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00878}00878\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ start,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00879}00879\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ end,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00880}00880\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ min\_periods,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00881}00881\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ Y,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00882}00882\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_a10573bb873f1f18589a0faf9f766b1d6}{\_com}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00883}00883\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_a4b3e78b4b7ab37e75385a019f3af5443}{adjust}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00884}00884\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_afd47463ac97b8279e775cc0bd8ee2734}{ignore\_na}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00885}00885\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00886}00886\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00887}00887\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00888}00888\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ np.errstate(all=\textcolor{stringliteral}{"{}ignore"{}}):}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00889}00889\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ cov\ =\ \_cov(x\_array,\ y\_array)}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00890}00890\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ x\_var\ =\ \_cov(x\_array,\ x\_array)}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00891}00891\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ y\_var\ =\ \_cov(y\_array,\ y\_array)}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00892}00892\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ result\ =\ cov\ /\ zsqrt(x\_var\ *\ y\_var)}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00893}00893\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ Series(result,\ index=x.index,\ name=x.name,\ copy=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00894}00894\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00895}00895\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1rolling_1_1BaseWindow_a6c30a273f7df105fe13a6f3015e7c85b}{\_apply\_pairwise}}(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00896}00896\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow}{\_selected\_obj}},\ other,\ pairwise,\ cov\_func,\ numeric\_only}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00897}00897\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00898}00898\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00899}00899\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00900}\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindowGroupby}{00900}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindowGroupby}{ExponentialMovingWindowGroupby}}(\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1rolling_1_1BaseWindowGroupby}{BaseWindowGroupby}},\ \mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow}{ExponentialMovingWindow}}):}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00901}00901\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00902}00902\ \textcolor{stringliteral}{\ \ \ \ Provide\ an\ exponential\ moving\ window\ groupby\ implementation.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00903}00903\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00904}00904\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00905}00905\ \ \ \ \ \_attributes\ =\ ExponentialMovingWindow.\_attributes\ +\ BaseWindowGroupby.\_attributes}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00906}00906\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00907}00907\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ obj,\ *args,\ \_grouper=None,\ **kwargs)\ -\/>\ None:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00908}00908\ \ \ \ \ \ \ \ \ super().\_\_init\_\_(obj,\ *args,\ \_grouper=\_grouper,\ **kwargs)}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00909}00909\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00910}00910\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ obj.empty\ \textcolor{keywordflow}{and}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_aad5201cbd01612da351e653a32fffc07}{times}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00911}00911\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ sort\ the\ times\ and\ recalculate\ the\ deltas\ according\ to\ the\ groups}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00912}00912\ \ \ \ \ \ \ \ \ \ \ \ \ groupby\_order\ =\ np.concatenate(list(self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1rolling_1_1BaseWindowGroupby_ae4fe11c600ff862aa64619aabbc199a7}{\_grouper}}.indices.values()))}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00913}00913\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_a9104d65cdc9fa8e7018656c5ff252367}{\_deltas}}\ =\ \mbox{\hyperlink{namespacepandas_1_1core_1_1window_1_1ewm_ac2fd07aae7a998a2840c37efba617286}{\_calculate\_deltas}}(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00914}00914\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_aad5201cbd01612da351e653a32fffc07}{times}}.take(groupby\_order),}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00915}00915\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_abbc66410c914b717afe8ff918661a703}{halflife}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00916}00916\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00917}00917\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00918}\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindowGroupby_ad4a6a2d264c9abd0b0f85179d6002015}{00918}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindowGroupby_ad4a6a2d264c9abd0b0f85179d6002015}{\_get\_window\_indexer}}(self)\ -\/>\ GroupbyIndexer:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00919}00919\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00920}00920\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Return\ an\ indexer\ class\ that\ will\ compute\ the\ window\ start\ and\ end\ bounds}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00921}00921\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00922}00922\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00923}00923\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00924}00924\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ GroupbyIndexer}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00925}00925\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00926}00926\ \ \ \ \ \ \ \ \ window\_indexer\ =\ \mbox{\hyperlink{classpandas_1_1core_1_1indexers_1_1objects_1_1GroupbyIndexer}{GroupbyIndexer}}(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00927}00927\ \ \ \ \ \ \ \ \ \ \ \ \ groupby\_indices=self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1rolling_1_1BaseWindowGroupby_ae4fe11c600ff862aa64619aabbc199a7}{\_grouper}}.indices,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00928}00928\ \ \ \ \ \ \ \ \ \ \ \ \ window\_indexer=ExponentialMovingWindowIndexer,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00929}00929\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00930}00930\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ window\_indexer}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00931}00931\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00932}00932\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00933}\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1OnlineExponentialMovingWindow}{00933}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1OnlineExponentialMovingWindow}{OnlineExponentialMovingWindow}}(\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow}{ExponentialMovingWindow}}):}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00934}00934\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00935}00935\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00936}00936\ \ \ \ \ \ \ \ \ obj:\ NDFrame,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00937}00937\ \ \ \ \ \ \ \ \ com:\ float\ |\ \textcolor{keywordtype}{None}\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00938}00938\ \ \ \ \ \ \ \ \ span:\ float\ |\ \textcolor{keywordtype}{None}\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00939}00939\ \ \ \ \ \ \ \ \ halflife:\ float\ |\ TimedeltaConvertibleTypes\ |\ \textcolor{keywordtype}{None}\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00940}00940\ \ \ \ \ \ \ \ \ alpha:\ float\ |\ \textcolor{keywordtype}{None}\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00941}00941\ \ \ \ \ \ \ \ \ min\_periods:\ int\ |\ \textcolor{keywordtype}{None}\ =\ 0,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00942}00942\ \ \ \ \ \ \ \ \ adjust:\ bool\ =\ \textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00943}00943\ \ \ \ \ \ \ \ \ ignore\_na:\ bool\ =\ \textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00944}00944\ \ \ \ \ \ \ \ \ axis:\ Axis\ =\ 0,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00945}00945\ \ \ \ \ \ \ \ \ times:\ np.ndarray\ |\ NDFrame\ |\ \textcolor{keywordtype}{None}\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00946}00946\ \ \ \ \ \ \ \ \ engine:\ str\ =\ \textcolor{stringliteral}{"{}numba"{}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00947}00947\ \ \ \ \ \ \ \ \ engine\_kwargs:\ dict[str,\ bool]\ |\ \textcolor{keywordtype}{None}\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00948}00948\ \ \ \ \ \ \ \ \ *,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00949}00949\ \ \ \ \ \ \ \ \ selection=\textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00950}00950\ \ \ \ \ )\ -\/>\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00951}00951\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ times\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00952}00952\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classNotImplementedError}{NotImplementedError}}(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00953}00953\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}times\ is\ not\ implemented\ with\ online\ operations."{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00954}00954\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00955}00955\ \ \ \ \ \ \ \ \ super().\_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00956}00956\ \ \ \ \ \ \ \ \ \ \ \ \ obj=obj,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00957}00957\ \ \ \ \ \ \ \ \ \ \ \ \ com=com,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00958}00958\ \ \ \ \ \ \ \ \ \ \ \ \ span=span,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00959}00959\ \ \ \ \ \ \ \ \ \ \ \ \ halflife=halflife,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00960}00960\ \ \ \ \ \ \ \ \ \ \ \ \ alpha=alpha,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00961}00961\ \ \ \ \ \ \ \ \ \ \ \ \ min\_periods=min\_periods,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00962}00962\ \ \ \ \ \ \ \ \ \ \ \ \ adjust=adjust,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00963}00963\ \ \ \ \ \ \ \ \ \ \ \ \ ignore\_na=ignore\_na,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00964}00964\ \ \ \ \ \ \ \ \ \ \ \ \ axis=axis,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00965}00965\ \ \ \ \ \ \ \ \ \ \ \ \ times=times,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00966}00966\ \ \ \ \ \ \ \ \ \ \ \ \ selection=selection,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00967}00967\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00968}00968\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1OnlineExponentialMovingWindow_a93c15482cc750f05b8fd10befc465b6e}{\_mean}}\ =\ \mbox{\hyperlink{classpandas_1_1core_1_1window_1_1online_1_1EWMMeanState}{EWMMeanState}}(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00969}00969\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_a10573bb873f1f18589a0faf9f766b1d6}{\_com}},\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_a4b3e78b4b7ab37e75385a019f3af5443}{adjust}},\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow_afd47463ac97b8279e775cc0bd8ee2734}{ignore\_na}},\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1rolling_1_1BaseWindow_ad62c2c8ecd4e221a9828e71f6ef4dc18}{axis}},\ obj.shape}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00970}00970\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00971}00971\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ maybe\_use\_numba(engine):}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00972}00972\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1OnlineExponentialMovingWindow_a5f38b3b24cb405d6e8f4038306441684}{engine}}\ =\ engine}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00973}00973\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1OnlineExponentialMovingWindow_ad705d2a2bd876ba9da0a538db803c572}{engine\_kwargs}}\ =\ engine\_kwargs}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00974}00974\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00975}00975\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}'numba'\ is\ the\ only\ supported\ engine"{}})}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00976}00976\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00977}\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1OnlineExponentialMovingWindow_a1475a7c804545c5482166d4ee66e969f}{00977}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1OnlineExponentialMovingWindow_a1475a7c804545c5482166d4ee66e969f}{reset}}(self)\ -\/>\ None:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00978}00978\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00979}00979\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Reset\ the\ state\ captured\ by\ \`{}update\`{}\ calls.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00980}00980\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00981}00981\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1OnlineExponentialMovingWindow_a93c15482cc750f05b8fd10befc465b6e}{\_mean}}.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1OnlineExponentialMovingWindow_a1475a7c804545c5482166d4ee66e969f}{reset}}()}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00982}00982\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00983}00983\ \ \ \ \ \textcolor{keyword}{def\ }aggregate(self,\ func,\ *args,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00984}00984\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classNotImplementedError}{NotImplementedError}}(\textcolor{stringliteral}{"{}aggregate\ is\ not\ implemented."{}})}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00985}00985\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00986}00986\ \ \ \ \ \textcolor{keyword}{def\ }std(self,\ bias:\ bool\ =\ \textcolor{keyword}{False},\ *args,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00987}00987\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classNotImplementedError}{NotImplementedError}}(\textcolor{stringliteral}{"{}std\ is\ not\ implemented."{}})}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00988}00988\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00989}00989\ \ \ \ \ \textcolor{keyword}{def\ }corr(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00990}00990\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00991}00991\ \ \ \ \ \ \ \ \ other:\ DataFrame\ |\ Series\ |\ \textcolor{keywordtype}{None}\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00992}00992\ \ \ \ \ \ \ \ \ pairwise:\ bool\ |\ \textcolor{keywordtype}{None}\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00993}00993\ \ \ \ \ \ \ \ \ numeric\_only:\ bool\ =\ \textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00994}00994\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00995}00995\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classNotImplementedError}{NotImplementedError}}(\textcolor{stringliteral}{"{}corr\ is\ not\ implemented."{}})}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00996}00996\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00997}00997\ \ \ \ \ \textcolor{keyword}{def\ }cov(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00998}00998\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l00999}00999\ \ \ \ \ \ \ \ \ other:\ DataFrame\ |\ Series\ |\ \textcolor{keywordtype}{None}\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01000}01000\ \ \ \ \ \ \ \ \ pairwise:\ bool\ |\ \textcolor{keywordtype}{None}\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01001}01001\ \ \ \ \ \ \ \ \ bias:\ bool\ =\ \textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01002}01002\ \ \ \ \ \ \ \ \ numeric\_only:\ bool\ =\ \textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01003}01003\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01004}01004\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classNotImplementedError}{NotImplementedError}}(\textcolor{stringliteral}{"{}cov\ is\ not\ implemented."{}})}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01005}01005\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01006}01006\ \ \ \ \ \textcolor{keyword}{def\ }var(self,\ bias:\ bool\ =\ \textcolor{keyword}{False},\ numeric\_only:\ bool\ =\ \textcolor{keyword}{False}):}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01007}01007\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classNotImplementedError}{NotImplementedError}}(\textcolor{stringliteral}{"{}var\ is\ not\ implemented."{}})}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01008}01008\ }
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01009}\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1OnlineExponentialMovingWindow_aff7821698bddf88f07cb41f067e39444}{01009}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1OnlineExponentialMovingWindow_aff7821698bddf88f07cb41f067e39444}{mean}}(self,\ *args,\ update=None,\ update\_times=None,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01010}01010\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01011}01011\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Calculate\ an\ online\ exponentially\ weighted\ mean.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01012}01012\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01013}01013\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01014}01014\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01015}01015\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ update:\ DataFrame\ or\ Series,\ default\ None}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01016}01016\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ New\ values\ to\ continue\ calculating\ the}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01017}01017\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ exponentially\ weighted\ mean\ from\ the\ last\ values\ and\ weights.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01018}01018\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Values\ should\ be\ float64\ dtype.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01019}01019\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01020}01020\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \`{}\`{}update\`{}\`{}\ needs\ to\ be\ \`{}\`{}None\`{}\`{}\ the\ first\ time\ the}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01021}01021\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ exponentially\ weighted\ mean\ is\ calculated.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01022}01022\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01023}01023\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ update\_times:\ Series\ or\ 1-\/D\ np.ndarray,\ default\ None}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01024}01024\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ New\ times\ to\ continue\ calculating\ the}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01025}01025\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ exponentially\ weighted\ mean\ from\ the\ last\ values\ and\ weights.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01026}01026\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ If\ \`{}\`{}None\`{}\`{},\ values\ are\ assumed\ to\ be\ evenly\ spaced}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01027}01027\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ in\ time.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01028}01028\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ This\ feature\ is\ currently\ unsupported.}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01029}01029\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01030}01030\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01031}01031\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01032}01032\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ DataFrame\ or\ Series}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01033}01033\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01034}01034\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01035}01035\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01036}01036\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ df\ =\ pd.DataFrame(\{"{}a"{}:\ range(5),\ "{}b"{}:\ range(5,\ 10)\})}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01037}01037\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ online\_ewm\ =\ df.head(2).ewm(0.5).online()}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01038}01038\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ online\_ewm.mean()}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01039}01039\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ a\ \ \ \ \ b}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01040}01040\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 0\ \ 0.00\ \ 5.00}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01041}01041\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 1\ \ 0.75\ \ 5.75}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01042}01042\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ online\_ewm.mean(update=df.tail(3))}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01043}01043\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ a\ \ \ \ \ \ \ \ \ b}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01044}01044\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 2\ \ 1.615385\ \ 6.615385}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01045}01045\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 3\ \ 2.550000\ \ 7.550000}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01046}01046\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 4\ \ 3.520661\ \ 8.520661}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01047}01047\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ online\_ewm.reset()}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01048}01048\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ online\_ewm.mean()}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01049}01049\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ a\ \ \ \ \ b}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01050}01050\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 0\ \ 0.00\ \ 5.00}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01051}01051\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 1\ \ 0.75\ \ 5.75}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01052}01052\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01053}01053\ \ \ \ \ \ \ \ \ result\_kwargs\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01054}01054\ \ \ \ \ \ \ \ \ is\_frame\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow}{\_selected\_obj}}.ndim\ ==\ 2}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01055}01055\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ update\_times\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01056}01056\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classNotImplementedError}{NotImplementedError}}(\textcolor{stringliteral}{"{}update\_times\ is\ not\ implemented."{}})}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01057}01057\ \ \ \ \ \ \ \ \ update\_deltas\ =\ np.ones(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01058}01058\ \ \ \ \ \ \ \ \ \ \ \ \ max(self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow}{\_selected\_obj}}.shape[self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1rolling_1_1BaseWindow_ad62c2c8ecd4e221a9828e71f6ef4dc18}{axis}}\ -\/\ 1]\ -\/\ 1,\ 0),\ dtype=np.float64}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01059}01059\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01060}01060\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ update\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01061}01061\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1OnlineExponentialMovingWindow_a93c15482cc750f05b8fd10befc465b6e}{\_mean}}.last\_ewm\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01062}01062\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01063}01063\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Must\ call\ mean\ with\ update=None\ first\ before\ passing\ update"{}}}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01064}01064\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01065}01065\ \ \ \ \ \ \ \ \ \ \ \ \ result\_from\ =\ 1}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01066}01066\ \ \ \ \ \ \ \ \ \ \ \ \ result\_kwargs[\textcolor{stringliteral}{"{}index"{}}]\ =\ update.index}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01067}01067\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ is\_frame:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01068}01068\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ last\_value\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1OnlineExponentialMovingWindow_a93c15482cc750f05b8fd10befc465b6e}{\_mean}}.last\_ewm[np.newaxis,\ :]}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01069}01069\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ result\_kwargs[\textcolor{stringliteral}{"{}columns"{}}]\ =\ update.columns}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01070}01070\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01071}01071\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ last\_value\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1OnlineExponentialMovingWindow_a93c15482cc750f05b8fd10befc465b6e}{\_mean}}.last\_ewm}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01072}01072\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ result\_kwargs[\textcolor{stringliteral}{"{}name"{}}]\ =\ update.name}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01073}01073\ \ \ \ \ \ \ \ \ \ \ \ \ np\_array\ =\ np.concatenate((last\_value,\ update.to\_numpy()))}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01074}01074\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01075}01075\ \ \ \ \ \ \ \ \ \ \ \ \ result\_from\ =\ 0}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01076}01076\ \ \ \ \ \ \ \ \ \ \ \ \ result\_kwargs[\textcolor{stringliteral}{"{}index"{}}]\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow}{\_selected\_obj}}.index}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01077}01077\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ is\_frame:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01078}01078\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ result\_kwargs[\textcolor{stringliteral}{"{}columns"{}}]\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow}{\_selected\_obj}}.columns}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01079}01079\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01080}01080\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ result\_kwargs[\textcolor{stringliteral}{"{}name"{}}]\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow}{\_selected\_obj}}.name}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01081}01081\ \ \ \ \ \ \ \ \ \ \ \ \ np\_array\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow}{\_selected\_obj}}.astype(np.float64,\ copy=\textcolor{keyword}{False}).to\_numpy()}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01082}01082\ \ \ \ \ \ \ \ \ ewma\_func\ =\ generate\_online\_numba\_ewma\_func(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01083}01083\ \ \ \ \ \ \ \ \ \ \ \ \ **get\_jit\_arguments(self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1OnlineExponentialMovingWindow_ad705d2a2bd876ba9da0a538db803c572}{engine\_kwargs}})}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01084}01084\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01085}01085\ \ \ \ \ \ \ \ \ result\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1OnlineExponentialMovingWindow_a93c15482cc750f05b8fd10befc465b6e}{\_mean}}.run\_ewm(}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01086}01086\ \ \ \ \ \ \ \ \ \ \ \ \ np\_array\ \textcolor{keywordflow}{if}\ is\_frame\ \textcolor{keywordflow}{else}\ np\_array[:,\ np.newaxis],}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01087}01087\ \ \ \ \ \ \ \ \ \ \ \ \ update\_deltas,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01088}01088\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1rolling_1_1BaseWindow_ad68e2385caf79f9340362be6c1abe967}{min\_periods}},}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01089}01089\ \ \ \ \ \ \ \ \ \ \ \ \ ewma\_func,}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01090}01090\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01091}01091\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ is\_frame:}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01092}01092\ \ \ \ \ \ \ \ \ \ \ \ \ result\ =\ result.squeeze()}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01093}01093\ \ \ \ \ \ \ \ \ result\ =\ result[result\_from:]}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01094}01094\ \ \ \ \ \ \ \ \ result\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1window_1_1ewm_1_1ExponentialMovingWindow}{\_selected\_obj}}.\_constructor(result,\ **result\_kwargs)}
+\DoxyCodeLine{\Hypertarget{ewm_8py_source_l01095}01095\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ result}
+
+\end{DoxyCode}

@@ -1,0 +1,1215 @@
+\doxysection{interpolatable.\+py}
+\hypertarget{interpolatable_8py_source}{}\label{interpolatable_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/fontTools/varLib/interpolatable.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/fontTools/varLib/interpolatable.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00001}\mbox{\hyperlink{namespacefontTools_1_1varLib_1_1interpolatable}{00001}}\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00002}00002\ \textcolor{stringliteral}{Tool\ to\ find\ wrong\ contour\ order\ between\ different\ masters,\ and}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00003}00003\ \textcolor{stringliteral}{other\ interpolatability\ (or\ lack\ thereof)\ issues.}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00004}00004\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00005}00005\ \textcolor{stringliteral}{Call\ as:}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00006}00006\ \textcolor{stringliteral}{\$\ fonttools\ varLib.interpolatable\ font1\ font2\ ...}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00007}00007\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00008}00008\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00009}00009\ \textcolor{keyword}{from}\ .interpolatableHelpers\ \textcolor{keyword}{import}\ *}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00010}00010\ \textcolor{keyword}{from}\ .interpolatableTestContourOrder\ \textcolor{keyword}{import}\ test\_contour\_order}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00011}00011\ \textcolor{keyword}{from}\ .interpolatableTestStartingPoint\ \textcolor{keyword}{import}\ test\_starting\_point}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00012}00012\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1pens_1_1recordingPen}{fontTools.pens.recordingPen}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00013}00013\ \ \ \ \ RecordingPen,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00014}00014\ \ \ \ \ DecomposingRecordingPen,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00015}00015\ \ \ \ \ lerpRecordings,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00016}00016\ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00017}00017\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1pens_1_1transformPen}{fontTools.pens.transformPen}}\ \textcolor{keyword}{import}\ TransformPen}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00018}00018\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1pens_1_1statisticsPen}{fontTools.pens.statisticsPen}}\ \textcolor{keyword}{import}\ StatisticsPen,\ StatisticsControlPen}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00019}00019\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1pens_1_1momentsPen}{fontTools.pens.momentsPen}}\ \textcolor{keyword}{import}\ OpenContourError}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00020}00020\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1varLib_1_1models}{fontTools.varLib.models}}\ \textcolor{keyword}{import}\ piecewiseLinearMap,\ normalizeLocation}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00021}00021\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1misc_1_1fixedTools}{fontTools.misc.fixedTools}}\ \textcolor{keyword}{import}\ floatToFixedToStr}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00022}00022\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1misc_1_1transform}{fontTools.misc.transform}}\ \textcolor{keyword}{import}\ Transform}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00023}00023\ \textcolor{keyword}{from}\ collections\ \textcolor{keyword}{import}\ defaultdict}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00024}00024\ \textcolor{keyword}{from}\ types\ \textcolor{keyword}{import}\ SimpleNamespace}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00025}00025\ \textcolor{keyword}{from}\ functools\ \textcolor{keyword}{import}\ wraps}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00026}00026\ \textcolor{keyword}{from}\ pprint\ \textcolor{keyword}{import}\ pformat}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00027}00027\ \textcolor{keyword}{from}\ math\ \textcolor{keyword}{import}\ sqrt,\ atan2,\ pi}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00028}00028\ \textcolor{keyword}{import}\ logging}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00029}00029\ \textcolor{keyword}{import}\ os}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00030}00030\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00031}00031\ log\ =\ logging.getLogger(\textcolor{stringliteral}{"{}fontTools.varLib.interpolatable"{}})}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00032}00032\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00033}00033\ DEFAULT\_TOLERANCE\ =\ 0.95}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00034}00034\ DEFAULT\_KINKINESS\ =\ 0.5}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00035}00035\ DEFAULT\_KINKINESS\_LENGTH\ =\ 0.002\ \ \textcolor{comment}{\#\ ratio\ of\ UPEM}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00036}00036\ DEFAULT\_UPEM\ =\ 1000}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00037}00037\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00038}00038\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00039}\mbox{\hyperlink{classfontTools_1_1varLib_1_1interpolatable_1_1Glyph}{00039}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classfontTools_1_1varLib_1_1interpolatable_1_1Glyph}{Glyph}}:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00040}00040\ \ \ \ \ ITEMS\ =\ (}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00041}00041\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}recordings"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00042}00042\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}greenStats"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00043}00043\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}controlStats"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00044}00044\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}greenVectors"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00045}00045\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}controlVectors"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00046}00046\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}nodeTypes"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00047}00047\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}isomorphisms"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00048}00048\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}points"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00049}00049\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}openContours"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00050}00050\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00051}00051\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00052}00052\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ glyphname,\ glyphset):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00053}00053\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1interpolatable_1_1Glyph_a3453757aaea92c38bbd4d3a1c3778c0c}{name}}\ =\ glyphname}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00054}00054\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ item\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1interpolatable_1_1Glyph_aad7a14b9119a81b007fd658c7840645c}{ITEMS}}:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00055}00055\ \ \ \ \ \ \ \ \ \ \ \ \ setattr(self,\ item,\ [])}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00056}00056\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1interpolatable_1_1Glyph_a4be339b06f2b0c1cf5750f554545b251}{\_populate}}(glyphset)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00057}00057\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00058}00058\ \ \ \ \ \textcolor{keyword}{def\ }\_fill\_in(self,\ ix):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00059}00059\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ item\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1interpolatable_1_1Glyph_aad7a14b9119a81b007fd658c7840645c}{ITEMS}}:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00060}00060\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(getattr(self,\ item))\ ==\ ix:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00061}00061\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ getattr(self,\ item).append(\textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00062}00062\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00063}00063\ \ \ \ \ \textcolor{keyword}{def\ }\_populate(self,\ glyphset):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00064}00064\ \ \ \ \ \ \ \ \ glyph\ =\ glyphset[self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1interpolatable_1_1Glyph_a3453757aaea92c38bbd4d3a1c3778c0c}{name}}]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00065}00065\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1interpolatable_1_1Glyph_aca9a6aa4531a8153d66a3d798ce4ec2a}{doesnt\_exist}}\ =\ glyph\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00066}00066\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1interpolatable_1_1Glyph_aca9a6aa4531a8153d66a3d798ce4ec2a}{doesnt\_exist}}:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00067}00067\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00068}00068\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00069}00069\ \ \ \ \ \ \ \ \ perContourPen\ =\ \mbox{\hyperlink{classfontTools_1_1varLib_1_1interpolatableHelpers_1_1PerContourOrComponentPen}{PerContourOrComponentPen}}(RecordingPen,\ glyphset=glyphset)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00070}00070\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00071}00071\ \ \ \ \ \ \ \ \ \ \ \ \ glyph.draw(perContourPen,\ outputImpliedClosingLine=\textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00072}00072\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ TypeError:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00073}00073\ \ \ \ \ \ \ \ \ \ \ \ \ glyph.draw(perContourPen)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00074}00074\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1interpolatable_1_1Glyph_a11a4b2e499f21bce0e4bc8a15a3e2147}{recordings}}\ =\ perContourPen.value}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00075}00075\ \ \ \ \ \ \ \ \ del\ perContourPen}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00076}00076\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00077}00077\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ ix,\ contour\ \textcolor{keywordflow}{in}\ enumerate(self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1interpolatable_1_1Glyph_a11a4b2e499f21bce0e4bc8a15a3e2147}{recordings}}):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00078}00078\ \ \ \ \ \ \ \ \ \ \ \ \ nodeTypes\ =\ [op\ \textcolor{keywordflow}{for}\ op,\ arg\ \textcolor{keywordflow}{in}\ contour.value]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00079}00079\ \ \ \ \ \ \ \ \ \ \ \ \ self.nodeTypes.append(nodeTypes)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00080}00080\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00081}00081\ \ \ \ \ \ \ \ \ \ \ \ \ greenStats\ =\ \mbox{\hyperlink{classfontTools_1_1pens_1_1statisticsPen_1_1StatisticsPen}{StatisticsPen}}(glyphset=glyphset)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00082}00082\ \ \ \ \ \ \ \ \ \ \ \ \ controlStats\ =\ \mbox{\hyperlink{classfontTools_1_1pens_1_1statisticsPen_1_1StatisticsControlPen}{StatisticsControlPen}}(glyphset=glyphset)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00083}00083\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00084}00084\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ contour.replay(greenStats)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00085}00085\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ contour.replay(controlStats)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00086}00086\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.openContours.append(\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00087}00087\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ OpenContourError\ \textcolor{keyword}{as}\ e:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00088}00088\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.openContours.append(\textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00089}00089\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1interpolatable_1_1Glyph_a1076e054482346c180756062768e3204}{\_fill\_in}}(ix)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00090}00090\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00091}00091\ \ \ \ \ \ \ \ \ \ \ \ \ self.greenStats.append(greenStats)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00092}00092\ \ \ \ \ \ \ \ \ \ \ \ \ self.controlStats.append(controlStats)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00093}00093\ \ \ \ \ \ \ \ \ \ \ \ \ self.greenVectors.append(contour\_vector\_from\_stats(greenStats))}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00094}00094\ \ \ \ \ \ \ \ \ \ \ \ \ self.controlVectors.append(contour\_vector\_from\_stats(controlStats))}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00095}00095\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00096}00096\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Check\ starting\ point}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00097}00097\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ nodeTypes[0]\ ==\ \textcolor{stringliteral}{"{}addComponent"{}}:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00098}00098\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1interpolatable_1_1Glyph_a1076e054482346c180756062768e3204}{\_fill\_in}}(ix)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00099}00099\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00100}00100\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00101}00101\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ nodeTypes[0]\ ==\ \textcolor{stringliteral}{"{}moveTo"{}}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00102}00102\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ nodeTypes[-\/1]\ \textcolor{keywordflow}{in}\ (\textcolor{stringliteral}{"{}closePath"{}},\ \textcolor{stringliteral}{"{}endPath"{}})}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00103}00103\ \ \ \ \ \ \ \ \ \ \ \ \ points\ =\ \mbox{\hyperlink{classfontTools_1_1varLib_1_1interpolatableHelpers_1_1SimpleRecordingPointPen}{SimpleRecordingPointPen}}()}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00104}00104\ \ \ \ \ \ \ \ \ \ \ \ \ converter\ =\ \mbox{\hyperlink{classfontTools_1_1pens_1_1pointPen_1_1SegmentToPointPen}{SegmentToPointPen}}(points,\ \textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00105}00105\ \ \ \ \ \ \ \ \ \ \ \ \ contour.replay(converter)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00106}00106\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ points.value\ is\ a\ list\ of\ pt,bool\ where\ bool\ is\ true\ if\ on-\/curve\ and\ false\ if\ off-\/curve;}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00107}00107\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ now\ check\ all\ rotations\ and\ mirror-\/rotations\ of\ the\ contour\ and\ build\ list\ of\ isomorphic}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00108}00108\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ possible\ starting\ points.}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00109}00109\ \ \ \ \ \ \ \ \ \ \ \ \ self.points.append(points.value)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00110}00110\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00111}00111\ \ \ \ \ \ \ \ \ \ \ \ \ isomorphisms\ =\ []}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00112}00112\ \ \ \ \ \ \ \ \ \ \ \ \ self.isomorphisms.append(isomorphisms)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00113}00113\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00114}00114\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Add\ rotations}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00115}00115\ \ \ \ \ \ \ \ \ \ \ \ \ add\_isomorphisms(points.value,\ isomorphisms,\ \textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00116}00116\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Add\ mirrored\ rotations}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00117}00117\ \ \ \ \ \ \ \ \ \ \ \ \ add\_isomorphisms(points.value,\ isomorphisms,\ \textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00118}00118\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00119}00119\ \ \ \ \ \textcolor{keyword}{def\ }draw(self,\ pen,\ countor\_idx=None):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00120}00120\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ countor\_idx\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00121}00121\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ contour\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1interpolatable_1_1Glyph_a11a4b2e499f21bce0e4bc8a15a3e2147}{recordings}}:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00122}00122\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ contour.draw(pen)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00123}00123\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00124}00124\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1interpolatable_1_1Glyph_a11a4b2e499f21bce0e4bc8a15a3e2147}{recordings}}[countor\_idx].draw(pen)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00125}00125\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00126}00126\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00127}00127\ \textcolor{keyword}{def\ }test\_gen(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00128}00128\ \ \ \ \ glyphsets,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00129}00129\ \ \ \ \ glyphs=None,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00130}00130\ \ \ \ \ names=None,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00131}00131\ \ \ \ \ ignore\_missing=False,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00132}00132\ \ \ \ \ *,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00133}00133\ \ \ \ \ locations=None,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00134}00134\ \ \ \ \ tolerance=DEFAULT\_TOLERANCE,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00135}00135\ \ \ \ \ kinkiness=DEFAULT\_KINKINESS,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00136}00136\ \ \ \ \ upem=DEFAULT\_UPEM,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00137}00137\ \ \ \ \ show\_all=False,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00138}00138\ \ \ \ \ discrete\_axes=[],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00139}00139\ ):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00140}00140\ \ \ \ \ \textcolor{keywordflow}{if}\ tolerance\ >=\ 10:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00141}00141\ \ \ \ \ \ \ \ \ tolerance\ *=\ 0.01}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00142}00142\ \ \ \ \ \textcolor{keyword}{assert}\ 0\ <=\ tolerance\ <=\ 1}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00143}00143\ \ \ \ \ \textcolor{keywordflow}{if}\ kinkiness\ >=\ 10:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00144}00144\ \ \ \ \ \ \ \ \ kinkiness\ *=\ 0.01}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00145}00145\ \ \ \ \ \textcolor{keyword}{assert}\ 0\ <=\ kinkiness}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00146}00146\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00147}00147\ \ \ \ \ names\ =\ names\ \textcolor{keywordflow}{or}\ [repr(g)\ \textcolor{keywordflow}{for}\ g\ \textcolor{keywordflow}{in}\ glyphsets]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00148}00148\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00149}00149\ \ \ \ \ \textcolor{keywordflow}{if}\ glyphs\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00150}00150\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \`{}glyphs\ =\ glyphsets[0].keys()`\ is\ faster,\ certainly,\ but\ doesn't\ allow\ for\ sparse\ TTFs/OTFs\ given\ out\ of\ order}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00151}00151\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ ...\ risks\ the\ sparse\ master\ being\ the\ first\ one,\ and\ only\ processing\ a\ subset\ of\ the\ glyphs}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00152}00152\ \ \ \ \ \ \ \ \ glyphs\ =\ \{g\ \textcolor{keywordflow}{for}\ glyphset\ \textcolor{keywordflow}{in}\ glyphsets\ \textcolor{keywordflow}{for}\ g\ \textcolor{keywordflow}{in}\ glyphset.keys()\}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00153}00153\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00154}00154\ \ \ \ \ parents,\ order\ =\ find\_parents\_and\_order(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00155}00155\ \ \ \ \ \ \ \ \ glyphsets,\ locations,\ discrete\_axes=discrete\_axes}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00156}00156\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00157}00157\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00158}00158\ \ \ \ \ \textcolor{keyword}{def\ }grand\_parent(i,\ glyphname):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00159}00159\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ i\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00160}00160\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00161}00161\ \ \ \ \ \ \ \ \ i\ =\ parents[i]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00162}00162\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ i\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00163}00163\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00164}00164\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{while}\ parents[i]\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{and}\ glyphsets[i][glyphname]\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00165}00165\ \ \ \ \ \ \ \ \ \ \ \ \ i\ =\ parents[i]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00166}00166\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ i}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00167}00167\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00168}00168\ \ \ \ \ \textcolor{keywordflow}{for}\ glyph\_name\ \textcolor{keywordflow}{in}\ glyphs:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00169}00169\ \ \ \ \ \ \ \ \ log.info(\textcolor{stringliteral}{"{}Testing\ glyph\ \%s"{}},\ glyph\_name)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00170}00170\ \ \ \ \ \ \ \ \ allGlyphs\ =\ [\mbox{\hyperlink{classfontTools_1_1varLib_1_1interpolatable_1_1Glyph}{Glyph}}(glyph\_name,\ glyphset)\ \textcolor{keywordflow}{for}\ glyphset\ \textcolor{keywordflow}{in}\ glyphsets]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00171}00171\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len([1\ \textcolor{keywordflow}{for}\ glyph\ \textcolor{keywordflow}{in}\ allGlyphs\ \textcolor{keywordflow}{if}\ glyph\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}])\ <=\ 1:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00172}00172\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00173}00173\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ master\_idx,\ (glyph,\ glyphset,\ name)\ \textcolor{keywordflow}{in}\ enumerate(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00174}00174\ \ \ \ \ \ \ \ \ \ \ \ \ zip(allGlyphs,\ glyphsets,\ names)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00175}00175\ \ \ \ \ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00176}00176\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ glyph.doesnt\_exist:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00177}00177\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ ignore\_missing:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00178}00178\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{yield}\ (}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00179}00179\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ glyph\_name,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00180}00180\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00181}00181\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}type"{}}:\ InterpolatableProblem.MISSING,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00182}00182\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}master"{}}:\ name,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00183}00183\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}master\_idx"{}}:\ master\_idx,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00184}00184\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00185}00185\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00186}00186\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00187}00187\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00188}00188\ \ \ \ \ \ \ \ \ \ \ \ \ has\_open\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00189}00189\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ ix,\ open\ \textcolor{keywordflow}{in}\ enumerate(glyph.openContours):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00190}00190\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ open:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00191}00191\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00192}00192\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ has\_open\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00193}00193\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{yield}\ (}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00194}00194\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ glyph\_name,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00195}00195\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00196}00196\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}type"{}}:\ InterpolatableProblem.OPEN\_PATH,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00197}00197\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}master"{}}:\ name,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00198}00198\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}master\_idx"{}}:\ master\_idx,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00199}00199\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}contour"{}}:\ ix,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00200}00200\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00201}00201\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00202}00202\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ has\_open:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00203}00203\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00204}00204\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00205}00205\ \ \ \ \ \ \ \ \ matchings\ =\ [\textcolor{keywordtype}{None}]\ *\ len(glyphsets)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00206}00206\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00207}00207\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ m1idx\ \textcolor{keywordflow}{in}\ order:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00208}00208\ \ \ \ \ \ \ \ \ \ \ \ \ glyph1\ =\ allGlyphs[m1idx]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00209}00209\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ glyph1\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{or}\ \textcolor{keywordflow}{not}\ glyph1.nodeTypes:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00210}00210\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00211}00211\ \ \ \ \ \ \ \ \ \ \ \ \ m0idx\ =\ grand\_parent(m1idx,\ glyph\_name)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00212}00212\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ m0idx\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00213}00213\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00214}00214\ \ \ \ \ \ \ \ \ \ \ \ \ glyph0\ =\ allGlyphs[m0idx]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00215}00215\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ glyph0\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{or}\ \textcolor{keywordflow}{not}\ glyph0.nodeTypes:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00216}00216\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00217}00217\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00218}00218\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00219}00219\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Basic\ compatibility\ checks}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00220}00220\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00221}00221\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00222}00222\ \ \ \ \ \ \ \ \ \ \ \ \ m1\ =\ glyph0.nodeTypes}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00223}00223\ \ \ \ \ \ \ \ \ \ \ \ \ m0\ =\ glyph1.nodeTypes}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00224}00224\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(m0)\ !=\ len(m1):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00225}00225\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{yield}\ (}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00226}00226\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ glyph\_name,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00227}00227\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00228}00228\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}type"{}}:\ InterpolatableProblem.PATH\_COUNT,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00229}00229\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}master\_1"{}}:\ names[m0idx],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00230}00230\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}master\_2"{}}:\ names[m1idx],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00231}00231\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}master\_1\_idx"{}}:\ m0idx,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00232}00232\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}master\_2\_idx"{}}:\ m1idx,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00233}00233\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}value\_1"{}}:\ len(m0),}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00234}00234\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}value\_2"{}}:\ len(m1),}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00235}00235\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00236}00236\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00237}00237\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00238}00238\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00239}00239\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ m0\ !=\ m1:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00240}00240\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ pathIx,\ (nodes1,\ nodes2)\ \textcolor{keywordflow}{in}\ enumerate(zip(m0,\ m1)):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00241}00241\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ nodes1\ ==\ nodes2:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00242}00242\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00243}00243\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(nodes1)\ !=\ len(nodes2):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00244}00244\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{yield}\ (}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00245}00245\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ glyph\_name,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00246}00246\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00247}00247\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}type"{}}:\ InterpolatableProblem.NODE\_COUNT,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00248}00248\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}path"{}}:\ pathIx,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00249}00249\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}master\_1"{}}:\ names[m0idx],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00250}00250\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}master\_2"{}}:\ names[m1idx],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00251}00251\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}master\_1\_idx"{}}:\ m0idx,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00252}00252\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}master\_2\_idx"{}}:\ m1idx,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00253}00253\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}value\_1"{}}:\ len(nodes1),}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00254}00254\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}value\_2"{}}:\ len(nodes2),}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00255}00255\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00256}00256\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00257}00257\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00258}00258\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ nodeIx,\ (n1,\ n2)\ \textcolor{keywordflow}{in}\ enumerate(zip(nodes1,\ nodes2)):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00259}00259\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ n1\ !=\ n2:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00260}00260\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{yield}\ (}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00261}00261\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ glyph\_name,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00262}00262\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00263}00263\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}type"{}}:\ InterpolatableProblem.NODE\_INCOMPATIBILITY,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00264}00264\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}path"{}}:\ pathIx,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00265}00265\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}node"{}}:\ nodeIx,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00266}00266\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}master\_1"{}}:\ names[m0idx],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00267}00267\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}master\_2"{}}:\ names[m1idx],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00268}00268\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}master\_1\_idx"{}}:\ m0idx,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00269}00269\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}master\_2\_idx"{}}:\ m1idx,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00270}00270\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}value\_1"{}}:\ n1,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00271}00271\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}value\_2"{}}:\ n2,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00272}00272\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00273}00273\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00274}00274\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00275}00275\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00276}00276\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00277}00277\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ InterpolatableProblem.CONTOUR\_ORDER\ check}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00278}00278\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00279}00279\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00280}00280\ \ \ \ \ \ \ \ \ \ \ \ \ this\_tolerance,\ matching\ =\ test\_contour\_order(glyph0,\ glyph1)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00281}00281\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ this\_tolerance\ <\ tolerance:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00282}00282\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{yield}\ (}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00283}00283\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ glyph\_name,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00284}00284\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00285}00285\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}type"{}}:\ InterpolatableProblem.CONTOUR\_ORDER,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00286}00286\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}master\_1"{}}:\ names[m0idx],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00287}00287\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}master\_2"{}}:\ names[m1idx],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00288}00288\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}master\_1\_idx"{}}:\ m0idx,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00289}00289\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}master\_2\_idx"{}}:\ m1idx,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00290}00290\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}value\_1"{}}:\ list(range(len(matching))),}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00291}00291\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}value\_2"{}}:\ matching,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00292}00292\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}tolerance"{}}:\ this\_tolerance,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00293}00293\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00294}00294\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00295}00295\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ matchings[m1idx]\ =\ matching}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00296}00296\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00297}00297\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00298}00298\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ wrong-\/start-\/point\ /\ weight\ check}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00299}00299\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00300}00300\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00301}00301\ \ \ \ \ \ \ \ \ \ \ \ \ m0Isomorphisms\ =\ glyph0.isomorphisms}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00302}00302\ \ \ \ \ \ \ \ \ \ \ \ \ m1Isomorphisms\ =\ glyph1.isomorphisms}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00303}00303\ \ \ \ \ \ \ \ \ \ \ \ \ m0Vectors\ =\ glyph0.greenVectors}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00304}00304\ \ \ \ \ \ \ \ \ \ \ \ \ m1Vectors\ =\ glyph1.greenVectors}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00305}00305\ \ \ \ \ \ \ \ \ \ \ \ \ recording0\ =\ glyph0.recordings}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00306}00306\ \ \ \ \ \ \ \ \ \ \ \ \ recording1\ =\ glyph1.recordings}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00307}00307\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00308}00308\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ If\ contour-\/order\ is\ wrong,\ adjust\ it}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00309}00309\ \ \ \ \ \ \ \ \ \ \ \ \ matching\ =\ matchings[m1idx]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00310}00310\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00311}00311\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ matching\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{and}\ m1Isomorphisms}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00312}00312\ \ \ \ \ \ \ \ \ \ \ \ \ ):\ \ \textcolor{comment}{\#\ m1\ is\ empty\ for\ composite\ glyphs}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00313}00313\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ m1Isomorphisms\ =\ [m1Isomorphisms[i]\ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ matching]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00314}00314\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ m1Vectors\ =\ [m1Vectors[i]\ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ matching]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00315}00315\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ recording1\ =\ [recording1[i]\ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ matching]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00316}00316\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00317}00317\ \ \ \ \ \ \ \ \ \ \ \ \ midRecording\ =\ []}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00318}00318\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ c0,\ c1\ \textcolor{keywordflow}{in}\ zip(recording0,\ recording1):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00319}00319\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00320}00320\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ r\ =\ \mbox{\hyperlink{classfontTools_1_1pens_1_1recordingPen_1_1RecordingPen}{RecordingPen}}()}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00321}00321\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ r.value\ =\ list(lerpRecordings(c0.value,\ c1.value))}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00322}00322\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ midRecording.append(r)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00323}00323\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ ValueError:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00324}00324\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Mismatch\ because\ of\ the\ reordering\ above}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00325}00325\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ midRecording.append(\textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00326}00326\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00327}00327\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ ix,\ (contour0,\ contour1)\ \textcolor{keywordflow}{in}\ enumerate(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00328}00328\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ zip(m0Isomorphisms,\ m1Isomorphisms)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00329}00329\ \ \ \ \ \ \ \ \ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00330}00330\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00331}00331\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ contour0\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00332}00332\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{or}\ contour1\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00333}00333\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{or}\ len(contour0)\ ==\ 0}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00334}00334\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{or}\ len(contour0)\ !=\ len(contour1)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00335}00335\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00336}00336\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ We\ already\ reported\ this;\ or\ nothing\ to\ do;\ or\ not\ compatible}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00337}00337\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ after\ reordering\ above.}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00338}00338\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00339}00339\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00340}00340\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ this\_tolerance,\ proposed\_point,\ reverse\ =\ test\_starting\_point(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00341}00341\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ glyph0,\ glyph1,\ ix,\ tolerance,\ matching}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00342}00342\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00343}00343\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00344}00344\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ this\_tolerance\ <\ tolerance:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00345}00345\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{yield}\ (}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00346}00346\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ glyph\_name,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00347}00347\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00348}00348\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}type"{}}:\ InterpolatableProblem.WRONG\_START\_POINT,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00349}00349\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}contour"{}}:\ ix,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00350}00350\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}master\_1"{}}:\ names[m0idx],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00351}00351\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}master\_2"{}}:\ names[m1idx],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00352}00352\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}master\_1\_idx"{}}:\ m0idx,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00353}00353\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}master\_2\_idx"{}}:\ m1idx,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00354}00354\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}value\_1"{}}:\ 0,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00355}00355\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}value\_2"{}}:\ proposed\_point,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00356}00356\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}reversed"{}}:\ reverse,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00357}00357\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}tolerance"{}}:\ this\_tolerance,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00358}00358\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00359}00359\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00360}00360\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00361}00361\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Weight\ check.}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00362}00362\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00363}00363\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ If\ contour\ could\ be\ mid-\/interpolated,\ and\ the\ two}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00364}00364\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ contours\ have\ the\ same\ area\ sign,\ proceeed.}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00365}00365\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00366}00366\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ sign\ difference\ can\ happen\ if\ it's\ a\ weirdo}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00367}00367\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ self-\/intersecting\ contour;\ ignore\ it.}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00368}00368\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ contour\ =\ midRecording[ix]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00369}00369\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00370}00370\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ contour\ \textcolor{keywordflow}{and}\ (m0Vectors[ix][0]\ <\ 0)\ ==\ (m1Vectors[ix][0]\ <\ 0):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00371}00371\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ midStats\ =\ \mbox{\hyperlink{classfontTools_1_1pens_1_1statisticsPen_1_1StatisticsPen}{StatisticsPen}}(glyphset=\textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00372}00372\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ contour.replay(midStats)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00373}00373\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00374}00374\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ midVector\ =\ contour\_vector\_from\_stats(midStats)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00375}00375\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00376}00376\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ m0Vec\ =\ m0Vectors[ix]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00377}00377\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ m1Vec\ =\ m1Vectors[ix]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00378}00378\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ size0\ =\ m0Vec[0]\ *\ m0Vec[0]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00379}00379\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ size1\ =\ m1Vec[0]\ *\ m1Vec[0]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00380}00380\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ midSize\ =\ midVector[0]\ *\ midVector[0]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00381}00381\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00382}00382\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ overweight,\ problem\_type\ \textcolor{keywordflow}{in}\ enumerate(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00383}00383\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00384}00384\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ InterpolatableProblem.UNDERWEIGHT,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00385}00385\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ InterpolatableProblem.OVERWEIGHT,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00386}00386\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00387}00387\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00388}00388\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ overweight:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00389}00389\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ expectedSize\ =\ max(size0,\ size1)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00390}00390\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00391}00391\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00392}00392\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ expectedSize\ =\ sqrt(size0\ *\ size1)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00393}00393\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00394}00394\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ log.debug(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00395}00395\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\%s:\ actual\ size\ \%g;\ threshold\ size\ \%g,\ master\ sizes:\ \%g,\ \%g"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00396}00396\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ problem\_type,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00397}00397\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ midSize,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00398}00398\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ expectedSize,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00399}00399\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ size0,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00400}00400\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ size1,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00401}00401\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00402}00402\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00403}00403\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00404}00404\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{not}\ overweight\ \textcolor{keywordflow}{and}\ expectedSize\ *\ tolerance\ >\ midSize\ +\ 1e-\/5}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00405}00405\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )\ \textcolor{keywordflow}{or}\ (overweight\ \textcolor{keywordflow}{and}\ 1e-\/5\ +\ expectedSize\ /\ tolerance\ <\ midSize):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00406}00406\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00407}00407\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ overweight:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00408}00408\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ this\_tolerance\ =\ expectedSize\ /\ midSize}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00409}00409\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00410}00410\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ this\_tolerance\ =\ midSize\ /\ expectedSize}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00411}00411\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ ZeroDivisionError:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00412}00412\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ this\_tolerance\ =\ 0}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00413}00413\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ log.debug(\textcolor{stringliteral}{"{}tolerance\ \%g"{}},\ this\_tolerance)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00414}00414\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{yield}\ (}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00415}00415\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ glyph\_name,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00416}00416\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00417}00417\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}type"{}}:\ problem\_type,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00418}00418\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}contour"{}}:\ ix,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00419}00419\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}master\_1"{}}:\ names[m0idx],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00420}00420\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}master\_2"{}}:\ names[m1idx],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00421}00421\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}master\_1\_idx"{}}:\ m0idx,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00422}00422\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}master\_2\_idx"{}}:\ m1idx,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00423}00423\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}tolerance"{}}:\ this\_tolerance,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00424}00424\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00425}00425\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00426}00426\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00427}00427\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00428}00428\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ "{}kink"{}\ detector}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00429}00429\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00430}00430\ \ \ \ \ \ \ \ \ \ \ \ \ m0\ =\ glyph0.points}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00431}00431\ \ \ \ \ \ \ \ \ \ \ \ \ m1\ =\ glyph1.points}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00432}00432\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00433}00433\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ If\ contour-\/order\ is\ wrong,\ adjust\ it}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00434}00434\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ matchings[m1idx]\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{and}\ m1:\ \ \textcolor{comment}{\#\ m1\ is\ empty\ for\ composite\ glyphs}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00435}00435\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ m1\ =\ [m1[i]\ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ matchings[m1idx]]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00436}00436\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00437}00437\ \ \ \ \ \ \ \ \ \ \ \ \ t\ =\ 0.1\ \ \textcolor{comment}{\#\ \string~sin(radian(6))\ for\ tolerance\ 0.95}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00438}00438\ \ \ \ \ \ \ \ \ \ \ \ \ deviation\_threshold\ =\ (}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00439}00439\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ upem\ *\ DEFAULT\_KINKINESS\_LENGTH\ *\ DEFAULT\_KINKINESS\ /\ kinkiness}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00440}00440\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00441}00441\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00442}00442\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ ix,\ (contour0,\ contour1)\ \textcolor{keywordflow}{in}\ enumerate(zip(m0,\ m1)):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00443}00443\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00444}00444\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ contour0\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00445}00445\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{or}\ contour1\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00446}00446\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{or}\ len(contour0)\ ==\ 0}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00447}00447\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{or}\ len(contour0)\ !=\ len(contour1)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00448}00448\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00449}00449\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ We\ already\ reported\ this;\ or\ nothing\ to\ do;\ or\ not\ compatible}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00450}00450\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ after\ reordering\ above.}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00451}00451\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00452}00452\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00453}00453\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Walk\ the\ contour,\ keeping\ track\ of\ three\ consecutive\ points,\ with}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00454}00454\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ middle\ one\ being\ an\ on-\/curve.\ If\ the\ three\ are\ co-\/linear\ then}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00455}00455\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ check\ for\ kinky-\/ness.}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00456}00456\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(len(contour0)):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00457}00457\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ pt0\ =\ contour0[i]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00458}00458\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ pt1\ =\ contour1[i]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00459}00459\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ pt0[1]\ \textcolor{keywordflow}{or}\ \textcolor{keywordflow}{not}\ pt1[1]:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00460}00460\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Skip\ off-\/curves}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00461}00461\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00462}00462\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ pt0\_prev\ =\ contour0[i\ -\/\ 1]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00463}00463\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ pt1\_prev\ =\ contour1[i\ -\/\ 1]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00464}00464\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ pt0\_next\ =\ contour0[(i\ +\ 1)\ \%\ len(contour0)]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00465}00465\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ pt1\_next\ =\ contour1[(i\ +\ 1)\ \%\ len(contour1)]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00466}00466\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00467}00467\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ pt0\_prev[1]\ \textcolor{keywordflow}{and}\ pt1\_prev[1]:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00468}00468\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ At\ least\ one\ off-\/curve\ is\ required}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00469}00469\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00470}00470\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ pt0\_prev[1]\ \textcolor{keywordflow}{and}\ pt1\_prev[1]:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00471}00471\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ At\ least\ one\ off-\/curve\ is\ required}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00472}00472\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00473}00473\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00474}00474\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ pt0\ =\ complex(*pt0[0])}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00475}00475\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ pt1\ =\ complex(*pt1[0])}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00476}00476\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ pt0\_prev\ =\ complex(*pt0\_prev[0])}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00477}00477\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ pt1\_prev\ =\ complex(*pt1\_prev[0])}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00478}00478\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ pt0\_next\ =\ complex(*pt0\_next[0])}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00479}00479\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ pt1\_next\ =\ complex(*pt1\_next[0])}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00480}00480\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00481}00481\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ We\ have\ three\ consecutive\ points.\ Check\ whether}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00482}00482\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ they\ are\ colinear.}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00483}00483\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ d0\_prev\ =\ pt0\ -\/\ pt0\_prev}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00484}00484\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ d0\_next\ =\ pt0\_next\ -\/\ pt0}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00485}00485\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ d1\_prev\ =\ pt1\ -\/\ pt1\_prev}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00486}00486\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ d1\_next\ =\ pt1\_next\ -\/\ pt1}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00487}00487\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00488}00488\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ sin0\ =\ d0\_prev.real\ *\ d0\_next.imag\ -\/\ d0\_prev.imag\ *\ d0\_next.real}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00489}00489\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ sin1\ =\ d1\_prev.real\ *\ d1\_next.imag\ -\/\ d1\_prev.imag\ *\ d1\_next.real}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00490}00490\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00491}00491\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ sin0\ /=\ abs(d0\_prev)\ *\ abs(d0\_next)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00492}00492\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ sin1\ /=\ abs(d1\_prev)\ *\ abs(d1\_next)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00493}00493\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ ZeroDivisionError:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00494}00494\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00495}00495\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00496}00496\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ abs(sin0)\ >\ t\ \textcolor{keywordflow}{or}\ abs(sin1)\ >\ t:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00497}00497\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Not\ colinear\ /\ not\ smooth.}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00498}00498\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00499}00499\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00500}00500\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Check\ the\ mid-\/point\ is\ actually,\ well,\ in\ the\ middle.}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00501}00501\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ dot0\ =\ d0\_prev.real\ *\ d0\_next.real\ +\ d0\_prev.imag\ *\ d0\_next.imag}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00502}00502\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ dot1\ =\ d1\_prev.real\ *\ d1\_next.real\ +\ d1\_prev.imag\ *\ d1\_next.imag}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00503}00503\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ dot0\ <\ 0\ \textcolor{keywordflow}{or}\ dot1\ <\ 0:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00504}00504\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Sharp\ corner.}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00505}00505\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00506}00506\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00507}00507\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Fine,\ if\ handle\ ratios\ are\ similar...}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00508}00508\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ r0\ =\ abs(d0\_prev)\ /\ (abs(d0\_prev)\ +\ abs(d0\_next))}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00509}00509\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ r1\ =\ abs(d1\_prev)\ /\ (abs(d1\_prev)\ +\ abs(d1\_next))}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00510}00510\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ r\_diff\ =\ abs(r0\ -\/\ r1)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00511}00511\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ abs(r\_diff)\ <\ t:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00512}00512\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Smooth\ enough.}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00513}00513\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00514}00514\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00515}00515\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ mid\ =\ (pt0\ +\ pt1)\ /\ 2}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00516}00516\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ mid\_prev\ =\ (pt0\_prev\ +\ pt1\_prev)\ /\ 2}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00517}00517\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ mid\_next\ =\ (pt0\_next\ +\ pt1\_next)\ /\ 2}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00518}00518\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00519}00519\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ mid\_d0\ =\ mid\ -\/\ mid\_prev}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00520}00520\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ mid\_d1\ =\ mid\_next\ -\/\ mid}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00521}00521\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00522}00522\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ sin\_mid\ =\ mid\_d0.real\ *\ mid\_d1.imag\ -\/\ mid\_d0.imag\ *\ mid\_d1.real}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00523}00523\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00524}00524\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ sin\_mid\ /=\ abs(mid\_d0)\ *\ abs(mid\_d1)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00525}00525\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ ZeroDivisionError:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00526}00526\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00527}00527\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00528}00528\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ ...or\ if\ the\ angles\ are\ similar.}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00529}00529\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ abs(sin\_mid)\ *\ (tolerance\ *\ kinkiness)\ <=\ t:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00530}00530\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Smooth\ enough.}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00531}00531\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00532}00532\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00533}00533\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ How\ visible\ is\ the\ kink?}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00534}00534\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00535}00535\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ cross\ =\ sin\_mid\ *\ abs(mid\_d0)\ *\ abs(mid\_d1)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00536}00536\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ arc\_len\ =\ abs(mid\_d0\ +\ mid\_d1)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00537}00537\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ deviation\ =\ abs(cross\ /\ arc\_len)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00538}00538\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ deviation\ <\ deviation\_threshold:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00539}00539\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00540}00540\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ deviation\_ratio\ =\ deviation\ /\ arc\_len}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00541}00541\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ deviation\_ratio\ >\ t:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00542}00542\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00543}00543\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00544}00544\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ this\_tolerance\ =\ t\ /\ (abs(sin\_mid)\ *\ kinkiness)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00545}00545\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00546}00546\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ log.debug(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00547}00547\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}kink:\ deviation\ \%g;\ deviation\_ratio\ \%g;\ sin\_mid\ \%g;\ r\_diff\ \%g"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00548}00548\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ deviation,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00549}00549\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ deviation\_ratio,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00550}00550\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ sin\_mid,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00551}00551\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ r\_diff,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00552}00552\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00553}00553\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ log.debug(\textcolor{stringliteral}{"{}tolerance\ \%g"{}},\ this\_tolerance)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00554}00554\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{yield}\ (}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00555}00555\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ glyph\_name,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00556}00556\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00557}00557\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}type"{}}:\ InterpolatableProblem.KINK,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00558}00558\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}contour"{}}:\ ix,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00559}00559\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}master\_1"{}}:\ names[m0idx],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00560}00560\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}master\_2"{}}:\ names[m1idx],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00561}00561\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}master\_1\_idx"{}}:\ m0idx,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00562}00562\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}master\_2\_idx"{}}:\ m1idx,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00563}00563\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}value"{}}:\ i,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00564}00564\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}tolerance"{}}:\ this\_tolerance,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00565}00565\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00566}00566\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00567}00567\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00568}00568\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00569}00569\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ -\/-\/show-\/all}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00570}00570\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00571}00571\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00572}00572\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ show\_all:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00573}00573\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{yield}\ (}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00574}00574\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ glyph\_name,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00575}00575\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00576}00576\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}type"{}}:\ InterpolatableProblem.NOTHING,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00577}00577\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}master\_1"{}}:\ names[m0idx],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00578}00578\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}master\_2"{}}:\ names[m1idx],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00579}00579\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}master\_1\_idx"{}}:\ m0idx,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00580}00580\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}master\_2\_idx"{}}:\ m1idx,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00581}00581\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00582}00582\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00583}00583\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00584}00584\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00585}00585\ \textcolor{preprocessor}{@wraps(test\_gen)}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00586}00586\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacetest}{test}}(*args,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00587}00587\ \ \ \ \ problems\ =\ defaultdict(list)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00588}00588\ \ \ \ \ \textcolor{keywordflow}{for}\ glyphname,\ problem\ \textcolor{keywordflow}{in}\ test\_gen(*args,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00589}00589\ \ \ \ \ \ \ \ \ problems[glyphname].append(problem)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00590}00590\ \ \ \ \ \textcolor{keywordflow}{return}\ problems}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00591}00591\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00592}00592\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00593}00593\ \textcolor{keyword}{def\ }recursivelyAddGlyph(glyphname,\ glyphset,\ ttGlyphSet,\ glyf):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00594}00594\ \ \ \ \ \textcolor{keywordflow}{if}\ glyphname\ \textcolor{keywordflow}{in}\ glyphset:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00595}00595\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00596}00596\ \ \ \ \ glyphset[glyphname]\ =\ ttGlyphSet[glyphname]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00597}00597\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00598}00598\ \ \ \ \ \textcolor{keywordflow}{for}\ component\ \textcolor{keywordflow}{in}\ getattr(glyf[glyphname],\ \textcolor{stringliteral}{"{}components"{}},\ []):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00599}00599\ \ \ \ \ \ \ \ \ recursivelyAddGlyph(component.glyphName,\ glyphset,\ ttGlyphSet,\ glyf)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00600}00600\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00601}00601\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00602}00602\ \textcolor{keyword}{def\ }ensure\_parent\_dir(path):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00603}00603\ \ \ \ \ dirname\ =\ os.path.dirname(path)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00604}00604\ \ \ \ \ \textcolor{keywordflow}{if}\ dirname:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00605}00605\ \ \ \ \ \ \ \ \ os.makedirs(dirname,\ exist\_ok=\textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00606}00606\ \ \ \ \ \textcolor{keywordflow}{return}\ path}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00607}00607\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00608}00608\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00609}\mbox{\hyperlink{namespacefontTools_1_1varLib_1_1interpolatable_ab831eea32c408053b1472006354044ad}{00609}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacemain}{main}}(args=None):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00610}00610\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Test\ for\ interpolatability\ issues\ between\ fonts"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00611}00611\ \ \ \ \ \textcolor{keyword}{import}\ argparse}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00612}00612\ \ \ \ \ \textcolor{keyword}{import}\ sys}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00613}00613\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00614}00614\ \ \ \ \ parser\ =\ argparse.ArgumentParser(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00615}00615\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}fonttools\ varLib.interpolatable"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00616}00616\ \ \ \ \ \ \ \ \ description=main.\_\_doc\_\_,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00617}00617\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00618}00618\ \ \ \ \ parser.add\_argument(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00619}00619\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}-\/-\/glyphs"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00620}00620\ \ \ \ \ \ \ \ \ action=\textcolor{stringliteral}{"{}store"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00621}00621\ \ \ \ \ \ \ \ \ help=\textcolor{stringliteral}{"{}Space-\/separate\ name\ of\ glyphs\ to\ check"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00622}00622\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00623}00623\ \ \ \ \ parser.add\_argument(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00624}00624\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}-\/-\/show-\/all"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00625}00625\ \ \ \ \ \ \ \ \ action=\textcolor{stringliteral}{"{}store\_true"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00626}00626\ \ \ \ \ \ \ \ \ help=\textcolor{stringliteral}{"{}Show\ all\ glyph\ pairs,\ even\ if\ no\ problems\ are\ found"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00627}00627\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00628}00628\ \ \ \ \ parser.add\_argument(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00629}00629\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}-\/-\/tolerance"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00630}00630\ \ \ \ \ \ \ \ \ action=\textcolor{stringliteral}{"{}store"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00631}00631\ \ \ \ \ \ \ \ \ type=float,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00632}00632\ \ \ \ \ \ \ \ \ help=\textcolor{stringliteral}{"{}Error\ tolerance.\ Between\ 0\ and\ 1.\ Default\ \%s"{}}\ \%\ DEFAULT\_TOLERANCE,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00633}00633\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00634}00634\ \ \ \ \ parser.add\_argument(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00635}00635\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}-\/-\/kinkiness"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00636}00636\ \ \ \ \ \ \ \ \ action=\textcolor{stringliteral}{"{}store"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00637}00637\ \ \ \ \ \ \ \ \ type=float,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00638}00638\ \ \ \ \ \ \ \ \ help=\textcolor{stringliteral}{"{}How\ aggressively\ report\ kinks.\ Default\ \%s"{}}\ \%\ DEFAULT\_KINKINESS,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00639}00639\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00640}00640\ \ \ \ \ parser.add\_argument(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00641}00641\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}-\/-\/json"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00642}00642\ \ \ \ \ \ \ \ \ action=\textcolor{stringliteral}{"{}store\_true"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00643}00643\ \ \ \ \ \ \ \ \ help=\textcolor{stringliteral}{"{}Output\ report\ in\ JSON\ format"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00644}00644\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00645}00645\ \ \ \ \ parser.add\_argument(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00646}00646\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}-\/-\/pdf"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00647}00647\ \ \ \ \ \ \ \ \ action=\textcolor{stringliteral}{"{}store"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00648}00648\ \ \ \ \ \ \ \ \ help=\textcolor{stringliteral}{"{}Output\ report\ in\ PDF\ format"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00649}00649\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00650}00650\ \ \ \ \ parser.add\_argument(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00651}00651\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}-\/-\/ps"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00652}00652\ \ \ \ \ \ \ \ \ action=\textcolor{stringliteral}{"{}store"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00653}00653\ \ \ \ \ \ \ \ \ help=\textcolor{stringliteral}{"{}Output\ report\ in\ PostScript\ format"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00654}00654\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00655}00655\ \ \ \ \ parser.add\_argument(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00656}00656\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}-\/-\/html"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00657}00657\ \ \ \ \ \ \ \ \ action=\textcolor{stringliteral}{"{}store"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00658}00658\ \ \ \ \ \ \ \ \ help=\textcolor{stringliteral}{"{}Output\ report\ in\ HTML\ format"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00659}00659\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00660}00660\ \ \ \ \ parser.add\_argument(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00661}00661\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}-\/-\/quiet"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00662}00662\ \ \ \ \ \ \ \ \ action=\textcolor{stringliteral}{"{}store\_true"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00663}00663\ \ \ \ \ \ \ \ \ help=\textcolor{stringliteral}{"{}Only\ exit\ with\ code\ 1\ or\ 0,\ no\ output"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00664}00664\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00665}00665\ \ \ \ \ parser.add\_argument(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00666}00666\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}-\/-\/output"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00667}00667\ \ \ \ \ \ \ \ \ action=\textcolor{stringliteral}{"{}store"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00668}00668\ \ \ \ \ \ \ \ \ help=\textcolor{stringliteral}{"{}Output\ file\ for\ the\ problem\ report;\ Default:\ stdout"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00669}00669\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00670}00670\ \ \ \ \ parser.add\_argument(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00671}00671\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}-\/-\/ignore-\/missing"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00672}00672\ \ \ \ \ \ \ \ \ action=\textcolor{stringliteral}{"{}store\_true"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00673}00673\ \ \ \ \ \ \ \ \ help=\textcolor{stringliteral}{"{}Will\ not\ report\ glyphs\ missing\ from\ sparse\ masters\ as\ errors"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00674}00674\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00675}00675\ \ \ \ \ parser.add\_argument(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00676}00676\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}inputs"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00677}00677\ \ \ \ \ \ \ \ \ metavar=\textcolor{stringliteral}{"{}FILE"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00678}00678\ \ \ \ \ \ \ \ \ type=str,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00679}00679\ \ \ \ \ \ \ \ \ nargs=\textcolor{stringliteral}{"{}+"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00680}00680\ \ \ \ \ \ \ \ \ help=\textcolor{stringliteral}{"{}Input\ a\ single\ variable\ font\ /\ DesignSpace\ /\ Glyphs\ file,\ or\ multiple\ TTF/UFO\ files"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00681}00681\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00682}00682\ \ \ \ \ parser.add\_argument(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00683}00683\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}-\/-\/name"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00684}00684\ \ \ \ \ \ \ \ \ metavar=\textcolor{stringliteral}{"{}NAME"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00685}00685\ \ \ \ \ \ \ \ \ type=str,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00686}00686\ \ \ \ \ \ \ \ \ action=\textcolor{stringliteral}{"{}append"{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00687}00687\ \ \ \ \ \ \ \ \ help=\textcolor{stringliteral}{"{}Name\ of\ the\ master\ to\ use\ in\ the\ report.\ If\ not\ provided,\ all\ are\ used."{}},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00688}00688\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00689}00689\ \ \ \ \ parser.add\_argument(\textcolor{stringliteral}{"{}-\/v"{}},\ \textcolor{stringliteral}{"{}-\/-\/verbose"{}},\ action=\textcolor{stringliteral}{"{}store\_true"{}},\ help=\textcolor{stringliteral}{"{}Run\ verbosely."{}})}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00690}00690\ \ \ \ \ parser.add\_argument(\textcolor{stringliteral}{"{}-\/-\/debug"{}},\ action=\textcolor{stringliteral}{"{}store\_true"{}},\ help=\textcolor{stringliteral}{"{}Run\ with\ debug\ output."{}})}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00691}00691\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00692}00692\ \ \ \ \ args\ =\ parser.parse\_args(args)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00693}00693\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00694}00694\ \ \ \ \ \textcolor{keyword}{from}\ fontTools\ \textcolor{keyword}{import}\ configLogger}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00695}00695\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00696}00696\ \ \ \ \ configLogger(level=(\textcolor{stringliteral}{"{}INFO"{}}\ \textcolor{keywordflow}{if}\ args.verbose\ \textcolor{keywordflow}{else}\ \textcolor{stringliteral}{"{}WARNING"{}}))}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00697}00697\ \ \ \ \ \textcolor{keywordflow}{if}\ args.debug:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00698}00698\ \ \ \ \ \ \ \ \ configLogger(level=\textcolor{stringliteral}{"{}DEBUG"{}})}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00699}00699\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00700}00700\ \ \ \ \ glyphs\ =\ args.glyphs.split()\ \textcolor{keywordflow}{if}\ args.glyphs\ \textcolor{keywordflow}{else}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00701}00701\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00702}00702\ \ \ \ \ \textcolor{keyword}{from}\ os.path\ \textcolor{keyword}{import}\ basename}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00703}00703\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00704}00704\ \ \ \ \ fonts\ =\ []}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00705}00705\ \ \ \ \ names\ =\ []}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00706}00706\ \ \ \ \ locations\ =\ []}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00707}00707\ \ \ \ \ discrete\_axes\ =\ set()}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00708}00708\ \ \ \ \ upem\ =\ DEFAULT\_UPEM}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00709}00709\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00710}00710\ \ \ \ \ original\_args\_inputs\ =\ tuple(args.inputs)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00711}00711\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00712}00712\ \ \ \ \ \textcolor{keywordflow}{if}\ len(args.inputs)\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00713}00713\ \ \ \ \ \ \ \ \ designspace\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00714}00714\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ args.inputs[0].endswith(\textcolor{stringliteral}{"{}.designspace"{}}):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00715}00715\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1designspaceLib}{fontTools.designspaceLib}}\ \textcolor{keyword}{import}\ DesignSpaceDocument}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00716}00716\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00717}00717\ \ \ \ \ \ \ \ \ \ \ \ \ designspace\ =\ DesignSpaceDocument.fromfile(args.inputs[0])}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00718}00718\ \ \ \ \ \ \ \ \ \ \ \ \ args.inputs\ =\ [master.path\ \textcolor{keywordflow}{for}\ master\ \textcolor{keywordflow}{in}\ designspace.sources]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00719}00719\ \ \ \ \ \ \ \ \ \ \ \ \ locations\ =\ [master.location\ \textcolor{keywordflow}{for}\ master\ \textcolor{keywordflow}{in}\ designspace.sources]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00720}00720\ \ \ \ \ \ \ \ \ \ \ \ \ discrete\_axes\ =\ \{}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00721}00721\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ a.name\ \textcolor{keywordflow}{for}\ a\ \textcolor{keywordflow}{in}\ designspace.axes\ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ hasattr(a,\ \textcolor{stringliteral}{"{}minimum"{}})}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00722}00722\ \ \ \ \ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00723}00723\ \ \ \ \ \ \ \ \ \ \ \ \ axis\_triples\ =\ \{}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00724}00724\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ a.name:\ (a.minimum,\ a.default,\ a.maximum)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00725}00725\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ a\ \textcolor{keywordflow}{in}\ designspace.axes}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00726}00726\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ a.name\ \textcolor{keywordflow}{not}\ \textcolor{keywordflow}{in}\ discrete\_axes}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00727}00727\ \ \ \ \ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00728}00728\ \ \ \ \ \ \ \ \ \ \ \ \ axis\_mappings\ =\ \{a.name:\ a.map\ \textcolor{keywordflow}{for}\ a\ \textcolor{keywordflow}{in}\ designspace.axes\}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00729}00729\ \ \ \ \ \ \ \ \ \ \ \ \ axis\_triples\ =\ \{}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00730}00730\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ k:\ tuple(piecewiseLinearMap(v,\ dict(axis\_mappings[k]))\ \textcolor{keywordflow}{for}\ v\ \textcolor{keywordflow}{in}\ vv)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00731}00731\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ k,\ vv\ \textcolor{keywordflow}{in}\ axis\_triples.items()}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00732}00732\ \ \ \ \ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00733}00733\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00734}00734\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ args.inputs[0].endswith((\textcolor{stringliteral}{"{}.glyphs"{}},\ \textcolor{stringliteral}{"{}.glyphspackage"{}})):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00735}00735\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{from}\ glyphsLib\ \textcolor{keyword}{import}\ GSFont,\ to\_designspace}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00736}00736\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00737}00737\ \ \ \ \ \ \ \ \ \ \ \ \ gsfont\ =\ GSFont(args.inputs[0])}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00738}00738\ \ \ \ \ \ \ \ \ \ \ \ \ upem\ =\ gsfont.upm}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00739}00739\ \ \ \ \ \ \ \ \ \ \ \ \ designspace\ =\ to\_designspace(gsfont)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00740}00740\ \ \ \ \ \ \ \ \ \ \ \ \ fonts\ =\ [source.font\ \textcolor{keywordflow}{for}\ source\ \textcolor{keywordflow}{in}\ designspace.sources]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00741}00741\ \ \ \ \ \ \ \ \ \ \ \ \ names\ =\ [\textcolor{stringliteral}{"{}\%s-\/\%s"{}}\ \%\ (f.info.familyName,\ f.info.styleName)\ \textcolor{keywordflow}{for}\ f\ \textcolor{keywordflow}{in}\ fonts]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00742}00742\ \ \ \ \ \ \ \ \ \ \ \ \ args.inputs\ =\ []}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00743}00743\ \ \ \ \ \ \ \ \ \ \ \ \ locations\ =\ [master.location\ \textcolor{keywordflow}{for}\ master\ \textcolor{keywordflow}{in}\ designspace.sources]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00744}00744\ \ \ \ \ \ \ \ \ \ \ \ \ axis\_triples\ =\ \{}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00745}00745\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ a.name:\ (a.minimum,\ a.default,\ a.maximum)\ \textcolor{keywordflow}{for}\ a\ \textcolor{keywordflow}{in}\ designspace.axes}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00746}00746\ \ \ \ \ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00747}00747\ \ \ \ \ \ \ \ \ \ \ \ \ axis\_mappings\ =\ \{a.name:\ a.map\ \textcolor{keywordflow}{for}\ a\ \textcolor{keywordflow}{in}\ designspace.axes\}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00748}00748\ \ \ \ \ \ \ \ \ \ \ \ \ axis\_triples\ =\ \{}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00749}00749\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ k:\ tuple(piecewiseLinearMap(v,\ dict(axis\_mappings[k]))\ \textcolor{keywordflow}{for}\ v\ \textcolor{keywordflow}{in}\ vv)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00750}00750\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ k,\ vv\ \textcolor{keywordflow}{in}\ axis\_triples.items()}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00751}00751\ \ \ \ \ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00752}00752\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00753}00753\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ args.inputs[0].endswith(\textcolor{stringliteral}{"{}.ttf"{}})\ \textcolor{keywordflow}{or}\ args.inputs[0].endswith(\textcolor{stringliteral}{"{}.otf"{}}):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00754}00754\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1ttLib}{fontTools.ttLib}}\ \textcolor{keyword}{import}\ TTFont}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00755}00755\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00756}00756\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Is\ variable\ font?}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00757}00757\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00758}00758\ \ \ \ \ \ \ \ \ \ \ \ \ font\ =\ \mbox{\hyperlink{classfontTools_1_1ttLib_1_1ttFont_1_1TTFont}{TTFont}}(args.inputs[0])}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00759}00759\ \ \ \ \ \ \ \ \ \ \ \ \ upem\ =\ font[\textcolor{stringliteral}{"{}head"{}}].unitsPerEm}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00760}00760\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00761}00761\ \ \ \ \ \ \ \ \ \ \ \ \ fvar\ =\ font[\textcolor{stringliteral}{"{}fvar"{}}]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00762}00762\ \ \ \ \ \ \ \ \ \ \ \ \ axisMapping\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00763}00763\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ axis\ \textcolor{keywordflow}{in}\ fvar.axes:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00764}00764\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ axisMapping[axis.axisTag]\ =\ \{}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00765}00765\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ -\/1:\ axis.minValue,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00766}00766\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ 0:\ axis.defaultValue,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00767}00767\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ 1:\ axis.maxValue,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00768}00768\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00769}00769\ \ \ \ \ \ \ \ \ \ \ \ \ normalized\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00770}00770\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{stringliteral}{"{}avar"{}}\ \textcolor{keywordflow}{in}\ font:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00771}00771\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ avar\ =\ font[\textcolor{stringliteral}{"{}avar"{}}]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00772}00772\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ getattr(avar.table,\ \textcolor{stringliteral}{"{}VarStore"{}},\ \textcolor{keywordtype}{None}):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00773}00773\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ axisMapping\ =\ \{tag:\ \{-\/1:\ -\/1,\ 0:\ 0,\ 1:\ 1\}\ \textcolor{keywordflow}{for}\ tag\ \textcolor{keywordflow}{in}\ axisMapping\}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00774}00774\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ normalized\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00775}00775\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00776}00776\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ axisTag,\ segments\ \textcolor{keywordflow}{in}\ avar.segments.items():}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00777}00777\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ fvarMapping\ =\ axisMapping[axisTag].copy()}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00778}00778\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ location,\ value\ \textcolor{keywordflow}{in}\ segments.items():}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00779}00779\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ axisMapping[axisTag][value]\ =\ piecewiseLinearMap(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00780}00780\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ location,\ fvarMapping}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00781}00781\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00782}00782\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00783}00783\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Gather\ all\ glyphs\ at\ their\ "{}master"{}\ locations}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00784}00784\ \ \ \ \ \ \ \ \ \ \ \ \ ttGlyphSets\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00785}00785\ \ \ \ \ \ \ \ \ \ \ \ \ glyphsets\ =\ defaultdict(dict)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00786}00786\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00787}00787\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{stringliteral}{"{}gvar"{}}\ \textcolor{keywordflow}{in}\ font:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00788}00788\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ gvar\ =\ font[\textcolor{stringliteral}{"{}gvar"{}}]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00789}00789\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ glyf\ =\ font[\textcolor{stringliteral}{"{}glyf"{}}]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00790}00790\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00791}00791\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ glyphs\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00792}00792\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ glyphs\ =\ sorted(gvar.variations.keys())}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00793}00793\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ glyphname\ \textcolor{keywordflow}{in}\ glyphs:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00794}00794\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ var\ \textcolor{keywordflow}{in}\ gvar.variations[glyphname]:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00795}00795\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ locDict\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00796}00796\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ loc\ =\ []}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00797}00797\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ tag,\ val\ \textcolor{keywordflow}{in}\ sorted(var.axes.items()):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00798}00798\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ locDict[tag]\ =\ val[1]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00799}00799\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ loc.append((tag,\ val[1]))}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00800}00800\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00801}00801\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ locTuple\ =\ tuple(loc)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00802}00802\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ locTuple\ \textcolor{keywordflow}{not}\ \textcolor{keywordflow}{in}\ ttGlyphSets:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00803}00803\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ttGlyphSets[locTuple]\ =\ font.getGlyphSet(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00804}00804\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ location=locDict,\ normalized=\textcolor{keyword}{True},\ recalcBounds=\textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00805}00805\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00806}00806\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00807}00807\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ recursivelyAddGlyph(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00808}00808\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ glyphname,\ glyphsets[locTuple],\ ttGlyphSets[locTuple],\ glyf}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00809}00809\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00810}00810\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00811}00811\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ \textcolor{stringliteral}{"{}CFF2"{}}\ \textcolor{keywordflow}{in}\ font:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00812}00812\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ fvarAxes\ =\ font[\textcolor{stringliteral}{"{}fvar"{}}].axes}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00813}00813\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ cff2\ =\ font[\textcolor{stringliteral}{"{}CFF2"{}}].cff.topDictIndex[0]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00814}00814\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ charstrings\ =\ cff2.CharStrings}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00815}00815\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00816}00816\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ glyphs\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00817}00817\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ glyphs\ =\ sorted(charstrings.keys())}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00818}00818\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ glyphname\ \textcolor{keywordflow}{in}\ glyphs:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00819}00819\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ cs\ =\ charstrings[glyphname]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00820}00820\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ private\ =\ cs.private}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00821}00821\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00822}00822\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Extract\ vsindex\ for\ the\ glyph}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00823}00823\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ vsindices\ =\ \{getattr(private,\ \textcolor{stringliteral}{"{}vsindex"{}},\ 0)\}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00824}00824\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ vsindex\ =\ getattr(private,\ \textcolor{stringliteral}{"{}vsindex"{}},\ 0)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00825}00825\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ last\_op\ =\ 0}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00826}00826\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ spec\ says\ vsindex\ can\ only\ appear\ once\ and\ must\ be\ the\ first}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00827}00827\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ operator\ in\ the\ charstring,\ but\ we\ support\ multiple.}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00828}00828\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ https://github.com/harfbuzz/boring-\/expansion-\/spec/issues/158}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00829}00829\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ op\ \textcolor{keywordflow}{in}\ enumerate(cs.program):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00830}00830\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ op\ ==\ \textcolor{stringliteral}{"{}blend"{}}:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00831}00831\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ vsindices.add(vsindex)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00832}00832\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ op\ ==\ \textcolor{stringliteral}{"{}vsindex"{}}:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00833}00833\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ isinstance(last\_op,\ int)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00834}00834\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ vsindex\ =\ last\_op}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00835}00835\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ last\_op\ =\ op}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00836}00836\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00837}00837\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ hasattr(private,\ \textcolor{stringliteral}{"{}vstore"{}}):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00838}00838\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00839}00839\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00840}00840\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ varStore\ =\ private.vstore.otVarStore}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00841}00841\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ vsindex\ \textcolor{keywordflow}{in}\ vsindices:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00842}00842\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ varData\ =\ varStore.VarData[vsindex]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00843}00843\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ regionIndex\ \textcolor{keywordflow}{in}\ varData.VarRegionIndex:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00844}00844\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ region\ =\ varStore.VarRegionList.Region[regionIndex]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00845}00845\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00846}00846\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ locDict\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00847}00847\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ loc\ =\ []}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00848}00848\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ axisIndex,\ axis\ \textcolor{keywordflow}{in}\ enumerate(region.VarRegionAxis):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00849}00849\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ tag\ =\ fvarAxes[axisIndex].axisTag}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00850}00850\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ val\ =\ axis.PeakCoord}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00851}00851\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ locDict[tag]\ =\ val}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00852}00852\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ loc.append((tag,\ val))}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00853}00853\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00854}00854\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ locTuple\ =\ tuple(loc)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00855}00855\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ locTuple\ \textcolor{keywordflow}{not}\ \textcolor{keywordflow}{in}\ ttGlyphSets:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00856}00856\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ttGlyphSets[locTuple]\ =\ font.getGlyphSet(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00857}00857\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ location=locDict,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00858}00858\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ normalized=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00859}00859\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ recalcBounds=\textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00860}00860\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00861}00861\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00862}00862\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ glyphset\ =\ glyphsets[locTuple]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00863}00863\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ glyphset[glyphname]\ =\ ttGlyphSets[locTuple][glyphname]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00864}00864\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00865}00865\ \ \ \ \ \ \ \ \ \ \ \ \ names\ =\ [\textcolor{stringliteral}{"{}''"{}}]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00866}00866\ \ \ \ \ \ \ \ \ \ \ \ \ fonts\ =\ [font.getGlyphSet()]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00867}00867\ \ \ \ \ \ \ \ \ \ \ \ \ locations\ =\ [\{\}]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00868}00868\ \ \ \ \ \ \ \ \ \ \ \ \ axis\_triples\ =\ \{a:\ (-\/1,\ 0,\ +1)\ \textcolor{keywordflow}{for}\ a\ \textcolor{keywordflow}{in}\ sorted(axisMapping.keys())\}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00869}00869\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ locTuple\ \textcolor{keywordflow}{in}\ sorted(glyphsets.keys(),\ key=\textcolor{keyword}{lambda}\ v:\ (len(v),\ v)):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00870}00870\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ name\ =\ (}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00871}00871\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}'"{}}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00872}00872\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ +\ \textcolor{stringliteral}{"{}\ "{}}.join(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00873}00873\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\%s=\%s"{}}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00874}00874\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \%\ (}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00875}00875\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ k,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00876}00876\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ floatToFixedToStr(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00877}00877\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ piecewiseLinearMap(v,\ axisMapping[k]),\ 14}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00878}00878\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00879}00879\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00880}00880\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ k,\ v\ \textcolor{keywordflow}{in}\ locTuple}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00881}00881\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00882}00882\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ +\ \textcolor{stringliteral}{"{}'"{}}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00883}00883\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00884}00884\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ normalized:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00885}00885\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ name\ +=\ \textcolor{stringliteral}{"{}\ (normalized)"{}}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00886}00886\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ names.append(name)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00887}00887\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ fonts.append(glyphsets[locTuple])}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00888}00888\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ locations.append(dict(locTuple))}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00889}00889\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00890}00890\ \ \ \ \ \ \ \ \ \ \ \ \ args.ignore\_missing\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00891}00891\ \ \ \ \ \ \ \ \ \ \ \ \ args.inputs\ =\ []}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00892}00892\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00893}00893\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ locations:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00894}00894\ \ \ \ \ \ \ \ \ locations\ =\ [\{\}\ \textcolor{keywordflow}{for}\ \_\ \textcolor{keywordflow}{in}\ fonts]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00895}00895\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00896}00896\ \ \ \ \ \textcolor{keywordflow}{for}\ filename\ \textcolor{keywordflow}{in}\ args.inputs:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00897}00897\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ filename.endswith(\textcolor{stringliteral}{"{}.ufo"{}}):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00898}00898\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1ufoLib}{fontTools.ufoLib}}\ \textcolor{keyword}{import}\ UFOReader}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00899}00899\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00900}00900\ \ \ \ \ \ \ \ \ \ \ \ \ font\ =\ UFOReader(filename)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00901}00901\ \ \ \ \ \ \ \ \ \ \ \ \ info\ =\ SimpleNamespace()}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00902}00902\ \ \ \ \ \ \ \ \ \ \ \ \ font.readInfo(info)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00903}00903\ \ \ \ \ \ \ \ \ \ \ \ \ upem\ =\ info.unitsPerEm}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00904}00904\ \ \ \ \ \ \ \ \ \ \ \ \ fonts.append(font)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00905}00905\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00906}00906\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1ttLib}{fontTools.ttLib}}\ \textcolor{keyword}{import}\ TTFont}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00907}00907\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00908}00908\ \ \ \ \ \ \ \ \ \ \ \ \ font\ =\ \mbox{\hyperlink{classfontTools_1_1ttLib_1_1ttFont_1_1TTFont}{TTFont}}(filename)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00909}00909\ \ \ \ \ \ \ \ \ \ \ \ \ upem\ =\ font[\textcolor{stringliteral}{"{}head"{}}].unitsPerEm}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00910}00910\ \ \ \ \ \ \ \ \ \ \ \ \ fonts.append(font)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00911}00911\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00912}00912\ \ \ \ \ \ \ \ \ names.append(basename(filename).rsplit(\textcolor{stringliteral}{"{}."{}},\ 1)[0])}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00913}00913\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00914}00914\ \ \ \ \ \textcolor{keywordflow}{if}\ len(fonts)\ <\ 2:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00915}00915\ \ \ \ \ \ \ \ \ log.warning(\textcolor{stringliteral}{"{}Font\ file\ does\ not\ seem\ to\ be\ variable.\ Nothing\ to\ check."{}})}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00916}00916\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00917}00917\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00918}00918\ \ \ \ \ glyphsets\ =\ []}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00919}00919\ \ \ \ \ \textcolor{keywordflow}{for}\ font\ \textcolor{keywordflow}{in}\ fonts:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00920}00920\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ hasattr(font,\ \textcolor{stringliteral}{"{}getGlyphSet"{}}):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00921}00921\ \ \ \ \ \ \ \ \ \ \ \ \ glyphset\ =\ font.getGlyphSet()}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00922}00922\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00923}00923\ \ \ \ \ \ \ \ \ \ \ \ \ glyphset\ =\ font}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00924}00924\ \ \ \ \ \ \ \ \ glyphsets.append(\{k:\ glyphset[k]\ \textcolor{keywordflow}{for}\ k\ \textcolor{keywordflow}{in}\ glyphset.keys()\})}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00925}00925\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00926}00926\ \ \ \ \ \textcolor{keywordflow}{if}\ args.name:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00927}00927\ \ \ \ \ \ \ \ \ accepted\_names\ =\ set(args.name)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00928}00928\ \ \ \ \ \ \ \ \ glyphsets\ =\ [}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00929}00929\ \ \ \ \ \ \ \ \ \ \ \ \ glyphset}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00930}00930\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ name,\ glyphset\ \textcolor{keywordflow}{in}\ zip(names,\ glyphsets)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00931}00931\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ name\ \textcolor{keywordflow}{in}\ accepted\_names}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00932}00932\ \ \ \ \ \ \ \ \ ]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00933}00933\ \ \ \ \ \ \ \ \ locations\ =\ [}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00934}00934\ \ \ \ \ \ \ \ \ \ \ \ \ location}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00935}00935\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ name,\ location\ \textcolor{keywordflow}{in}\ zip(names,\ locations)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00936}00936\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ name\ \textcolor{keywordflow}{in}\ accepted\_names}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00937}00937\ \ \ \ \ \ \ \ \ ]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00938}00938\ \ \ \ \ \ \ \ \ names\ =\ [name\ \textcolor{keywordflow}{for}\ name\ \textcolor{keywordflow}{in}\ names\ \textcolor{keywordflow}{if}\ name\ \textcolor{keywordflow}{in}\ accepted\_names]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00939}00939\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00940}00940\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ glyphs:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00941}00941\ \ \ \ \ \ \ \ \ glyphs\ =\ sorted(set([gn\ \textcolor{keywordflow}{for}\ glyphset\ \textcolor{keywordflow}{in}\ glyphsets\ \textcolor{keywordflow}{for}\ gn\ \textcolor{keywordflow}{in}\ glyphset.keys()]))}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00942}00942\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00943}00943\ \ \ \ \ glyphsSet\ =\ set(glyphs)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00944}00944\ \ \ \ \ \textcolor{keywordflow}{for}\ glyphset\ \textcolor{keywordflow}{in}\ glyphsets:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00945}00945\ \ \ \ \ \ \ \ \ glyphSetGlyphNames\ =\ set(glyphset.keys())}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00946}00946\ \ \ \ \ \ \ \ \ diff\ =\ glyphsSet\ -\/\ glyphSetGlyphNames}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00947}00947\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ diff:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00948}00948\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ gn\ \textcolor{keywordflow}{in}\ diff:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00949}00949\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ glyphset[gn]\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00950}00950\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00951}00951\ \ \ \ \ \textcolor{comment}{\#\ Normalize\ locations}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00952}00952\ \ \ \ \ locations\ =\ [}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00953}00953\ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00954}00954\ \ \ \ \ \ \ \ \ \ \ \ \ **normalizeLocation(loc,\ axis\_triples),}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00955}00955\ \ \ \ \ \ \ \ \ \ \ \ \ **\{k:\ v\ \textcolor{keywordflow}{for}\ k,\ v\ \textcolor{keywordflow}{in}\ loc.items()\ \textcolor{keywordflow}{if}\ k\ \textcolor{keywordflow}{in}\ discrete\_axes\},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00956}00956\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00957}00957\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ loc\ \textcolor{keywordflow}{in}\ locations}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00958}00958\ \ \ \ \ ]}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00959}00959\ \ \ \ \ tolerance\ =\ args.tolerance\ \textcolor{keywordflow}{or}\ DEFAULT\_TOLERANCE}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00960}00960\ \ \ \ \ kinkiness\ =\ args.kinkiness\ \textcolor{keywordflow}{if}\ args.kinkiness\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{else}\ DEFAULT\_KINKINESS}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00961}00961\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00962}00962\ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00963}00963\ \ \ \ \ \ \ \ \ log.info(\textcolor{stringliteral}{"{}Running\ on\ \%d\ glyphsets"{}},\ len(glyphsets))}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00964}00964\ \ \ \ \ \ \ \ \ log.info(\textcolor{stringliteral}{"{}Locations:\ \%s"{}},\ pformat(locations))}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00965}00965\ \ \ \ \ \ \ \ \ problems\_gen\ =\ test\_gen(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00966}00966\ \ \ \ \ \ \ \ \ \ \ \ \ glyphsets,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00967}00967\ \ \ \ \ \ \ \ \ \ \ \ \ glyphs=glyphs,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00968}00968\ \ \ \ \ \ \ \ \ \ \ \ \ names=names,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00969}00969\ \ \ \ \ \ \ \ \ \ \ \ \ locations=locations,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00970}00970\ \ \ \ \ \ \ \ \ \ \ \ \ upem=upem,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00971}00971\ \ \ \ \ \ \ \ \ \ \ \ \ ignore\_missing=args.ignore\_missing,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00972}00972\ \ \ \ \ \ \ \ \ \ \ \ \ tolerance=tolerance,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00973}00973\ \ \ \ \ \ \ \ \ \ \ \ \ kinkiness=kinkiness,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00974}00974\ \ \ \ \ \ \ \ \ \ \ \ \ show\_all=args.show\_all,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00975}00975\ \ \ \ \ \ \ \ \ \ \ \ \ discrete\_axes=discrete\_axes,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00976}00976\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00977}00977\ \ \ \ \ \ \ \ \ problems\ =\ defaultdict(list)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00978}00978\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00979}00979\ \ \ \ \ \ \ \ \ f\ =\ (}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00980}00980\ \ \ \ \ \ \ \ \ \ \ \ \ sys.stdout}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00981}00981\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ args.output\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00982}00982\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}\ open(ensure\_parent\_dir(args.output),\ \textcolor{stringliteral}{"{}w"{}})}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00983}00983\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00984}00984\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00985}00985\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ args.quiet:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00986}00986\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ args.json:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00987}00987\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{import}\ json}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00988}00988\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00989}00989\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ glyphname,\ problem\ \textcolor{keywordflow}{in}\ problems\_gen:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00990}00990\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ problems[glyphname].append(problem)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00991}00991\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00992}00992\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(json.dumps(problems),\ file=f)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00993}00993\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00994}00994\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ last\_glyphname\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00995}00995\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ glyphname,\ p\ \textcolor{keywordflow}{in}\ problems\_gen:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00996}00996\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ problems[glyphname].append(p)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00997}00997\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00998}00998\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ glyphname\ !=\ last\_glyphname:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l00999}00999\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(f\textcolor{stringliteral}{"{}Glyph\ \{glyphname\}\ was\ not\ compatible:"{}},\ file=f)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01000}01000\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ last\_glyphname\ =\ glyphname}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01001}01001\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ last\_master\_idxs\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01002}01002\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01003}01003\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ master\_idxs\ =\ (}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01004}01004\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (p[\textcolor{stringliteral}{"{}master\_idx"{}}],)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01005}01005\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{stringliteral}{"{}master\_idx"{}}\ \textcolor{keywordflow}{in}\ p}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01006}01006\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}\ (p[\textcolor{stringliteral}{"{}master\_1\_idx"{}}],\ p[\textcolor{stringliteral}{"{}master\_2\_idx"{}}])}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01007}01007\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01008}01008\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ master\_idxs\ !=\ last\_master\_idxs:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01009}01009\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ master\_names\ =\ (}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01010}01010\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (p[\textcolor{stringliteral}{"{}master"{}}],)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01011}01011\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{stringliteral}{"{}master"{}}\ \textcolor{keywordflow}{in}\ p}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01012}01012\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}\ (p[\textcolor{stringliteral}{"{}master\_1"{}}],\ p[\textcolor{stringliteral}{"{}master\_2"{}}])}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01013}01013\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01014}01014\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(f\textcolor{stringliteral}{"{}\ \ Masters:\ \%s:"{}}\ \%\ \textcolor{stringliteral}{"{},\ "{}}.join(master\_names),\ file=f)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01015}01015\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ last\_master\_idxs\ =\ master\_idxs}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01016}01016\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01017}01017\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ p[\textcolor{stringliteral}{"{}type"{}}]\ ==\ InterpolatableProblem.MISSING:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01018}01018\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01019}01019\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ \ \ \ Glyph\ was\ missing\ in\ master\ \%s"{}}\ \%\ p[\textcolor{stringliteral}{"{}master"{}}],\ file=f}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01020}01020\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01021}01021\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ p[\textcolor{stringliteral}{"{}type"{}}]\ ==\ InterpolatableProblem.OPEN\_PATH:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01022}01022\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01023}01023\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ \ \ \ Glyph\ has\ an\ open\ path\ in\ master\ \%s"{}}\ \%\ p[\textcolor{stringliteral}{"{}master"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01024}01024\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ file=f,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01025}01025\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01026}01026\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ p[\textcolor{stringliteral}{"{}type"{}}]\ ==\ InterpolatableProblem.PATH\_COUNT:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01027}01027\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01028}01028\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ \ \ \ Path\ count\ differs:\ \%i\ in\ \%s,\ \%i\ in\ \%s"{}}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01029}01029\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \%\ (}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01030}01030\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p[\textcolor{stringliteral}{"{}value\_1"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01031}01031\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p[\textcolor{stringliteral}{"{}master\_1"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01032}01032\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p[\textcolor{stringliteral}{"{}value\_2"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01033}01033\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p[\textcolor{stringliteral}{"{}master\_2"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01034}01034\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01035}01035\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ file=f,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01036}01036\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01037}01037\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ p[\textcolor{stringliteral}{"{}type"{}}]\ ==\ InterpolatableProblem.NODE\_COUNT:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01038}01038\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01039}01039\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ \ \ \ Node\ count\ differs\ in\ path\ \%i:\ \%i\ in\ \%s,\ \%i\ in\ \%s"{}}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01040}01040\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \%\ (}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01041}01041\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p[\textcolor{stringliteral}{"{}path"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01042}01042\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p[\textcolor{stringliteral}{"{}value\_1"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01043}01043\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p[\textcolor{stringliteral}{"{}master\_1"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01044}01044\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p[\textcolor{stringliteral}{"{}value\_2"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01045}01045\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p[\textcolor{stringliteral}{"{}master\_2"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01046}01046\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01047}01047\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ file=f,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01048}01048\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01049}01049\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ p[\textcolor{stringliteral}{"{}type"{}}]\ ==\ InterpolatableProblem.NODE\_INCOMPATIBILITY:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01050}01050\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01051}01051\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ \ \ \ Node\ \%o\ incompatible\ in\ path\ \%i:\ \%s\ in\ \%s,\ \%s\ in\ \%s"{}}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01052}01052\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \%\ (}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01053}01053\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p[\textcolor{stringliteral}{"{}node"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01054}01054\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p[\textcolor{stringliteral}{"{}path"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01055}01055\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p[\textcolor{stringliteral}{"{}value\_1"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01056}01056\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p[\textcolor{stringliteral}{"{}master\_1"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01057}01057\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p[\textcolor{stringliteral}{"{}value\_2"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01058}01058\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p[\textcolor{stringliteral}{"{}master\_2"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01059}01059\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01060}01060\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ file=f,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01061}01061\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01062}01062\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ p[\textcolor{stringliteral}{"{}type"{}}]\ ==\ InterpolatableProblem.CONTOUR\_ORDER:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01063}01063\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01064}01064\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ \ \ \ Contour\ order\ differs:\ \%s\ in\ \%s,\ \%s\ in\ \%s"{}}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01065}01065\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \%\ (}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01066}01066\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p[\textcolor{stringliteral}{"{}value\_1"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01067}01067\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p[\textcolor{stringliteral}{"{}master\_1"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01068}01068\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p[\textcolor{stringliteral}{"{}value\_2"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01069}01069\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p[\textcolor{stringliteral}{"{}master\_2"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01070}01070\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01071}01071\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ file=f,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01072}01072\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01073}01073\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ p[\textcolor{stringliteral}{"{}type"{}}]\ ==\ InterpolatableProblem.WRONG\_START\_POINT:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01074}01074\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01075}01075\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ \ \ \ Contour\ \%d\ start\ point\ differs:\ \%s\ in\ \%s,\ \%s\ in\ \%s;\ reversed:\ \%s"{}}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01076}01076\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \%\ (}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01077}01077\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p[\textcolor{stringliteral}{"{}contour"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01078}01078\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p[\textcolor{stringliteral}{"{}value\_1"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01079}01079\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p[\textcolor{stringliteral}{"{}master\_1"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01080}01080\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p[\textcolor{stringliteral}{"{}value\_2"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01081}01081\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p[\textcolor{stringliteral}{"{}master\_2"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01082}01082\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p[\textcolor{stringliteral}{"{}reversed"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01083}01083\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01084}01084\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ file=f,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01085}01085\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01086}01086\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ p[\textcolor{stringliteral}{"{}type"{}}]\ ==\ InterpolatableProblem.UNDERWEIGHT:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01087}01087\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01088}01088\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ \ \ \ Contour\ \%d\ interpolation\ is\ underweight:\ \%s,\ \%s"{}}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01089}01089\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \%\ (}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01090}01090\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p[\textcolor{stringliteral}{"{}contour"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01091}01091\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p[\textcolor{stringliteral}{"{}master\_1"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01092}01092\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p[\textcolor{stringliteral}{"{}master\_2"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01093}01093\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01094}01094\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ file=f,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01095}01095\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01096}01096\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ p[\textcolor{stringliteral}{"{}type"{}}]\ ==\ InterpolatableProblem.OVERWEIGHT:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01097}01097\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01098}01098\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ \ \ \ Contour\ \%d\ interpolation\ is\ overweight:\ \%s,\ \%s"{}}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01099}01099\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \%\ (}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01100}01100\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p[\textcolor{stringliteral}{"{}contour"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01101}01101\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p[\textcolor{stringliteral}{"{}master\_1"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01102}01102\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p[\textcolor{stringliteral}{"{}master\_2"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01103}01103\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01104}01104\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ file=f,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01105}01105\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01106}01106\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ p[\textcolor{stringliteral}{"{}type"{}}]\ ==\ InterpolatableProblem.KINK:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01107}01107\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01108}01108\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ \ \ \ Contour\ \%d\ has\ a\ kink\ at\ \%s:\ \%s,\ \%s"{}}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01109}01109\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \%\ (}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01110}01110\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p[\textcolor{stringliteral}{"{}contour"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01111}01111\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p[\textcolor{stringliteral}{"{}value"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01112}01112\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p[\textcolor{stringliteral}{"{}master\_1"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01113}01113\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p[\textcolor{stringliteral}{"{}master\_2"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01114}01114\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01115}01115\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ file=f,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01116}01116\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01117}01117\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ p[\textcolor{stringliteral}{"{}type"{}}]\ ==\ InterpolatableProblem.NOTHING:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01118}01118\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01119}01119\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ \ \ \ Showing\ \%s\ and\ \%s"{}}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01120}01120\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \%\ (}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01121}01121\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p[\textcolor{stringliteral}{"{}master\_1"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01122}01122\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p[\textcolor{stringliteral}{"{}master\_2"{}}],}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01123}01123\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01124}01124\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ file=f,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01125}01125\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01126}01126\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01127}01127\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ glyphname,\ problem\ \textcolor{keywordflow}{in}\ problems\_gen:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01128}01128\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ problems[glyphname].append(problem)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01129}01129\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01130}01130\ \ \ \ \ \ \ \ \ problems\ =\ \mbox{\hyperlink{namespacefontTools_1_1varLib_1_1interpolatableHelpers_a236920d1e3ffb6b7f8ebc349d5c77d2a}{sort\_problems}}(problems)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01131}01131\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01132}01132\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ p\ \textcolor{keywordflow}{in}\ \textcolor{stringliteral}{"{}ps"{}},\ \textcolor{stringliteral}{"{}pdf"{}}:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01133}01133\ \ \ \ \ \ \ \ \ \ \ \ \ arg\ =\ getattr(args,\ p)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01134}01134\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ arg\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01135}01135\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01136}01136\ \ \ \ \ \ \ \ \ \ \ \ \ log.info(\textcolor{stringliteral}{"{}Writing\ \%s\ to\ \%s"{}},\ p.upper(),\ arg)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01137}01137\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{from}\ .interpolatablePlot\ \textcolor{keyword}{import}\ InterpolatablePS,\ InterpolatablePDF}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01138}01138\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01139}01139\ \ \ \ \ \ \ \ \ \ \ \ \ PlotterClass\ =\ InterpolatablePS\ \textcolor{keywordflow}{if}\ p\ ==\ \textcolor{stringliteral}{"{}ps"{}}\ \textcolor{keywordflow}{else}\ InterpolatablePDF}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01140}01140\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01141}01141\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ PlotterClass(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01142}01142\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ensure\_parent\_dir(arg),\ glyphsets=glyphsets,\ names=names}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01143}01143\ \ \ \ \ \ \ \ \ \ \ \ \ )\ \textcolor{keyword}{as}\ doc:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01144}01144\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ doc.add\_title\_page(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01145}01145\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ original\_args\_inputs,\ tolerance=tolerance,\ kinkiness=kinkiness}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01146}01146\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01147}01147\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ problems:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01148}01148\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ doc.add\_summary(problems)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01149}01149\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ doc.add\_problems(problems)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01150}01150\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ problems\ \textcolor{keywordflow}{and}\ \textcolor{keywordflow}{not}\ args.quiet:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01151}01151\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ doc.draw\_cupcake()}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01152}01152\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ problems:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01153}01153\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ doc.add\_index()}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01154}01154\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ doc.add\_table\_of\_contents()}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01155}01155\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01156}01156\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ args.html:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01157}01157\ \ \ \ \ \ \ \ \ \ \ \ \ log.info(\textcolor{stringliteral}{"{}Writing\ HTML\ to\ \%s"{}},\ args.html)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01158}01158\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{from}\ .interpolatablePlot\ \textcolor{keyword}{import}\ InterpolatableSVG}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01159}01159\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01160}01160\ \ \ \ \ \ \ \ \ \ \ \ \ svgs\ =\ []}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01161}01161\ \ \ \ \ \ \ \ \ \ \ \ \ glyph\_starts\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01162}01162\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ InterpolatableSVG(svgs,\ glyphsets=glyphsets,\ names=names)\ \textcolor{keyword}{as}\ svg:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01163}01163\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ svg.add\_title\_page(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01164}01164\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ original\_args\_inputs,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01165}01165\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ show\_tolerance=\textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01166}01166\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ tolerance=tolerance,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01167}01167\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ kinkiness=kinkiness,}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01168}01168\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01169}01169\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ glyph,\ glyph\_problems\ \textcolor{keywordflow}{in}\ problems.items():}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01170}01170\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ glyph\_starts[len(svgs)]\ =\ glyph}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01171}01171\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ svg.add\_problems(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01172}01172\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \{glyph:\ glyph\_problems\},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01173}01173\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ show\_tolerance=\textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01174}01174\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ show\_page\_number=\textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01175}01175\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01176}01176\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ problems\ \textcolor{keywordflow}{and}\ \textcolor{keywordflow}{not}\ args.quiet:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01177}01177\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ svg.draw\_cupcake()}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01178}01178\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01179}01179\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{import}\ base64}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01180}01180\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01181}01181\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ open(ensure\_parent\_dir(args.html),\ \textcolor{stringliteral}{"{}wb"{}})\ \textcolor{keyword}{as}\ f:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01182}01182\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f.write(b\textcolor{stringliteral}{"{}<!DOCTYPE\ html>\(\backslash\)n"{}})}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01183}01183\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f.write(}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01184}01184\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ b\textcolor{stringliteral}{'<html><body\ align="{}center"{}\ style="{}font-\/family:\ sans-\/serif;\ text-\/color:\ \#222"{}>\(\backslash\)n'}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01185}01185\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01186}01186\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f.write(b\textcolor{stringliteral}{"{}<title>fonttools\ varLib.interpolatable\ report</title>\(\backslash\)n"{}})}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01187}01187\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ i,\ svg\ \textcolor{keywordflow}{in}\ enumerate(svgs):}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01188}01188\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ i\ \textcolor{keywordflow}{in}\ glyph\_starts:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01189}01189\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f.write(f\textcolor{stringliteral}{"{}<h1>Glyph\ \{glyph\_starts[i]\}</h1>\(\backslash\)n"{}}.encode(\textcolor{stringliteral}{"{}utf-\/8"{}}))}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01190}01190\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f.write(\textcolor{stringliteral}{"{}<img\ src='data:image/svg+xml;base64,"{}}.encode(\textcolor{stringliteral}{"{}utf-\/8"{}}))}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01191}01191\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f.write(base64.b64encode(svg))}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01192}01192\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f.write(b\textcolor{stringliteral}{"{}'\ />\(\backslash\)n"{}})}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01193}01193\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f.write(b\textcolor{stringliteral}{"{}<hr>\(\backslash\)n"{}})}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01194}01194\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f.write(b\textcolor{stringliteral}{"{}</body></html>\(\backslash\)n"{}})}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01195}01195\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01196}01196\ \ \ \ \ \textcolor{keywordflow}{except}\ Exception\ \textcolor{keyword}{as}\ e:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01197}01197\ \ \ \ \ \ \ \ \ e.args\ +=\ original\_args\_inputs}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01198}01198\ \ \ \ \ \ \ \ \ log.error(e)}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01199}01199\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01200}01200\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01201}01201\ \ \ \ \ \textcolor{keywordflow}{if}\ problems:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01202}01202\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ problems}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01203}01203\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01204}01204\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01205}01205\ \textcolor{keywordflow}{if}\ \_\_name\_\_\ ==\ \textcolor{stringliteral}{"{}\_\_main\_\_"{}}:}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01206}01206\ \ \ \ \ \textcolor{keyword}{import}\ sys}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01207}01207\ }
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01208}01208\ \ \ \ \ problems\ =\ \mbox{\hyperlink{namespacemain}{main}}()}
+\DoxyCodeLine{\Hypertarget{interpolatable_8py_source_l01209}01209\ \ \ \ \ sys.exit(int(bool(problems)))}
+
+\end{DoxyCode}

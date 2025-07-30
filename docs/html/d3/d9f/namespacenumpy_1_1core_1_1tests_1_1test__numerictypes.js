@@ -1,0 +1,27 @@
+var namespacenumpy_1_1core_1_1tests_1_1test__numerictypes =
+[
+    [ "CreateValues", "d5/d48/classnumpy_1_1core_1_1tests_1_1test__numerictypes_1_1CreateValues.html", "d5/d48/classnumpy_1_1core_1_1tests_1_1test__numerictypes_1_1CreateValues" ],
+    [ "CreateZeros", "dd/d38/classnumpy_1_1core_1_1tests_1_1test__numerictypes_1_1CreateZeros.html", "dd/d38/classnumpy_1_1core_1_1tests_1_1test__numerictypes_1_1CreateZeros" ],
+    [ "ReadValuesNested", "dd/dcd/classnumpy_1_1core_1_1tests_1_1test__numerictypes_1_1ReadValuesNested.html", "dd/dcd/classnumpy_1_1core_1_1tests_1_1test__numerictypes_1_1ReadValuesNested" ],
+    [ "ReadValuesPlain", "dc/d36/classnumpy_1_1core_1_1tests_1_1test__numerictypes_1_1ReadValuesPlain.html", null ],
+    [ "Test_sctype2char", "d3/d96/classnumpy_1_1core_1_1tests_1_1test__numerictypes_1_1Test__sctype2char.html", null ],
+    [ "TestBitName", "d0/d54/classnumpy_1_1core_1_1tests_1_1test__numerictypes_1_1TestBitName.html", null ],
+    [ "TestCommonType", "d9/dc1/classnumpy_1_1core_1_1tests_1_1test__numerictypes_1_1TestCommonType.html", null ],
+    [ "TestCreateValuesNestedMultiple", "d9/d73/classnumpy_1_1core_1_1tests_1_1test__numerictypes_1_1TestCreateValuesNestedMultiple.html", null ],
+    [ "TestCreateValuesNestedSingle", "d2/d9f/classnumpy_1_1core_1_1tests_1_1test__numerictypes_1_1TestCreateValuesNestedSingle.html", null ],
+    [ "TestCreateValuesPlainMultiple", "dd/dc8/classnumpy_1_1core_1_1tests_1_1test__numerictypes_1_1TestCreateValuesPlainMultiple.html", null ],
+    [ "TestCreateValuesPlainSingle", "da/dc6/classnumpy_1_1core_1_1tests_1_1test__numerictypes_1_1TestCreateValuesPlainSingle.html", null ],
+    [ "TestCreateZerosNested", "d2/dad/classnumpy_1_1core_1_1tests_1_1test__numerictypes_1_1TestCreateZerosNested.html", null ],
+    [ "TestCreateZerosPlain", "d5/db2/classnumpy_1_1core_1_1tests_1_1test__numerictypes_1_1TestCreateZerosPlain.html", null ],
+    [ "TestDocStrings", "d2/d9d/classnumpy_1_1core_1_1tests_1_1test__numerictypes_1_1TestDocStrings.html", null ],
+    [ "TestEmptyField", "d1/d1a/classnumpy_1_1core_1_1tests_1_1test__numerictypes_1_1TestEmptyField.html", null ],
+    [ "TestIsSubDType", "db/d78/classnumpy_1_1core_1_1tests_1_1test__numerictypes_1_1TestIsSubDType.html", null ],
+    [ "TestMaximumSctype", "df/d83/classnumpy_1_1core_1_1tests_1_1test__numerictypes_1_1TestMaximumSctype.html", null ],
+    [ "TestMultipleFields", "dc/df3/classnumpy_1_1core_1_1tests_1_1test__numerictypes_1_1TestMultipleFields.html", null ],
+    [ "TestReadValuesNestedMultiple", "dc/d1b/classnumpy_1_1core_1_1tests_1_1test__numerictypes_1_1TestReadValuesNestedMultiple.html", null ],
+    [ "TestReadValuesNestedSingle", "d1/d58/classnumpy_1_1core_1_1tests_1_1test__numerictypes_1_1TestReadValuesNestedSingle.html", null ],
+    [ "TestReadValuesPlainMultiple", "d4/d79/classnumpy_1_1core_1_1tests_1_1test__numerictypes_1_1TestReadValuesPlainMultiple.html", null ],
+    [ "TestReadValuesPlainSingle", "db/da6/classnumpy_1_1core_1_1tests_1_1test__numerictypes_1_1TestReadValuesPlainSingle.html", null ],
+    [ "TestScalarTypeNames", "d1/d91/classnumpy_1_1core_1_1tests_1_1test__numerictypes_1_1TestScalarTypeNames.html", "d1/d91/classnumpy_1_1core_1_1tests_1_1test__numerictypes_1_1TestScalarTypeNames" ],
+    [ "TestSctypeDict", "d0/d22/classnumpy_1_1core_1_1tests_1_1test__numerictypes_1_1TestSctypeDict.html", null ]
+];

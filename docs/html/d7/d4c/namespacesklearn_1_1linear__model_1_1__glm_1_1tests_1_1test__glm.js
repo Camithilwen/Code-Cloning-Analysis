@@ -1,0 +1,25 @@
+var namespacesklearn_1_1linear__model_1_1__glm_1_1tests_1_1test__glm =
+[
+    [ "BinomialRegressor", "d1/db7/classsklearn_1_1linear__model_1_1__glm_1_1tests_1_1test__glm_1_1BinomialRegressor.html", "d1/db7/classsklearn_1_1linear__model_1_1__glm_1_1tests_1_1test__glm_1_1BinomialRegressor" ],
+    [ "glm_dataset", "d7/d4c/namespacesklearn_1_1linear__model_1_1__glm_1_1tests_1_1test__glm.html#a3c56c14ef11366c466ad2a1e72913281", null ],
+    [ "test_glm_identity_regression", "d7/d4c/namespacesklearn_1_1linear__model_1_1__glm_1_1tests_1_1test__glm.html#a0364e08f009b7216af3645ae0ee47ab6", null ],
+    [ "test_glm_log_regression", "d7/d4c/namespacesklearn_1_1linear__model_1_1__glm_1_1tests_1_1test__glm.html#a7384ddd24bbc50126dfb8d6329e91688", null ],
+    [ "test_glm_regression", "d7/d4c/namespacesklearn_1_1linear__model_1_1__glm_1_1tests_1_1test__glm.html#a06274e2990bfbb419c29ddc3ccbcb6fb", null ],
+    [ "test_glm_regression_hstacked_X", "d7/d4c/namespacesklearn_1_1linear__model_1_1__glm_1_1tests_1_1test__glm.html#a3dbf52b26ccff035431f498891df08e0", null ],
+    [ "test_glm_regression_unpenalized", "d7/d4c/namespacesklearn_1_1linear__model_1_1__glm_1_1tests_1_1test__glm.html#a32650e0b3ce52f01457f9f63e58c8a4a", null ],
+    [ "test_glm_regression_unpenalized_hstacked_X", "d7/d4c/namespacesklearn_1_1linear__model_1_1__glm_1_1tests_1_1test__glm.html#a4b3b2a2da2f67e8f44cd981350127cd8", null ],
+    [ "test_glm_regression_unpenalized_vstacked_X", "d7/d4c/namespacesklearn_1_1linear__model_1_1__glm_1_1tests_1_1test__glm.html#a37f27cabeb181f1ec4a44ae8721ce907", null ],
+    [ "test_glm_regression_vstacked_X", "d7/d4c/namespacesklearn_1_1linear__model_1_1__glm_1_1tests_1_1test__glm.html#a0230a8f385629306c4eefdf1e9609731", null ],
+    [ "test_glm_sample_weight_consistency", "d7/d4c/namespacesklearn_1_1linear__model_1_1__glm_1_1tests_1_1test__glm.html#a697b9b016afe5bc089525fa66931dfb1", null ],
+    [ "test_glm_wrong_y_range", "d7/d4c/namespacesklearn_1_1linear__model_1_1__glm_1_1tests_1_1test__glm.html#aa256fb9d4312ac2dd0f356dbf980897b", null ],
+    [ "test_linalg_warning_with_newton_solver", "d7/d4c/namespacesklearn_1_1linear__model_1_1__glm_1_1tests_1_1test__glm.html#ae426c26f4a0512a32805109d5a16565b", null ],
+    [ "test_newton_solver_verbosity", "d7/d4c/namespacesklearn_1_1linear__model_1_1__glm_1_1tests_1_1test__glm.html#a40f4070af88dd33bc6a47515e426cf73", null ],
+    [ "test_normal_ridge_comparison", "d7/d4c/namespacesklearn_1_1linear__model_1_1__glm_1_1tests_1_1test__glm.html#af5968893264979b2095562d244fbf456", null ],
+    [ "test_poisson_glmnet", "d7/d4c/namespacesklearn_1_1linear__model_1_1__glm_1_1tests_1_1test__glm.html#ac3cea64ca818d55393a0e25c5242731f", null ],
+    [ "test_sample_weights_validation", "d7/d4c/namespacesklearn_1_1linear__model_1_1__glm_1_1tests_1_1test__glm.html#a57765c5e677bc4233365549889ec960c", null ],
+    [ "test_tags", "d7/d4c/namespacesklearn_1_1linear__model_1_1__glm_1_1tests_1_1test__glm.html#adcc3fe7a911da0aaf3fb36e650ef8d10", null ],
+    [ "test_tweedie_link_argument", "d7/d4c/namespacesklearn_1_1linear__model_1_1__glm_1_1tests_1_1test__glm.html#a50919cda2d7576cc0ac4cd8379a528a4", null ],
+    [ "test_tweedie_link_auto", "d7/d4c/namespacesklearn_1_1linear__model_1_1__glm_1_1tests_1_1test__glm.html#a6ca035e8ddaa7721d1d5a7b77b74c9c5", null ],
+    [ "test_tweedie_score", "d7/d4c/namespacesklearn_1_1linear__model_1_1__glm_1_1tests_1_1test__glm.html#ac819ccb713b021733ada2638a13ce589", null ],
+    [ "test_warm_start", "d7/d4c/namespacesklearn_1_1linear__model_1_1__glm_1_1tests_1_1test__glm.html#a07094df74368adbd794a9d2a5104afbe", null ]
+];

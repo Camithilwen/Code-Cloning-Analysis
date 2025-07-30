@@ -1,0 +1,78 @@
+var namespacepip_1_1__vendor_1_1requests =
+[
+    [ "__version__", "d5/df0/namespacepip_1_1__vendor_1_1requests_1_1____version____.html", null ],
+    [ "_internal_utils", "da/d98/namespacepip_1_1__vendor_1_1requests_1_1__internal__utils.html", [
+      [ "to_native_string", "da/d98/namespacepip_1_1__vendor_1_1requests_1_1__internal__utils.html#abf877bcad987224f65424d933d73ca1f", null ],
+      [ "unicode_is_ascii", "da/d98/namespacepip_1_1__vendor_1_1requests_1_1__internal__utils.html#a0232be310aaeaaf02dff181c6f8328d9", null ]
+    ] ],
+    [ "adapters", "d4/d72/namespacepip_1_1__vendor_1_1requests_1_1adapters.html", "d4/d72/namespacepip_1_1__vendor_1_1requests_1_1adapters" ],
+    [ "api", "de/db5/namespacepip_1_1__vendor_1_1requests_1_1api.html", [
+      [ "delete", "de/db5/namespacepip_1_1__vendor_1_1requests_1_1api.html#a05cfa73261fbd70afa60ea6b0accb3ba", null ],
+      [ "get", "de/db5/namespacepip_1_1__vendor_1_1requests_1_1api.html#aa9e46a3c64be13dae72ed5a2b3066750", null ],
+      [ "head", "de/db5/namespacepip_1_1__vendor_1_1requests_1_1api.html#a7eccc8f3972de749f0d0da264d033676", null ],
+      [ "options", "de/db5/namespacepip_1_1__vendor_1_1requests_1_1api.html#ae0fae0ecb40f9bb0fb1a517a5de06bf4", null ],
+      [ "patch", "de/db5/namespacepip_1_1__vendor_1_1requests_1_1api.html#afe92e0def5a4c611e8aebca729c33e73", null ],
+      [ "post", "de/db5/namespacepip_1_1__vendor_1_1requests_1_1api.html#ae8fa50127d86a5156e693ee0df61357e", null ],
+      [ "put", "de/db5/namespacepip_1_1__vendor_1_1requests_1_1api.html#af4d6e18b8194e97cfcb09dca70669b70", null ],
+      [ "request", "de/db5/namespacepip_1_1__vendor_1_1requests_1_1api.html#ae86597160be7dcc9a78f8f91f8d45e6d", null ]
+    ] ],
+    [ "auth", "d9/d44/namespacepip_1_1__vendor_1_1requests_1_1auth.html", "d9/d44/namespacepip_1_1__vendor_1_1requests_1_1auth" ],
+    [ "certs", "d3/dbc/namespacepip_1_1__vendor_1_1requests_1_1certs.html", null ],
+    [ "compat", "d8/d2a/namespacepip_1_1__vendor_1_1requests_1_1compat.html", null ],
+    [ "cookies", "d3/d97/namespacepip_1_1__vendor_1_1requests_1_1cookies.html", "d3/d97/namespacepip_1_1__vendor_1_1requests_1_1cookies" ],
+    [ "exceptions", "d5/d5d/namespacepip_1_1__vendor_1_1requests_1_1exceptions.html", "d5/d5d/namespacepip_1_1__vendor_1_1requests_1_1exceptions" ],
+    [ "help", "da/d0d/namespacepip_1_1__vendor_1_1requests_1_1help.html", [
+      [ "_implementation", "da/d0d/namespacepip_1_1__vendor_1_1requests_1_1help.html#a027805175d34ad0bc61e36b51b49897e", null ],
+      [ "info", "da/d0d/namespacepip_1_1__vendor_1_1requests_1_1help.html#af20483de8fd4c4c2928f486126d3d422", null ],
+      [ "main", "da/d0d/namespacepip_1_1__vendor_1_1requests_1_1help.html#a14dbf2fc9e569dcbee3e590e0bc18f2e", null ]
+    ] ],
+    [ "hooks", "df/dc3/namespacepip_1_1__vendor_1_1requests_1_1hooks.html", [
+      [ "dispatch_hook", "df/dc3/namespacepip_1_1__vendor_1_1requests_1_1hooks.html#ae127005545e6e9766a2fcbac5923c854", null ]
+    ] ],
+    [ "models", "dd/da7/namespacepip_1_1__vendor_1_1requests_1_1models.html", "dd/da7/namespacepip_1_1__vendor_1_1requests_1_1models" ],
+    [ "packages", "d6/d7c/namespacepip_1_1__vendor_1_1requests_1_1packages.html", null ],
+    [ "sessions", "d8/d2e/namespacepip_1_1__vendor_1_1requests_1_1sessions.html", "d8/d2e/namespacepip_1_1__vendor_1_1requests_1_1sessions" ],
+    [ "status_codes", "d6/df6/namespacepip_1_1__vendor_1_1requests_1_1status__codes.html", null ],
+    [ "structures", "de/d88/namespacepip_1_1__vendor_1_1requests_1_1structures.html", "de/d88/namespacepip_1_1__vendor_1_1requests_1_1structures" ],
+    [ "utils", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html", [
+      [ "_parse_content_type_header", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#ac96bd5abafa3921fcc7ea98f5121822a", null ],
+      [ "add_dict_to_cookiejar", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#adae5c266a3223fa6a0dc2a84f4859404", null ],
+      [ "address_in_network", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#a114697978d5f129b856615f0c4bf5a3f", null ],
+      [ "atomic_open", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#abe70bfdb0fe68a1dc8f7cc239ede29a2", null ],
+      [ "check_header_validity", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#add2ddc2656ca902e8855e209ccf11e40", null ],
+      [ "default_headers", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#a87cf0aa2d04aca50f4f60ed55d1fa2f1", null ],
+      [ "default_user_agent", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#ad6502d82070b39a2413ddf6d81b05af5", null ],
+      [ "dict_from_cookiejar", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#a2a9a1409c5ef494c62521a99136c3e66", null ],
+      [ "dict_to_sequence", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#a253f64f7c4cacce4600f190bf93af21b", null ],
+      [ "dotted_netmask", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#af0b29a36fd2d548ef522110ead8f664a", null ],
+      [ "extract_zipped_paths", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#a3aff89e91f85fe653b90d50d84a41c3a", null ],
+      [ "from_key_val_list", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#aeca8391c407ef736606acfbc13fdcb0d", null ],
+      [ "get_auth_from_url", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#a25e5e1537e95954290592342323d2779", null ],
+      [ "get_encoding_from_headers", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#a4a6d7e818f52a53abbc4401aa1278c02", null ],
+      [ "get_encodings_from_content", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#a3bff891105e8afe15f65080e830b2d98", null ],
+      [ "get_environ_proxies", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#a00d7f5079d848378c8948f18673b3240", null ],
+      [ "get_netrc_auth", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#a4ebe3ada85dd064d62e1ca4ceb525f21", null ],
+      [ "get_unicode_from_response", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#ae66a4c76bf9d6bb9a9a1bcd12d54c729", null ],
+      [ "guess_filename", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#a6927676c319993c652a90f15bad1e033", null ],
+      [ "guess_json_utf", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#ae4e7b8af6feeeacb2a3156f25ce19d75", null ],
+      [ "is_ipv4_address", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#a80a4becbc984d87681f2cd42e48acc46", null ],
+      [ "is_valid_cidr", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#aa3eb1ea7d3a77b5705f89a47a772269f", null ],
+      [ "iter_slices", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#a146c849b8628ef47ef59ff23fb7c966a", null ],
+      [ "parse_dict_header", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#a1a43b5b12dfa184886e9c33de337469b", null ],
+      [ "parse_header_links", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#ab760a5b31c88de6609be7af1a554fe63", null ],
+      [ "parse_list_header", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#a50e80d1682e2e32e734264ba32810399", null ],
+      [ "prepend_scheme_if_needed", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#a8ed6aa8a2fdf1fb5f6a6a7095cf8faf4", null ],
+      [ "proxy_bypass", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#a29d202bcb5f5e527817a44a69547661c", null ],
+      [ "requote_uri", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#a5423e55b72b0579ee62756de012f46d8", null ],
+      [ "resolve_proxies", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#a112294a04691188f24f195a40f1710f1", null ],
+      [ "rewind_body", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#a378346aaca22bed0897039598754b605", null ],
+      [ "select_proxy", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#a857d94588946349f3aecb0e3af1d7458", null ],
+      [ "set_environ", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#aefbee085b705b3603de28c6fce351b47", null ],
+      [ "should_bypass_proxies", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#a75276d72afc82861d23d42f3c3e646f3", null ],
+      [ "stream_decode_response_unicode", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#af81a9ac07dc310410f398b4d2e82235a", null ],
+      [ "to_key_val_list", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#a4f34c2ad0c07f7ecd393c45254712b56", null ],
+      [ "unquote_header_value", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#a6293a26c126a1ed3ce7aa569159c82a3", null ],
+      [ "unquote_unreserved", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#a3466dbee542e9d8c5c72fe9f14707104", null ],
+      [ "urldefragauth", "da/dae/namespacepip_1_1__vendor_1_1requests_1_1utils.html#adfd3a3dba80979701c8848cf024c39b9", null ]
+    ] ]
+];

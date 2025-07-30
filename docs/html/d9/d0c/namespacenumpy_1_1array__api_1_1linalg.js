@@ -1,0 +1,26 @@
+var namespacenumpy_1_1array__api_1_1linalg =
+[
+    [ "EighResult", "d5/d8e/classnumpy_1_1array__api_1_1linalg_1_1EighResult.html", null ],
+    [ "QRResult", "d3/de5/classnumpy_1_1array__api_1_1linalg_1_1QRResult.html", null ],
+    [ "SlogdetResult", "da/d61/classnumpy_1_1array__api_1_1linalg_1_1SlogdetResult.html", null ],
+    [ "SVDResult", "df/d3e/classnumpy_1_1array__api_1_1linalg_1_1SVDResult.html", null ],
+    [ "cholesky", "d9/d0c/namespacenumpy_1_1array__api_1_1linalg.html#ae7c5cbde82d7d8727a2abdc105e7d58c", null ],
+    [ "cross", "d9/d0c/namespacenumpy_1_1array__api_1_1linalg.html#aad5e976b646d7dd2c45a15c845561578", null ],
+    [ "det", "d9/d0c/namespacenumpy_1_1array__api_1_1linalg.html#ac941222dff4db110e77348578dbd93a9", null ],
+    [ "diagonal", "d9/d0c/namespacenumpy_1_1array__api_1_1linalg.html#af830ab3eb5316325165300723522fc45", null ],
+    [ "eigh", "d9/d0c/namespacenumpy_1_1array__api_1_1linalg.html#a2d8ef919f01c2b3f298cd2c14243fbfd", null ],
+    [ "eigvalsh", "d9/d0c/namespacenumpy_1_1array__api_1_1linalg.html#abbef4a0b44e2576cf7353f48f7d01566", null ],
+    [ "inv", "d9/d0c/namespacenumpy_1_1array__api_1_1linalg.html#a491419b57b2365066b54b0726a235e1f", null ],
+    [ "matmul", "d9/d0c/namespacenumpy_1_1array__api_1_1linalg.html#afd75054865874ad95b87c9f8a7ec3556", null ],
+    [ "matrix_norm", "d9/d0c/namespacenumpy_1_1array__api_1_1linalg.html#a408071aa08e7afc5a57a5bbcb6539471", null ],
+    [ "matrix_power", "d9/d0c/namespacenumpy_1_1array__api_1_1linalg.html#a625a7627aac767a196906f409f59a678", null ],
+    [ "matrix_rank", "d9/d0c/namespacenumpy_1_1array__api_1_1linalg.html#af8e8dd0f8bd0a11a42dccf09c523b7c5", null ],
+    [ "outer", "d9/d0c/namespacenumpy_1_1array__api_1_1linalg.html#a23f32d7797938960e6df5659874b0a41", null ],
+    [ "pinv", "d9/d0c/namespacenumpy_1_1array__api_1_1linalg.html#ad31b12053732fd711eccc1ce42aee5b7", null ],
+    [ "qr", "d9/d0c/namespacenumpy_1_1array__api_1_1linalg.html#ae0b40ddff3f9fce285b30a35bf459ca9", null ],
+    [ "slogdet", "d9/d0c/namespacenumpy_1_1array__api_1_1linalg.html#a93d299bf9f7cd2fbbdd45eb8a45e531f", null ],
+    [ "solve", "d9/d0c/namespacenumpy_1_1array__api_1_1linalg.html#a2730dc8fdece957626e3876bdfa6076c", null ],
+    [ "svd", "d9/d0c/namespacenumpy_1_1array__api_1_1linalg.html#a837ef24cc2ea791e9ba86a338450a835", null ],
+    [ "trace", "d9/d0c/namespacenumpy_1_1array__api_1_1linalg.html#a37ed69cd35d2375241d508d401a53b73", null ],
+    [ "vector_norm", "d9/d0c/namespacenumpy_1_1array__api_1_1linalg.html#ae3789c6611727feb4411d1594d64ac1f", null ]
+];

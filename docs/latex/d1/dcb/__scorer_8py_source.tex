@@ -1,0 +1,1172 @@
+\doxysection{\+\_\+scorer.\+py}
+\hypertarget{__scorer_8py_source}{}\label{__scorer_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/sklearn/metrics/\_scorer.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/sklearn/metrics/\_scorer.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00001}\mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer}{00001}}\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00002}00002\ \textcolor{stringliteral}{The\ :mod:\`{}sklearn.metrics.scorer\`{}\ submodule\ implements\ a\ flexible}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00003}00003\ \textcolor{stringliteral}{interface\ for\ model\ selection\ and\ evaluation\ using}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00004}00004\ \textcolor{stringliteral}{arbitrary\ score\ functions.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00005}00005\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00006}00006\ \textcolor{stringliteral}{A\ scorer\ object\ is\ a\ callable\ that\ can\ be\ passed\ to}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00007}00007\ \textcolor{stringliteral}{:class:\`{}\string~sklearn.model\_selection.GridSearchCV\`{}\ or}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00008}00008\ \textcolor{stringliteral}{:func:\`{}sklearn.model\_selection.cross\_val\_score\`{}\ as\ the\ \`{}\`{}scoring\`{}\`{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00009}00009\ \textcolor{stringliteral}{parameter,\ to\ specify\ how\ a\ model\ should\ be\ evaluated.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00010}00010\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00011}00011\ \textcolor{stringliteral}{The\ signature\ of\ the\ call\ is\ \`{}\`{}(estimator,\ X,\ y)\`{}\`{}\ where\ \`{}\`{}estimator\`{}\`{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00012}00012\ \textcolor{stringliteral}{is\ the\ model\ to\ be\ evaluated,\ \`{}\`{}X\`{}\`{}\ is\ the\ test\ data\ and\ \`{}\`{}y\`{}\`{}\ is\ the}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00013}00013\ \textcolor{stringliteral}{ground\ truth\ labeling\ (or\ \`{}\`{}None\`{}\`{}\ in\ the\ case\ of\ unsupervised\ models).}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00014}00014\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00015}00015\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00016}00016\ \textcolor{comment}{\#\ Authors:\ The\ scikit-\/learn\ developers}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00017}00017\ \textcolor{comment}{\#\ SPDX-\/License-\/Identifier:\ BSD-\/3-\/Clause}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00018}00018\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00019}00019\ \textcolor{keyword}{import}\ copy}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00020}00020\ \textcolor{keyword}{import}\ warnings}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00021}00021\ \textcolor{keyword}{from}\ collections\ \textcolor{keyword}{import}\ Counter}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00022}00022\ \textcolor{keyword}{from}\ functools\ \textcolor{keyword}{import}\ partial}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00023}00023\ \textcolor{keyword}{from}\ inspect\ \textcolor{keyword}{import}\ signature}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00024}00024\ \textcolor{keyword}{from}\ numbers\ \textcolor{keyword}{import}\ Integral}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00025}00025\ \textcolor{keyword}{from}\ traceback\ \textcolor{keyword}{import}\ format\_exc}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00026}00026\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00027}00027\ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00028}00028\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00029}00029\ \textcolor{keyword}{from}\ ..base\ \textcolor{keyword}{import}\ is\_regressor}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00030}00030\ \textcolor{keyword}{from}\ ..utils\ \textcolor{keyword}{import}\ Bunch}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00031}00031\ \textcolor{keyword}{from}\ ..utils.\_param\_validation\ \textcolor{keyword}{import}\ HasMethods,\ Hidden,\ StrOptions,\ validate\_params}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00032}00032\ \textcolor{keyword}{from}\ ..utils.\_response\ \textcolor{keyword}{import}\ \_get\_response\_values}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00033}00033\ \textcolor{keyword}{from}\ ..utils.metadata\_routing\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00034}00034\ \ \ \ \ MetadataRequest,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00035}00035\ \ \ \ \ MetadataRouter,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00036}00036\ \ \ \ \ MethodMapping,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00037}00037\ \ \ \ \ \_MetadataRequester,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00038}00038\ \ \ \ \ \_raise\_for\_params,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00039}00039\ \ \ \ \ \_routing\_enabled,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00040}00040\ \ \ \ \ get\_routing\_for\_object,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00041}00041\ \ \ \ \ process\_routing,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00042}00042\ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00043}00043\ \textcolor{keyword}{from}\ ..utils.validation\ \textcolor{keyword}{import}\ \_check\_response\_method}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00044}00044\ \textcolor{keyword}{from}\ .\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00045}00045\ \ \ \ \ accuracy\_score,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00046}00046\ \ \ \ \ average\_precision\_score,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00047}00047\ \ \ \ \ balanced\_accuracy\_score,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00048}00048\ \ \ \ \ brier\_score\_loss,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00049}00049\ \ \ \ \ class\_likelihood\_ratios,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00050}00050\ \ \ \ \ d2\_absolute\_error\_score,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00051}00051\ \ \ \ \ explained\_variance\_score,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00052}00052\ \ \ \ \ f1\_score,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00053}00053\ \ \ \ \ jaccard\_score,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00054}00054\ \ \ \ \ log\_loss,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00055}00055\ \ \ \ \ matthews\_corrcoef,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00056}00056\ \ \ \ \ max\_error,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00057}00057\ \ \ \ \ mean\_absolute\_error,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00058}00058\ \ \ \ \ mean\_absolute\_percentage\_error,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00059}00059\ \ \ \ \ mean\_gamma\_deviance,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00060}00060\ \ \ \ \ mean\_poisson\_deviance,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00061}00061\ \ \ \ \ mean\_squared\_error,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00062}00062\ \ \ \ \ mean\_squared\_log\_error,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00063}00063\ \ \ \ \ median\_absolute\_error,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00064}00064\ \ \ \ \ precision\_score,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00065}00065\ \ \ \ \ r2\_score,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00066}00066\ \ \ \ \ recall\_score,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00067}00067\ \ \ \ \ roc\_auc\_score,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00068}00068\ \ \ \ \ root\_mean\_squared\_error,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00069}00069\ \ \ \ \ root\_mean\_squared\_log\_error,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00070}00070\ \ \ \ \ top\_k\_accuracy\_score,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00071}00071\ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00072}00072\ \textcolor{keyword}{from}\ .cluster\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00073}00073\ \ \ \ \ adjusted\_mutual\_info\_score,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00074}00074\ \ \ \ \ adjusted\_rand\_score,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00075}00075\ \ \ \ \ completeness\_score,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00076}00076\ \ \ \ \ fowlkes\_mallows\_score,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00077}00077\ \ \ \ \ homogeneity\_score,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00078}00078\ \ \ \ \ mutual\_info\_score,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00079}00079\ \ \ \ \ normalized\_mutual\_info\_score,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00080}00080\ \ \ \ \ rand\_score,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00081}00081\ \ \ \ \ v\_measure\_score,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00082}00082\ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00083}00083\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00084}00084\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00085}\mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_aaf254da337958228d4f9f61eab4f86cb}{00085}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_aaf254da337958228d4f9f61eab4f86cb}{\_cached\_call}}(cache,\ estimator,\ response\_method,\ *args,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00086}00086\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Call\ estimator\ with\ method\ and\ args\ and\ kwargs."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00087}00087\ \ \ \ \ \textcolor{keywordflow}{if}\ cache\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{and}\ response\_method\ \textcolor{keywordflow}{in}\ cache:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00088}00088\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ cache[response\_method]}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00089}00089\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00090}00090\ \ \ \ \ result,\ \_\ =\ \_get\_response\_values(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00091}00091\ \ \ \ \ \ \ \ \ estimator,\ *args,\ response\_method=response\_method,\ **kwargs}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00092}00092\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00093}00093\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00094}00094\ \ \ \ \ \textcolor{keywordflow}{if}\ cache\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00095}00095\ \ \ \ \ \ \ \ \ cache[response\_method]\ =\ result}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00096}00096\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00097}00097\ \ \ \ \ \textcolor{keywordflow}{return}\ result}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00098}00098\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00099}00099\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00100}\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__MultimetricScorer}{00100}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__MultimetricScorer}{\_MultimetricScorer}}:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00101}00101\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Callable\ for\ multimetric\ scoring\ used\ to\ avoid\ repeated\ calls}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00102}00102\ \textcolor{stringliteral}{\ \ \ \ to\ \`{}predict\_proba\`{},\ \`{}predict\`{},\ and\ \`{}decision\_function\`{}.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00103}00103\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00104}00104\ \textcolor{stringliteral}{\ \ \ \ \`{}\_MultimetricScorer\`{}\ will\ return\ a\ dictionary\ of\ scores\ corresponding\ to}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00105}00105\ \textcolor{stringliteral}{\ \ \ \ the\ scorers\ in\ the\ dictionary.\ Note\ that\ \`{}\_MultimetricScorer\`{}\ can\ be}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00106}00106\ \textcolor{stringliteral}{\ \ \ \ created\ with\ a\ dictionary\ with\ one\ key\ \ (i.e.\ only\ one\ actual\ scorer).}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00107}00107\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00108}00108\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00109}00109\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00110}00110\ \textcolor{stringliteral}{\ \ \ \ scorers\ :\ dict}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00111}00111\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Dictionary\ mapping\ names\ to\ callable\ scorers.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00112}00112\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00113}00113\ \textcolor{stringliteral}{\ \ \ \ raise\_exc\ :\ bool,\ default=True}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00114}00114\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Whether\ to\ raise\ the\ exception\ in\ \`{}\_\_call\_\_\`{}\ or\ not.\ If\ set\ to\ \`{}False\`{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00115}00115\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ a\ formatted\ string\ of\ the\ exception\ details\ is\ passed\ as\ result\ of}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00116}00116\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ failing\ scorer.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00117}00117\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00118}00118\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00119}00119\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ *,\ scorers,\ raise\_exc=True):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00120}00120\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__MultimetricScorer_ad1a31b81b829e03a0102885e67a6c1e9}{\_scorers}}\ =\ scorers}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00121}00121\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__MultimetricScorer_a6d7e02d905c79be74e9ddbc19c8b3b0a}{\_raise\_exc}}\ =\ raise\_exc}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00122}00122\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00123}\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__MultimetricScorer_a20c6f52404f0532ffc4b2067f398dbe7}{00123}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__MultimetricScorer_a20c6f52404f0532ffc4b2067f398dbe7}{\_\_call\_\_}}(self,\ estimator,\ *args,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00124}00124\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Evaluate\ predicted\ target\ values."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00125}00125\ \ \ \ \ \ \ \ \ scores\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00126}00126\ \ \ \ \ \ \ \ \ cache\ =\ \{\}\ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__MultimetricScorer_a04a6809db8635bb0bbf90ea70a7ef402}{\_use\_cache}}(estimator)\ \textcolor{keywordflow}{else}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00127}00127\ \ \ \ \ \ \ \ \ cached\_call\ =\ partial(\_cached\_call,\ cache)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00128}00128\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00129}00129\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \_routing\_enabled():}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00130}00130\ \ \ \ \ \ \ \ \ \ \ \ \ routed\_params\ =\ process\_routing(self,\ \textcolor{stringliteral}{"{}score"{}},\ **kwargs)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00131}00131\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00132}00132\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Scorers\ all\ get\ the\ same\ args,\ and\ get\ all\ of\ them\ except\ sample\_weight.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00133}00133\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Only\ the\ ones\ having\ \`{}sample\_weight`\ in\ their\ signature\ will\ receive\ it.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00134}00134\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ This\ does\ not\ work\ for\ metadata\ other\ than\ sample\_weight,\ and\ for\ those}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00135}00135\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ users\ have\ to\ enable\ metadata\ routing.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00136}00136\ \ \ \ \ \ \ \ \ \ \ \ \ common\_kwargs\ =\ \{}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00137}00137\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ arg:\ value\ \textcolor{keywordflow}{for}\ arg,\ value\ \textcolor{keywordflow}{in}\ kwargs.items()\ \textcolor{keywordflow}{if}\ arg\ !=\ \textcolor{stringliteral}{"{}sample\_weight"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00138}00138\ \ \ \ \ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00139}00139\ \ \ \ \ \ \ \ \ \ \ \ \ routed\_params\ =\ \mbox{\hyperlink{classsklearn_1_1utils_1_1__bunch_1_1Bunch}{Bunch}}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00140}00140\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ **\{name:\ \mbox{\hyperlink{classsklearn_1_1utils_1_1__bunch_1_1Bunch}{Bunch}}(score=common\_kwargs.copy())\ \textcolor{keywordflow}{for}\ name\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__MultimetricScorer_ad1a31b81b829e03a0102885e67a6c1e9}{\_scorers}}\}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00141}00141\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00142}00142\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{stringliteral}{"{}sample\_weight"{}}\ \textcolor{keywordflow}{in}\ kwargs:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00143}00143\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ name,\ scorer\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__MultimetricScorer_ad1a31b81b829e03a0102885e67a6c1e9}{\_scorers}}.items():}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00144}00144\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ scorer.\_accept\_sample\_weight():}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00145}00145\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ routed\_params[name].score[\textcolor{stringliteral}{"{}sample\_weight"{}}]\ =\ kwargs[}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00146}00146\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}sample\_weight"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00147}00147\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ]}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00148}00148\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00149}00149\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ name,\ scorer\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__MultimetricScorer_ad1a31b81b829e03a0102885e67a6c1e9}{\_scorers}}.items():}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00150}00150\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00151}00151\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(scorer,\ \_BaseScorer):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00152}00152\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ score\ =\ scorer.\_score(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00153}00153\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ cached\_call,\ estimator,\ *args,\ **routed\_params.get(name).score}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00154}00154\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00155}00155\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00156}00156\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ score\ =\ scorer(estimator,\ *args,\ **routed\_params.get(name).score)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00157}00157\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ scores[name]\ =\ score}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00158}00158\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ Exception\ \textcolor{keyword}{as}\ e:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00159}00159\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__MultimetricScorer_a6d7e02d905c79be74e9ddbc19c8b3b0a}{\_raise\_exc}}:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00160}00160\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ e}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00161}00161\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00162}00162\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ scores[name]\ =\ format\_exc()}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00163}00163\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ scores}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00164}00164\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00165}00165\ \ \ \ \ \textcolor{keyword}{def\ }\_\_repr\_\_(self):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00166}00166\ \ \ \ \ \ \ \ \ scorers\ =\ \textcolor{stringliteral}{"{},\ "{}}.join([f\textcolor{stringliteral}{'"{}\{s\}"{}'}\ \textcolor{keywordflow}{for}\ s\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__MultimetricScorer_ad1a31b81b829e03a0102885e67a6c1e9}{\_scorers}}])}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00167}00167\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ f\textcolor{stringliteral}{"{}MultiMetricScorer(\{scorers\})"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00168}00168\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00169}00169\ \ \ \ \ \textcolor{keyword}{def\ }\_accept\_sample\_weight(self):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00170}00170\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ TODO(slep006):\ remove\ when\ metadata\ routing\ is\ the\ only\ way}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00171}00171\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ any(scorer.\_accept\_sample\_weight()\ \textcolor{keywordflow}{for}\ scorer\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__MultimetricScorer_ad1a31b81b829e03a0102885e67a6c1e9}{\_scorers}}.values())}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00172}00172\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00173}\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__MultimetricScorer_a04a6809db8635bb0bbf90ea70a7ef402}{00173}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__MultimetricScorer_a04a6809db8635bb0bbf90ea70a7ef402}{\_use\_cache}}(self,\ estimator):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00174}00174\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Return\ True\ if\ using\ a\ cache\ is\ beneficial,\ thus\ when\ a\ response\ method\ will}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00175}00175\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ be\ called\ several\ time.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00176}00176\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00177}00177\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__MultimetricScorer_ad1a31b81b829e03a0102885e67a6c1e9}{\_scorers}})\ ==\ 1:\ \ \textcolor{comment}{\#\ Only\ one\ scorer}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00178}00178\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00179}00179\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00180}00180\ \ \ \ \ \ \ \ \ counter\ =\ \mbox{\hyperlink{classCounter}{Counter}}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00181}00181\ \ \ \ \ \ \ \ \ \ \ \ \ [}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00182}00182\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_check\_response\_method(estimator,\ scorer.\_response\_method).\_\_name\_\_}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00183}00183\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ scorer\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__MultimetricScorer_ad1a31b81b829e03a0102885e67a6c1e9}{\_scorers}}.values()}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00184}00184\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(scorer,\ \_BaseScorer)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00185}00185\ \ \ \ \ \ \ \ \ \ \ \ \ ]}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00186}00186\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00187}00187\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ any(val\ >\ 1\ \textcolor{keywordflow}{for}\ val\ \textcolor{keywordflow}{in}\ counter.values()):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00188}00188\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ exact\ same\ response\ method\ or\ iterable\ of\ response\ methods}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00189}00189\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ will\ be\ called\ more\ than\ once.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00190}00190\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00191}00191\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00192}00192\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00193}00193\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00194}\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__MultimetricScorer_af9c8b1c9b6c8542ec555e8fe1f8aea42}{00194}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__MultimetricScorer_af9c8b1c9b6c8542ec555e8fe1f8aea42}{get\_metadata\_routing}}(self):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00195}00195\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Get\ metadata\ routing\ of\ this\ object.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00196}00196\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00197}00197\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Please\ check\ :ref:\`{}User\ Guide\ <metadata\_routing>\`{}\ on\ how\ the\ routing}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00198}00198\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ mechanism\ works.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00199}00199\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00200}00200\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 1.3}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00201}00201\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00202}00202\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00203}00203\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00204}00204\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ routing\ :\ MetadataRouter}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00205}00205\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ A\ :class:\`{}\string~utils.metadata\_routing.MetadataRouter\`{}\ encapsulating}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00206}00206\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ routing\ information.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00207}00207\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00208}00208\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ MetadataRouter(owner=self.\_\_class\_\_.\_\_name\_\_).add(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00209}00209\ \ \ \ \ \ \ \ \ \ \ \ \ **self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__MultimetricScorer_ad1a31b81b829e03a0102885e67a6c1e9}{\_scorers}},}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00210}00210\ \ \ \ \ \ \ \ \ \ \ \ \ method\_mapping=MethodMapping().add(caller=\textcolor{stringliteral}{"{}score"{}},\ callee=\textcolor{stringliteral}{"{}score"{}}),}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00211}00211\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00212}00212\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00213}00213\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00214}\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer}{00214}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer}{\_BaseScorer}}(\mbox{\hyperlink{class__MetadataRequester}{\_MetadataRequester}}):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00215}00215\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Base\ scorer\ that\ is\ used\ as\ \`{}scorer(estimator,\ X,\ y\_true)\`{}.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00216}00216\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00217}00217\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00218}00218\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00219}00219\ \textcolor{stringliteral}{\ \ \ \ score\_func\ :\ callable}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00220}00220\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ score\ function\ to\ use.\ It\ will\ be\ called\ as}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00221}00221\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}score\_func(y\_true,\ y\_pred,\ **kwargs)\`{}.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00222}00222\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00223}00223\ \textcolor{stringliteral}{\ \ \ \ sign\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00224}00224\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Either\ 1\ or\ -\/1\ to\ returns\ the\ score\ with\ \`{}sign\ *\ score\_func(estimator,\ X,\ y)\`{}.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00225}00225\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Thus,\ \`{}sign\`{}\ defined\ if\ higher\ scores\ are\ better\ or\ worse.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00226}00226\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00227}00227\ \textcolor{stringliteral}{\ \ \ \ kwargs\ :\ dict}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00228}00228\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Additional\ parameters\ to\ pass\ to\ the\ score\ function.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00229}00229\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00230}00230\ \textcolor{stringliteral}{\ \ \ \ response\_method\ :\ str}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00231}00231\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ method\ to\ call\ on\ the\ estimator\ to\ get\ the\ response\ values.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00232}00232\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00233}00233\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00234}00234\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ score\_func,\ sign,\ kwargs,\ response\_method="{}predict"{}):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00235}00235\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer_aa675ace3006a494be143c5f64e974d09}{\_score\_func}}\ =\ score\_func}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00236}00236\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer_a6d63a7557d8455f91e4c5523d67620cd}{\_sign}}\ =\ sign}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00237}00237\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer_a52a9aa1a7d96abdccd0dbb57a7f1e129}{\_kwargs}}\ =\ kwargs}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00238}00238\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer_ad9e26f8c1d5d154bdc51e8444941af58}{\_response\_method}}\ =\ response\_method}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00239}00239\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ TODO\ (1.8):\ remove\ in\ 1.8\ (scoring="{}max\_error"{}\ has\ been\ deprecated\ in\ 1.6)}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00240}00240\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer_aced79905d30861716a9cb365a190bed0}{\_deprecation\_msg}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00241}00241\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00242}00242\ \ \ \ \ \textcolor{keyword}{def\ }\_get\_pos\_label(self):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00243}00243\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{stringliteral}{"{}pos\_label"{}}\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer_a52a9aa1a7d96abdccd0dbb57a7f1e129}{\_kwargs}}:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00244}00244\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer_a52a9aa1a7d96abdccd0dbb57a7f1e129}{\_kwargs}}[\textcolor{stringliteral}{"{}pos\_label"{}}]}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00245}00245\ \ \ \ \ \ \ \ \ score\_func\_params\ =\ signature(self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer_aa675ace3006a494be143c5f64e974d09}{\_score\_func}}).parameters}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00246}00246\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{stringliteral}{"{}pos\_label"{}}\ \textcolor{keywordflow}{in}\ score\_func\_params:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00247}00247\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ score\_func\_params[\textcolor{stringliteral}{"{}pos\_label"{}}].default}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00248}00248\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00249}00249\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00250}00250\ \ \ \ \ \textcolor{keyword}{def\ }\_accept\_sample\_weight(self):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00251}00251\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ TODO(slep006):\ remove\ when\ metadata\ routing\ is\ the\ only\ way}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00252}00252\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{stringliteral}{"{}sample\_weight"{}}\ \textcolor{keywordflow}{in}\ signature(self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer_aa675ace3006a494be143c5f64e974d09}{\_score\_func}}).parameters}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00253}00253\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00254}00254\ \ \ \ \ \textcolor{keyword}{def\ }\_\_repr\_\_(self):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00255}00255\ \ \ \ \ \ \ \ \ sign\_string\ =\ \textcolor{stringliteral}{"{}"{}}\ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer_a6d63a7557d8455f91e4c5523d67620cd}{\_sign}}\ >\ 0\ \textcolor{keywordflow}{else}\ \textcolor{stringliteral}{"{},\ greater\_is\_better=False"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00256}00256\ \ \ \ \ \ \ \ \ response\_method\_string\ =\ f\textcolor{stringliteral}{"{},\ response\_method=\{self.\_response\_method!r\}"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00257}00257\ \ \ \ \ \ \ \ \ kwargs\_string\ =\ \textcolor{stringliteral}{"{}"{}}.join([f\textcolor{stringliteral}{"{},\ \{k\}=\{v\}"{}}\ \textcolor{keywordflow}{for}\ k,\ v\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer_a52a9aa1a7d96abdccd0dbb57a7f1e129}{\_kwargs}}.items()])}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00258}00258\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00259}00259\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ (}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00260}00260\ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}make\_scorer(\{self.\_score\_func.\_\_name\_\_\}\{sign\_string\}"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00261}00261\ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\{response\_method\_string\}\{kwargs\_string\})"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00262}00262\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00263}00263\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00264}\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer_adf67e70c63b21774e12a79db27ec0cf2}{00264}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer_adf67e70c63b21774e12a79db27ec0cf2}{\_\_call\_\_}}(self,\ estimator,\ X,\ y\_true,\ sample\_weight=None,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00265}00265\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Evaluate\ predicted\ target\ values\ for\ X\ relative\ to\ y\_true.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00266}00266\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00267}00267\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00268}00268\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00269}00269\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ estimator\ :\ object}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00270}00270\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Trained\ estimator\ to\ use\ for\ scoring.\ Must\ have\ a\ predict\_proba}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00271}00271\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ method;\ the\ output\ of\ that\ is\ used\ to\ compute\ the\ score.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00272}00272\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00273}00273\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\ :\ \{array-\/like,\ sparse\ matrix\}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00274}00274\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Test\ data\ that\ will\ be\ fed\ to\ estimator.predict.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00275}00275\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00276}00276\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ y\_true\ :\ array-\/like}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00277}00277\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Gold\ standard\ target\ values\ for\ X.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00278}00278\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00279}00279\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ sample\_weight\ :\ array-\/like\ of\ shape\ (n\_samples,),\ default=None}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00280}00280\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Sample\ weights.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00281}00281\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00282}00282\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ **kwargs\ :\ dict}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00283}00283\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Other\ parameters\ passed\ to\ the\ scorer.\ Refer\ to}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00284}00284\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ :func:\`{}set\_score\_request\`{}\ for\ more\ details.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00285}00285\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00286}00286\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Only\ available\ if\ \`{}enable\_metadata\_routing=True\`{}.\ See\ the}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00287}00287\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ :ref:\`{}User\ Guide\ <metadata\_routing>\`{}.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00288}00288\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00289}00289\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ ..\ versionadded::\ 1.3}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00290}00290\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00291}00291\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00292}00292\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00293}00293\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ score\ :\ float}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00294}00294\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Score\ function\ applied\ to\ prediction\ of\ estimator\ on\ X.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00295}00295\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00296}00296\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ TODO\ (1.8):\ remove\ in\ 1.8\ (scoring="{}max\_error"{}\ has\ been\ deprecated\ in\ 1.6)}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00297}00297\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer_aced79905d30861716a9cb365a190bed0}{\_deprecation\_msg}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00298}00298\ \ \ \ \ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00299}00299\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer_aced79905d30861716a9cb365a190bed0}{\_deprecation\_msg}},\ category=DeprecationWarning,\ stacklevel=2}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00300}00300\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00301}00301\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00302}00302\ \ \ \ \ \ \ \ \ \_raise\_for\_params(kwargs,\ self,\ \textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00303}00303\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00304}00304\ \ \ \ \ \ \ \ \ \_kwargs\ =\ copy.deepcopy(kwargs)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00305}00305\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ sample\_weight\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00306}00306\ \ \ \ \ \ \ \ \ \ \ \ \ \_kwargs[\textcolor{stringliteral}{"{}sample\_weight"{}}]\ =\ sample\_weight}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00307}00307\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00308}00308\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\_score(partial(\_cached\_call,\ \textcolor{keywordtype}{None}),\ estimator,\ X,\ y\_true,\ **\_kwargs)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00309}00309\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00310}\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer_a97d38edfc2bb7ec1ade1495243273bd2}{00310}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer_a97d38edfc2bb7ec1ade1495243273bd2}{\_warn\_overlap}}(self,\ message,\ kwargs):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00311}00311\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Warn\ if\ there\ is\ any\ overlap\ between\ \`{}\`{}self.\_kwargs\`{}\`{}\ and\ \`{}\`{}kwargs\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00312}00312\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00313}00313\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ This\ method\ is\ intended\ to\ be\ used\ to\ check\ for\ overlap\ between}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00314}00314\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}self.\_kwargs\`{}\`{}\ and\ \`{}\`{}kwargs\`{}\`{}\ passed\ as\ metadata.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00315}00315\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00316}00316\ \ \ \ \ \ \ \ \ \_kwargs\ =\ set()\ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer_a52a9aa1a7d96abdccd0dbb57a7f1e129}{\_kwargs}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{else}\ set(self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer_a52a9aa1a7d96abdccd0dbb57a7f1e129}{\_kwargs}}.keys())}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00317}00317\ \ \ \ \ \ \ \ \ overlap\ =\ \_kwargs.intersection(kwargs.keys())}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00318}00318\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ overlap:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00319}00319\ \ \ \ \ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00320}00320\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\{message\}\ Overlapping\ parameters\ are:\ \{overlap\}"{}},\ UserWarning}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00321}00321\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00322}00322\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00323}\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer_a53bcf4313fdbd157028ddca4b9bdae34}{00323}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer_a53bcf4313fdbd157028ddca4b9bdae34}{set\_score\_request}}(self,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00324}00324\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Set\ requested\ parameters\ by\ the\ scorer.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00325}00325\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00326}00326\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Please\ see\ :ref:\`{}User\ Guide\ <metadata\_routing>\`{}\ on\ how\ the\ routing}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00327}00327\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ mechanism\ works.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00328}00328\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00329}00329\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 1.3}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00330}00330\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00331}00331\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00332}00332\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00333}00333\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ kwargs\ :\ dict}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00334}00334\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Arguments\ should\ be\ of\ the\ form\ \`{}\`{}param\_name=alias\`{}\`{},\ and\ \`{}alias\`{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00335}00335\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ can\ be\ one\ of\ \`{}\`{}\{True,\ False,\ None,\ str\}\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00336}00336\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00337}00337\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ \_routing\_enabled():}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00338}00338\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classRuntimeError}{RuntimeError}}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00339}00339\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}This\ method\ is\ only\ available\ when\ metadata\ routing\ is\ enabled."{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00340}00340\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ You\ can\ enable\ it\ using"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00341}00341\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ sklearn.set\_config(enable\_metadata\_routing=True)."{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00342}00342\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00343}00343\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00344}00344\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer_a97d38edfc2bb7ec1ade1495243273bd2}{\_warn\_overlap}}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00345}00345\ \ \ \ \ \ \ \ \ \ \ \ \ message=(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00346}00346\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}You\ are\ setting\ metadata\ request\ for\ parameters\ which\ are\ "{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00347}00347\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}already\ set\ as\ kwargs\ for\ this\ metric.\ These\ set\ values\ will\ be\ "{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00348}00348\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}overridden\ by\ passed\ metadata\ if\ provided.\ Please\ pass\ them\ either\ "{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00349}00349\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}as\ metadata\ or\ kwargs\ to\ \`{}make\_scorer`."{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00350}00350\ \ \ \ \ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00351}00351\ \ \ \ \ \ \ \ \ \ \ \ \ kwargs=kwargs,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00352}00352\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00353}00353\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer_a1644a9ca71027febbab56f48e334b5d0}{\_metadata\_request}}\ =\ MetadataRequest(owner=self.\_\_class\_\_.\_\_name\_\_)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00354}00354\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ param,\ alias\ \textcolor{keywordflow}{in}\ kwargs.items():}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00355}00355\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer_a1644a9ca71027febbab56f48e334b5d0}{\_metadata\_request}}.score.add\_request(param=param,\ alias=alias)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00356}00356\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00357}00357\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00358}00358\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00359}\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__Scorer}{00359}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__Scorer}{\_Scorer}}(\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer}{\_BaseScorer}}):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00360}\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__Scorer_a133a5d4350fc9d23843d498d3d5e36b3}{00360}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__Scorer_a133a5d4350fc9d23843d498d3d5e36b3}{\_score}}(self,\ method\_caller,\ estimator,\ X,\ y\_true,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00361}00361\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Evaluate\ the\ response\ method\ of\ \`{}estimator\`{}\ on\ \`{}X\`{}\ and\ \`{}y\_true\`{}.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00362}00362\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00363}00363\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00364}00364\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00365}00365\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ method\_caller\ :\ callable}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00366}00366\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Returns\ predictions\ given\ an\ estimator,\ method\ name,\ and\ other}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00367}00367\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ arguments,\ potentially\ caching\ results.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00368}00368\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00369}00369\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ estimator\ :\ object}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00370}00370\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Trained\ estimator\ to\ use\ for\ scoring.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00371}00371\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00372}00372\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\ :\ \{array-\/like,\ sparse\ matrix\}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00373}00373\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Test\ data\ that\ will\ be\ fed\ to\ clf.decision\_function\ or}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00374}00374\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ clf.predict\_proba.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00375}00375\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00376}00376\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ y\_true\ :\ array-\/like}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00377}00377\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Gold\ standard\ target\ values\ for\ X.\ These\ must\ be\ class\ labels,}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00378}00378\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ not\ decision\ function\ values.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00379}00379\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00380}00380\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ **kwargs\ :\ dict}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00381}00381\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Other\ parameters\ passed\ to\ the\ scorer.\ Refer\ to}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00382}00382\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ :func:\`{}set\_score\_request\`{}\ for\ more\ details.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00383}00383\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00384}00384\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00385}00385\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00386}00386\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ score\ :\ float}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00387}00387\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Score\ function\ applied\ to\ prediction\ of\ estimator\ on\ X.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00388}00388\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00389}00389\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer_a97d38edfc2bb7ec1ade1495243273bd2}{\_warn\_overlap}}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00390}00390\ \ \ \ \ \ \ \ \ \ \ \ \ message=(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00391}00391\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}There\ is\ an\ overlap\ between\ set\ kwargs\ of\ this\ scorer\ instance\ and"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00392}00392\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ passed\ metadata.\ Please\ pass\ them\ either\ as\ kwargs\ to\ \`{}make\_scorer`"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00393}00393\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ or\ metadata,\ but\ not\ both."{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00394}00394\ \ \ \ \ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00395}00395\ \ \ \ \ \ \ \ \ \ \ \ \ kwargs=kwargs,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00396}00396\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00397}00397\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00398}00398\ \ \ \ \ \ \ \ \ pos\_label\ =\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{if}\ is\_regressor(estimator)\ \textcolor{keywordflow}{else}\ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer_a2c76e1088db82e025a70aa00df90be4c}{\_get\_pos\_label}}()}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00399}00399\ \ \ \ \ \ \ \ \ response\_method\ =\ \_check\_response\_method(estimator,\ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer_ad9e26f8c1d5d154bdc51e8444941af58}{\_response\_method}})}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00400}00400\ \ \ \ \ \ \ \ \ y\_pred\ =\ method\_caller(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00401}00401\ \ \ \ \ \ \ \ \ \ \ \ \ estimator,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00402}00402\ \ \ \ \ \ \ \ \ \ \ \ \ \_get\_response\_method\_name(response\_method),}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00403}00403\ \ \ \ \ \ \ \ \ \ \ \ \ X,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00404}00404\ \ \ \ \ \ \ \ \ \ \ \ \ pos\_label=pos\_label,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00405}00405\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00406}00406\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00407}00407\ \ \ \ \ \ \ \ \ scoring\_kwargs\ =\ \{**self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer_a52a9aa1a7d96abdccd0dbb57a7f1e129}{\_kwargs}},\ **kwargs\}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00408}00408\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer_a6d63a7557d8455f91e4c5523d67620cd}{\_sign}}\ *\ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer_aa675ace3006a494be143c5f64e974d09}{\_score\_func}}(y\_true,\ y\_pred,\ **scoring\_kwargs)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00409}00409\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00410}00410\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00411}00411\ \textcolor{preprocessor}{@validate\_params}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00412}00412\ \ \ \ \ \{}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00413}00413\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}scoring"{}}:\ [str,\ callable,\ \textcolor{keywordtype}{None}],}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00414}00414\ \ \ \ \ \},}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00415}00415\ \ \ \ \ prefer\_skip\_nested\_validation=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00416}00416\ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00417}\mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_ae47466926162a4a7122295f4ed592e12}{00417}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_ae47466926162a4a7122295f4ed592e12}{get\_scorer}}(scoring):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00418}00418\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Get\ a\ scorer\ from\ string.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00419}00419\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00420}00420\ \textcolor{stringliteral}{\ \ \ \ Read\ more\ in\ the\ :ref:\`{}User\ Guide\ <scoring\_parameter>\`{}.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00421}00421\ \textcolor{stringliteral}{\ \ \ \ :func:\`{}\string~sklearn.metrics.get\_scorer\_names\`{}\ can\ be\ used\ to\ retrieve\ the\ names}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00422}00422\ \textcolor{stringliteral}{\ \ \ \ of\ all\ available\ scorers.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00423}00423\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00424}00424\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00425}00425\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00426}00426\ \textcolor{stringliteral}{\ \ \ \ scoring\ :\ str,\ callable\ or\ None}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00427}00427\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Scoring\ method\ as\ string.\ If\ callable\ it\ is\ returned\ as\ is.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00428}00428\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ None,\ returns\ None.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00429}00429\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00430}00430\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00431}00431\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00432}00432\ \textcolor{stringliteral}{\ \ \ \ scorer\ :\ callable}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00433}00433\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ scorer.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00434}00434\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00435}00435\ \textcolor{stringliteral}{\ \ \ \ Notes}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00436}00436\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00437}00437\ \textcolor{stringliteral}{\ \ \ \ When\ passed\ a\ string,\ this\ function\ always\ returns\ a\ copy\ of\ the\ scorer}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00438}00438\ \textcolor{stringliteral}{\ \ \ \ object.\ Calling\ \`{}get\_scorer\`{}\ twice\ for\ the\ same\ scorer\ results\ in\ two}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00439}00439\ \textcolor{stringliteral}{\ \ \ \ separate\ scorer\ objects.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00440}00440\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00441}00441\ \textcolor{stringliteral}{\ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00442}00442\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00443}00443\ \textcolor{stringliteral}{\ \ \ \ >>>\ import\ numpy\ as\ np}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00444}00444\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.dummy\ import\ DummyClassifier}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00445}00445\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.metrics\ import\ get\_scorer}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00446}00446\ \textcolor{stringliteral}{\ \ \ \ >>>\ X\ =\ np.reshape([0,\ 1,\ -\/1,\ -\/0.5,\ 2],\ (-\/1,\ 1))}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00447}00447\ \textcolor{stringliteral}{\ \ \ \ >>>\ y\ =\ np.array([0,\ 1,\ 1,\ 0,\ 1])}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00448}00448\ \textcolor{stringliteral}{\ \ \ \ >>>\ classifier\ =\ DummyClassifier(strategy="{}constant"{},\ constant=0).fit(X,\ y)}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00449}00449\ \textcolor{stringliteral}{\ \ \ \ >>>\ accuracy\ =\ get\_scorer("{}accuracy"{})}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00450}00450\ \textcolor{stringliteral}{\ \ \ \ >>>\ accuracy(classifier,\ X,\ y)}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00451}00451\ \textcolor{stringliteral}{\ \ \ \ 0.4}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00452}00452\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00453}00453\ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(scoring,\ str):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00454}00454\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00455}00455\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ scoring\ ==\ \textcolor{stringliteral}{"{}max\_error"{}}:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00456}00456\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ TODO\ (1.8):\ scoring="{}max\_error"{}\ has\ been\ deprecated\ in\ 1.6,}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00457}00457\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ remove\ in\ 1.8}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00458}00458\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ scorer\ =\ max\_error\_scorer}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00459}00459\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00460}00460\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ scorer\ =\ copy.deepcopy(\_SCORERS[scoring])}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00461}00461\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ KeyError:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00462}00462\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00463}00463\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\%r\ is\ not\ a\ valid\ scoring\ value.\ "{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00464}00464\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Use\ sklearn.metrics.get\_scorer\_names()\ "{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00465}00465\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}to\ get\ valid\ options."{}}\ \%\ scoring}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00466}00466\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00467}00467\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00468}00468\ \ \ \ \ \ \ \ \ scorer\ =\ scoring}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00469}00469\ \ \ \ \ \textcolor{keywordflow}{return}\ scorer}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00470}00470\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00471}00471\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00472}\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__PassthroughScorer}{00472}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__PassthroughScorer}{\_PassthroughScorer}}(\mbox{\hyperlink{class__MetadataRequester}{\_MetadataRequester}}):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00473}00473\ \ \ \ \ \textcolor{comment}{\#\ Passes\ scoring\ of\ estimator's\ \`{}score`\ method\ back\ to\ estimator\ if\ scoring}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00474}00474\ \ \ \ \ \textcolor{comment}{\#\ is\ \`{}None`.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00475}00475\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00476}00476\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ estimator):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00477}00477\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__PassthroughScorer_a58e86629a04e9f624f381b7aa22baf19}{\_estimator}}\ =\ estimator}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00478}00478\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00479}00479\ \ \ \ \ \ \ \ \ requests\ =\ MetadataRequest(owner=self.\_\_class\_\_.\_\_name\_\_)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00480}00480\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00481}00481\ \ \ \ \ \ \ \ \ \ \ \ \ requests.score\ =\ copy.deepcopy(estimator.\_metadata\_request.score)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00482}00482\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ AttributeError:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00483}00483\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00484}00484\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ requests.score\ =\ copy.deepcopy(estimator.\_get\_default\_requests().score)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00485}00485\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ AttributeError:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00486}00486\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{pass}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00487}00487\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00488}00488\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__PassthroughScorer_a0c131d140ea61d66da354a822786a6f0}{\_metadata\_request}}\ =\ requests}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00489}00489\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00490}\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__PassthroughScorer_a3557daec3f6461351e270858d15311a4}{00490}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__PassthroughScorer_a3557daec3f6461351e270858d15311a4}{\_\_call\_\_}}(self,\ estimator,\ *args,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00491}00491\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Method\ that\ wraps\ estimator.score"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00492}00492\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ estimator.score(*args,\ **kwargs)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00493}00493\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00494}00494\ \ \ \ \ \textcolor{keyword}{def\ }\_\_repr\_\_(self):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00495}00495\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ f\textcolor{stringliteral}{"{}\{self.\_estimator.\_\_class\_\_\}.score"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00496}00496\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00497}00497\ \ \ \ \ \textcolor{keyword}{def\ }\_accept\_sample\_weight(self):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00498}00498\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ TODO(slep006):\ remove\ when\ metadata\ routing\ is\ the\ only\ way}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00499}00499\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{stringliteral}{"{}sample\_weight"{}}\ \textcolor{keywordflow}{in}\ signature(self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__PassthroughScorer_a58e86629a04e9f624f381b7aa22baf19}{\_estimator}}.score).parameters}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00500}00500\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00501}\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__PassthroughScorer_af8ceec9a74fa525fe626b1125066ae3d}{00501}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__PassthroughScorer_af8ceec9a74fa525fe626b1125066ae3d}{get\_metadata\_routing}}(self):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00502}00502\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Get\ requested\ data\ properties.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00503}00503\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00504}00504\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Please\ check\ :ref:\`{}User\ Guide\ <metadata\_routing>\`{}\ on\ how\ the\ routing}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00505}00505\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ mechanism\ works.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00506}00506\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00507}00507\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 1.3}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00508}00508\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00509}00509\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00510}00510\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00511}00511\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ routing\ :\ MetadataRouter}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00512}00512\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ A\ :class:\`{}\string~utils.metadata\_routing.MetadataRouter\`{}\ encapsulating}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00513}00513\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ routing\ information.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00514}00514\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00515}00515\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ get\_routing\_for\_object(self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__PassthroughScorer_a0c131d140ea61d66da354a822786a6f0}{\_metadata\_request}})}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00516}00516\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00517}\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__PassthroughScorer_a0b8ba52e34d423507e3d16a8802a5ad3}{00517}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__PassthroughScorer_a0b8ba52e34d423507e3d16a8802a5ad3}{set\_score\_request}}(self,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00518}00518\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Set\ requested\ parameters\ by\ the\ scorer.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00519}00519\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00520}00520\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Please\ see\ :ref:\`{}User\ Guide\ <metadata\_routing>\`{}\ on\ how\ the\ routing}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00521}00521\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ mechanism\ works.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00522}00522\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00523}00523\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 1.5}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00524}00524\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00525}00525\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00526}00526\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00527}00527\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ kwargs\ :\ dict}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00528}00528\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Arguments\ should\ be\ of\ the\ form\ \`{}\`{}param\_name=alias\`{}\`{},\ and\ \`{}alias\`{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00529}00529\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ can\ be\ one\ of\ \`{}\`{}\{True,\ False,\ None,\ str\}\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00530}00530\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00531}00531\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ \_routing\_enabled():}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00532}00532\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classRuntimeError}{RuntimeError}}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00533}00533\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}This\ method\ is\ only\ available\ when\ metadata\ routing\ is\ enabled."{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00534}00534\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ You\ can\ enable\ it\ using"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00535}00535\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ sklearn.set\_config(enable\_metadata\_routing=True)."{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00536}00536\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00537}00537\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00538}00538\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ param,\ alias\ \textcolor{keywordflow}{in}\ kwargs.items():}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00539}00539\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__PassthroughScorer_a0c131d140ea61d66da354a822786a6f0}{\_metadata\_request}}.score.add\_request(param=param,\ alias=alias)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00540}00540\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00541}00541\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00542}00542\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00543}\mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a3a6e00ec6f6b9de1096d49a934c1f859}{00543}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a3a6e00ec6f6b9de1096d49a934c1f859}{\_check\_multimetric\_scoring}}(estimator,\ scoring):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00544}00544\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Check\ the\ scoring\ parameter\ in\ cases\ when\ multiple\ metrics\ are\ allowed.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00545}00545\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00546}00546\ \textcolor{stringliteral}{\ \ \ \ In\ addition,\ multimetric\ scoring\ leverages\ a\ caching\ mechanism\ to\ not\ call\ the\ same}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00547}00547\ \textcolor{stringliteral}{\ \ \ \ estimator\ response\ method\ multiple\ times.\ Hence,\ the\ scorer\ is\ modified\ to\ only\ use}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00548}00548\ \textcolor{stringliteral}{\ \ \ \ a\ single\ response\ method\ given\ a\ list\ of\ response\ methods\ and\ the\ estimator.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00549}00549\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00550}00550\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00551}00551\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00552}00552\ \textcolor{stringliteral}{\ \ \ \ estimator\ :\ sklearn\ estimator\ instance}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00553}00553\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ estimator\ for\ which\ the\ scoring\ will\ be\ applied.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00554}00554\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00555}00555\ \textcolor{stringliteral}{\ \ \ \ scoring\ :\ list,\ tuple\ or\ dict}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00556}00556\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Strategy\ to\ evaluate\ the\ performance\ of\ the\ cross-\/validated\ model\ on}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00557}00557\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ test\ set.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00558}00558\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00559}00559\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ possibilities\ are:}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00560}00560\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00561}00561\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ a\ list\ or\ tuple\ of\ unique\ strings;}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00562}00562\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ a\ callable\ returning\ a\ dictionary\ where\ they\ keys\ are\ the\ metric}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00563}00563\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ names\ and\ the\ values\ are\ the\ metric\ scores;}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00564}00564\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ a\ dictionary\ with\ metric\ names\ as\ keys\ and\ callables\ a\ values.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00565}00565\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00566}00566\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ See\ :ref:\`{}multimetric\_grid\_search\`{}\ for\ an\ example.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00567}00567\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00568}00568\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00569}00569\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00570}00570\ \textcolor{stringliteral}{\ \ \ \ scorers\_dict\ :\ dict}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00571}00571\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ A\ dict\ mapping\ each\ scorer\ name\ to\ its\ validated\ scorer.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00572}00572\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00573}00573\ \ \ \ \ err\_msg\_generic\ =\ (}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00574}00574\ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}scoring\ is\ invalid\ (got\ \{scoring!r\}).\ Refer\ to\ the\ "{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00575}00575\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}scoring\ glossary\ for\ details:\ "{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00576}00576\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}https://scikit-\/learn.org/stable/glossary.html\#term-\/scoring"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00577}00577\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00578}00578\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00579}00579\ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(scoring,\ (list,\ tuple,\ set)):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00580}00580\ \ \ \ \ \ \ \ \ err\_msg\ =\ (}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00581}00581\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}The\ list/tuple\ elements\ must\ be\ unique\ strings\ of\ predefined\ scorers.\ "{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00582}00582\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00583}00583\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00584}00584\ \ \ \ \ \ \ \ \ \ \ \ \ keys\ =\ set(scoring)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00585}00585\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ TypeError\ \textcolor{keyword}{as}\ e:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00586}00586\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(err\_msg)\ \textcolor{keyword}{from}\ e}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00587}00587\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00588}00588\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(keys)\ !=\ len(scoring):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00589}00589\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00590}00590\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\{err\_msg\}\ Duplicate\ elements\ were\ found\ in"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00591}00591\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\ the\ given\ list.\ \{scoring!r\}"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00592}00592\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00593}00593\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ len(keys)\ >\ 0:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00594}00594\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ all(isinstance(k,\ str)\ \textcolor{keywordflow}{for}\ k\ \textcolor{keywordflow}{in}\ keys):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00595}00595\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ any(callable(k)\ \textcolor{keywordflow}{for}\ k\ \textcolor{keywordflow}{in}\ keys):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00596}00596\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00597}00597\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\{err\_msg\}\ One\ or\ more\ of\ the\ elements\ "{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00598}00598\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}were\ callables.\ Use\ a\ dict\ of\ score\ "{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00599}00599\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}name\ mapped\ to\ the\ scorer\ callable.\ "{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00600}00600\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}Got\ \{scoring!r\}"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00601}00601\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00602}00602\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00603}00603\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00604}00604\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\{err\_msg\}\ Non-\/string\ types\ were\ found\ "{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00605}00605\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}in\ the\ given\ list.\ Got\ \{scoring!r\}"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00606}00606\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00607}00607\ \ \ \ \ \ \ \ \ \ \ \ \ scorers\ =\ \{}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00608}00608\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ scorer:\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a432443cf4b6ae8e174e506faca59b644}{check\_scoring}}(estimator,\ scoring=scorer)\ \textcolor{keywordflow}{for}\ scorer\ \textcolor{keywordflow}{in}\ scoring}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00609}00609\ \ \ \ \ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00610}00610\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00611}00611\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(f\textcolor{stringliteral}{"{}\{err\_msg\}\ Empty\ list\ was\ given.\ \{scoring!r\}"{}})}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00612}00612\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00613}00613\ \ \ \ \ \textcolor{keywordflow}{elif}\ isinstance(scoring,\ dict):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00614}00614\ \ \ \ \ \ \ \ \ keys\ =\ set(scoring)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00615}00615\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ all(isinstance(k,\ str)\ \textcolor{keywordflow}{for}\ k\ \textcolor{keywordflow}{in}\ keys):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00616}00616\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00617}00617\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Non-\/string\ types\ were\ found\ in\ the\ keys\ of\ "{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00618}00618\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}the\ given\ dict.\ scoring=\{scoring!r\}"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00619}00619\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00620}00620\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(keys)\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00621}00621\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(f\textcolor{stringliteral}{"{}An\ empty\ dict\ was\ passed.\ \{scoring!r\}"{}})}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00622}00622\ \ \ \ \ \ \ \ \ scorers\ =\ \{}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00623}00623\ \ \ \ \ \ \ \ \ \ \ \ \ key:\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a432443cf4b6ae8e174e506faca59b644}{check\_scoring}}(estimator,\ scoring=scorer)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00624}00624\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ key,\ scorer\ \textcolor{keywordflow}{in}\ scoring.items()}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00625}00625\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00626}00626\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00627}00627\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(err\_msg\_generic)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00628}00628\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00629}00629\ \ \ \ \ \textcolor{keywordflow}{return}\ scorers}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00630}00630\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00631}00631\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00632}00632\ \textcolor{keyword}{def\ }\_get\_response\_method\_name(response\_method):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00633}00633\ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00634}00634\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ response\_method.\_\_name\_\_}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00635}00635\ \ \ \ \ \textcolor{keywordflow}{except}\ AttributeError:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00636}00636\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \_get\_response\_method\_name(response\_method.func)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00637}00637\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00638}00638\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00639}00639\ \textcolor{preprocessor}{@validate\_params}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00640}00640\ \ \ \ \ \{}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00641}00641\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}score\_func"{}}:\ [callable],}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00642}00642\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}response\_method"{}}:\ [}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00643}00643\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00644}00644\ \ \ \ \ \ \ \ \ \ \ \ \ list,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00645}00645\ \ \ \ \ \ \ \ \ \ \ \ \ tuple,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00646}00646\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1StrOptions}{StrOptions}}(\{\textcolor{stringliteral}{"{}predict"{}},\ \textcolor{stringliteral}{"{}predict\_proba"{}},\ \textcolor{stringliteral}{"{}decision\_function"{}}\}),}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00647}00647\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Hidden}{Hidden}}(\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1StrOptions}{StrOptions}}(\{\textcolor{stringliteral}{"{}default"{}}\})),}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00648}00648\ \ \ \ \ \ \ \ \ ],}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00649}00649\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}greater\_is\_better"{}}:\ [\textcolor{stringliteral}{"{}boolean"{}}],}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00650}00650\ \ \ \ \ \},}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00651}00651\ \ \ \ \ prefer\_skip\_nested\_validation=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00652}00652\ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00653}\mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{00653}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00654}00654\ \ \ \ \ score\_func,\ *,\ response\_method="{}default"{},\ greater\_is\_better=True,\ **kwargs}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00655}00655\ ):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00656}00656\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Make\ a\ scorer\ from\ a\ performance\ metric\ or\ loss\ function.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00657}00657\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00658}00658\ \textcolor{stringliteral}{\ \ \ \ A\ scorer\ is\ a\ wrapper\ around\ an\ arbitrary\ metric\ or\ loss\ function\ that\ is\ called}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00659}00659\ \textcolor{stringliteral}{\ \ \ \ with\ the\ signature\ \`{}scorer(estimator,\ X,\ y\_true,\ **kwargs)\`{}.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00660}00660\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00661}00661\ \textcolor{stringliteral}{\ \ \ \ It\ is\ accepted\ in\ all\ scikit-\/learn\ estimators\ or\ functions\ allowing\ a\ \`{}scoring\`{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00662}00662\ \textcolor{stringliteral}{\ \ \ \ parameter.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00663}00663\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00664}00664\ \textcolor{stringliteral}{\ \ \ \ The\ parameter\ \`{}response\_method\`{}\ allows\ to\ specify\ which\ method\ of\ the\ estimator}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00665}00665\ \textcolor{stringliteral}{\ \ \ \ should\ be\ used\ to\ feed\ the\ scoring/loss\ function.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00666}00666\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00667}00667\ \textcolor{stringliteral}{\ \ \ \ Read\ more\ in\ the\ :ref:\`{}User\ Guide\ <scoring\_callable>\`{}.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00668}00668\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00669}00669\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00670}00670\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00671}00671\ \textcolor{stringliteral}{\ \ \ \ score\_func\ :\ callable}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00672}00672\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Score\ function\ (or\ loss\ function)\ with\ signature}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00673}00673\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}score\_func(y,\ y\_pred,\ **kwargs)\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00674}00674\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00675}00675\ \textcolor{stringliteral}{\ \ \ \ response\_method\ :\ \{"{}predict\_proba"{},\ "{}decision\_function"{},\ "{}predict"{}\}\ or\ \(\backslash\)}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00676}00676\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ list/tuple\ of\ such\ str,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00677}00677\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00678}00678\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Specifies\ the\ response\ method\ to\ use\ get\ prediction\ from\ an\ estimator}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00679}00679\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ (i.e.\ :term:\`{}predict\_proba\`{},\ :term:\`{}decision\_function\`{}\ or}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00680}00680\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :term:\`{}predict\`{}).\ Possible\ choices\ are:}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00681}00681\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00682}00682\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ if\ \`{}str\`{},\ it\ corresponds\ to\ the\ name\ to\ the\ method\ to\ return;}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00683}00683\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ if\ a\ list\ or\ tuple\ of\ \`{}str\`{},\ it\ provides\ the\ method\ names\ in\ order\ of}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00684}00684\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ preference.\ The\ method\ returned\ corresponds\ to\ the\ first\ method\ in}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00685}00685\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ the\ list\ and\ which\ is\ implemented\ by\ \`{}estimator\`{}.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00686}00686\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ if\ \`{}None\`{},\ it\ is\ equivalent\ to\ \`{}"{}predict"{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00687}00687\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00688}00688\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 1.4}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00689}00689\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00690}00690\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ deprecated::\ 1.6}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00691}00691\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ None\ is\ equivalent\ to\ 'predict'\ and\ is\ deprecated.\ It\ will\ be\ removed\ in}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00692}00692\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ version\ 1.8.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00693}00693\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00694}00694\ \textcolor{stringliteral}{\ \ \ \ greater\_is\_better\ :\ bool,\ default=True}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00695}00695\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Whether\ \`{}score\_func\`{}\ is\ a\ score\ function\ (default),\ meaning\ high\ is}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00696}00696\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ good,\ or\ a\ loss\ function,\ meaning\ low\ is\ good.\ In\ the\ latter\ case,\ the}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00697}00697\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ scorer\ object\ will\ sign-\/flip\ the\ outcome\ of\ the\ \`{}score\_func\`{}.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00698}00698\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00699}00699\ \textcolor{stringliteral}{\ \ \ \ **kwargs\ :\ additional\ arguments}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00700}00700\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Additional\ parameters\ to\ be\ passed\ to\ \`{}score\_func\`{}.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00701}00701\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00702}00702\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00703}00703\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00704}00704\ \textcolor{stringliteral}{\ \ \ \ scorer\ :\ callable}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00705}00705\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Callable\ object\ that\ returns\ a\ scalar\ score;\ greater\ is\ better.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00706}00706\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00707}00707\ \textcolor{stringliteral}{\ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00708}00708\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00709}00709\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.metrics\ import\ fbeta\_score,\ make\_scorer}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00710}00710\ \textcolor{stringliteral}{\ \ \ \ >>>\ ftwo\_scorer\ =\ make\_scorer(fbeta\_score,\ beta=2)}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00711}00711\ \textcolor{stringliteral}{\ \ \ \ >>>\ ftwo\_scorer}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00712}00712\ \textcolor{stringliteral}{\ \ \ \ make\_scorer(fbeta\_score,\ response\_method='predict',\ beta=2)}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00713}00713\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.model\_selection\ import\ GridSearchCV}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00714}00714\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.svm\ import\ LinearSVC}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00715}00715\ \textcolor{stringliteral}{\ \ \ \ >>>\ grid\ =\ GridSearchCV(LinearSVC(),\ param\_grid=\{'C':\ [1,\ 10]\},}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00716}00716\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ scoring=ftwo\_scorer)}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00717}00717\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00718}00718\ \ \ \ \ sign\ =\ 1\ \textcolor{keywordflow}{if}\ greater\_is\_better\ \textcolor{keywordflow}{else}\ -\/1}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00719}00719\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00720}00720\ \ \ \ \ \textcolor{keywordflow}{if}\ response\_method\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00721}00721\ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00722}00722\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}response\_method=None\ is\ deprecated\ in\ version\ 1.6\ and\ will\ be\ removed\ "{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00723}00723\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}in\ version\ 1.8.\ Leave\ it\ to\ its\ default\ value\ to\ avoid\ this\ warning."{}},}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00724}00724\ \ \ \ \ \ \ \ \ \ \ \ \ FutureWarning,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00725}00725\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00726}00726\ \ \ \ \ \ \ \ \ response\_method\ =\ \textcolor{stringliteral}{"{}predict"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00727}00727\ \ \ \ \ \textcolor{keywordflow}{elif}\ response\_method\ ==\ \textcolor{stringliteral}{"{}default"{}}:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00728}00728\ \ \ \ \ \ \ \ \ response\_method\ =\ \textcolor{stringliteral}{"{}predict"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00729}00729\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00730}00730\ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__Scorer}{\_Scorer}}(score\_func,\ sign,\ kwargs,\ response\_method)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00731}00731\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00732}00732\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00733}00733\ \textcolor{comment}{\#\ Standard\ regression\ scores}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00734}00734\ explained\_variance\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(explained\_variance\_score)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00735}00735\ r2\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(r2\_score)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00736}00736\ neg\_max\_error\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(max\_error,\ greater\_is\_better=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00737}00737\ max\_error\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(max\_error,\ greater\_is\_better=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00738}00738\ \textcolor{comment}{\#\ TODO\ (1.8):\ remove\ in\ 1.8\ (scoring="{}max\_error"{}\ has\ been\ deprecated\ in\ 1.6)}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00739}00739\ deprecation\_msg\ =\ (}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00740}00740\ \ \ \ \ \textcolor{stringliteral}{"{}Scoring\ method\ max\_error\ was\ renamed\ to\ "{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00741}00741\ \ \ \ \ \textcolor{stringliteral}{"{}neg\_max\_error\ in\ version\ 1.6\ and\ will\ "{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00742}00742\ \ \ \ \ \textcolor{stringliteral}{"{}be\ removed\ in\ 1.8."{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00743}00743\ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00744}00744\ max\_error\_scorer.\_deprecation\_msg\ =\ deprecation\_msg}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00745}00745\ neg\_mean\_squared\_error\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(mean\_squared\_error,\ greater\_is\_better=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00746}00746\ neg\_mean\_squared\_log\_error\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00747}00747\ \ \ \ \ mean\_squared\_log\_error,\ greater\_is\_better=\textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00748}00748\ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00749}00749\ neg\_mean\_absolute\_error\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00750}00750\ \ \ \ \ mean\_absolute\_error,\ greater\_is\_better=\textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00751}00751\ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00752}00752\ neg\_mean\_absolute\_percentage\_error\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00753}00753\ \ \ \ \ mean\_absolute\_percentage\_error,\ greater\_is\_better=\textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00754}00754\ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00755}00755\ neg\_median\_absolute\_error\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00756}00756\ \ \ \ \ median\_absolute\_error,\ greater\_is\_better=\textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00757}00757\ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00758}00758\ neg\_root\_mean\_squared\_error\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00759}00759\ \ \ \ \ root\_mean\_squared\_error,\ greater\_is\_better=\textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00760}00760\ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00761}00761\ neg\_root\_mean\_squared\_log\_error\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00762}00762\ \ \ \ \ root\_mean\_squared\_log\_error,\ greater\_is\_better=\textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00763}00763\ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00764}00764\ neg\_mean\_poisson\_deviance\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00765}00765\ \ \ \ \ mean\_poisson\_deviance,\ greater\_is\_better=\textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00766}00766\ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00767}00767\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00768}00768\ neg\_mean\_gamma\_deviance\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00769}00769\ \ \ \ \ mean\_gamma\_deviance,\ greater\_is\_better=\textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00770}00770\ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00771}00771\ d2\_absolute\_error\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(d2\_absolute\_error\_score)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00772}00772\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00773}00773\ \textcolor{comment}{\#\ Standard\ Classification\ Scores}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00774}00774\ accuracy\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(accuracy\_score)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00775}00775\ balanced\_accuracy\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(balanced\_accuracy\_score)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00776}00776\ matthews\_corrcoef\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(matthews\_corrcoef)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00777}00777\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00778}00778\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00779}00779\ \textcolor{keyword}{def\ }positive\_likelihood\_ratio(y\_true,\ y\_pred):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00780}00780\ \ \ \ \ \textcolor{keywordflow}{return}\ class\_likelihood\_ratios(y\_true,\ y\_pred,\ replace\_undefined\_by=1.0)[0]}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00781}00781\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00782}00782\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00783}00783\ \textcolor{keyword}{def\ }negative\_likelihood\_ratio(y\_true,\ y\_pred):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00784}00784\ \ \ \ \ \textcolor{keywordflow}{return}\ class\_likelihood\_ratios(y\_true,\ y\_pred,\ replace\_undefined\_by=1.0)[1]}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00785}00785\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00786}00786\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00787}00787\ positive\_likelihood\_ratio\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(positive\_likelihood\_ratio)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00788}00788\ neg\_negative\_likelihood\_ratio\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00789}00789\ \ \ \ \ negative\_likelihood\_ratio,\ greater\_is\_better=\textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00790}00790\ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00791}00791\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00792}00792\ \textcolor{comment}{\#\ Score\ functions\ that\ need\ decision\ values}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00793}00793\ top\_k\_accuracy\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00794}00794\ \ \ \ \ top\_k\_accuracy\_score,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00795}00795\ \ \ \ \ greater\_is\_better=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00796}00796\ \ \ \ \ response\_method=(\textcolor{stringliteral}{"{}decision\_function"{}},\ \textcolor{stringliteral}{"{}predict\_proba"{}}),}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00797}00797\ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00798}00798\ roc\_auc\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00799}00799\ \ \ \ \ roc\_auc\_score,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00800}00800\ \ \ \ \ greater\_is\_better=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00801}00801\ \ \ \ \ response\_method=(\textcolor{stringliteral}{"{}decision\_function"{}},\ \textcolor{stringliteral}{"{}predict\_proba"{}}),}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00802}00802\ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00803}00803\ average\_precision\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00804}00804\ \ \ \ \ average\_precision\_score,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00805}00805\ \ \ \ \ response\_method=(\textcolor{stringliteral}{"{}decision\_function"{}},\ \textcolor{stringliteral}{"{}predict\_proba"{}}),}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00806}00806\ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00807}00807\ roc\_auc\_ovo\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00808}00808\ \ \ \ \ roc\_auc\_score,\ response\_method=\textcolor{stringliteral}{"{}predict\_proba"{}},\ multi\_class=\textcolor{stringliteral}{"{}ovo"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00809}00809\ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00810}00810\ roc\_auc\_ovo\_weighted\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00811}00811\ \ \ \ \ roc\_auc\_score,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00812}00812\ \ \ \ \ response\_method=\textcolor{stringliteral}{"{}predict\_proba"{}},}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00813}00813\ \ \ \ \ multi\_class=\textcolor{stringliteral}{"{}ovo"{}},}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00814}00814\ \ \ \ \ average=\textcolor{stringliteral}{"{}weighted"{}},}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00815}00815\ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00816}00816\ roc\_auc\_ovr\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00817}00817\ \ \ \ \ roc\_auc\_score,\ response\_method=\textcolor{stringliteral}{"{}predict\_proba"{}},\ multi\_class=\textcolor{stringliteral}{"{}ovr"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00818}00818\ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00819}00819\ roc\_auc\_ovr\_weighted\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00820}00820\ \ \ \ \ roc\_auc\_score,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00821}00821\ \ \ \ \ response\_method=\textcolor{stringliteral}{"{}predict\_proba"{}},}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00822}00822\ \ \ \ \ multi\_class=\textcolor{stringliteral}{"{}ovr"{}},}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00823}00823\ \ \ \ \ average=\textcolor{stringliteral}{"{}weighted"{}},}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00824}00824\ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00825}00825\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00826}00826\ \textcolor{comment}{\#\ Score\ function\ for\ probabilistic\ classification}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00827}00827\ neg\_log\_loss\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00828}00828\ \ \ \ \ log\_loss,\ greater\_is\_better=\textcolor{keyword}{False},\ response\_method=\textcolor{stringliteral}{"{}predict\_proba"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00829}00829\ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00830}00830\ neg\_brier\_score\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00831}00831\ \ \ \ \ brier\_score\_loss,\ greater\_is\_better=\textcolor{keyword}{False},\ response\_method=\textcolor{stringliteral}{"{}predict\_proba"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00832}00832\ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00833}00833\ brier\_score\_loss\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00834}00834\ \ \ \ \ brier\_score\_loss,\ greater\_is\_better=\textcolor{keyword}{False},\ response\_method=\textcolor{stringliteral}{"{}predict\_proba"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00835}00835\ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00836}00836\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00837}00837\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00838}00838\ \textcolor{comment}{\#\ Clustering\ scores}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00839}00839\ adjusted\_rand\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(adjusted\_rand\_score)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00840}00840\ rand\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(rand\_score)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00841}00841\ homogeneity\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(homogeneity\_score)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00842}00842\ completeness\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(completeness\_score)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00843}00843\ v\_measure\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(v\_measure\_score)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00844}00844\ mutual\_info\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(mutual\_info\_score)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00845}00845\ adjusted\_mutual\_info\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(adjusted\_mutual\_info\_score)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00846}00846\ normalized\_mutual\_info\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(normalized\_mutual\_info\_score)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00847}00847\ fowlkes\_mallows\_scorer\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(fowlkes\_mallows\_score)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00848}00848\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00849}00849\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00850}00850\ \_SCORERS\ =\ dict(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00851}00851\ \ \ \ \ explained\_variance=explained\_variance\_scorer,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00852}00852\ \ \ \ \ r2=r2\_scorer,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00853}00853\ \ \ \ \ neg\_max\_error=neg\_max\_error\_scorer,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00854}00854\ \ \ \ \ matthews\_corrcoef=matthews\_corrcoef\_scorer,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00855}00855\ \ \ \ \ neg\_median\_absolute\_error=neg\_median\_absolute\_error\_scorer,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00856}00856\ \ \ \ \ neg\_mean\_absolute\_error=neg\_mean\_absolute\_error\_scorer,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00857}00857\ \ \ \ \ neg\_mean\_absolute\_percentage\_error=neg\_mean\_absolute\_percentage\_error\_scorer,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00858}00858\ \ \ \ \ neg\_mean\_squared\_error=neg\_mean\_squared\_error\_scorer,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00859}00859\ \ \ \ \ neg\_mean\_squared\_log\_error=neg\_mean\_squared\_log\_error\_scorer,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00860}00860\ \ \ \ \ neg\_root\_mean\_squared\_error=neg\_root\_mean\_squared\_error\_scorer,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00861}00861\ \ \ \ \ neg\_root\_mean\_squared\_log\_error=neg\_root\_mean\_squared\_log\_error\_scorer,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00862}00862\ \ \ \ \ neg\_mean\_poisson\_deviance=neg\_mean\_poisson\_deviance\_scorer,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00863}00863\ \ \ \ \ neg\_mean\_gamma\_deviance=neg\_mean\_gamma\_deviance\_scorer,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00864}00864\ \ \ \ \ d2\_absolute\_error\_score=d2\_absolute\_error\_scorer,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00865}00865\ \ \ \ \ accuracy=accuracy\_scorer,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00866}00866\ \ \ \ \ top\_k\_accuracy=top\_k\_accuracy\_scorer,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00867}00867\ \ \ \ \ roc\_auc=roc\_auc\_scorer,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00868}00868\ \ \ \ \ roc\_auc\_ovr=roc\_auc\_ovr\_scorer,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00869}00869\ \ \ \ \ roc\_auc\_ovo=roc\_auc\_ovo\_scorer,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00870}00870\ \ \ \ \ roc\_auc\_ovr\_weighted=roc\_auc\_ovr\_weighted\_scorer,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00871}00871\ \ \ \ \ roc\_auc\_ovo\_weighted=roc\_auc\_ovo\_weighted\_scorer,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00872}00872\ \ \ \ \ balanced\_accuracy=balanced\_accuracy\_scorer,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00873}00873\ \ \ \ \ average\_precision=average\_precision\_scorer,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00874}00874\ \ \ \ \ neg\_log\_loss=neg\_log\_loss\_scorer,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00875}00875\ \ \ \ \ neg\_brier\_score=neg\_brier\_score\_scorer,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00876}00876\ \ \ \ \ positive\_likelihood\_ratio=positive\_likelihood\_ratio\_scorer,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00877}00877\ \ \ \ \ neg\_negative\_likelihood\_ratio=neg\_negative\_likelihood\_ratio\_scorer,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00878}00878\ \ \ \ \ \textcolor{comment}{\#\ Cluster\ metrics\ that\ use\ supervised\ evaluation}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00879}00879\ \ \ \ \ adjusted\_rand\_score=adjusted\_rand\_scorer,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00880}00880\ \ \ \ \ rand\_score=rand\_scorer,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00881}00881\ \ \ \ \ homogeneity\_score=homogeneity\_scorer,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00882}00882\ \ \ \ \ completeness\_score=completeness\_scorer,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00883}00883\ \ \ \ \ v\_measure\_score=v\_measure\_scorer,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00884}00884\ \ \ \ \ mutual\_info\_score=mutual\_info\_scorer,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00885}00885\ \ \ \ \ adjusted\_mutual\_info\_score=adjusted\_mutual\_info\_scorer,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00886}00886\ \ \ \ \ normalized\_mutual\_info\_score=normalized\_mutual\_info\_scorer,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00887}00887\ \ \ \ \ fowlkes\_mallows\_score=fowlkes\_mallows\_scorer,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00888}00888\ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00889}00889\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00890}00890\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00891}\mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a51a9eb91564394cc28570536c59c1e2a}{00891}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a51a9eb91564394cc28570536c59c1e2a}{get\_scorer\_names}}():}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00892}00892\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Get\ the\ names\ of\ all\ available\ scorers.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00893}00893\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00894}00894\ \textcolor{stringliteral}{\ \ \ \ These\ names\ can\ be\ passed\ to\ :func:\`{}\string~sklearn.metrics.get\_scorer\`{}\ to}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00895}00895\ \textcolor{stringliteral}{\ \ \ \ retrieve\ the\ scorer\ object.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00896}00896\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00897}00897\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00898}00898\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00899}00899\ \textcolor{stringliteral}{\ \ \ \ list\ of\ str}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00900}00900\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Names\ of\ all\ available\ scorers.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00901}00901\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00902}00902\ \textcolor{stringliteral}{\ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00903}00903\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00904}00904\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.metrics\ import\ get\_scorer\_names}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00905}00905\ \textcolor{stringliteral}{\ \ \ \ >>>\ all\_scorers\ =\ get\_scorer\_names()}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00906}00906\ \textcolor{stringliteral}{\ \ \ \ >>>\ type(all\_scorers)}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00907}00907\ \textcolor{stringliteral}{\ \ \ \ <class\ 'list'>}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00908}00908\ \textcolor{stringliteral}{\ \ \ \ >>>\ all\_scorers[:3]}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00909}00909\ \textcolor{stringliteral}{\ \ \ \ ['accuracy',\ 'adjusted\_mutual\_info\_score',\ 'adjusted\_rand\_score']}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00910}00910\ \textcolor{stringliteral}{\ \ \ \ >>>\ "{}roc\_auc"{}\ in\ all\_scorers}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00911}00911\ \textcolor{stringliteral}{\ \ \ \ True}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00912}00912\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00913}00913\ \ \ \ \ \textcolor{keywordflow}{return}\ sorted(\_SCORERS.keys())}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00914}00914\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00915}00915\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00916}00916\ \textcolor{keywordflow}{for}\ name,\ metric\ \textcolor{keywordflow}{in}\ [}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00917}00917\ \ \ \ \ (\textcolor{stringliteral}{"{}precision"{}},\ precision\_score),}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00918}00918\ \ \ \ \ (\textcolor{stringliteral}{"{}recall"{}},\ recall\_score),}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00919}00919\ \ \ \ \ (\textcolor{stringliteral}{"{}f1"{}},\ f1\_score),}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00920}00920\ \ \ \ \ (\textcolor{stringliteral}{"{}jaccard"{}},\ jaccard\_score),}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00921}00921\ ]:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00922}00922\ \ \ \ \ \_SCORERS[name]\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(metric,\ average=\textcolor{stringliteral}{"{}binary"{}})}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00923}00923\ \ \ \ \ \textcolor{keywordflow}{for}\ average\ \textcolor{keywordflow}{in}\ [\textcolor{stringliteral}{"{}macro"{}},\ \textcolor{stringliteral}{"{}micro"{}},\ \textcolor{stringliteral}{"{}samples"{}},\ \textcolor{stringliteral}{"{}weighted"{}}]:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00924}00924\ \ \ \ \ \ \ \ \ qualified\_name\ =\ \textcolor{stringliteral}{"{}\{0\}\_\{1\}"{}}.format(name,\ average)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00925}00925\ \ \ \ \ \ \ \ \ \_SCORERS[qualified\_name]\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a8d2bb59a9f988a8aa1c5b1bfd1ba01ca}{make\_scorer}}(metric,\ pos\_label=\textcolor{keywordtype}{None},\ average=average)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00926}00926\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00927}00927\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00928}00928\ \textcolor{preprocessor}{@validate\_params}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00929}00929\ \ \ \ \ \{}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00930}00930\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}estimator"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1HasMethods}{HasMethods}}(\textcolor{stringliteral}{"{}fit"{}}),\ \textcolor{keywordtype}{None}],}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00931}00931\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}scoring"{}}:\ [}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00932}00932\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1StrOptions}{StrOptions}}(set(\mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a51a9eb91564394cc28570536c59c1e2a}{get\_scorer\_names}}())),}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00933}00933\ \ \ \ \ \ \ \ \ \ \ \ \ callable,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00934}00934\ \ \ \ \ \ \ \ \ \ \ \ \ list,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00935}00935\ \ \ \ \ \ \ \ \ \ \ \ \ set,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00936}00936\ \ \ \ \ \ \ \ \ \ \ \ \ tuple,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00937}00937\ \ \ \ \ \ \ \ \ \ \ \ \ dict,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00938}00938\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00939}00939\ \ \ \ \ \ \ \ \ ],}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00940}00940\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}allow\_none"{}}:\ [\textcolor{stringliteral}{"{}boolean"{}}],}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00941}00941\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}raise\_exc"{}}:\ [\textcolor{stringliteral}{"{}boolean"{}}],}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00942}00942\ \ \ \ \ \},}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00943}00943\ \ \ \ \ prefer\_skip\_nested\_validation=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00944}00944\ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00945}\mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a432443cf4b6ae8e174e506faca59b644}{00945}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a432443cf4b6ae8e174e506faca59b644}{check\_scoring}}(estimator=None,\ scoring=None,\ *,\ allow\_none=False,\ raise\_exc=True):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00946}00946\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Determine\ scorer\ from\ user\ options.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00947}00947\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00948}00948\ \textcolor{stringliteral}{\ \ \ \ A\ TypeError\ will\ be\ thrown\ if\ the\ estimator\ cannot\ be\ scored.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00949}00949\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00950}00950\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00951}00951\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00952}00952\ \textcolor{stringliteral}{\ \ \ \ estimator\ :\ estimator\ object\ implementing\ 'fit'\ or\ None,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00953}00953\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ object\ to\ use\ to\ fit\ the\ data.\ If\ \`{}None\`{},\ then\ this\ function\ may\ error}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00954}00954\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ depending\ on\ \`{}allow\_none\`{}.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00955}00955\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00956}00956\ \textcolor{stringliteral}{\ \ \ \ scoring\ :\ str,\ callable,\ list,\ tuple,\ set,\ or\ dict,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00957}00957\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Scorer\ to\ use.\ If\ \`{}scoring\`{}\ represents\ a\ single\ score,\ one\ can\ use:}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00958}00958\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00959}00959\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ a\ single\ string\ (see\ :ref:\`{}scoring\_string\_names\`{});}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00960}00960\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ a\ callable\ (see\ :ref:\`{}scoring\_callable\`{})\ that\ returns\ a\ single\ value;}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00961}00961\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ \`{}None\`{},\ the\ \`{}estimator\`{}'s}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00962}00962\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ :ref:\`{}default\ evaluation\ criterion\ <scoring\_api\_overview>\`{}\ is\ used.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00963}00963\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00964}00964\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ \`{}scoring\`{}\ represents\ multiple\ scores,\ one\ can\ use:}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00965}00965\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00966}00966\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ a\ list,\ tuple\ or\ set\ of\ unique\ strings;}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00967}00967\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ a\ callable\ returning\ a\ dictionary\ where\ the\ keys\ are\ the\ metric\ names\ and\ the}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00968}00968\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ values\ are\ the\ metric\ scorers;}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00969}00969\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ a\ dictionary\ with\ metric\ names\ as\ keys\ and\ callables\ a\ values.\ The\ callables}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00970}00970\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ need\ to\ have\ the\ signature\ \`{}callable(estimator,\ X,\ y)\`{}.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00971}00971\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00972}00972\ \textcolor{stringliteral}{\ \ \ \ allow\_none\ :\ bool,\ default=False}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00973}00973\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Whether\ to\ return\ None\ or\ raise\ an\ error\ if\ no\ \`{}scoring\`{}\ is\ specified\ and\ the}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00974}00974\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ estimator\ has\ no\ \`{}score\`{}\ method.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00975}00975\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00976}00976\ \textcolor{stringliteral}{\ \ \ \ raise\_exc\ :\ bool,\ default=True}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00977}00977\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Whether\ to\ raise\ an\ exception\ (if\ a\ subset\ of\ the\ scorers\ in\ multimetric\ scoring}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00978}00978\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ fails)\ or\ to\ return\ an\ error\ code.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00979}00979\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00980}00980\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ If\ set\ to\ \`{}True\`{},\ raises\ the\ failing\ scorer's\ exception.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00981}00981\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ If\ set\ to\ \`{}False\`{},\ a\ formatted\ string\ of\ the\ exception\ details\ is\ passed\ as}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00982}00982\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ result\ of\ the\ failing\ scorer(s).}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00983}00983\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00984}00984\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ This\ applies\ if\ \`{}scoring\`{}\ is\ list,\ tuple,\ set,\ or\ dict.\ Ignored\ if\ \`{}scoring\`{}\ is}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00985}00985\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ a\ str\ or\ a\ callable.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00986}00986\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00987}00987\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 1.6}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00988}00988\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00989}00989\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00990}00990\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00991}00991\ \textcolor{stringliteral}{\ \ \ \ scoring\ :\ callable}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00992}00992\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ A\ scorer\ callable\ object\ /\ function\ with\ signature\ \`{}\`{}scorer(estimator,\ X,\ y)\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00993}00993\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00994}00994\ \textcolor{stringliteral}{\ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00995}00995\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00996}00996\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.datasets\ import\ load\_iris}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00997}00997\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.metrics\ import\ check\_scoring}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00998}00998\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.tree\ import\ DecisionTreeClassifier}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l00999}00999\ \textcolor{stringliteral}{\ \ \ \ >>>\ X,\ y\ =\ load\_iris(return\_X\_y=True)}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01000}01000\ \textcolor{stringliteral}{\ \ \ \ >>>\ classifier\ =\ DecisionTreeClassifier(max\_depth=2).fit(X,\ y)}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01001}01001\ \textcolor{stringliteral}{\ \ \ \ >>>\ scorer\ =\ check\_scoring(classifier,\ scoring='accuracy')}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01002}01002\ \textcolor{stringliteral}{\ \ \ \ >>>\ scorer(classifier,\ X,\ y)}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01003}01003\ \textcolor{stringliteral}{\ \ \ \ 0.96...}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01004}01004\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01005}01005\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.metrics\ import\ make\_scorer,\ accuracy\_score,\ mean\_squared\_log\_error}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01006}01006\ \textcolor{stringliteral}{\ \ \ \ >>>\ X,\ y\ =\ load\_iris(return\_X\_y=True)}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01007}01007\ \textcolor{stringliteral}{\ \ \ \ >>>\ y\ *=\ -\/1}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01008}01008\ \textcolor{stringliteral}{\ \ \ \ >>>\ clf\ =\ DecisionTreeClassifier().fit(X,\ y)}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01009}01009\ \textcolor{stringliteral}{\ \ \ \ >>>\ scoring\ =\ \{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01010}01010\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ "{}accuracy"{}:\ make\_scorer(accuracy\_score),}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01011}01011\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ "{}mean\_squared\_log\_error"{}:\ make\_scorer(mean\_squared\_log\_error),}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01012}01012\ \textcolor{stringliteral}{\ \ \ \ ...\ \}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01013}01013\ \textcolor{stringliteral}{\ \ \ \ >>>\ scoring\_call\ =\ check\_scoring(estimator=clf,\ scoring=scoring,\ raise\_exc=False)}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01014}01014\ \textcolor{stringliteral}{\ \ \ \ >>>\ scores\ =\ scoring\_call(clf,\ X,\ y)}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01015}01015\ \textcolor{stringliteral}{\ \ \ \ >>>\ scores}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01016}01016\ \textcolor{stringliteral}{\ \ \ \ \{'accuracy':\ 1.0,\ 'mean\_squared\_log\_error':\ 'Traceback\ ...'\}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01017}01017\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01018}01018\ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(scoring,\ str):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01019}01019\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_ae47466926162a4a7122295f4ed592e12}{get\_scorer}}(scoring)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01020}01020\ \ \ \ \ \textcolor{keywordflow}{if}\ callable(scoring):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01021}01021\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Heuristic\ to\ ensure\ user\ has\ not\ passed\ a\ metric}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01022}01022\ \ \ \ \ \ \ \ \ module\ =\ getattr(scoring,\ \textcolor{stringliteral}{"{}\_\_module\_\_"{}},\ \textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01023}01023\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01024}01024\ \ \ \ \ \ \ \ \ \ \ \ \ hasattr(module,\ \textcolor{stringliteral}{"{}startswith"{}})}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01025}01025\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}\ module.startswith(\textcolor{stringliteral}{"{}sklearn.metrics."{}})}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01026}01026\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}\ \textcolor{keywordflow}{not}\ module.startswith(\textcolor{stringliteral}{"{}sklearn.metrics.\_scorer"{}})}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01027}01027\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}\ \textcolor{keywordflow}{not}\ module.startswith(\textcolor{stringliteral}{"{}sklearn.metrics.tests."{}})}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01028}01028\ \ \ \ \ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01029}01029\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01030}01030\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}scoring\ value\ \%r\ looks\ like\ it\ is\ a\ metric\ "{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01031}01031\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}function\ rather\ than\ a\ scorer.\ A\ scorer\ should\ "{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01032}01032\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}require\ an\ estimator\ as\ its\ first\ parameter.\ "{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01033}01033\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Please\ use\ \`{}make\_scorer`\ to\ convert\ a\ metric\ "{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01034}01034\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}to\ a\ scorer."{}}\ \%\ scoring}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01035}01035\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01036}01036\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_ae47466926162a4a7122295f4ed592e12}{get\_scorer}}(scoring)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01037}01037\ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(scoring,\ (list,\ tuple,\ set,\ dict)):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01038}01038\ \ \ \ \ \ \ \ \ scorers\ =\ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a3a6e00ec6f6b9de1096d49a934c1f859}{\_check\_multimetric\_scoring}}(estimator,\ scoring=scoring)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01039}01039\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__MultimetricScorer}{\_MultimetricScorer}}(scorers=scorers,\ raise\_exc=raise\_exc)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01040}01040\ \ \ \ \ \textcolor{keywordflow}{if}\ scoring\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01041}01041\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ hasattr(estimator,\ \textcolor{stringliteral}{"{}score"{}}):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01042}01042\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__PassthroughScorer}{\_PassthroughScorer}}(estimator)}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01043}01043\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ allow\_none:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01044}01044\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01045}01045\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01046}01046\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classTypeError}{TypeError}}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01047}01047\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}If\ no\ scoring\ is\ specified,\ the\ estimator\ passed\ should\ "{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01048}01048\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}have\ a\ 'score'\ method.\ The\ estimator\ \%r\ does\ not."{}}\ \%\ estimator}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01049}01049\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01050}01050\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01051}01051\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01052}\mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a5dfea92cf01b0e72fdaeceda4412fe65}{01052}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a5dfea92cf01b0e72fdaeceda4412fe65}{\_threshold\_scores\_to\_class\_labels}}(y\_score,\ threshold,\ classes,\ pos\_label):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01053}01053\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Threshold\ \`{}y\_score\`{}\ and\ return\ the\ associated\ class\ labels."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01054}01054\ \ \ \ \ \textcolor{keywordflow}{if}\ pos\_label\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01055}01055\ \ \ \ \ \ \ \ \ map\_thresholded\_score\_to\_label\ =\ np.array([0,\ 1])}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01056}01056\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01057}01057\ \ \ \ \ \ \ \ \ pos\_label\_idx\ =\ np.flatnonzero(classes\ ==\ pos\_label)[0]}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01058}01058\ \ \ \ \ \ \ \ \ neg\_label\_idx\ =\ np.flatnonzero(classes\ !=\ pos\_label)[0]}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01059}01059\ \ \ \ \ \ \ \ \ map\_thresholded\_score\_to\_label\ =\ np.array([neg\_label\_idx,\ pos\_label\_idx])}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01060}01060\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01061}01061\ \ \ \ \ \textcolor{keywordflow}{return}\ classes[map\_thresholded\_score\_to\_label[(y\_score\ >=\ threshold).astype(int)]]}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01062}01062\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01063}01063\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01064}\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__CurveScorer}{01064}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__CurveScorer}{\_CurveScorer}}(\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer}{\_BaseScorer}}):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01065}01065\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Scorer\ taking\ a\ continuous\ response\ and\ output\ a\ score\ for\ each\ threshold.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01066}01066\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01067}01067\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01068}01068\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01069}01069\ \textcolor{stringliteral}{\ \ \ \ score\_func\ :\ callable}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01070}01070\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ score\ function\ to\ use.\ It\ will\ be\ called\ as}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01071}01071\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}score\_func(y\_true,\ y\_pred,\ **kwargs)\`{}.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01072}01072\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01073}01073\ \textcolor{stringliteral}{\ \ \ \ sign\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01074}01074\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Either\ 1\ or\ -\/1\ to\ returns\ the\ score\ with\ \`{}sign\ *\ score\_func(estimator,\ X,\ y)\`{}.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01075}01075\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Thus,\ \`{}sign\`{}\ defined\ if\ higher\ scores\ are\ better\ or\ worse.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01076}01076\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01077}01077\ \textcolor{stringliteral}{\ \ \ \ kwargs\ :\ dict}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01078}01078\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Additional\ parameters\ to\ pass\ to\ the\ score\ function.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01079}01079\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01080}01080\ \textcolor{stringliteral}{\ \ \ \ thresholds\ :\ int\ or\ array-\/like}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01081}01081\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Related\ to\ the\ number\ of\ decision\ thresholds\ for\ which\ we\ want\ to\ compute\ the}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01082}01082\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ score.\ If\ an\ integer,\ it\ will\ be\ used\ to\ generate\ \`{}thresholds\`{}\ thresholds}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01083}01083\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ uniformly\ distributed\ between\ the\ minimum\ and\ maximum\ predicted\ scores.\ If\ an}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01084}01084\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ array-\/like,\ it\ will\ be\ used\ as\ the\ thresholds.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01085}01085\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01086}01086\ \textcolor{stringliteral}{\ \ \ \ response\_method\ :\ str}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01087}01087\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ method\ to\ call\ on\ the\ estimator\ to\ get\ the\ response\ values.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01088}01088\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01089}01089\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01090}01090\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ score\_func,\ sign,\ kwargs,\ thresholds,\ response\_method):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01091}01091\ \ \ \ \ \ \ \ \ super().\_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01092}01092\ \ \ \ \ \ \ \ \ \ \ \ \ score\_func=score\_func,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01093}01093\ \ \ \ \ \ \ \ \ \ \ \ \ sign=sign,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01094}01094\ \ \ \ \ \ \ \ \ \ \ \ \ kwargs=kwargs,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01095}01095\ \ \ \ \ \ \ \ \ \ \ \ \ response\_method=response\_method,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01096}01096\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01097}01097\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__CurveScorer_a6d60823e58da3d567c54c57c797e97ee}{\_thresholds}}\ =\ thresholds}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01098}01098\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01099}01099\ \ \ \ \ \textcolor{preprocessor}{@classmethod}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01100}\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__CurveScorer_aa206ce31ce4d494d2a8635b46a2565f8}{01100}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__CurveScorer_aa206ce31ce4d494d2a8635b46a2565f8}{from\_scorer}}(cls,\ scorer,\ response\_method,\ thresholds):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01101}01101\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Create\ a\ continuous\ scorer\ from\ a\ normal\ scorer."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01102}01102\ \ \ \ \ \ \ \ \ instance\ =\ cls(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01103}01103\ \ \ \ \ \ \ \ \ \ \ \ \ score\_func=scorer.\_score\_func,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01104}01104\ \ \ \ \ \ \ \ \ \ \ \ \ sign=scorer.\_sign,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01105}01105\ \ \ \ \ \ \ \ \ \ \ \ \ response\_method=response\_method,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01106}01106\ \ \ \ \ \ \ \ \ \ \ \ \ thresholds=thresholds,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01107}01107\ \ \ \ \ \ \ \ \ \ \ \ \ kwargs=scorer.\_kwargs,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01108}01108\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01109}01109\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ transfer\ the\ metadata\ request}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01110}01110\ \ \ \ \ \ \ \ \ instance.\_metadata\_request\ =\ scorer.\_get\_metadata\_request()}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01111}01111\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ instance}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01112}01112\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01113}\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__CurveScorer_a47e2e5624e90d17c2683c32a5e5d55eb}{01113}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__CurveScorer_a47e2e5624e90d17c2683c32a5e5d55eb}{\_score}}(self,\ method\_caller,\ estimator,\ X,\ y\_true,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01114}01114\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Evaluate\ predicted\ target\ values\ for\ X\ relative\ to\ y\_true.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01115}01115\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01116}01116\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01117}01117\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01118}01118\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ method\_caller\ :\ callable}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01119}01119\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Returns\ predictions\ given\ an\ estimator,\ method\ name,\ and\ other}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01120}01120\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ arguments,\ potentially\ caching\ results.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01121}01121\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01122}01122\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ estimator\ :\ object}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01123}01123\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Trained\ estimator\ to\ use\ for\ scoring.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01124}01124\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01125}01125\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\ :\ \{array-\/like,\ sparse\ matrix\}\ of\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01126}01126\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Test\ data\ that\ will\ be\ fed\ to\ estimator.predict.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01127}01127\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01128}01128\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ y\_true\ :\ array-\/like\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01129}01129\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Gold\ standard\ target\ values\ for\ X.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01130}01130\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01131}01131\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ **kwargs\ :\ dict}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01132}01132\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Other\ parameters\ passed\ to\ the\ scorer.\ Refer\ to}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01133}01133\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ :func:\`{}set\_score\_request\`{}\ for\ more\ details.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01134}01134\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01135}01135\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01136}01136\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01137}01137\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ scores\ :\ ndarray\ of\ shape\ (thresholds,)}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01138}01138\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ scores\ associated\ to\ each\ threshold.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01139}01139\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01140}01140\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ potential\_thresholds\ :\ ndarray\ of\ shape\ (thresholds,)}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01141}01141\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ potential\ thresholds\ used\ to\ compute\ the\ scores.}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01142}01142\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01143}01143\ \ \ \ \ \ \ \ \ pos\_label\ =\ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer_a2c76e1088db82e025a70aa00df90be4c}{\_get\_pos\_label}}()}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01144}01144\ \ \ \ \ \ \ \ \ y\_score\ =\ method\_caller(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01145}01145\ \ \ \ \ \ \ \ \ \ \ \ \ estimator,\ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer_ad9e26f8c1d5d154bdc51e8444941af58}{\_response\_method}},\ X,\ pos\_label=pos\_label}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01146}01146\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01147}01147\ }
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01148}01148\ \ \ \ \ \ \ \ \ scoring\_kwargs\ =\ \{**self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer_a52a9aa1a7d96abdccd0dbb57a7f1e129}{\_kwargs}},\ **kwargs\}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01149}01149\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__CurveScorer_a6d60823e58da3d567c54c57c797e97ee}{\_thresholds}},\ Integral):}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01150}01150\ \ \ \ \ \ \ \ \ \ \ \ \ potential\_thresholds\ =\ np.linspace(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01151}01151\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ np.min(y\_score),\ np.max(y\_score),\ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__CurveScorer_a6d60823e58da3d567c54c57c797e97ee}{\_thresholds}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01152}01152\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01153}01153\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01154}01154\ \ \ \ \ \ \ \ \ \ \ \ \ potential\_thresholds\ =\ np.asarray(self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__CurveScorer_a6d60823e58da3d567c54c57c797e97ee}{\_thresholds}})}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01155}01155\ \ \ \ \ \ \ \ \ score\_thresholds\ =\ [}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01156}01156\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer_a6d63a7557d8455f91e4c5523d67620cd}{\_sign}}}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01157}01157\ \ \ \ \ \ \ \ \ \ \ \ \ *\ self.\mbox{\hyperlink{classsklearn_1_1metrics_1_1__scorer_1_1__BaseScorer_aa675ace3006a494be143c5f64e974d09}{\_score\_func}}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01158}01158\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ y\_true,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01159}01159\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{namespacesklearn_1_1metrics_1_1__scorer_a5dfea92cf01b0e72fdaeceda4412fe65}{\_threshold\_scores\_to\_class\_labels}}(}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01160}01160\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ y\_score,\ th,\ estimator.classes\_,\ pos\_label}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01161}01161\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01162}01162\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ **scoring\_kwargs,}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01163}01163\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01164}01164\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ th\ \textcolor{keywordflow}{in}\ potential\_thresholds}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01165}01165\ \ \ \ \ \ \ \ \ ]}
+\DoxyCodeLine{\Hypertarget{__scorer_8py_source_l01166}01166\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ np.array(score\_thresholds),\ potential\_thresholds}
+
+\end{DoxyCode}

@@ -1,0 +1,5 @@
+var namespacepip_1_1__internal_1_1metadata_1_1importlib_1_1__dists =
+[
+    [ "Distribution", "da/da5/classpip_1_1__internal_1_1metadata_1_1importlib_1_1__dists_1_1Distribution.html", "da/da5/classpip_1_1__internal_1_1metadata_1_1importlib_1_1__dists_1_1Distribution" ],
+    [ "WheelDistribution", "d0/d3e/classpip_1_1__internal_1_1metadata_1_1importlib_1_1__dists_1_1WheelDistribution.html", null ]
+];

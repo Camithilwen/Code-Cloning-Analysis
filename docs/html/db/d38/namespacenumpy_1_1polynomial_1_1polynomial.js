@@ -1,0 +1,26 @@
+var namespacenumpy_1_1polynomial_1_1polynomial =
+[
+    [ "Polynomial", "dc/d72/classnumpy_1_1polynomial_1_1polynomial_1_1Polynomial.html", null ],
+    [ "polyadd", "db/d38/namespacenumpy_1_1polynomial_1_1polynomial.html#ac24499152556afdb9bb8ecabafa47748", null ],
+    [ "polycompanion", "db/d38/namespacenumpy_1_1polynomial_1_1polynomial.html#a16f09db33678e71abd57965cb6a24898", null ],
+    [ "polyder", "db/d38/namespacenumpy_1_1polynomial_1_1polynomial.html#a2e713b1481c20598277695ce6116c8f5", null ],
+    [ "polydiv", "db/d38/namespacenumpy_1_1polynomial_1_1polynomial.html#aa3d699e58f111c1cf8f131b145c92101", null ],
+    [ "polyfit", "db/d38/namespacenumpy_1_1polynomial_1_1polynomial.html#a0b36c13a422b50bf194c46022946fff1", null ],
+    [ "polyfromroots", "db/d38/namespacenumpy_1_1polynomial_1_1polynomial.html#a29a0bddca583334f657830d8dd513f36", null ],
+    [ "polygrid2d", "db/d38/namespacenumpy_1_1polynomial_1_1polynomial.html#ab75ffd3c6cf7232b651d2ec60a12496c", null ],
+    [ "polygrid3d", "db/d38/namespacenumpy_1_1polynomial_1_1polynomial.html#a5b582c07963d40c5241ef870cf5a6f7b", null ],
+    [ "polyint", "db/d38/namespacenumpy_1_1polynomial_1_1polynomial.html#ae925c9505594a28d957813e32a3f8d94", null ],
+    [ "polyline", "db/d38/namespacenumpy_1_1polynomial_1_1polynomial.html#ae918ad4af8515648d5d4aab5dddf0d55", null ],
+    [ "polymul", "db/d38/namespacenumpy_1_1polynomial_1_1polynomial.html#a9eae7956d8adccdea88a022b1377a788", null ],
+    [ "polymulx", "db/d38/namespacenumpy_1_1polynomial_1_1polynomial.html#a1c5245c48d904bbbe3fdf11f0da9ea7c", null ],
+    [ "polypow", "db/d38/namespacenumpy_1_1polynomial_1_1polynomial.html#a7346f5d7618fd9d086d66c1cb74b6386", null ],
+    [ "polyroots", "db/d38/namespacenumpy_1_1polynomial_1_1polynomial.html#a00c3c07debc947d63e4e61e87e4dd82e", null ],
+    [ "polysub", "db/d38/namespacenumpy_1_1polynomial_1_1polynomial.html#a27a52aa247003715189181dbc5cca1ba", null ],
+    [ "polyval", "db/d38/namespacenumpy_1_1polynomial_1_1polynomial.html#a5af96090a5a020c74c2cf0ce6b5fd364", null ],
+    [ "polyval2d", "db/d38/namespacenumpy_1_1polynomial_1_1polynomial.html#a28517914a28dc42082e2d31a658cbbca", null ],
+    [ "polyval3d", "db/d38/namespacenumpy_1_1polynomial_1_1polynomial.html#a3f13e2c875f4bedb6af03d3bdd4c6a2c", null ],
+    [ "polyvalfromroots", "db/d38/namespacenumpy_1_1polynomial_1_1polynomial.html#a015e926b0b4a06a4eee5cc075107bbff", null ],
+    [ "polyvander", "db/d38/namespacenumpy_1_1polynomial_1_1polynomial.html#acdff790ca3c6465134664fb38c32388d", null ],
+    [ "polyvander2d", "db/d38/namespacenumpy_1_1polynomial_1_1polynomial.html#afbb2c7c2d8c80c9c49960d0844c02992", null ],
+    [ "polyvander3d", "db/d38/namespacenumpy_1_1polynomial_1_1polynomial.html#a75a9cf88eb62e6b71d0b57595c287585", null ]
+];

@@ -1,6 +1,9 @@
 var searchData=
 [
-  ['setup_5fcollections_5ffor_5fpair_0',['setup_collections_for_pair',['../d5/d06/classmain_1_1RepositoryEmbedder.html#a2632314ce37a503aad1b180fbe7b7b31',1,'main::RepositoryEmbedder']]],
-  ['shreya_20nakum_20jamie_20kemman_1',['Shreya Nakum, Jamie Kemman',['../index.html#autotoc_md1',1,'']]],
-  ['specific_20code_20cloning_20analysis_2',['Microservice-Specific Code Cloning Analysis',['../index.html',1,'']]]
+  ['rag_5fsimilarity_5fassessment_0',['rag_similarity_assessment',['../d5/de3/namespacebest__threshold.html#a3e33d9cb70f2bf2413407c6c6d10af8e',1,'best_threshold.rag_similarity_assessment()'],['../df/df4/namespacefirst__prompt.html#ad4de437a211469acedacf78084d6c75f',1,'first_prompt.rag_similarity_assessment()'],['../d0/d28/namespacesecond__prompt.html#a92507d6e68a8bfcee0e3a2efdf3b2d57',1,'second_prompt.rag_similarity_assessment()'],['../dc/dc6/namespacethird__prompt.html#a70d3ae8bb0f19845e307782033c01f0b',1,'third_prompt.rag_similarity_assessment()'],['../d7/d43/namespaceprompt__testing.html#a30a54e5ed3e069c8e66056696d4ffa57',1,'prompt_testing.rag_similarity_assessment()']]],
+  ['references_1',['References',['../index.html#autotoc_md4',1,'']]],
+  ['repos_2',['repos',['../d2/dc1/namespacemain.html#a05af66aae324771d40c2a6a8088baca3',1,'main']]],
+  ['repositoryembedder_3',['RepositoryEmbedder',['../d5/d06/classmain_1_1RepositoryEmbedder.html',1,'main']]],
+  ['results_5fby_5fprompt_4',['results_by_prompt',['../df/df4/namespacefirst__prompt.html#a1205c85bd7eba27abe23f61ae9018f1a',1,'first_prompt.results_by_prompt'],['../d0/d28/namespacesecond__prompt.html#aa329645cd14f1031467c883e332fba79',1,'second_prompt.results_by_prompt'],['../dc/dc6/namespacethird__prompt.html#ad7a8bafa406af6ccf2db528309dd6d68',1,'third_prompt.results_by_prompt'],['../d7/d43/namespaceprompt__testing.html#ab44329e2a1ebab85b76fb2d05449fb7b',1,'prompt_testing.results_by_prompt']]],
+  ['run_5',['run',['../d4/d7e/namespacerun.html',1,'']]]
 ];

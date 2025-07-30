@@ -1,0 +1,292 @@
+\doxysection{expressions.\+py}
+\hypertarget{expressions_8py_source}{}\label{expressions_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/pandas/core/computation/expressions.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/pandas/core/computation/expressions.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00001}\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expressions}{00001}}\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00002}00002\ \textcolor{stringliteral}{Expressions}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00003}00003\ \textcolor{stringliteral}{-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00004}00004\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00005}00005\ \textcolor{stringliteral}{Offer\ fast\ expression\ evaluation\ through\ numexpr}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00006}00006\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00007}00007\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00008}00008\ \textcolor{keyword}{from}\ \_\_future\_\_\ \textcolor{keyword}{import}\ annotations}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00009}00009\ }
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00010}00010\ \textcolor{keyword}{import}\ operator}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00011}00011\ \textcolor{keyword}{from}\ typing\ \textcolor{keyword}{import}\ TYPE\_CHECKING}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00012}00012\ \textcolor{keyword}{import}\ warnings}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00013}00013\ }
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00014}00014\ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00015}00015\ }
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00016}00016\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1__config}{pandas.\_config}}\ \textcolor{keyword}{import}\ get\_option}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00017}00017\ }
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00018}00018\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1util_1_1__exceptions}{pandas.util.\_exceptions}}\ \textcolor{keyword}{import}\ find\_stack\_level}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00019}00019\ }
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00020}00020\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core}{pandas.core}}\ \textcolor{keyword}{import}\ roperator}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00021}00021\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1check}{pandas.core.computation.check}}\ \textcolor{keyword}{import}\ NUMEXPR\_INSTALLED}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00022}00022\ }
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00023}00023\ \textcolor{keywordflow}{if}\ NUMEXPR\_INSTALLED:}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00024}00024\ \ \ \ \ \textcolor{keyword}{import}\ numexpr\ \textcolor{keyword}{as}\ ne}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00025}00025\ }
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00026}00026\ \textcolor{keywordflow}{if}\ TYPE\_CHECKING:}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00027}00027\ \ \ \ \ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1__typing}{pandas.\_typing}}\ \textcolor{keyword}{import}\ FuncType}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00028}00028\ }
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00029}00029\ \_TEST\_MODE:\ bool\ |\ \textcolor{keywordtype}{None}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00030}00030\ \_TEST\_RESULT:\ list[bool]\ =\ []}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00031}00031\ USE\_NUMEXPR\ =\ NUMEXPR\_INSTALLED}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00032}00032\ \_evaluate:\ FuncType\ |\ \textcolor{keywordtype}{None}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00033}00033\ \_where:\ FuncType\ |\ \textcolor{keywordtype}{None}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00034}00034\ }
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00035}00035\ \textcolor{comment}{\#\ the\ set\ of\ dtypes\ that\ we\ will\ allow\ pass\ to\ numexpr}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00036}00036\ \_ALLOWED\_DTYPES\ =\ \{}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00037}00037\ \ \ \ \ \textcolor{stringliteral}{"{}evaluate"{}}:\ \{\textcolor{stringliteral}{"{}int64"{}},\ \textcolor{stringliteral}{"{}int32"{}},\ \textcolor{stringliteral}{"{}float64"{}},\ \textcolor{stringliteral}{"{}float32"{}},\ \textcolor{stringliteral}{"{}bool"{}}\},}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00038}00038\ \ \ \ \ \textcolor{stringliteral}{"{}where"{}}:\ \{\textcolor{stringliteral}{"{}int64"{}},\ \textcolor{stringliteral}{"{}float64"{}},\ \textcolor{stringliteral}{"{}bool"{}}\},}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00039}00039\ \}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00040}00040\ }
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00041}00041\ \textcolor{comment}{\#\ the\ minimum\ prod\ shape\ that\ we\ will\ use\ numexpr}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00042}00042\ \_MIN\_ELEMENTS\ =\ 1\_000\_000}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00043}00043\ }
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00044}00044\ }
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00045}00045\ \textcolor{keyword}{def\ }set\_use\_numexpr(v:\ bool\ =\ \textcolor{keyword}{True})\ -\/>\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00046}00046\ \ \ \ \ \textcolor{comment}{\#\ set/unset\ to\ use\ numexpr}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00047}00047\ \ \ \ \ \textcolor{keyword}{global}\ USE\_NUMEXPR}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00048}00048\ \ \ \ \ \textcolor{keywordflow}{if}\ NUMEXPR\_INSTALLED:}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00049}00049\ \ \ \ \ \ \ \ \ USE\_NUMEXPR\ =\ v}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00050}00050\ }
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00051}00051\ \ \ \ \ \textcolor{comment}{\#\ choose\ what\ we\ are\ going\ to\ do}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00052}00052\ \ \ \ \ \textcolor{keyword}{global}\ \_evaluate,\ \_where}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00053}00053\ }
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00054}00054\ \ \ \ \ \_evaluate\ =\ \_evaluate\_numexpr\ \textcolor{keywordflow}{if}\ USE\_NUMEXPR\ \textcolor{keywordflow}{else}\ \_evaluate\_standard}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00055}00055\ \ \ \ \ \_where\ =\ \_where\_numexpr\ \textcolor{keywordflow}{if}\ USE\_NUMEXPR\ \textcolor{keywordflow}{else}\ \_where\_standard}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00056}00056\ }
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00057}00057\ }
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00058}00058\ \textcolor{keyword}{def\ }set\_numexpr\_threads(n=None)\ -\/>\ None:}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00059}00059\ \ \ \ \ \textcolor{comment}{\#\ if\ we\ are\ using\ numexpr,\ set\ the\ threads\ to\ n}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00060}00060\ \ \ \ \ \textcolor{comment}{\#\ otherwise\ reset}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00061}00061\ \ \ \ \ \textcolor{keywordflow}{if}\ NUMEXPR\_INSTALLED\ \textcolor{keywordflow}{and}\ USE\_NUMEXPR:}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00062}00062\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ n\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00063}00063\ \ \ \ \ \ \ \ \ \ \ \ \ n\ =\ ne.detect\_number\_of\_cores()}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00064}00064\ \ \ \ \ \ \ \ \ ne.set\_num\_threads(n)}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00065}00065\ }
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00066}00066\ }
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00067}\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expressions_a2046afb6d6f98ced33c92637369c72f5}{00067}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expressions_a2046afb6d6f98ced33c92637369c72f5}{\_evaluate\_standard}}(op,\ op\_str,\ a,\ b):}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00068}00068\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00069}00069\ \textcolor{stringliteral}{\ \ \ \ Standard\ evaluation.}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00070}00070\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00071}00071\ \ \ \ \ \textcolor{keywordflow}{if}\ \_TEST\_MODE:}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00072}00072\ \ \ \ \ \ \ \ \ \_store\_test\_result(\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00073}00073\ \ \ \ \ \textcolor{keywordflow}{return}\ op(a,\ b)}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00074}00074\ }
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00075}00075\ }
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00076}\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expressions_a75bcc152c0f08712e735859b65d7c4bf}{00076}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expressions_a75bcc152c0f08712e735859b65d7c4bf}{\_can\_use\_numexpr}}(op,\ op\_str,\ a,\ b,\ dtype\_check)\ -\/>\ bool:}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00077}00077\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}return\ a\ boolean\ if\ we\ WILL\ be\ using\ numexpr"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00078}00078\ \textcolor{stringliteral}{\ \ \ \ if\ op\_str\ is\ not\ None:}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00079}00079\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \#\ required\ min\ elements\ (otherwise\ we\ are\ adding\ overhead)}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00080}00080\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ if\ a.size\ >\ \_MIN\_ELEMENTS:}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00081}00081\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \#\ check\ for\ dtype\ compatibility}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00082}00082\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ dtypes:\ set[str]\ =\ set()}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00083}00083\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ for\ o\ in\ [a,\ b]:}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00084}00084\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \#\ ndarray\ and\ Series\ Case}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00085}00085\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ if\ hasattr(o,\ "{}dtype"{}):}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00086}00086\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ dtypes\ |=\ \{o.dtype.name\}}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00087}00087\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00088}00088\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \#\ allowed\ are\ a\ superset}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00089}00089\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ if\ not\ len(dtypes)\ or\ \_ALLOWED\_DTYPES[dtype\_check]\ >=\ dtypes:}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00090}00090\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ return\ True}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00091}00091\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00092}00092\ \textcolor{stringliteral}{\ \ \ \ return\ False}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00093}00093\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00094}00094\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00095}00095\ \textcolor{stringliteral}{def\ \_evaluate\_numexpr(op,\ op\_str,\ a,\ b):}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00096}00096\ \textcolor{stringliteral}{\ \ \ \ result\ =\ None}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00097}00097\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00098}00098\ \textcolor{stringliteral}{\ \ \ \ if\ \_can\_use\_numexpr(op,\ op\_str,\ a,\ b,\ "{}evaluate"{}):}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00099}00099\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ is\_reversed\ =\ op.\_\_name\_\_.strip("{}\_"{}).startswith("{}r"{})}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00100}00100\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ if\ is\_reversed:}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00101}00101\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \#\ we\ were\ originally\ called\ by\ a\ reversed\ op\ method}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00102}00102\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ a,\ b\ =\ b,\ a}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00103}00103\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00104}00104\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ a\_value\ =\ a}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00105}00105\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ b\_value\ =\ b}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00106}00106\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00107}00107\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ try:}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00108}00108\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ result\ =\ ne.evaluate(}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00109}00109\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f"{}a\_value\ \{op\_str\}\ b\_value"{},}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00110}00110\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ local\_dict=\{"{}a\_value"{}:\ a\_value,\ "{}b\_value"{}:\ b\_value\},}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00111}00111\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ casting="{}safe"{},}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00112}00112\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ )}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00113}00113\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ except\ TypeError:}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00114}00114\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \#\ numexpr\ raises\ eg\ for\ array\ **\ array\ with\ integers}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00115}00115\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \#\ (https://github.com/pydata/numexpr/issues/379)}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00116}00116\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ pass}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00117}00117\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ except\ NotImplementedError:}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00118}00118\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ if\ \_bool\_arith\_fallback(op\_str,\ a,\ b):}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00119}00119\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ pass}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00120}00120\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ else:}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00121}00121\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ raise}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00122}00122\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00123}00123\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ if\ is\_reversed:}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00124}00124\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \#\ reverse\ order\ to\ original\ for\ fallback}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00125}00125\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ a,\ b\ =\ b,\ a}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00126}00126\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00127}00127\ \textcolor{stringliteral}{\ \ \ \ if\ \_TEST\_MODE:}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00128}00128\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \_store\_test\_result(result\ is\ not\ None)}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00129}00129\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00130}00130\ \textcolor{stringliteral}{\ \ \ \ if\ result\ is\ None:}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00131}00131\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ result\ =\ \_evaluate\_standard(op,\ op\_str,\ a,\ b)}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00132}00132\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00133}00133\ \textcolor{stringliteral}{\ \ \ \ return\ result}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00134}00134\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00135}00135\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00136}00136\ \textcolor{stringliteral}{\_op\_str\_mapping\ =\ \{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00137}00137\ \textcolor{stringliteral}{\ \ \ \ operator.add:\ "{}+"{},}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00138}00138\ \textcolor{stringliteral}{\ \ \ \ roperator.radd:\ "{}+"{},}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00139}00139\ \textcolor{stringliteral}{\ \ \ \ operator.mul:\ "{}*"{},}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00140}00140\ \textcolor{stringliteral}{\ \ \ \ roperator.rmul:\ "{}*"{},}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00141}00141\ \textcolor{stringliteral}{\ \ \ \ operator.sub:\ "{}-\/"{},}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00142}00142\ \textcolor{stringliteral}{\ \ \ \ roperator.rsub:\ "{}-\/"{},}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00143}00143\ \textcolor{stringliteral}{\ \ \ \ operator.truediv:\ "{}/"{},}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00144}00144\ \textcolor{stringliteral}{\ \ \ \ roperator.rtruediv:\ "{}/"{},}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00145}00145\ \textcolor{stringliteral}{\ \ \ \ \#\ floordiv\ not\ supported\ by\ numexpr\ 2.x}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00146}00146\ \textcolor{stringliteral}{\ \ \ \ operator.floordiv:\ None,}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00147}00147\ \textcolor{stringliteral}{\ \ \ \ roperator.rfloordiv:\ None,}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00148}00148\ \textcolor{stringliteral}{\ \ \ \ \#\ we\ require\ Python\ semantics\ for\ mod\ of\ negative\ for\ backwards\ compatibility}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00149}00149\ \textcolor{stringliteral}{\ \ \ \ \#\ see\ https://github.com/pydata/numexpr/issues/365}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00150}00150\ \textcolor{stringliteral}{\ \ \ \ \#\ so\ sticking\ with\ unaccelerated\ for\ now\ GH\#36552}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00151}00151\ \textcolor{stringliteral}{\ \ \ \ operator.mod:\ None,}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00152}00152\ \textcolor{stringliteral}{\ \ \ \ roperator.rmod:\ None,}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00153}00153\ \textcolor{stringliteral}{\ \ \ \ operator.pow:\ "{}**"{},}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00154}00154\ \textcolor{stringliteral}{\ \ \ \ roperator.rpow:\ "{}**"{},}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00155}00155\ \textcolor{stringliteral}{\ \ \ \ operator.eq:\ "{}=="{},}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00156}00156\ \textcolor{stringliteral}{\ \ \ \ operator.ne:\ "{}!="{},}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00157}00157\ \textcolor{stringliteral}{\ \ \ \ operator.le:\ "{}<="{},}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00158}00158\ \textcolor{stringliteral}{\ \ \ \ operator.lt:\ "{}<"{},}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00159}00159\ \textcolor{stringliteral}{\ \ \ \ operator.ge:\ "{}>="{},}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00160}00160\ \textcolor{stringliteral}{\ \ \ \ operator.gt:\ "{}>"{},}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00161}00161\ \textcolor{stringliteral}{\ \ \ \ operator.and\_:\ "{}\&"{},}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00162}00162\ \textcolor{stringliteral}{\ \ \ \ roperator.rand\_:\ "{}\&"{},}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00163}00163\ \textcolor{stringliteral}{\ \ \ \ operator.or\_:\ "{}|"{},}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00164}00164\ \textcolor{stringliteral}{\ \ \ \ roperator.ror\_:\ "{}|"{},}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00165}00165\ \textcolor{stringliteral}{\ \ \ \ operator.xor:\ "{}\string^"{},}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00166}00166\ \textcolor{stringliteral}{\ \ \ \ roperator.rxor:\ "{}\string^"{},}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00167}00167\ \textcolor{stringliteral}{\ \ \ \ divmod:\ None,}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00168}00168\ \textcolor{stringliteral}{\ \ \ \ roperator.rdivmod:\ None,}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00169}00169\ \textcolor{stringliteral}{\}}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00170}00170\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00171}00171\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00172}00172\ \textcolor{stringliteral}{def\ \_where\_standard(cond,\ a,\ b):}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00173}00173\ \textcolor{stringliteral}{\ \ \ \ \#\ Caller\ is\ responsible\ for\ extracting\ ndarray\ if\ necessary}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00174}00174\ \textcolor{stringliteral}{\ \ \ \ return\ np.where(cond,\ a,\ b)}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00175}00175\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00176}00176\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00177}00177\ \textcolor{stringliteral}{def\ \_where\_numexpr(cond,\ a,\ b):}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00178}00178\ \textcolor{stringliteral}{\ \ \ \ \#\ Caller\ is\ responsible\ for\ extracting\ ndarray\ if\ necessary}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00179}00179\ \textcolor{stringliteral}{\ \ \ \ result\ =\ None}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00180}00180\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00181}00181\ \textcolor{stringliteral}{\ \ \ \ if\ \_can\_use\_numexpr(None,\ "{}where"{},\ a,\ b,\ "{}where"{}):}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00182}00182\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ result\ =\ ne.evaluate(}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00183}00183\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ "{}where(cond\_value,\ a\_value,\ b\_value)"{},}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00184}00184\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ local\_dict=\{"{}cond\_value"{}:\ cond,\ "{}a\_value"{}:\ a,\ "{}b\_value"{}:\ b\},}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00185}00185\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ casting="{}safe"{},}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00186}00186\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ )}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00187}00187\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00188}00188\ \textcolor{stringliteral}{\ \ \ \ if\ result\ is\ None:}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00189}00189\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ result\ =\ \_where\_standard(cond,\ a,\ b)}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00190}00190\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00191}00191\ \textcolor{stringliteral}{\ \ \ \ return\ result}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00192}00192\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00193}00193\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00194}00194\ \textcolor{stringliteral}{\#\ turn\ myself\ on}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00195}00195\ \textcolor{stringliteral}{set\_use\_numexpr(get\_option("{}compute.use\_numexpr"{}))}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00196}00196\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00197}00197\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00198}00198\ \textcolor{stringliteral}{def\ \_has\_bool\_dtype(x):}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00199}00199\ \textcolor{stringliteral}{\ \ \ \ try:}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00200}00200\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ return\ x.dtype\ ==\ bool}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00201}00201\ \textcolor{stringliteral}{\ \ \ \ except\ AttributeError:}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00202}00202\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ return\ isinstance(x,\ (bool,\ np.bool\_))}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00203}00203\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00204}00204\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00205}00205\ \textcolor{stringliteral}{\_BOOL\_OP\_UNSUPPORTED\ =\ \{"{}+"{}:\ "{}|"{},\ "{}*"{}:\ "{}\&"{},\ "{}-\/"{}:\ "{}\string^"{}\}}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00206}00206\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00207}00207\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00208}\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expressions_a03264bcc70aa70362b39176a246bb284}{00208}}\ \textcolor{stringliteral}{def\ \_bool\_arith\_fallback(op\_str,\ a,\ b)\ -\/>\ bool:}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00209}00209\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00210}00210\ \ \ \ \ Check\ if\ we\ should\ fallback\ to\ the\ python\ \`{}\_evaluate\_standard\`{}\ in\ case}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00211}00211\ \ \ \ \ of\ an\ unsupported\ operation\ by\ numexpr,\ which\ is\ the\ case\ for\ some}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00212}00212\ \ \ \ \ boolean\ ops.}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00213}00213\ \ \ \ \ "{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00214}00214\ \ \ \ \ if\ \_has\_bool\_dtype(a)\ and\ \_has\_bool\_dtype(b):}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00215}00215\ \ \ \ \ \ \ \ \ if\ op\_str\ in\ \_BOOL\_OP\_UNSUPPORTED:}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00216}00216\ \ \ \ \ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00217}00217\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f"{}evaluating\ in\ Python\ space\ because\ the\ \{repr(op\_str)\}\ "{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00218}00218\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "{}operator\ is\ not\ supported\ by\ numexpr\ for\ the\ bool\ dtype,\ "{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00219}00219\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f"{}use\ \{repr(\_BOOL\_OP\_UNSUPPORTED[op\_str])\}\ instead."{},}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00220}00220\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ stacklevel=find\_stack\_level(),}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00221}00221\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00222}00222\ \ \ \ \ \ \ \ \ \ \ \ \ return\ True}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00223}00223\ \ \ \ \ return\ False}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00224}00224\ }
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00225}00225\ }
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00226}\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expressions_a948325cdee372093a7e153a7b690e59a}{00226}}\ def\ evaluate(op,\ a,\ b,\ use\_numexpr:\ bool\ =\ True):}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00227}00227\ \ \ \ \ "{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00228}00228\ \ \ \ \ Evaluate\ and\ return\ the\ expression\ of\ the\ op\ on\ a\ and\ b.}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00229}00229\ }
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00230}00230\ \ \ \ \ Parameters}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00231}00231\ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00232}00232\ \ \ \ \ op\ :\ the\ actual\ operand}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00233}00233\ \ \ \ \ a\ :\ left\ operand}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00234}00234\ \ \ \ \ b\ :\ right\ operand}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00235}00235\ \ \ \ \ use\_numexpr\ :\ bool,\ default\ True}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00236}00236\ \ \ \ \ \ \ \ \ Whether\ to\ try\ to\ use\ numexpr.}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00237}00237\ \ \ \ \ "{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00238}00238\ \ \ \ \ op\_str\ =\ \_op\_str\_mapping[op]}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00239}00239\ \ \ \ \ if\ op\_str\ is\ not\ None:}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00240}00240\ \ \ \ \ \ \ \ \ if\ use\_numexpr:}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00241}00241\ \ \ \ \ \ \ \ \ \ \ \ \ \#\ error:\ "{}None"{}\ not\ callable}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00242}00242\ \ \ \ \ \ \ \ \ \ \ \ \ return\ \_evaluate(op,\ op\_str,\ a,\ b)\ \ \#\ type:\ ignore[misc]}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00243}00243\ \ \ \ \ return\ \_evaluate\_standard(op,\ op\_str,\ a,\ b)}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00244}00244\ }
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00245}00245\ }
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00246}\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expressions_a090b8312dee50ca5a9fa97ed37f142d4}{00246}}\ def\ where(cond,\ a,\ b,\ use\_numexpr:\ bool\ =\ True):}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00247}00247\ \ \ \ \ "{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00248}00248\ \ \ \ \ Evaluate\ the\ where\ condition\ cond\ on\ a\ and\ b.}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00249}00249\ }
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00250}00250\ \ \ \ \ Parameters}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00251}00251\ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00252}00252\ \ \ \ \ cond\ :\ np.ndarray[bool]}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00253}00253\ \ \ \ \ a\ :\ return\ if\ cond\ is\ True}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00254}00254\ \ \ \ \ b\ :\ return\ if\ cond\ is\ False}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00255}00255\ \ \ \ \ use\_numexpr\ :\ bool,\ default\ True}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00256}00256\ \ \ \ \ \ \ \ \ Whether\ to\ try\ to\ use\ numexpr.}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00257}00257\ \ \ \ \ "{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00258}00258\ \ \ \ \ assert\ \_where\ is\ not\ None}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00259}00259\ \ \ \ \ return\ \_where(cond,\ a,\ b)\ if\ use\_numexpr\ else\ \_where\_standard(cond,\ a,\ b)}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00260}00260\ }
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00261}00261\ }
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00262}\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expressions_a0471034affcf84f3884243c49ac11ae3}{00262}}\ def\ set\_test\_mode(v:\ bool\ =\ True)\ -\/>\ None:}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00263}00263\ \ \ \ \ "{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00264}00264\ \ \ \ \ Keeps\ track\ of\ whether\ numexpr\ was\ used.}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00265}00265\ }
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00266}00266\ \ \ \ \ Stores\ an\ additional\ \`{}\`{}True\`{}\`{}\ for\ every\ successful\ use\ of\ evaluate\ with}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00267}00267\ \ \ \ \ numexpr\ since\ the\ last\ \`{}\`{}get\_test\_result\`{}\`{}.}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00268}00268\ \ \ \ \ "{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00269}00269\ \ \ \ \ global\ \_TEST\_MODE,\ \_TEST\_RESULT}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00270}00270\ \ \ \ \ \_TEST\_MODE\ =\ v}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00271}00271\ \ \ \ \ \_TEST\_RESULT\ =\ []}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00272}00272\ }
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00273}00273\ }
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00274}00274\ def\ \_store\_test\_result(used\_numexpr:\ bool)\ -\/>\ None:}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00275}00275\ \ \ \ \ if\ used\_numexpr:}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00276}00276\ \ \ \ \ \ \ \ \ \_TEST\_RESULT.append(used\_numexpr)}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00277}00277\ }
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00278}00278\ }
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00279}\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expressions_aa0df260105ff8ac1d0d9018c9ecb3b7f}{00279}}\ def\ get\_test\_result()\ -\/>\ list[bool]:}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00280}00280\ \ \ \ \ "{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00281}00281\ \ \ \ \ Get\ test\ result\ and\ reset\ test\_results.}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00282}00282\ \ \ \ \ "{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00283}00283\ \ \ \ \ global\ \_TEST\_RESULT}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00284}00284\ \ \ \ \ res\ =\ \_TEST\_RESULT}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00285}00285\ \ \ \ \ \_TEST\_RESULT\ =\ []}
+\DoxyCodeLine{\Hypertarget{expressions_8py_source_l00286}00286\ \ \ \ \ return\ res}
+
+\end{DoxyCode}

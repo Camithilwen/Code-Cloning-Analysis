@@ -1,0 +1,27 @@
+var namespacepandas_1_1io_1_1common =
+[
+    [ "_BufferedWriter", "d4/df2/classpandas_1_1io_1_1common_1_1__BufferedWriter.html", null ],
+    [ "_BytesIOWrapper", "d3/d41/classpandas_1_1io_1_1common_1_1__BytesIOWrapper.html", null ],
+    [ "_BytesTarFile", "df/da5/classpandas_1_1io_1_1common_1_1__BytesTarFile.html", "df/da5/classpandas_1_1io_1_1common_1_1__BytesTarFile" ],
+    [ "_BytesZipFile", "d2/d0c/classpandas_1_1io_1_1common_1_1__BytesZipFile.html", "d2/d0c/classpandas_1_1io_1_1common_1_1__BytesZipFile" ],
+    [ "_IOWrapper", "d1/d7a/classpandas_1_1io_1_1common_1_1__IOWrapper.html", null ],
+    [ "IOArgs", "d2/d38/classpandas_1_1io_1_1common_1_1IOArgs.html", null ],
+    [ "IOHandles", "db/dd8/classpandas_1_1io_1_1common_1_1IOHandles.html", "db/dd8/classpandas_1_1io_1_1common_1_1IOHandles" ],
+    [ "_expand_user", "dd/dd4/namespacepandas_1_1io_1_1common.html#a853ead11c19af0807d32b0821386a96e", null ],
+    [ "_get_binary_io_classes", "dd/dd4/namespacepandas_1_1io_1_1common.html#a7687496d748c0887ad6dbad39746dea9", null ],
+    [ "_get_filepath_or_buffer", "dd/dd4/namespacepandas_1_1io_1_1common.html#aa56752a4e3bc8a1a4d123c4e9bcb2c63", null ],
+    [ "_is_binary_mode", "dd/dd4/namespacepandas_1_1io_1_1common.html#a252d61f930ed71e40b6673d343021c3f", null ],
+    [ "_maybe_memory_map", "dd/dd4/namespacepandas_1_1io_1_1common.html#ae72a0d90c8f88c8fb372706b70854c4c", null ],
+    [ "check_parent_directory", "dd/dd4/namespacepandas_1_1io_1_1common.html#a9f0124d3d5ffa3ddc0e154132298f2a1", null ],
+    [ "dedup_names", "dd/dd4/namespacepandas_1_1io_1_1common.html#abf800ca272a12f06cf9d06d1b5a5152d", null ],
+    [ "file_exists", "dd/dd4/namespacepandas_1_1io_1_1common.html#a102e15d189c1ebe814474357d7841b21", null ],
+    [ "file_path_to_url", "dd/dd4/namespacepandas_1_1io_1_1common.html#aeef2ee67aeae9c45c822b9d4b608a08c", null ],
+    [ "get_compression_method", "dd/dd4/namespacepandas_1_1io_1_1common.html#a901e867c3640a5efdeb43979b86ab68c", null ],
+    [ "get_handle", "dd/dd4/namespacepandas_1_1io_1_1common.html#ae884b6101ff9df73d5f434d0e2abe20d", null ],
+    [ "infer_compression", "dd/dd4/namespacepandas_1_1io_1_1common.html#ab54696e79049a1101a19c8026700e850", null ],
+    [ "is_fsspec_url", "dd/dd4/namespacepandas_1_1io_1_1common.html#aa98ea8d5f8016162c39569af160a23d5", null ],
+    [ "is_potential_multi_index", "dd/dd4/namespacepandas_1_1io_1_1common.html#a6c844706c3281556ae74f113421e0c2d", null ],
+    [ "is_url", "dd/dd4/namespacepandas_1_1io_1_1common.html#af1882fa1ca6e99754a933d6a204368e5", null ],
+    [ "stringify_path", "dd/dd4/namespacepandas_1_1io_1_1common.html#ae5354240293542a636bebbd9af1e0410", null ],
+    [ "urlopen", "dd/dd4/namespacepandas_1_1io_1_1common.html#a77513976286cfac562d04e74273eb8e0", null ]
+];

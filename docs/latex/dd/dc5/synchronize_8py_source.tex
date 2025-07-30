@@ -1,0 +1,403 @@
+\doxysection{synchronize.\+py}
+\hypertarget{synchronize_8py_source}{}\label{synchronize_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/joblib/externals/loky/backend/synchronize.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/joblib/externals/loky/backend/synchronize.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00001}\mbox{\hyperlink{namespacejoblib_1_1externals_1_1loky_1_1backend_1_1synchronize}{00001}}\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00014}00014\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00015}00015\ \textcolor{keyword}{import}\ os}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00016}00016\ \textcolor{keyword}{import}\ sys}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00017}00017\ \textcolor{keyword}{import}\ tempfile}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00018}00018\ \textcolor{keyword}{import}\ threading}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00019}00019\ \textcolor{keyword}{import}\ \_multiprocessing}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00020}00020\ \textcolor{keyword}{from}\ time\ \textcolor{keyword}{import}\ time\ \textcolor{keyword}{as}\ \_time}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00021}00021\ \textcolor{keyword}{from}\ multiprocessing\ \textcolor{keyword}{import}\ process,\ util}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00022}00022\ \textcolor{keyword}{from}\ multiprocessing.context\ \textcolor{keyword}{import}\ assert\_spawning}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00023}00023\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00024}00024\ \textcolor{keyword}{from}\ .\ \textcolor{keyword}{import}\ resource\_tracker}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00025}00025\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00026}00026\ \_\_all\_\_\ =\ [}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00027}00027\ \ \ \ \ \textcolor{stringliteral}{"{}Lock"{}},}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00028}00028\ \ \ \ \ \textcolor{stringliteral}{"{}RLock"{}},}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00029}00029\ \ \ \ \ \textcolor{stringliteral}{"{}Semaphore"{}},}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00030}00030\ \ \ \ \ \textcolor{stringliteral}{"{}BoundedSemaphore"{}},}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00031}00031\ \ \ \ \ \textcolor{stringliteral}{"{}Condition"{}},}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00032}00032\ \ \ \ \ \textcolor{stringliteral}{"{}Event"{}},}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00033}00033\ ]}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00034}00034\ \textcolor{comment}{\#\ Try\ to\ import\ the\ mp.synchronize\ module\ cleanly,\ if\ it\ fails}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00035}00035\ \textcolor{comment}{\#\ raise\ ImportError\ for\ platforms\ lacking\ a\ working\ sem\_open\ implementation.}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00036}00036\ \textcolor{comment}{\#\ See\ issue\ 3770}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00037}00037\ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00038}00038\ \ \ \ \ \textcolor{keyword}{from}\ \_multiprocessing\ \textcolor{keyword}{import}\ SemLock\ \textcolor{keyword}{as}\ \_SemLock}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00039}00039\ \ \ \ \ \textcolor{keyword}{from}\ \_multiprocessing\ \textcolor{keyword}{import}\ sem\_unlink}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00040}00040\ \textcolor{keywordflow}{except}\ ImportError:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00041}00041\ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classImportError}{ImportError}}(}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00042}00042\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}This\ platform\ lacks\ a\ functioning\ sem\_open"{}}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00043}00043\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ implementation,\ therefore,\ the\ required"{}}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00044}00044\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ synchronization\ primitives\ needed\ will\ not"{}}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00045}00045\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ function,\ see\ issue\ 3770."{}}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00046}00046\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00047}00047\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00048}00048\ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00049}00049\ \textcolor{comment}{\#\ Constants}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00050}00050\ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00051}00051\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00052}00052\ RECURSIVE\_MUTEX,\ SEMAPHORE\ =\ range(2)}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00053}00053\ SEM\_VALUE\_MAX\ =\ \_multiprocessing.SemLock.SEM\_VALUE\_MAX}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00054}00054\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00055}00055\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00056}00056\ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00057}00057\ \textcolor{comment}{\#\ Base\ class\ for\ semaphores\ and\ mutexes;\ wraps\ \`{}\_multiprocessing.SemLock`}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00058}00058\ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00059}00059\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00060}00060\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00061}\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1SemLock}{00061}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1SemLock}{SemLock}}:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00062}00062\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00063}00063\ \ \ \ \ \_rand\ =\ tempfile.\_RandomNameSequence()}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00064}00064\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00065}00065\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ kind,\ value,\ maxvalue,\ name=None):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00066}00066\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ unlink\_now\ is\ only\ used\ on\ win32\ or\ when\ we\ are\ using\ fork.}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00067}00067\ \ \ \ \ \ \ \ \ unlink\_now\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00068}00068\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ name\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00069}00069\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Try\ to\ find\ an\ unused\ name\ for\ the\ SemLock\ instance.}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00070}00070\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ \_\ \textcolor{keywordflow}{in}\ range(100):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00071}00071\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00072}00072\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1SemLock_afcc71d23048417e30cce3248db80b90e}{\_semlock}}\ =\ \_SemLock(}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00073}00073\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ kind,\ value,\ maxvalue,\ SemLock.\_make\_name(),\ unlink\_now}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00074}00074\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00075}00075\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ FileExistsError:\ \ \textcolor{comment}{\#\ pragma:\ no\ cover}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00076}00076\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{pass}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00077}00077\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00078}00078\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00079}00079\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:\ \ \textcolor{comment}{\#\ pragma:\ no\ cover}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00080}00080\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ FileExistsError(\textcolor{stringliteral}{"{}cannot\ find\ name\ for\ semaphore"{}})}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00081}00081\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00082}00082\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1SemLock_afcc71d23048417e30cce3248db80b90e}{\_semlock}}\ =\ \_SemLock(kind,\ value,\ maxvalue,\ name,\ unlink\_now)}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00083}00083\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1SemLock_aa3d59ed631402d4d7d4c7741277fee55}{name}}\ =\ name}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00084}00084\ \ \ \ \ \ \ \ \ util.debug(}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00085}00085\ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}created\ semlock\ with\ handle\ \{self.\_semlock.handle\}\ and\ name\ "{}}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00086}00086\ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{'"{}\{self.name\}"{}'}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00087}00087\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00088}00088\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00089}00089\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1SemLock_aa392057ace1fa8600413a14192afeb2c}{\_make\_methods}}()}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00090}00090\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00091}00091\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }\_after\_fork(obj):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00092}00092\ \ \ \ \ \ \ \ \ \ \ \ \ obj.\_semlock.\_after\_fork()}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00093}00093\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00094}00094\ \ \ \ \ \ \ \ \ util.register\_after\_fork(self,\ \_after\_fork)}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00095}00095\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00096}00096\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ When\ the\ object\ is\ garbage\ collected\ or\ the}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00097}00097\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ process\ shuts\ down\ we\ unlink\ the\ semaphore\ name}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00098}00098\ \ \ \ \ \ \ \ \ resource\_tracker.register(self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1SemLock_afcc71d23048417e30cce3248db80b90e}{\_semlock}}.name,\ \textcolor{stringliteral}{"{}semlock"{}})}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00099}00099\ \ \ \ \ \ \ \ \ util.Finalize(}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00100}00100\ \ \ \ \ \ \ \ \ \ \ \ \ self,\ SemLock.\_cleanup,\ (self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1SemLock_afcc71d23048417e30cce3248db80b90e}{\_semlock}}.name,),\ exitpriority=0}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00101}00101\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00102}00102\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00103}00103\ \ \ \ \ \textcolor{preprocessor}{@staticmethod}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00104}00104\ \ \ \ \ \textcolor{keyword}{def\ }\_cleanup(name):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00105}00105\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00106}00106\ \ \ \ \ \ \ \ \ \ \ \ \ sem\_unlink(name)}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00107}00107\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ FileNotFoundError:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00108}00108\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Already\ unlinked,\ possibly\ by\ user\ code:\ ignore\ and\ make\ sure\ to}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00109}00109\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ unregister\ the\ semaphore\ from\ the\ resource\ tracker.}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00110}00110\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{pass}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00111}00111\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{finally}:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00112}00112\ \ \ \ \ \ \ \ \ \ \ \ \ resource\_tracker.unregister(name,\ \textcolor{stringliteral}{"{}semlock"{}})}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00113}00113\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00114}00114\ \ \ \ \ \textcolor{keyword}{def\ }\_make\_methods(self):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00115}00115\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1SemLock_a60feacdcafb5eb24db3b0040cf297332}{acquire}}\ =\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1SemLock_afcc71d23048417e30cce3248db80b90e}{\_semlock}}.acquire}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00116}00116\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1SemLock_a27e64a7277be6a0eb2b80b311457221e}{release}}\ =\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1SemLock_afcc71d23048417e30cce3248db80b90e}{\_semlock}}.release}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00117}00117\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00118}00118\ \ \ \ \ \textcolor{keyword}{def\ }\_\_enter\_\_(self):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00119}00119\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1SemLock_afcc71d23048417e30cce3248db80b90e}{\_semlock}}.acquire()}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00120}00120\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00121}00121\ \ \ \ \ \textcolor{keyword}{def\ }\_\_exit\_\_(self,\ *args):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00122}00122\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1SemLock_afcc71d23048417e30cce3248db80b90e}{\_semlock}}.release()}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00123}00123\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00124}00124\ \ \ \ \ \textcolor{keyword}{def\ }\_\_getstate\_\_(self):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00125}00125\ \ \ \ \ \ \ \ \ assert\_spawning(self)}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00126}00126\ \ \ \ \ \ \ \ \ sl\ =\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1SemLock_afcc71d23048417e30cce3248db80b90e}{\_semlock}}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00127}00127\ \ \ \ \ \ \ \ \ h\ =\ sl.handle}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00128}00128\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ (h,\ sl.kind,\ sl.maxvalue,\ sl.name)}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00129}00129\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00130}00130\ \ \ \ \ \textcolor{keyword}{def\ }\_\_setstate\_\_(self,\ state):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00131}00131\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1SemLock_afcc71d23048417e30cce3248db80b90e}{\_semlock}}\ =\ \_SemLock.\_rebuild(*state)}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00132}00132\ \ \ \ \ \ \ \ \ util.debug(}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00133}00133\ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{'recreated\ blocker\ with\ handle\ \{state[0]!r\}\ and\ name\ "{}\{state[3]\}"{}'}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00134}00134\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00135}00135\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1SemLock_aa392057ace1fa8600413a14192afeb2c}{\_make\_methods}}()}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00136}00136\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00137}00137\ \ \ \ \ \textcolor{preprocessor}{@staticmethod}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00138}00138\ \ \ \ \ \textcolor{keyword}{def\ }\_make\_name():}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00139}00139\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ OSX\ does\ not\ support\ long\ names\ for\ semaphores}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00140}00140\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ f\textcolor{stringliteral}{"{}/loky-\/\{os.getpid()\}-\/\{next(SemLock.\_rand)\}"{}}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00141}00141\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00142}00142\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00143}00143\ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00144}00144\ \textcolor{comment}{\#\ Semaphore}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00145}00145\ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00146}00146\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00147}00147\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00148}\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Semaphore}{00148}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Semaphore}{Semaphore}}(\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1SemLock}{SemLock}}):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00149}00149\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ value=1):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00150}00150\ \ \ \ \ \ \ \ \ SemLock.\_\_init\_\_(self,\ SEMAPHORE,\ value,\ SEM\_VALUE\_MAX)}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00151}00151\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00152}00152\ \ \ \ \ \textcolor{keyword}{def\ }get\_value(self):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00153}00153\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ sys.platform\ ==\ \textcolor{stringliteral}{"{}darwin"{}}:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00154}00154\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classNotImplementedError}{NotImplementedError}}(\textcolor{stringliteral}{"{}OSX\ does\ not\ implement\ sem\_getvalue"{}})}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00155}00155\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1SemLock_afcc71d23048417e30cce3248db80b90e}{\_semlock}}.\_get\_value()}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00156}00156\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00157}00157\ \ \ \ \ \textcolor{keyword}{def\ }\_\_repr\_\_(self):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00158}00158\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00159}00159\ \ \ \ \ \ \ \ \ \ \ \ \ value\ =\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1SemLock_afcc71d23048417e30cce3248db80b90e}{\_semlock}}.\_get\_value()}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00160}00160\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ Exception:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00161}00161\ \ \ \ \ \ \ \ \ \ \ \ \ value\ =\ \textcolor{stringliteral}{"{}unknown"{}}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00162}00162\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ f\textcolor{stringliteral}{"{}<\{self.\_\_class\_\_.\_\_name\_\_\}(value=\{value\})>"{}}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00163}00163\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00164}00164\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00165}00165\ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00166}00166\ \textcolor{comment}{\#\ Bounded\ semaphore}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00167}00167\ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00168}00168\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00169}00169\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00170}\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1BoundedSemaphore}{00170}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1BoundedSemaphore}{BoundedSemaphore}}(\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Semaphore}{Semaphore}}):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00171}00171\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ value=1):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00172}00172\ \ \ \ \ \ \ \ \ SemLock.\_\_init\_\_(self,\ SEMAPHORE,\ value,\ value)}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00173}00173\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00174}00174\ \ \ \ \ \textcolor{keyword}{def\ }\_\_repr\_\_(self):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00175}00175\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00176}00176\ \ \ \ \ \ \ \ \ \ \ \ \ value\ =\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1SemLock_afcc71d23048417e30cce3248db80b90e}{\_semlock}}.\_get\_value()}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00177}00177\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ Exception:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00178}00178\ \ \ \ \ \ \ \ \ \ \ \ \ value\ =\ \textcolor{stringliteral}{"{}unknown"{}}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00179}00179\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ (}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00180}00180\ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}<\{self.\_\_class\_\_.\_\_name\_\_\}(value=\{value\},\ "{}}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00181}00181\ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}maxvalue=\{self.\_semlock.maxvalue\})>"{}}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00182}00182\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00183}00183\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00184}00184\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00185}00185\ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00186}00186\ \textcolor{comment}{\#\ Non-\/recursive\ lock}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00187}00187\ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00188}00188\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00189}00189\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00190}\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Lock}{00190}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Lock}{Lock}}(\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1SemLock}{SemLock}}):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00191}00191\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00192}00192\ \ \ \ \ \ \ \ \ super().\_\_init\_\_(SEMAPHORE,\ 1,\ 1)}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00193}00193\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00194}00194\ \ \ \ \ \textcolor{keyword}{def\ }\_\_repr\_\_(self):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00195}00195\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00196}00196\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1SemLock_afcc71d23048417e30cce3248db80b90e}{\_semlock}}.\_is\_mine():}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00197}00197\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ name\ =\ process.current\_process().name}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00198}00198\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ threading.current\_thread().name\ !=\ \textcolor{stringliteral}{"{}MainThread"{}}:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00199}00199\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ name\ =\ f\textcolor{stringliteral}{"{}\{name\}|\{threading.current\_thread().name\}"{}}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00200}00200\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1SemLock_afcc71d23048417e30cce3248db80b90e}{\_semlock}}.\_get\_value()\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00201}00201\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ name\ =\ \textcolor{stringliteral}{"{}None"{}}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00202}00202\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1SemLock_afcc71d23048417e30cce3248db80b90e}{\_semlock}}.\_count()\ >\ 0:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00203}00203\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ name\ =\ \textcolor{stringliteral}{"{}SomeOtherThread"{}}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00204}00204\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00205}00205\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ name\ =\ \textcolor{stringliteral}{"{}SomeOtherProcess"{}}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00206}00206\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ Exception:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00207}00207\ \ \ \ \ \ \ \ \ \ \ \ \ name\ =\ \textcolor{stringliteral}{"{}unknown"{}}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00208}00208\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ f\textcolor{stringliteral}{"{}<\{self.\_\_class\_\_.\_\_name\_\_\}(owner=\{name\})>"{}}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00209}00209\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00210}00210\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00211}00211\ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00212}00212\ \textcolor{comment}{\#\ Recursive\ lock}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00213}00213\ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00214}00214\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00215}00215\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00216}\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1RLock}{00216}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1RLock}{RLock}}(\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1SemLock}{SemLock}}):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00217}00217\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00218}00218\ \ \ \ \ \ \ \ \ super().\_\_init\_\_(RECURSIVE\_MUTEX,\ 1,\ 1)}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00219}00219\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00220}00220\ \ \ \ \ \textcolor{keyword}{def\ }\_\_repr\_\_(self):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00221}00221\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00222}00222\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1SemLock_afcc71d23048417e30cce3248db80b90e}{\_semlock}}.\_is\_mine():}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00223}00223\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ name\ =\ process.current\_process().name}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00224}00224\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ threading.current\_thread().name\ !=\ \textcolor{stringliteral}{"{}MainThread"{}}:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00225}00225\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ name\ =\ f\textcolor{stringliteral}{"{}\{name\}|\{threading.current\_thread().name\}"{}}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00226}00226\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ count\ =\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1SemLock_afcc71d23048417e30cce3248db80b90e}{\_semlock}}.\_count()}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00227}00227\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1SemLock_afcc71d23048417e30cce3248db80b90e}{\_semlock}}.\_get\_value()\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00228}00228\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ name,\ count\ =\ \textcolor{stringliteral}{"{}None"{}},\ 0}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00229}00229\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1SemLock_afcc71d23048417e30cce3248db80b90e}{\_semlock}}.\_count()\ >\ 0:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00230}00230\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ name,\ count\ =\ \textcolor{stringliteral}{"{}SomeOtherThread"{}},\ \textcolor{stringliteral}{"{}nonzero"{}}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00231}00231\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00232}00232\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ name,\ count\ =\ \textcolor{stringliteral}{"{}SomeOtherProcess"{}},\ \textcolor{stringliteral}{"{}nonzero"{}}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00233}00233\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ Exception:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00234}00234\ \ \ \ \ \ \ \ \ \ \ \ \ name,\ count\ =\ \textcolor{stringliteral}{"{}unknown"{}},\ \textcolor{stringliteral}{"{}unknown"{}}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00235}00235\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ f\textcolor{stringliteral}{"{}<\{self.\_\_class\_\_.\_\_name\_\_\}(\{name\},\ \{count\})>"{}}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00236}00236\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00237}00237\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00238}00238\ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00239}00239\ \textcolor{comment}{\#\ Condition\ variable}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00240}00240\ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00241}00241\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00242}00242\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00243}\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition}{00243}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition}{Condition}}:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00244}00244\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ lock=None):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00245}00245\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_adba09cd27dfecabe48179acfffc3a7de}{\_lock}}\ =\ lock\ \textcolor{keywordflow}{or}\ \mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1RLock}{RLock}}()}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00246}00246\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_ab73feaff3ac561213e69d5d47bd57590}{\_sleeping\_count}}\ =\ \mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Semaphore}{Semaphore}}(0)}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00247}00247\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_a70139b26edee641d238f7954d02589e7}{\_woken\_count}}\ =\ \mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Semaphore}{Semaphore}}(0)}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00248}00248\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_a98c4fe0f3590b603638fdb14dc03c00e}{\_wait\_semaphore}}\ =\ \mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Semaphore}{Semaphore}}(0)}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00249}00249\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_a3b75feeff0ac5506919d6ce67029dbae}{\_make\_methods}}()}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00250}00250\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00251}00251\ \ \ \ \ \textcolor{keyword}{def\ }\_\_getstate\_\_(self):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00252}00252\ \ \ \ \ \ \ \ \ assert\_spawning(self)}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00253}00253\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ (}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00254}00254\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_adba09cd27dfecabe48179acfffc3a7de}{\_lock}},}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00255}00255\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_ab73feaff3ac561213e69d5d47bd57590}{\_sleeping\_count}},}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00256}00256\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_a70139b26edee641d238f7954d02589e7}{\_woken\_count}},}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00257}00257\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_a98c4fe0f3590b603638fdb14dc03c00e}{\_wait\_semaphore}},}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00258}00258\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00259}00259\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00260}00260\ \ \ \ \ \textcolor{keyword}{def\ }\_\_setstate\_\_(self,\ state):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00261}00261\ \ \ \ \ \ \ \ \ (}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00262}00262\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_adba09cd27dfecabe48179acfffc3a7de}{\_lock}},}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00263}00263\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_ab73feaff3ac561213e69d5d47bd57590}{\_sleeping\_count}},}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00264}00264\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_a70139b26edee641d238f7954d02589e7}{\_woken\_count}},}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00265}00265\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_a98c4fe0f3590b603638fdb14dc03c00e}{\_wait\_semaphore}},}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00266}00266\ \ \ \ \ \ \ \ \ )\ =\ state}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00267}00267\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_a3b75feeff0ac5506919d6ce67029dbae}{\_make\_methods}}()}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00268}00268\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00269}00269\ \ \ \ \ \textcolor{keyword}{def\ }\_\_enter\_\_(self):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00270}00270\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_adba09cd27dfecabe48179acfffc3a7de}{\_lock}}.\_\_enter\_\_()}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00271}00271\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00272}00272\ \ \ \ \ \textcolor{keyword}{def\ }\_\_exit\_\_(self,\ *args):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00273}00273\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_adba09cd27dfecabe48179acfffc3a7de}{\_lock}}.\_\_exit\_\_(*args)}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00274}00274\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00275}00275\ \ \ \ \ \textcolor{keyword}{def\ }\_make\_methods(self):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00276}00276\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_a295d056b2cdd06e72dbc9b89bc6627dc}{acquire}}\ =\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_adba09cd27dfecabe48179acfffc3a7de}{\_lock}}.acquire}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00277}00277\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_a52600f823d362051b1a7dde90881b913}{release}}\ =\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_adba09cd27dfecabe48179acfffc3a7de}{\_lock}}.release}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00278}00278\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00279}00279\ \ \ \ \ \textcolor{keyword}{def\ }\_\_repr\_\_(self):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00280}00280\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00281}00281\ \ \ \ \ \ \ \ \ \ \ \ \ num\_waiters\ =\ (}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00282}00282\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_ab73feaff3ac561213e69d5d47bd57590}{\_sleeping\_count}}.\_semlock.\_get\_value()}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00283}00283\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ -\/\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_a70139b26edee641d238f7954d02589e7}{\_woken\_count}}.\_semlock.\_get\_value()}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00284}00284\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00285}00285\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ Exception:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00286}00286\ \ \ \ \ \ \ \ \ \ \ \ \ num\_waiters\ =\ \textcolor{stringliteral}{"{}unknown"{}}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00287}00287\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ f\textcolor{stringliteral}{"{}<\{self.\_\_class\_\_.\_\_name\_\_\}(\{self.\_lock\},\ \{num\_waiters\})>"{}}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00288}00288\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00289}00289\ \ \ \ \ \textcolor{keyword}{def\ }wait(self,\ timeout=None):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00290}00290\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ (}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00291}00291\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_adba09cd27dfecabe48179acfffc3a7de}{\_lock}}.\_semlock.\_is\_mine()}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00292}00292\ \ \ \ \ \ \ \ \ ),\ \textcolor{stringliteral}{"{}must\ acquire()\ condition\ before\ using\ wait()"{}}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00293}00293\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00294}00294\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ indicate\ that\ this\ thread\ is\ going\ to\ sleep}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00295}00295\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_ab73feaff3ac561213e69d5d47bd57590}{\_sleeping\_count}}.release()}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00296}00296\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00297}00297\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ release\ lock}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00298}00298\ \ \ \ \ \ \ \ \ count\ =\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_adba09cd27dfecabe48179acfffc3a7de}{\_lock}}.\_semlock.\_count()}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00299}00299\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ \_\ \textcolor{keywordflow}{in}\ range(count):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00300}00300\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_adba09cd27dfecabe48179acfffc3a7de}{\_lock}}.release()}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00301}00301\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00302}00302\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00303}00303\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ wait\ for\ notification\ or\ timeout}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00304}00304\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_a98c4fe0f3590b603638fdb14dc03c00e}{\_wait\_semaphore}}.acquire(\textcolor{keyword}{True},\ timeout)}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00305}00305\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{finally}:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00306}00306\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ indicate\ that\ this\ thread\ has\ woken}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00307}00307\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_a70139b26edee641d238f7954d02589e7}{\_woken\_count}}.release()}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00308}00308\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00309}00309\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ reacquire\ lock}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00310}00310\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ \_\ \textcolor{keywordflow}{in}\ range(count):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00311}00311\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_adba09cd27dfecabe48179acfffc3a7de}{\_lock}}.acquire()}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00312}00312\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00313}00313\ \ \ \ \ \textcolor{keyword}{def\ }notify(self):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00314}00314\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_adba09cd27dfecabe48179acfffc3a7de}{\_lock}}.\_semlock.\_is\_mine(),\ \textcolor{stringliteral}{"{}lock\ is\ not\ owned"{}}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00315}00315\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ \textcolor{keywordflow}{not}\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_a98c4fe0f3590b603638fdb14dc03c00e}{\_wait\_semaphore}}.acquire(\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00316}00316\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00317}00317\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ to\ take\ account\ of\ timeouts\ since\ last\ notify()\ we\ subtract}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00318}00318\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ woken\_count\ from\ sleeping\_count\ and\ rezero\ woken\_count}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00319}00319\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{while}\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_a70139b26edee641d238f7954d02589e7}{\_woken\_count}}.acquire(\textcolor{keyword}{False}):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00320}00320\ \ \ \ \ \ \ \ \ \ \ \ \ res\ =\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_ab73feaff3ac561213e69d5d47bd57590}{\_sleeping\_count}}.acquire(\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00321}00321\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ res}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00322}00322\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00323}00323\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_ab73feaff3ac561213e69d5d47bd57590}{\_sleeping\_count}}.acquire(\textcolor{keyword}{False}):\ \ \textcolor{comment}{\#\ try\ grabbing\ a\ sleeper}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00324}00324\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_a98c4fe0f3590b603638fdb14dc03c00e}{\_wait\_semaphore}}.release()\ \ \textcolor{comment}{\#\ wake\ up\ one\ sleeper}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00325}00325\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_a70139b26edee641d238f7954d02589e7}{\_woken\_count}}.acquire()\ \ \textcolor{comment}{\#\ wait\ for\ the\ sleeper\ to\ wake}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00326}00326\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00327}00327\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ rezero\ \_wait\_semaphore\ in\ case\ a\ timeout\ just\ happened}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00328}00328\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_a98c4fe0f3590b603638fdb14dc03c00e}{\_wait\_semaphore}}.acquire(\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00329}00329\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00330}00330\ \ \ \ \ \textcolor{keyword}{def\ }notify\_all(self):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00331}00331\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_adba09cd27dfecabe48179acfffc3a7de}{\_lock}}.\_semlock.\_is\_mine(),\ \textcolor{stringliteral}{"{}lock\ is\ not\ owned"{}}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00332}00332\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ \textcolor{keywordflow}{not}\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_a98c4fe0f3590b603638fdb14dc03c00e}{\_wait\_semaphore}}.acquire(\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00333}00333\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00334}00334\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ to\ take\ account\ of\ timeouts\ since\ last\ notify*()\ we\ subtract}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00335}00335\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ woken\_count\ from\ sleeping\_count\ and\ rezero\ woken\_count}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00336}00336\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{while}\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_a70139b26edee641d238f7954d02589e7}{\_woken\_count}}.acquire(\textcolor{keyword}{False}):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00337}00337\ \ \ \ \ \ \ \ \ \ \ \ \ res\ =\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_ab73feaff3ac561213e69d5d47bd57590}{\_sleeping\_count}}.acquire(\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00338}00338\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ res}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00339}00339\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00340}00340\ \ \ \ \ \ \ \ \ sleepers\ =\ 0}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00341}00341\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{while}\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_ab73feaff3ac561213e69d5d47bd57590}{\_sleeping\_count}}.acquire(\textcolor{keyword}{False}):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00342}00342\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_a98c4fe0f3590b603638fdb14dc03c00e}{\_wait\_semaphore}}.release()\ \ \textcolor{comment}{\#\ wake\ up\ one\ sleeper}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00343}00343\ \ \ \ \ \ \ \ \ \ \ \ \ sleepers\ +=\ 1}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00344}00344\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00345}00345\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ sleepers:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00346}00346\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ \_\ \textcolor{keywordflow}{in}\ range(sleepers):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00347}00347\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_a70139b26edee641d238f7954d02589e7}{\_woken\_count}}.acquire()\ \ \textcolor{comment}{\#\ wait\ for\ a\ sleeper\ to\ wake}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00348}00348\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00349}00349\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ rezero\ wait\_semaphore\ in\ case\ some\ timeouts\ just\ happened}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00350}00350\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{while}\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_a98c4fe0f3590b603638fdb14dc03c00e}{\_wait\_semaphore}}.acquire(\textcolor{keyword}{False}):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00351}00351\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{pass}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00352}00352\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00353}00353\ \ \ \ \ \textcolor{keyword}{def\ }wait\_for(self,\ predicate,\ timeout=None):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00354}00354\ \ \ \ \ \ \ \ \ result\ =\ predicate()}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00355}00355\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ result:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00356}00356\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ result}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00357}00357\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ timeout\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00358}00358\ \ \ \ \ \ \ \ \ \ \ \ \ endtime\ =\ \_time()\ +\ timeout}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00359}00359\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00360}00360\ \ \ \ \ \ \ \ \ \ \ \ \ endtime\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00361}00361\ \ \ \ \ \ \ \ \ \ \ \ \ waittime\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00362}00362\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{while}\ \textcolor{keywordflow}{not}\ result:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00363}00363\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ endtime\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00364}00364\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ waittime\ =\ endtime\ -\/\ \_time()}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00365}00365\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ waittime\ <=\ 0:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00366}00366\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00367}00367\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition_a13e34b1bb560a370882a95f5793d1ddc}{wait}}(waittime)}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00368}00368\ \ \ \ \ \ \ \ \ \ \ \ \ result\ =\ predicate()}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00369}00369\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ result}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00370}00370\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00371}00371\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00372}00372\ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00373}00373\ \textcolor{comment}{\#\ Event}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00374}00374\ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00375}00375\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00376}00376\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00377}\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Event}{00377}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Event}{Event}}:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00378}00378\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00379}00379\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Event_a851b541dea8ecf15351ebbc697092235}{\_cond}}\ =\ \mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Condition}{Condition}}(\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Lock}{Lock}}())}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00380}00380\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Event_a614542929390d1e68611e03c5cb3bca0}{\_flag}}\ =\ \mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Semaphore}{Semaphore}}(0)}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00381}00381\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00382}00382\ \ \ \ \ \textcolor{keyword}{def\ }is\_set(self):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00383}00383\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Event_a851b541dea8ecf15351ebbc697092235}{\_cond}}:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00384}00384\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Event_a614542929390d1e68611e03c5cb3bca0}{\_flag}}.acquire(\textcolor{keyword}{False}):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00385}00385\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Event_a614542929390d1e68611e03c5cb3bca0}{\_flag}}.release()}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00386}00386\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00387}00387\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00388}00388\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00389}00389\ \ \ \ \ \textcolor{keyword}{def\ }set(self):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00390}00390\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Event_a851b541dea8ecf15351ebbc697092235}{\_cond}}:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00391}00391\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Event_a614542929390d1e68611e03c5cb3bca0}{\_flag}}.acquire(\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00392}00392\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Event_a614542929390d1e68611e03c5cb3bca0}{\_flag}}.release()}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00393}00393\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Event_a851b541dea8ecf15351ebbc697092235}{\_cond}}.notify\_all()}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00394}00394\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00395}00395\ \ \ \ \ \textcolor{keyword}{def\ }clear(self):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00396}00396\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Event_a851b541dea8ecf15351ebbc697092235}{\_cond}}:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00397}00397\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Event_a614542929390d1e68611e03c5cb3bca0}{\_flag}}.acquire(\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00398}00398\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00399}00399\ \ \ \ \ \textcolor{keyword}{def\ }wait(self,\ timeout=None):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00400}00400\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Event_a851b541dea8ecf15351ebbc697092235}{\_cond}}:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00401}00401\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Event_a614542929390d1e68611e03c5cb3bca0}{\_flag}}.acquire(\textcolor{keyword}{False}):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00402}00402\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Event_a614542929390d1e68611e03c5cb3bca0}{\_flag}}.release()}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00403}00403\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00404}00404\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Event_a851b541dea8ecf15351ebbc697092235}{\_cond}}.wait(timeout)}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00405}00405\ }
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00406}00406\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Event_a614542929390d1e68611e03c5cb3bca0}{\_flag}}.acquire(\textcolor{keyword}{False}):}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00407}00407\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1synchronize_1_1Event_a614542929390d1e68611e03c5cb3bca0}{\_flag}}.release()}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00408}00408\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{synchronize_8py_source_l00409}00409\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+
+\end{DoxyCode}

@@ -1,0 +1,4 @@
+var namespacepip_1_1__vendor_1_1urllib3_1_1util_1_1queue =
+[
+    [ "LifoQueue", "d6/dfc/classpip_1_1__vendor_1_1urllib3_1_1util_1_1queue_1_1LifoQueue.html", null ]
+];

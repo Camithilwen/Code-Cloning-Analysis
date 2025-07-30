@@ -1,0 +1,582 @@
+\doxysection{constructors.\+py}
+\hypertarget{pip_2__internal_2req_2constructors_8py_source}{}\label{pip_2__internal_2req_2constructors_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/pip/\_internal/req/constructors.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/pip/\_internal/req/constructors.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00001}\mbox{\hyperlink{namespacepip_1_1__internal_1_1req_1_1constructors}{00001}}\ \textcolor{stringliteral}{"{}"{}"{}Backing\ implementation\ for\ InstallRequirement's\ various\ constructors}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00002}00002\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00003}00003\ \textcolor{stringliteral}{The\ idea\ here\ is\ that\ these\ formed\ a\ major\ chunk\ of\ InstallRequirement's\ size}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00004}00004\ \textcolor{stringliteral}{so,\ moving\ them\ and\ support\ code\ dedicated\ to\ them\ outside\ of\ that\ class}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00005}00005\ \textcolor{stringliteral}{helps\ creates\ for\ better\ understandability\ for\ the\ rest\ of\ the\ code.}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00006}00006\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00007}00007\ \textcolor{stringliteral}{These\ are\ meant\ to\ be\ used\ elsewhere\ within\ pip\ to\ create\ instances\ of}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00008}00008\ \textcolor{stringliteral}{InstallRequirement.}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00009}00009\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00010}00010\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00011}00011\ \textcolor{keyword}{import}\ copy}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00012}00012\ \textcolor{keyword}{import}\ logging}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00013}00013\ \textcolor{keyword}{import}\ os}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00014}00014\ \textcolor{keyword}{import}\ re}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00015}00015\ \textcolor{keyword}{from}\ typing\ \textcolor{keyword}{import}\ Collection,\ Dict,\ List,\ Optional,\ Set,\ Tuple,\ Union}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00016}00016\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00017}00017\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepip_1_1__vendor_1_1packaging_1_1markers}{pip.\_vendor.packaging.markers}}\ \textcolor{keyword}{import}\ Marker}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00018}00018\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepip_1_1__vendor_1_1packaging_1_1requirements}{pip.\_vendor.packaging.requirements}}\ \textcolor{keyword}{import}\ InvalidRequirement,\ Requirement}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00019}00019\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepip_1_1__vendor_1_1packaging_1_1specifiers}{pip.\_vendor.packaging.specifiers}}\ \textcolor{keyword}{import}\ Specifier}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00020}00020\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00021}00021\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepip_1_1__internal_1_1exceptions}{pip.\_internal.exceptions}}\ \textcolor{keyword}{import}\ InstallationError}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00022}00022\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepip_1_1__internal_1_1models_1_1index}{pip.\_internal.models.index}}\ \textcolor{keyword}{import}\ PyPI,\ TestPyPI}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00023}00023\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepip_1_1__internal_1_1models_1_1link}{pip.\_internal.models.link}}\ \textcolor{keyword}{import}\ Link}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00024}00024\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepip_1_1__internal_1_1models_1_1wheel}{pip.\_internal.models.wheel}}\ \textcolor{keyword}{import}\ Wheel}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00025}00025\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepip_1_1__internal_1_1req_1_1req__file}{pip.\_internal.req.req\_file}}\ \textcolor{keyword}{import}\ ParsedRequirement}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00026}00026\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepip_1_1__internal_1_1req_1_1req__install}{pip.\_internal.req.req\_install}}\ \textcolor{keyword}{import}\ InstallRequirement}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00027}00027\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepip_1_1__internal_1_1utils_1_1filetypes}{pip.\_internal.utils.filetypes}}\ \textcolor{keyword}{import}\ is\_archive\_file}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00028}00028\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepip_1_1__internal_1_1utils_1_1misc}{pip.\_internal.utils.misc}}\ \textcolor{keyword}{import}\ is\_installable\_dir}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00029}00029\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepip_1_1__internal_1_1utils_1_1packaging}{pip.\_internal.utils.packaging}}\ \textcolor{keyword}{import}\ get\_requirement}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00030}00030\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepip_1_1__internal_1_1utils_1_1urls}{pip.\_internal.utils.urls}}\ \textcolor{keyword}{import}\ path\_to\_url}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00031}00031\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepip_1_1__internal_1_1vcs}{pip.\_internal.vcs}}\ \textcolor{keyword}{import}\ is\_url,\ vcs}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00032}00032\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00033}00033\ \_\_all\_\_\ =\ [}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00034}00034\ \ \ \ \ \textcolor{stringliteral}{"{}install\_req\_from\_editable"{}},}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00035}00035\ \ \ \ \ \textcolor{stringliteral}{"{}install\_req\_from\_line"{}},}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00036}00036\ \ \ \ \ \textcolor{stringliteral}{"{}parse\_editable"{}},}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00037}00037\ ]}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00038}00038\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00039}00039\ logger\ =\ logging.getLogger(\_\_name\_\_)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00040}00040\ operators\ =\ Specifier.\_operators.keys()}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00041}00041\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00042}00042\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00043}00043\ \textcolor{keyword}{def\ }\_strip\_extras(path:\ str)\ -\/>\ Tuple[str,\ Optional[str]]:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00044}00044\ \ \ \ \ m\ =\ re.match(\textcolor{stringliteral}{r"{}\string^(.+)(\(\backslash\)[[\string^\(\backslash\)]]+\(\backslash\)])\$"{}},\ path)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00045}00045\ \ \ \ \ extras\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00046}00046\ \ \ \ \ \textcolor{keywordflow}{if}\ m:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00047}00047\ \ \ \ \ \ \ \ \ path\_no\_extras\ =\ m.group(1)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00048}00048\ \ \ \ \ \ \ \ \ extras\ =\ m.group(2)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00049}00049\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00050}00050\ \ \ \ \ \ \ \ \ path\_no\_extras\ =\ path}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00051}00051\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00052}00052\ \ \ \ \ \textcolor{keywordflow}{return}\ path\_no\_extras,\ extras}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00053}00053\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00054}00054\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00055}00055\ \textcolor{keyword}{def\ }convert\_extras(extras:\ Optional[str])\ -\/>\ Set[str]:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00056}00056\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ extras:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00057}00057\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ set()}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00058}00058\ \ \ \ \ \textcolor{keywordflow}{return}\ get\_requirement(\textcolor{stringliteral}{"{}placeholder"{}}\ +\ extras.lower()).extras}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00059}00059\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00060}00060\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00061}\mbox{\hyperlink{namespacepip_1_1__internal_1_1req_1_1constructors_a202eb25bfbac5e91399370cf90970fad}{00061}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepip_1_1__internal_1_1req_1_1constructors_a202eb25bfbac5e91399370cf90970fad}{\_set\_requirement\_extras}}(req:\ Requirement,\ new\_extras:\ Set[str])\ -\/>\ Requirement:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00062}00062\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00063}00063\ \textcolor{stringliteral}{\ \ \ \ Returns\ a\ new\ requirement\ based\ on\ the\ given\ one,\ with\ the\ supplied\ extras.\ If\ the}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00064}00064\ \textcolor{stringliteral}{\ \ \ \ given\ requirement\ already\ has\ extras\ those\ are\ replaced\ (or\ dropped\ if\ no\ new\ extras}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00065}00065\ \textcolor{stringliteral}{\ \ \ \ are\ given).}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00066}00066\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00067}00067\ \ \ \ \ match:\ Optional[re.Match[str]]\ =\ re.fullmatch(}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00068}00068\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ see\ https://peps.python.org/pep-\/0508/\#complete-\/grammar}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00069}00069\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}([\(\backslash\)w\(\backslash\)t\ .-\/]+)(\(\backslash\)[[\string^\(\backslash\)]]*\(\backslash\)])?(.*)"{}},}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00070}00070\ \ \ \ \ \ \ \ \ str(req),}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00071}00071\ \ \ \ \ \ \ \ \ flags=re.ASCII,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00072}00072\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00073}00073\ \ \ \ \ \textcolor{comment}{\#\ ireq.req\ is\ a\ valid\ requirement\ so\ the\ regex\ should\ always\ match}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00074}00074\ \ \ \ \ \textcolor{keyword}{assert}\ (}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00075}00075\ \ \ \ \ \ \ \ \ match\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00076}00076\ \ \ \ \ ),\ f\textcolor{stringliteral}{"{}regex\ match\ on\ requirement\ \{req\}\ failed,\ this\ should\ never\ happen"{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00077}00077\ \ \ \ \ pre:\ Optional[str]\ =\ match.group(1)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00078}00078\ \ \ \ \ post:\ Optional[str]\ =\ match.group(3)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00079}00079\ \ \ \ \ \textcolor{keyword}{assert}\ (}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00080}00080\ \ \ \ \ \ \ \ \ pre\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{and}\ post\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00081}00081\ \ \ \ \ ),\ f\textcolor{stringliteral}{"{}regex\ group\ selection\ for\ requirement\ \{req\}\ failed,\ this\ should\ never\ happen"{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00082}00082\ \ \ \ \ extras:\ str\ =\ \textcolor{stringliteral}{"{}[\%s]"{}}\ \%\ \textcolor{stringliteral}{"{},"{}}.join(sorted(new\_extras))\ \textcolor{keywordflow}{if}\ new\_extras\ \textcolor{keywordflow}{else}\ \textcolor{stringliteral}{"{}"{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00083}00083\ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classpip_1_1__vendor_1_1packaging_1_1requirements_1_1Requirement}{Requirement}}(f\textcolor{stringliteral}{"{}\{pre\}\{extras\}\{post\}"{}})}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00084}00084\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00085}00085\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00086}\mbox{\hyperlink{namespacepip_1_1__internal_1_1req_1_1constructors_a9658618ce2c4a6ee53301cc03f2d96db}{00086}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepip_1_1__internal_1_1req_1_1constructors_a9658618ce2c4a6ee53301cc03f2d96db}{parse\_editable}}(editable\_req:\ str)\ -\/>\ Tuple[Optional[str],\ str,\ Set[str]]:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00087}00087\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Parses\ an\ editable\ requirement\ into:}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00088}00088\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ a\ requirement\ name}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00089}00089\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ an\ URL}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00090}00090\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ extras}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00091}00091\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ editable\ options}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00092}00092\ \textcolor{stringliteral}{\ \ \ \ Accepted\ requirements:}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00093}00093\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ svn+http://blahblah@rev\#egg=Foobar[baz]\&subdirectory=version\_subdir}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00094}00094\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ .[some\_extra]}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00095}00095\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00096}00096\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00097}00097\ \ \ \ \ url\ =\ editable\_req}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00098}00098\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00099}00099\ \ \ \ \ \textcolor{comment}{\#\ If\ a\ file\ path\ is\ specified\ with\ extras,\ strip\ off\ the\ extras.}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00100}00100\ \ \ \ \ url\_no\_extras,\ extras\ =\ \_strip\_extras(url)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00101}00101\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00102}00102\ \ \ \ \ \textcolor{keywordflow}{if}\ os.path.isdir(url\_no\_extras):}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00103}00103\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Treating\ it\ as\ code\ that\ has\ already\ been\ checked\ out}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00104}00104\ \ \ \ \ \ \ \ \ url\_no\_extras\ =\ path\_to\_url(url\_no\_extras)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00105}00105\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00106}00106\ \ \ \ \ \textcolor{keywordflow}{if}\ url\_no\_extras.lower().startswith(\textcolor{stringliteral}{"{}file:"{}}):}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00107}00107\ \ \ \ \ \ \ \ \ package\_name\ =\ \mbox{\hyperlink{classpip_1_1__internal_1_1models_1_1link_1_1Link}{Link}}(url\_no\_extras).egg\_fragment}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00108}00108\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ extras:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00109}00109\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ (}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00110}00110\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ package\_name,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00111}00111\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ url\_no\_extras,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00112}00112\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ get\_requirement(\textcolor{stringliteral}{"{}placeholder"{}}\ +\ extras.lower()).extras,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00113}00113\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00114}00114\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00115}00115\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ package\_name,\ url\_no\_extras,\ set()}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00116}00116\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00117}00117\ \ \ \ \ \textcolor{keywordflow}{for}\ version\_control\ \textcolor{keywordflow}{in}\ vcs:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00118}00118\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ url.lower().startswith(f\textcolor{stringliteral}{"{}\{version\_control\}:"{}}):}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00119}00119\ \ \ \ \ \ \ \ \ \ \ \ \ url\ =\ f\textcolor{stringliteral}{"{}\{version\_control\}+\{url\}"{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00120}00120\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00121}00121\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00122}00122\ \ \ \ \ link\ =\ \mbox{\hyperlink{classpip_1_1__internal_1_1models_1_1link_1_1Link}{Link}}(url)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00123}00123\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00124}00124\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ link.is\_vcs:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00125}00125\ \ \ \ \ \ \ \ \ backends\ =\ \textcolor{stringliteral}{"{},\ "{}}.join(vcs.all\_schemes)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00126}00126\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classpip_1_1__internal_1_1exceptions_1_1InstallationError}{InstallationError}}(}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00127}00127\ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\{editable\_req\}\ is\ not\ a\ valid\ editable\ requirement.\ "{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00128}00128\ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}It\ should\ either\ be\ a\ path\ to\ a\ local\ project\ or\ a\ VCS\ URL\ "{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00129}00129\ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}(beginning\ with\ \{backends\})."{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00130}00130\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00131}00131\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00132}00132\ \ \ \ \ package\_name\ =\ link.egg\_fragment}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00133}00133\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ package\_name:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00134}00134\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classpip_1_1__internal_1_1exceptions_1_1InstallationError}{InstallationError}}(}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00135}00135\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Could\ not\ detect\ requirement\ name\ for\ '\{\}',\ please\ specify\ one\ "{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00136}00136\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}with\ \#egg=your\_package\_name"{}}.format(editable\_req)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00137}00137\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00138}00138\ \ \ \ \ \textcolor{keywordflow}{return}\ package\_name,\ url,\ set()}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00139}00139\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00140}00140\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00141}\mbox{\hyperlink{namespacepip_1_1__internal_1_1req_1_1constructors_a4e145784f41cd4a847608915f749df86}{00141}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepip_1_1__internal_1_1req_1_1constructors_a4e145784f41cd4a847608915f749df86}{check\_first\_requirement\_in\_file}}(filename:\ str)\ -\/>\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00142}00142\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Check\ if\ file\ is\ parsable\ as\ a\ requirements\ file.}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00143}00143\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00144}00144\ \textcolor{stringliteral}{\ \ \ \ This\ is\ heavily\ based\ on\ \`{}\`{}pkg\_resources.parse\_requirements\`{}\`{},\ but}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00145}00145\ \textcolor{stringliteral}{\ \ \ \ simplified\ to\ just\ check\ the\ first\ meaningful\ line.}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00146}00146\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00147}00147\ \textcolor{stringliteral}{\ \ \ \ :raises\ InvalidRequirement:\ If\ the\ first\ meaningful\ line\ cannot\ be\ parsed}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00148}00148\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ as\ an\ requirement.}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00149}00149\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00150}00150\ \ \ \ \ \textcolor{keyword}{with}\ open(filename,\ encoding=\textcolor{stringliteral}{"{}utf-\/8"{}},\ errors=\textcolor{stringliteral}{"{}ignore"{}})\ \textcolor{keyword}{as}\ f:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00151}00151\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Create\ a\ steppable\ iterator,\ so\ we\ can\ handle\ \(\backslash\)-\/continuations.}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00152}00152\ \ \ \ \ \ \ \ \ lines\ =\ (}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00153}00153\ \ \ \ \ \ \ \ \ \ \ \ \ line}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00154}00154\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ line\ \textcolor{keywordflow}{in}\ (line.strip()\ \textcolor{keywordflow}{for}\ line\ \textcolor{keywordflow}{in}\ f)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00155}00155\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ line\ \textcolor{keywordflow}{and}\ \textcolor{keywordflow}{not}\ line.startswith(\textcolor{stringliteral}{"{}\#"{}})\ \ \textcolor{comment}{\#\ Skip\ blank\ lines/comments.}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00156}00156\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00157}00157\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00158}00158\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ line\ \textcolor{keywordflow}{in}\ lines:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00159}00159\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Drop\ comments\ -\/-\/\ a\ hash\ without\ a\ space\ may\ be\ in\ a\ URL.}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00160}00160\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{stringliteral}{"{}\ \#"{}}\ \textcolor{keywordflow}{in}\ line:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00161}00161\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ line\ =\ line[:\ line.find(\textcolor{stringliteral}{"{}\ \#"{}})]}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00162}00162\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ If\ there\ is\ a\ line\ continuation,\ drop\ it,\ and\ append\ the\ next\ line.}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00163}00163\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ line.endswith(\textcolor{stringliteral}{"{}\(\backslash\)\(\backslash\)"{}}):}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00164}00164\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ line\ =\ line[:-\/2].strip()\ +\ next(lines,\ \textcolor{stringliteral}{"{}"{}})}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00165}00165\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classpip_1_1__vendor_1_1packaging_1_1requirements_1_1Requirement}{Requirement}}(line)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00166}00166\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00167}00167\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00168}00168\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00169}\mbox{\hyperlink{namespacepip_1_1__internal_1_1req_1_1constructors_ab9da759887a968189277fd8400957a73}{00169}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepip_1_1__internal_1_1req_1_1constructors_ab9da759887a968189277fd8400957a73}{deduce\_helpful\_msg}}(req:\ str)\ -\/>\ str:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00170}00170\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Returns\ helpful\ msg\ in\ case\ requirements\ file\ does\ not\ exist,}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00171}00171\ \textcolor{stringliteral}{\ \ \ \ or\ cannot\ be\ parsed.}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00172}00172\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00173}00173\ \textcolor{stringliteral}{\ \ \ \ :params\ req:\ Requirements\ file\ path}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00174}00174\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00175}00175\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ os.path.exists(req):}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00176}00176\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ f\textcolor{stringliteral}{"{}\ File\ '\{req\}'\ does\ not\ exist."{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00177}00177\ \ \ \ \ msg\ =\ \textcolor{stringliteral}{"{}\ The\ path\ does\ exist.\ "{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00178}00178\ \ \ \ \ \textcolor{comment}{\#\ Try\ to\ parse\ and\ check\ if\ it\ is\ a\ requirements\ file.}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00179}00179\ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00180}00180\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{namespacepip_1_1__internal_1_1req_1_1constructors_a4e145784f41cd4a847608915f749df86}{check\_first\_requirement\_in\_file}}(req)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00181}00181\ \ \ \ \ \textcolor{keywordflow}{except}\ InvalidRequirement:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00182}00182\ \ \ \ \ \ \ \ \ logger.debug(\textcolor{stringliteral}{"{}Cannot\ parse\ '\%s'\ as\ requirements\ file"{}},\ req)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00183}00183\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00184}00184\ \ \ \ \ \ \ \ \ msg\ +=\ (}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00185}00185\ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}The\ argument\ you\ provided\ "{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00186}00186\ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}(\{req\})\ appears\ to\ be\ a"{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00187}00187\ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\ requirements\ file.\ If\ that\ is\ the"{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00188}00188\ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\ case,\ use\ the\ '-\/r'\ flag\ to\ install"{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00189}00189\ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\ the\ packages\ specified\ within\ it."{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00190}00190\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00191}00191\ \ \ \ \ \textcolor{keywordflow}{return}\ msg}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00192}00192\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00193}00193\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00194}\mbox{\hyperlink{classpip_1_1__internal_1_1req_1_1constructors_1_1RequirementParts}{00194}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classpip_1_1__internal_1_1req_1_1constructors_1_1RequirementParts}{RequirementParts}}:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00195}00195\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00196}00196\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00197}00197\ \ \ \ \ \ \ \ \ requirement:\ Optional[Requirement],}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00198}00198\ \ \ \ \ \ \ \ \ link:\ Optional[Link],}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00199}00199\ \ \ \ \ \ \ \ \ markers:\ Optional[Marker],}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00200}00200\ \ \ \ \ \ \ \ \ extras:\ Set[str],}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00201}00201\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00202}00202\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpip_1_1__internal_1_1req_1_1constructors_1_1RequirementParts_a4ab41eb5e9892b3a2aff6ab94201eeca}{requirement}}\ =\ requirement}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00203}00203\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpip_1_1__internal_1_1req_1_1constructors_1_1RequirementParts_a28ae9970849f9f0e9c2b5346f12a90c8}{link}}\ =\ link}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00204}00204\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpip_1_1__internal_1_1req_1_1constructors_1_1RequirementParts_ab6e19a4f59f415e927bb8c74b1197d72}{markers}}\ =\ markers}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00205}00205\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpip_1_1__internal_1_1req_1_1constructors_1_1RequirementParts_a09701ab04d7653c7af7d6029d810ee91}{extras}}\ =\ extras}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00206}00206\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00207}00207\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00208}00208\ \textcolor{keyword}{def\ }parse\_req\_from\_editable(editable\_req:\ str)\ -\/>\ RequirementParts:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00209}00209\ \ \ \ \ name,\ url,\ extras\_override\ =\ \mbox{\hyperlink{namespacepip_1_1__internal_1_1req_1_1constructors_a9658618ce2c4a6ee53301cc03f2d96db}{parse\_editable}}(editable\_req)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00210}00210\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00211}00211\ \ \ \ \ \textcolor{keywordflow}{if}\ name\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00212}00212\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00213}00213\ \ \ \ \ \ \ \ \ \ \ \ \ req:\ Optional[Requirement]\ =\ \mbox{\hyperlink{classpip_1_1__vendor_1_1packaging_1_1requirements_1_1Requirement}{Requirement}}(name)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00214}00214\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ InvalidRequirement:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00215}00215\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classpip_1_1__internal_1_1exceptions_1_1InstallationError}{InstallationError}}(f\textcolor{stringliteral}{"{}Invalid\ requirement:\ '\{name\}'"{}})}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00216}00216\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00217}00217\ \ \ \ \ \ \ \ \ req\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00218}00218\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00219}00219\ \ \ \ \ link\ =\ \mbox{\hyperlink{classpip_1_1__internal_1_1models_1_1link_1_1Link}{Link}}(url)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00220}00220\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00221}00221\ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classpip_1_1__internal_1_1req_1_1constructors_1_1RequirementParts}{RequirementParts}}(req,\ link,\ \textcolor{keywordtype}{None},\ extras\_override)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00222}00222\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00223}00223\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00224}00224\ \textcolor{comment}{\#\ -\/-\/-\/-\/\ The\ actual\ constructors\ follow\ -\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00225}00225\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00226}00226\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00227}00227\ \textcolor{keyword}{def\ }install\_req\_from\_editable(}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00228}00228\ \ \ \ \ editable\_req:\ str,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00229}00229\ \ \ \ \ comes\_from:\ Optional[Union[InstallRequirement,\ str]]\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00230}00230\ \ \ \ \ *,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00231}00231\ \ \ \ \ use\_pep517:\ Optional[bool]\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00232}00232\ \ \ \ \ isolated:\ bool\ =\ \textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00233}00233\ \ \ \ \ global\_options:\ Optional[List[str]]\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00234}00234\ \ \ \ \ hash\_options:\ Optional[Dict[str,\ List[str]]]\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00235}00235\ \ \ \ \ constraint:\ bool\ =\ \textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00236}00236\ \ \ \ \ user\_supplied:\ bool\ =\ \textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00237}00237\ \ \ \ \ permit\_editable\_wheels:\ bool\ =\ \textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00238}00238\ \ \ \ \ config\_settings:\ Optional[Dict[str,\ Union[str,\ List[str]]]]\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00239}00239\ )\ -\/>\ InstallRequirement:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00240}00240\ \ \ \ \ parts\ =\ parse\_req\_from\_editable(editable\_req)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00241}00241\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00242}00242\ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classpip_1_1__internal_1_1req_1_1req__install_1_1InstallRequirement}{InstallRequirement}}(}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00243}00243\ \ \ \ \ \ \ \ \ parts.requirement,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00244}00244\ \ \ \ \ \ \ \ \ comes\_from=comes\_from,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00245}00245\ \ \ \ \ \ \ \ \ user\_supplied=user\_supplied,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00246}00246\ \ \ \ \ \ \ \ \ editable=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00247}00247\ \ \ \ \ \ \ \ \ permit\_editable\_wheels=permit\_editable\_wheels,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00248}00248\ \ \ \ \ \ \ \ \ link=parts.link,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00249}00249\ \ \ \ \ \ \ \ \ constraint=constraint,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00250}00250\ \ \ \ \ \ \ \ \ use\_pep517=use\_pep517,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00251}00251\ \ \ \ \ \ \ \ \ isolated=isolated,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00252}00252\ \ \ \ \ \ \ \ \ global\_options=global\_options,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00253}00253\ \ \ \ \ \ \ \ \ hash\_options=hash\_options,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00254}00254\ \ \ \ \ \ \ \ \ config\_settings=config\_settings,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00255}00255\ \ \ \ \ \ \ \ \ extras=parts.extras,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00256}00256\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00257}00257\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00258}00258\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00259}\mbox{\hyperlink{namespacepip_1_1__internal_1_1req_1_1constructors_aeab6211456b1f3e529b721dd1f8be1b6}{00259}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepip_1_1__internal_1_1req_1_1constructors_aeab6211456b1f3e529b721dd1f8be1b6}{\_looks\_like\_path}}(name:\ str)\ -\/>\ bool:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00260}00260\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Checks\ whether\ the\ string\ "{}looks\ like"{}\ a\ path\ on\ the\ filesystem.}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00261}00261\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00262}00262\ \textcolor{stringliteral}{\ \ \ \ This\ does\ not\ check\ whether\ the\ target\ actually\ exists,\ only\ judge\ from\ the}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00263}00263\ \textcolor{stringliteral}{\ \ \ \ appearance.}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00264}00264\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00265}00265\ \textcolor{stringliteral}{\ \ \ \ Returns\ true\ if\ any\ of\ the\ following\ conditions\ is\ true:}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00266}00266\ \textcolor{stringliteral}{\ \ \ \ *\ a\ path\ separator\ is\ found\ (either\ os.path.sep\ or\ os.path.altsep);}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00267}00267\ \textcolor{stringliteral}{\ \ \ \ *\ a\ dot\ is\ found\ (which\ represents\ the\ current\ directory).}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00268}00268\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00269}00269\ \ \ \ \ \textcolor{keywordflow}{if}\ os.path.sep\ \textcolor{keywordflow}{in}\ name:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00270}00270\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00271}00271\ \ \ \ \ \textcolor{keywordflow}{if}\ os.path.altsep\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{and}\ os.path.altsep\ \textcolor{keywordflow}{in}\ name:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00272}00272\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00273}00273\ \ \ \ \ \textcolor{keywordflow}{if}\ name.startswith(\textcolor{stringliteral}{"{}."{}}):}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00274}00274\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00275}00275\ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00276}00276\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00277}00277\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00278}\mbox{\hyperlink{namespacepip_1_1__internal_1_1req_1_1constructors_a7edcf0c8044218295b2d2cd7ad1cc345}{00278}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepip_1_1__internal_1_1req_1_1constructors_a7edcf0c8044218295b2d2cd7ad1cc345}{\_get\_url\_from\_path}}(path:\ str,\ name:\ str)\ -\/>\ Optional[str]:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00279}00279\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00280}00280\ \textcolor{stringliteral}{\ \ \ \ First,\ it\ checks\ whether\ a\ provided\ path\ is\ an\ installable\ directory.\ If\ it}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00281}00281\ \textcolor{stringliteral}{\ \ \ \ is,\ returns\ the\ path.}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00282}00282\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00283}00283\ \textcolor{stringliteral}{\ \ \ \ If\ false,\ check\ if\ the\ path\ is\ an\ archive\ file\ (such\ as\ a\ .whl).}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00284}00284\ \textcolor{stringliteral}{\ \ \ \ The\ function\ checks\ if\ the\ path\ is\ a\ file.\ If\ false,\ if\ the\ path\ has}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00285}00285\ \textcolor{stringliteral}{\ \ \ \ an\ @,\ it\ will\ treat\ it\ as\ a\ PEP\ 440\ URL\ requirement\ and\ return\ the\ path.}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00286}00286\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00287}00287\ \ \ \ \ \textcolor{keywordflow}{if}\ \mbox{\hyperlink{namespacepip_1_1__internal_1_1req_1_1constructors_aeab6211456b1f3e529b721dd1f8be1b6}{\_looks\_like\_path}}(name)\ \textcolor{keywordflow}{and}\ os.path.isdir(path):}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00288}00288\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ is\_installable\_dir(path):}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00289}00289\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ path\_to\_url(path)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00290}00290\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ TODO:\ The\ is\_installable\_dir\ test\ here\ might\ not\ be\ necessary}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00291}00291\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ \ \ \ now\ that\ it\ is\ done\ in\ load\_pyproject\_toml\ too.}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00292}00292\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classpip_1_1__internal_1_1exceptions_1_1InstallationError}{InstallationError}}(}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00293}00293\ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}Directory\ \{name!r\}\ is\ not\ installable.\ Neither\ 'setup.py'\ "{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00294}00294\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}nor\ 'pyproject.toml'\ found."{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00295}00295\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00296}00296\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ is\_archive\_file(path):}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00297}00297\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00298}00298\ \ \ \ \ \textcolor{keywordflow}{if}\ os.path.isfile(path):}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00299}00299\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ path\_to\_url(path)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00300}00300\ \ \ \ \ urlreq\_parts\ =\ name.split(\textcolor{stringliteral}{"{}@"{}},\ 1)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00301}00301\ \ \ \ \ \textcolor{keywordflow}{if}\ len(urlreq\_parts)\ >=\ 2\ \textcolor{keywordflow}{and}\ \textcolor{keywordflow}{not}\ \mbox{\hyperlink{namespacepip_1_1__internal_1_1req_1_1constructors_aeab6211456b1f3e529b721dd1f8be1b6}{\_looks\_like\_path}}(urlreq\_parts[0]):}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00302}00302\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ If\ the\ path\ contains\ '@'\ and\ the\ part\ before\ it\ does\ not\ look}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00303}00303\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ like\ a\ path,\ try\ to\ treat\ it\ as\ a\ PEP\ 440\ URL\ req\ instead.}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00304}00304\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00305}00305\ \ \ \ \ logger.warning(}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00306}00306\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Requirement\ \%r\ looks\ like\ a\ filename,\ but\ the\ file\ does\ not\ exist"{}},}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00307}00307\ \ \ \ \ \ \ \ \ name,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00308}00308\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00309}00309\ \ \ \ \ \textcolor{keywordflow}{return}\ path\_to\_url(path)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00310}00310\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00311}00311\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00312}00312\ \textcolor{keyword}{def\ }parse\_req\_from\_line(name:\ str,\ line\_source:\ Optional[str])\ -\/>\ RequirementParts:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00313}00313\ \ \ \ \ \textcolor{keywordflow}{if}\ is\_url(name):}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00314}00314\ \ \ \ \ \ \ \ \ marker\_sep\ =\ \textcolor{stringliteral}{"{};\ "{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00315}00315\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00316}00316\ \ \ \ \ \ \ \ \ marker\_sep\ =\ \textcolor{stringliteral}{"{};"{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00317}00317\ \ \ \ \ \textcolor{keywordflow}{if}\ marker\_sep\ \textcolor{keywordflow}{in}\ name:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00318}00318\ \ \ \ \ \ \ \ \ name,\ markers\_as\_string\ =\ name.split(marker\_sep,\ 1)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00319}00319\ \ \ \ \ \ \ \ \ markers\_as\_string\ =\ markers\_as\_string.strip()}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00320}00320\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ markers\_as\_string:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00321}00321\ \ \ \ \ \ \ \ \ \ \ \ \ markers\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00322}00322\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00323}00323\ \ \ \ \ \ \ \ \ \ \ \ \ markers\ =\ \mbox{\hyperlink{classpip_1_1__vendor_1_1packaging_1_1markers_1_1Marker}{Marker}}(markers\_as\_string)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00324}00324\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00325}00325\ \ \ \ \ \ \ \ \ markers\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00326}00326\ \ \ \ \ name\ =\ name.strip()}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00327}00327\ \ \ \ \ req\_as\_string\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00328}00328\ \ \ \ \ path\ =\ os.path.normpath(os.path.abspath(name))}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00329}00329\ \ \ \ \ link\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00330}00330\ \ \ \ \ extras\_as\_string\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00331}00331\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00332}00332\ \ \ \ \ \textcolor{keywordflow}{if}\ is\_url(name):}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00333}00333\ \ \ \ \ \ \ \ \ link\ =\ \mbox{\hyperlink{classpip_1_1__internal_1_1models_1_1link_1_1Link}{Link}}(name)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00334}00334\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00335}00335\ \ \ \ \ \ \ \ \ p,\ extras\_as\_string\ =\ \_strip\_extras(path)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00336}00336\ \ \ \ \ \ \ \ \ url\ =\ \mbox{\hyperlink{namespacepip_1_1__internal_1_1req_1_1constructors_a7edcf0c8044218295b2d2cd7ad1cc345}{\_get\_url\_from\_path}}(p,\ name)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00337}00337\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ url\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00338}00338\ \ \ \ \ \ \ \ \ \ \ \ \ link\ =\ \mbox{\hyperlink{classpip_1_1__internal_1_1models_1_1link_1_1Link}{Link}}(url)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00339}00339\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00340}00340\ \ \ \ \ \textcolor{comment}{\#\ it's\ a\ local\ file,\ dir,\ or\ url}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00341}00341\ \ \ \ \ \textcolor{keywordflow}{if}\ link:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00342}00342\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Handle\ relative\ file\ URLs}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00343}00343\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ link.scheme\ ==\ \textcolor{stringliteral}{"{}file"{}}\ \textcolor{keywordflow}{and}\ re.search(\textcolor{stringliteral}{r"{}\(\backslash\).\(\backslash\)./"{}},\ link.url):}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00344}00344\ \ \ \ \ \ \ \ \ \ \ \ \ link\ =\ \mbox{\hyperlink{classpip_1_1__internal_1_1models_1_1link_1_1Link}{Link}}(path\_to\_url(os.path.normpath(os.path.abspath(link.path))))}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00345}00345\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ wheel\ file}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00346}00346\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ link.is\_wheel:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00347}00347\ \ \ \ \ \ \ \ \ \ \ \ \ wheel\ =\ \mbox{\hyperlink{classpip_1_1__internal_1_1models_1_1wheel_1_1Wheel}{Wheel}}(link.filename)\ \ \textcolor{comment}{\#\ can\ raise\ InvalidWheelFilename}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00348}00348\ \ \ \ \ \ \ \ \ \ \ \ \ req\_as\_string\ =\ f\textcolor{stringliteral}{"{}\{wheel.name\}==\{wheel.version\}"{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00349}00349\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00350}00350\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ set\ the\ req\ to\ the\ egg\ fragment.\ \ when\ it's\ not\ there,\ this}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00351}00351\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ will\ become\ an\ 'unnamed'\ requirement}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00352}00352\ \ \ \ \ \ \ \ \ \ \ \ \ req\_as\_string\ =\ link.egg\_fragment}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00353}00353\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00354}00354\ \ \ \ \ \textcolor{comment}{\#\ a\ requirement\ specifier}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00355}00355\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00356}00356\ \ \ \ \ \ \ \ \ req\_as\_string\ =\ name}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00357}00357\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00358}00358\ \ \ \ \ extras\ =\ convert\_extras(extras\_as\_string)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00359}00359\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00360}00360\ \ \ \ \ \textcolor{keyword}{def\ }with\_source(text:\ str)\ -\/>\ str:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00361}00361\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ line\_source:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00362}00362\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ text}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00363}00363\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ f\textcolor{stringliteral}{"{}\{text\}\ (from\ \{line\_source\})"{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00364}00364\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00365}00365\ \ \ \ \ \textcolor{keyword}{def\ }\_parse\_req\_string(req\_as\_string:\ str)\ -\/>\ Requirement:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00366}00366\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00367}00367\ \ \ \ \ \ \ \ \ \ \ \ \ req\ =\ get\_requirement(req\_as\_string)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00368}00368\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ InvalidRequirement:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00369}00369\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ os.path.sep\ \textcolor{keywordflow}{in}\ req\_as\_string:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00370}00370\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ add\_msg\ =\ \textcolor{stringliteral}{"{}It\ looks\ like\ a\ path."{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00371}00371\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ add\_msg\ +=\ \mbox{\hyperlink{namespacepip_1_1__internal_1_1req_1_1constructors_ab9da759887a968189277fd8400957a73}{deduce\_helpful\_msg}}(req\_as\_string)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00372}00372\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ \textcolor{stringliteral}{"{}="{}}\ \textcolor{keywordflow}{in}\ req\_as\_string\ \textcolor{keywordflow}{and}\ \textcolor{keywordflow}{not}\ any(}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00373}00373\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ op\ \textcolor{keywordflow}{in}\ req\_as\_string\ \textcolor{keywordflow}{for}\ op\ \textcolor{keywordflow}{in}\ operators}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00374}00374\ \ \ \ \ \ \ \ \ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00375}00375\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ add\_msg\ =\ \textcolor{stringliteral}{"{}=\ is\ not\ a\ valid\ operator.\ Did\ you\ mean\ ==\ ?"{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00376}00376\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00377}00377\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ add\_msg\ =\ \textcolor{stringliteral}{"{}"{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00378}00378\ \ \ \ \ \ \ \ \ \ \ \ \ msg\ =\ with\_source(f\textcolor{stringliteral}{"{}Invalid\ requirement:\ \{req\_as\_string!r\}"{}})}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00379}00379\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ add\_msg:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00380}00380\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ msg\ +=\ f\textcolor{stringliteral}{"{}\(\backslash\)nHint:\ \{add\_msg\}"{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00381}00381\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classpip_1_1__internal_1_1exceptions_1_1InstallationError}{InstallationError}}(msg)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00382}00382\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00383}00383\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Deprecate\ extras\ after\ specifiers:\ "{}name>=1.0[extras]"{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00384}00384\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ This\ currently\ works\ by\ accident\ because\ \_strip\_extras()\ parses}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00385}00385\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ any\ extras\ in\ the\ end\ of\ the\ string\ and\ those\ are\ saved\ in}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00386}00386\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ RequirementParts}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00387}00387\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ spec\ \textcolor{keywordflow}{in}\ req.specifier:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00388}00388\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ spec\_str\ =\ str(spec)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00389}00389\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ spec\_str.endswith(\textcolor{stringliteral}{"{}]"{}}):}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00390}00390\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ msg\ =\ f\textcolor{stringliteral}{"{}Extras\ after\ version\ '\{spec\_str\}'."{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00391}00391\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classpip_1_1__internal_1_1exceptions_1_1InstallationError}{InstallationError}}(msg)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00392}00392\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ req}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00393}00393\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00394}00394\ \ \ \ \ \textcolor{keywordflow}{if}\ req\_as\_string\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00395}00395\ \ \ \ \ \ \ \ \ req:\ Optional[Requirement]\ =\ \_parse\_req\_string(req\_as\_string)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00396}00396\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00397}00397\ \ \ \ \ \ \ \ \ req\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00398}00398\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00399}00399\ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classpip_1_1__internal_1_1req_1_1constructors_1_1RequirementParts}{RequirementParts}}(req,\ link,\ markers,\ extras)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00400}00400\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00401}00401\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00402}\mbox{\hyperlink{namespacepip_1_1__internal_1_1req_1_1constructors_a957dee549b6d56368bc0ef6443dfaaf8}{00402}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepip_1_1__internal_1_1req_1_1constructors_a957dee549b6d56368bc0ef6443dfaaf8}{install\_req\_from\_line}}(}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00403}00403\ \ \ \ \ name:\ str,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00404}00404\ \ \ \ \ comes\_from:\ Optional[Union[str,\ InstallRequirement]]\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00405}00405\ \ \ \ \ *,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00406}00406\ \ \ \ \ use\_pep517:\ Optional[bool]\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00407}00407\ \ \ \ \ isolated:\ bool\ =\ \textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00408}00408\ \ \ \ \ global\_options:\ Optional[List[str]]\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00409}00409\ \ \ \ \ hash\_options:\ Optional[Dict[str,\ List[str]]]\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00410}00410\ \ \ \ \ constraint:\ bool\ =\ \textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00411}00411\ \ \ \ \ line\_source:\ Optional[str]\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00412}00412\ \ \ \ \ user\_supplied:\ bool\ =\ \textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00413}00413\ \ \ \ \ config\_settings:\ Optional[Dict[str,\ Union[str,\ List[str]]]]\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00414}00414\ )\ -\/>\ InstallRequirement:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00415}00415\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Creates\ an\ InstallRequirement\ from\ a\ name,\ which\ might\ be\ a}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00416}00416\ \textcolor{stringliteral}{\ \ \ \ requirement,\ directory\ containing\ 'setup.py',\ filename,\ or\ URL.}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00417}00417\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00418}00418\ \textcolor{stringliteral}{\ \ \ \ :param\ line\_source:\ An\ optional\ string\ describing\ where\ the\ line\ is\ from,}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00419}00419\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ for\ logging\ purposes\ in\ case\ of\ an\ error.}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00420}00420\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00421}00421\ \ \ \ \ parts\ =\ parse\_req\_from\_line(name,\ line\_source)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00422}00422\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00423}00423\ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classpip_1_1__internal_1_1req_1_1req__install_1_1InstallRequirement}{InstallRequirement}}(}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00424}00424\ \ \ \ \ \ \ \ \ parts.requirement,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00425}00425\ \ \ \ \ \ \ \ \ comes\_from,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00426}00426\ \ \ \ \ \ \ \ \ link=parts.link,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00427}00427\ \ \ \ \ \ \ \ \ markers=parts.markers,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00428}00428\ \ \ \ \ \ \ \ \ use\_pep517=use\_pep517,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00429}00429\ \ \ \ \ \ \ \ \ isolated=isolated,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00430}00430\ \ \ \ \ \ \ \ \ global\_options=global\_options,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00431}00431\ \ \ \ \ \ \ \ \ hash\_options=hash\_options,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00432}00432\ \ \ \ \ \ \ \ \ config\_settings=config\_settings,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00433}00433\ \ \ \ \ \ \ \ \ constraint=constraint,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00434}00434\ \ \ \ \ \ \ \ \ extras=parts.extras,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00435}00435\ \ \ \ \ \ \ \ \ user\_supplied=user\_supplied,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00436}00436\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00437}00437\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00438}00438\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00439}00439\ \textcolor{keyword}{def\ }install\_req\_from\_req\_string(}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00440}00440\ \ \ \ \ req\_string:\ str,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00441}00441\ \ \ \ \ comes\_from:\ Optional[InstallRequirement]\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00442}00442\ \ \ \ \ isolated:\ bool\ =\ \textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00443}00443\ \ \ \ \ use\_pep517:\ Optional[bool]\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00444}00444\ \ \ \ \ user\_supplied:\ bool\ =\ \textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00445}00445\ )\ -\/>\ InstallRequirement:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00446}00446\ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00447}00447\ \ \ \ \ \ \ \ \ req\ =\ get\_requirement(req\_string)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00448}00448\ \ \ \ \ \textcolor{keywordflow}{except}\ InvalidRequirement:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00449}00449\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classpip_1_1__internal_1_1exceptions_1_1InstallationError}{InstallationError}}(f\textcolor{stringliteral}{"{}Invalid\ requirement:\ '\{req\_string\}'"{}})}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00450}00450\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00451}00451\ \ \ \ \ domains\_not\_allowed\ =\ [}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00452}00452\ \ \ \ \ \ \ \ \ PyPI.file\_storage\_domain,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00453}00453\ \ \ \ \ \ \ \ \ TestPyPI.file\_storage\_domain,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00454}00454\ \ \ \ \ ]}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00455}00455\ \ \ \ \ \textcolor{keywordflow}{if}\ (}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00456}00456\ \ \ \ \ \ \ \ \ req.url}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00457}00457\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}\ comes\_from}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00458}00458\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}\ comes\_from.link}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00459}00459\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}\ comes\_from.link.netloc\ \textcolor{keywordflow}{in}\ domains\_not\_allowed}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00460}00460\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00461}00461\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Explicitly\ disallow\ pypi\ packages\ that\ depend\ on\ external\ urls}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00462}00462\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classpip_1_1__internal_1_1exceptions_1_1InstallationError}{InstallationError}}(}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00463}00463\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Packages\ installed\ from\ PyPI\ cannot\ depend\ on\ packages\ "{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00464}00464\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}which\ are\ not\ also\ hosted\ on\ PyPI.\(\backslash\)n"{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00465}00465\ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\{comes\_from.name\}\ depends\ on\ \{req\}\ "{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00466}00466\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00467}00467\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00468}00468\ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classpip_1_1__internal_1_1req_1_1req__install_1_1InstallRequirement}{InstallRequirement}}(}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00469}00469\ \ \ \ \ \ \ \ \ req,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00470}00470\ \ \ \ \ \ \ \ \ comes\_from,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00471}00471\ \ \ \ \ \ \ \ \ isolated=isolated,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00472}00472\ \ \ \ \ \ \ \ \ use\_pep517=use\_pep517,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00473}00473\ \ \ \ \ \ \ \ \ user\_supplied=user\_supplied,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00474}00474\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00475}00475\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00476}00476\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00477}00477\ \textcolor{keyword}{def\ }install\_req\_from\_parsed\_requirement(}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00478}00478\ \ \ \ \ parsed\_req:\ ParsedRequirement,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00479}00479\ \ \ \ \ isolated:\ bool\ =\ \textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00480}00480\ \ \ \ \ use\_pep517:\ Optional[bool]\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00481}00481\ \ \ \ \ user\_supplied:\ bool\ =\ \textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00482}00482\ \ \ \ \ config\_settings:\ Optional[Dict[str,\ Union[str,\ List[str]]]]\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00483}00483\ )\ -\/>\ InstallRequirement:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00484}00484\ \ \ \ \ \textcolor{keywordflow}{if}\ parsed\_req.is\_editable:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00485}00485\ \ \ \ \ \ \ \ \ req\ =\ install\_req\_from\_editable(}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00486}00486\ \ \ \ \ \ \ \ \ \ \ \ \ parsed\_req.requirement,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00487}00487\ \ \ \ \ \ \ \ \ \ \ \ \ comes\_from=parsed\_req.comes\_from,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00488}00488\ \ \ \ \ \ \ \ \ \ \ \ \ use\_pep517=use\_pep517,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00489}00489\ \ \ \ \ \ \ \ \ \ \ \ \ constraint=parsed\_req.constraint,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00490}00490\ \ \ \ \ \ \ \ \ \ \ \ \ isolated=isolated,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00491}00491\ \ \ \ \ \ \ \ \ \ \ \ \ user\_supplied=user\_supplied,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00492}00492\ \ \ \ \ \ \ \ \ \ \ \ \ config\_settings=config\_settings,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00493}00493\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00494}00494\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00495}00495\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00496}00496\ \ \ \ \ \ \ \ \ req\ =\ \mbox{\hyperlink{namespacepip_1_1__internal_1_1req_1_1constructors_a957dee549b6d56368bc0ef6443dfaaf8}{install\_req\_from\_line}}(}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00497}00497\ \ \ \ \ \ \ \ \ \ \ \ \ parsed\_req.requirement,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00498}00498\ \ \ \ \ \ \ \ \ \ \ \ \ comes\_from=parsed\_req.comes\_from,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00499}00499\ \ \ \ \ \ \ \ \ \ \ \ \ use\_pep517=use\_pep517,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00500}00500\ \ \ \ \ \ \ \ \ \ \ \ \ isolated=isolated,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00501}00501\ \ \ \ \ \ \ \ \ \ \ \ \ global\_options=(}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00502}00502\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ parsed\_req.options.get(\textcolor{stringliteral}{"{}global\_options"{}},\ [])}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00503}00503\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ parsed\_req.options}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00504}00504\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}\ []}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00505}00505\ \ \ \ \ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00506}00506\ \ \ \ \ \ \ \ \ \ \ \ \ hash\_options=(}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00507}00507\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ parsed\_req.options.get(\textcolor{stringliteral}{"{}hashes"{}},\ \{\})\ \textcolor{keywordflow}{if}\ parsed\_req.options\ \textcolor{keywordflow}{else}\ \{\}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00508}00508\ \ \ \ \ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00509}00509\ \ \ \ \ \ \ \ \ \ \ \ \ constraint=parsed\_req.constraint,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00510}00510\ \ \ \ \ \ \ \ \ \ \ \ \ line\_source=parsed\_req.line\_source,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00511}00511\ \ \ \ \ \ \ \ \ \ \ \ \ user\_supplied=user\_supplied,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00512}00512\ \ \ \ \ \ \ \ \ \ \ \ \ config\_settings=config\_settings,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00513}00513\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00514}00514\ \ \ \ \ \textcolor{keywordflow}{return}\ req}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00515}00515\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00516}00516\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00517}00517\ \textcolor{keyword}{def\ }install\_req\_from\_link\_and\_ireq(}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00518}00518\ \ \ \ \ link:\ Link,\ ireq:\ InstallRequirement}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00519}00519\ )\ -\/>\ InstallRequirement:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00520}00520\ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classpip_1_1__internal_1_1req_1_1req__install_1_1InstallRequirement}{InstallRequirement}}(}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00521}00521\ \ \ \ \ \ \ \ \ req=ireq.req,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00522}00522\ \ \ \ \ \ \ \ \ comes\_from=ireq.comes\_from,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00523}00523\ \ \ \ \ \ \ \ \ editable=ireq.editable,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00524}00524\ \ \ \ \ \ \ \ \ link=link,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00525}00525\ \ \ \ \ \ \ \ \ markers=ireq.markers,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00526}00526\ \ \ \ \ \ \ \ \ use\_pep517=ireq.use\_pep517,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00527}00527\ \ \ \ \ \ \ \ \ isolated=ireq.isolated,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00528}00528\ \ \ \ \ \ \ \ \ global\_options=ireq.global\_options,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00529}00529\ \ \ \ \ \ \ \ \ hash\_options=ireq.hash\_options,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00530}00530\ \ \ \ \ \ \ \ \ config\_settings=ireq.config\_settings,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00531}00531\ \ \ \ \ \ \ \ \ user\_supplied=ireq.user\_supplied,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00532}00532\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00533}00533\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00534}00534\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00535}\mbox{\hyperlink{namespacepip_1_1__internal_1_1req_1_1constructors_a748e4d323f8f7d1e329af830aaffdc16}{00535}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepip_1_1__internal_1_1req_1_1constructors_a748e4d323f8f7d1e329af830aaffdc16}{install\_req\_drop\_extras}}(ireq:\ InstallRequirement)\ -\/>\ InstallRequirement:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00536}00536\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00537}00537\ \textcolor{stringliteral}{\ \ \ \ Creates\ a\ new\ InstallationRequirement\ using\ the\ given\ template\ but\ without}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00538}00538\ \textcolor{stringliteral}{\ \ \ \ any\ extras.\ Sets\ the\ original\ requirement\ as\ the\ new\ one's\ parent}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00539}00539\ \textcolor{stringliteral}{\ \ \ \ (comes\_from).}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00540}00540\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00541}00541\ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classpip_1_1__internal_1_1req_1_1req__install_1_1InstallRequirement}{InstallRequirement}}(}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00542}00542\ \ \ \ \ \ \ \ \ req=(}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00543}00543\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{namespacepip_1_1__internal_1_1req_1_1constructors_a202eb25bfbac5e91399370cf90970fad}{\_set\_requirement\_extras}}(ireq.req,\ set())\ \textcolor{keywordflow}{if}\ ireq.req\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{else}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00544}00544\ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00545}00545\ \ \ \ \ \ \ \ \ comes\_from=ireq,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00546}00546\ \ \ \ \ \ \ \ \ editable=ireq.editable,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00547}00547\ \ \ \ \ \ \ \ \ link=ireq.link,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00548}00548\ \ \ \ \ \ \ \ \ markers=ireq.markers,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00549}00549\ \ \ \ \ \ \ \ \ use\_pep517=ireq.use\_pep517,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00550}00550\ \ \ \ \ \ \ \ \ isolated=ireq.isolated,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00551}00551\ \ \ \ \ \ \ \ \ global\_options=ireq.global\_options,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00552}00552\ \ \ \ \ \ \ \ \ hash\_options=ireq.hash\_options,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00553}00553\ \ \ \ \ \ \ \ \ constraint=ireq.constraint,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00554}00554\ \ \ \ \ \ \ \ \ extras=[],}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00555}00555\ \ \ \ \ \ \ \ \ config\_settings=ireq.config\_settings,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00556}00556\ \ \ \ \ \ \ \ \ user\_supplied=ireq.user\_supplied,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00557}00557\ \ \ \ \ \ \ \ \ permit\_editable\_wheels=ireq.permit\_editable\_wheels,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00558}00558\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00559}00559\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00560}00560\ }
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00561}\mbox{\hyperlink{namespacepip_1_1__internal_1_1req_1_1constructors_a6a153ee22ad3aa18f9eaa54ef3a02b31}{00561}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepip_1_1__internal_1_1req_1_1constructors_a6a153ee22ad3aa18f9eaa54ef3a02b31}{install\_req\_extend\_extras}}(}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00562}00562\ \ \ \ \ ireq:\ InstallRequirement,}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00563}00563\ \ \ \ \ extras:\ Collection[str],}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00564}00564\ )\ -\/>\ InstallRequirement:}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00565}00565\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00566}00566\ \textcolor{stringliteral}{\ \ \ \ Returns\ a\ copy\ of\ an\ installation\ requirement\ with\ some\ additional\ extras.}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00567}00567\ \textcolor{stringliteral}{\ \ \ \ Makes\ a\ shallow\ copy\ of\ the\ ireq\ object.}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00568}00568\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00569}00569\ \ \ \ \ result\ =\ copy.copy(ireq)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00570}00570\ \ \ \ \ result.extras\ =\ \{*ireq.extras,\ *extras\}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00571}00571\ \ \ \ \ result.req\ =\ (}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00572}00572\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{namespacepip_1_1__internal_1_1req_1_1constructors_a202eb25bfbac5e91399370cf90970fad}{\_set\_requirement\_extras}}(ireq.req,\ result.extras)}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00573}00573\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ ireq.req\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00574}00574\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00575}00575\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{pip_2__internal_2req_2constructors_8py_source_l00576}00576\ \ \ \ \ \textcolor{keywordflow}{return}\ result}
+
+\end{DoxyCode}

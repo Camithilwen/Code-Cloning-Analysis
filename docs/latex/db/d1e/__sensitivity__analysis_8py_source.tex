@@ -1,0 +1,718 @@
+\doxysection{\+\_\+sensitivity\+\_\+analysis.\+py}
+\hypertarget{__sensitivity__analysis_8py_source}{}\label{__sensitivity__analysis_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/scipy/stats/\_sensitivity\_analysis.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/scipy/stats/\_sensitivity\_analysis.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00001}\mbox{\hyperlink{namespacescipy_1_1stats_1_1__sensitivity__analysis}{00001}}\ \textcolor{keyword}{from}\ \_\_future\_\_\ \textcolor{keyword}{import}\ annotations}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00002}00002\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00003}00003\ \textcolor{keyword}{import}\ inspect}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00004}00004\ \textcolor{keyword}{from}\ dataclasses\ \textcolor{keyword}{import}\ dataclass}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00005}00005\ \textcolor{keyword}{from}\ typing\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00006}00006\ \ \ \ \ Callable,\ Literal,\ Protocol,\ TYPE\_CHECKING}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00007}00007\ )}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00008}00008\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00009}00009\ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00010}00010\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00011}00011\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacescipy_1_1stats_1_1__common}{scipy.stats.\_common}}\ \textcolor{keyword}{import}\ ConfidenceInterval}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00012}00012\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacescipy_1_1stats_1_1__qmc}{scipy.stats.\_qmc}}\ \textcolor{keyword}{import}\ check\_random\_state}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00013}00013\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacescipy_1_1stats_1_1__resampling}{scipy.stats.\_resampling}}\ \textcolor{keyword}{import}\ BootstrapResult}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00014}00014\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacescipy_1_1stats}{scipy.stats}}\ \textcolor{keyword}{import}\ qmc,\ bootstrap}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00015}00015\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00016}00016\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00017}00017\ \textcolor{keywordflow}{if}\ TYPE\_CHECKING:}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00018}00018\ \ \ \ \ \textcolor{keyword}{import}\ \mbox{\hyperlink{namespacenumpy_1_1typing}{numpy.typing}}\ \textcolor{keyword}{as}\ npt}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00019}00019\ \ \ \ \ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacescipy_1_1__lib_1_1__util}{scipy.\_lib.\_util}}\ \textcolor{keyword}{import}\ DecimalNumber,\ IntNumber,\ SeedType}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00020}00020\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00021}00021\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00022}00022\ \_\_all\_\_\ =\ [}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00023}00023\ \ \ \ \ \textcolor{stringliteral}{'sobol\_indices'}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00024}00024\ ]}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00025}00025\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00026}00026\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00027}\mbox{\hyperlink{namespacescipy_1_1stats_1_1__sensitivity__analysis_aef6cd984fce57597e2c6512d9a3e43d2}{00027}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacescipy_1_1stats_1_1__sensitivity__analysis_aef6cd984fce57597e2c6512d9a3e43d2}{f\_ishigami}}(x:\ npt.ArrayLike)\ -\/>\ np.ndarray:}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00028}00028\ \ \ \ \ \textcolor{stringliteral}{r"{}"{}"{}Ishigami\ function.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00029}00029\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00030}00030\ \textcolor{stringliteral}{\ \ \ \ ..\ math::}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00031}00031\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00032}00032\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Y(\(\backslash\)mathbf\{x\})\ =\ \(\backslash\)sin\ x\_1\ +\ 7\ \(\backslash\)sin\string^2\ x\_2\ +\ 0.1\ x\_3\string^4\ \(\backslash\)sin\ x\_1}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00033}00033\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00034}00034\ \textcolor{stringliteral}{\ \ \ \ with\ :math:\`{}\(\backslash\)mathbf\{x\}\ \(\backslash\)in\ [-\/\(\backslash\)pi,\ \(\backslash\)pi]\string^3\`{}.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00035}00035\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00036}00036\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00037}00037\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00038}00038\ \textcolor{stringliteral}{\ \ \ \ x\ :\ array\_like\ ([x1,\ x2,\ x3],\ n)}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00039}00039\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00040}00040\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00041}00041\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00042}00042\ \textcolor{stringliteral}{\ \ \ \ f\ :\ array\_like\ (n,)}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00043}00043\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Function\ evaluation.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00044}00044\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00045}00045\ \textcolor{stringliteral}{\ \ \ \ References}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00046}00046\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00047}00047\ \textcolor{stringliteral}{\ \ \ \ ..\ [1]\ Ishigami,\ T.\ and\ T.\ Homma.\ "{}An\ importance\ quantification\ technique}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00048}00048\ \textcolor{stringliteral}{\ \ \ \ \ \ \ in\ uncertainty\ analysis\ for\ computer\ models."{}\ IEEE,}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00049}00049\ \textcolor{stringliteral}{\ \ \ \ \ \ \ :doi:\`{}10.1109/ISUMA.1990.151285\`{},\ 1990.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00050}00050\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00051}00051\ \ \ \ \ x\ =\ np.atleast\_2d(x)}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00052}00052\ \ \ \ \ f\_eval\ =\ (}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00053}00053\ \ \ \ \ \ \ \ \ np.sin(x[0])}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00054}00054\ \ \ \ \ \ \ \ \ +\ 7\ *\ np.sin(x[1])**2}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00055}00055\ \ \ \ \ \ \ \ \ +\ 0.1\ *\ (x[2]**4)\ *\ np.sin(x[0])}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00056}00056\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00057}00057\ \ \ \ \ \textcolor{keywordflow}{return}\ f\_eval}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00058}00058\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00059}00059\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00060}\mbox{\hyperlink{namespacescipy_1_1stats_1_1__sensitivity__analysis_a56a4ae12ce501b64edd12f5384277070}{00060}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacescipy_1_1stats_1_1__sensitivity__analysis_a56a4ae12ce501b64edd12f5384277070}{sample\_A\_B}}(}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00061}00061\ \ \ \ \ n:\ IntNumber,}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00062}00062\ \ \ \ \ dists:\ list[PPFDist],}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00063}00063\ \ \ \ \ random\_state:\ SeedType\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00064}00064\ )\ -\/>\ np.ndarray:}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00065}00065\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Sample\ two\ matrices\ A\ and\ B.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00066}00066\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00067}00067\ \textcolor{stringliteral}{\ \ \ \ Uses\ a\ Sobol'\ sequence\ with\ 2\`{}d\`{}\ columns\ to\ have\ 2\ uncorrelated\ matrices.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00068}00068\ \textcolor{stringliteral}{\ \ \ \ This\ is\ more\ efficient\ than\ using\ 2\ random\ draw\ of\ Sobol'.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00069}00069\ \textcolor{stringliteral}{\ \ \ \ See\ sec.\ 5\ from\ [1]\_.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00070}00070\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00071}00071\ \textcolor{stringliteral}{\ \ \ \ Output\ shape\ is\ (d,\ n).}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00072}00072\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00073}00073\ \textcolor{stringliteral}{\ \ \ \ References}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00074}00074\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00075}00075\ \textcolor{stringliteral}{\ \ \ \ ..\ [1]\ Saltelli,\ A.,\ P.\ Annoni,\ I.\ Azzini,\ F.\ Campolongo,\ M.\ Ratto,\ and}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00076}00076\ \textcolor{stringliteral}{\ \ \ \ \ \ \ S.\ Tarantola.\ "{}Variance\ based\ sensitivity\ analysis\ of\ model}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00077}00077\ \textcolor{stringliteral}{\ \ \ \ \ \ \ output.\ Design\ and\ estimator\ for\ the\ total\ sensitivity\ index."{}}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00078}00078\ \textcolor{stringliteral}{\ \ \ \ \ \ \ Computer\ Physics\ Communications,\ 181(2):259-\/270,}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00079}00079\ \textcolor{stringliteral}{\ \ \ \ \ \ \ :doi:\`{}10.1016/j.cpc.2009.09.018\`{},\ 2010.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00080}00080\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00081}00081\ \ \ \ \ d\ =\ len(dists)}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00082}00082\ \ \ \ \ A\_B\ =\ \mbox{\hyperlink{classscipy_1_1stats_1_1__qmc_1_1Sobol}{qmc.Sobol}}(d=2*d,\ seed=random\_state,\ bits=64).\mbox{\hyperlink{namespacerandom}{random}}(n).T}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00083}00083\ \ \ \ \ A\_B\ =\ A\_B.reshape(2,\ d,\ -\/1)}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00084}00084\ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00085}00085\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ d\_,\ dist\ \textcolor{keywordflow}{in}\ enumerate(dists):}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00086}00086\ \ \ \ \ \ \ \ \ \ \ \ \ A\_B[:,\ d\_]\ =\ dist.ppf(A\_B[:,\ d\_])}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00087}00087\ \ \ \ \ \textcolor{keywordflow}{except}\ AttributeError\ \textcolor{keyword}{as}\ exc:}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00088}00088\ \ \ \ \ \ \ \ \ message\ =\ \textcolor{stringliteral}{"{}Each\ distribution\ in\ \`{}dists`\ must\ have\ method\ \`{}ppf`."{}}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00089}00089\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(message)\ \textcolor{keyword}{from}\ exc}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00090}00090\ \ \ \ \ \textcolor{keywordflow}{return}\ A\_B}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00091}00091\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00092}00092\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00093}\mbox{\hyperlink{namespacescipy_1_1stats_1_1__sensitivity__analysis_a51768cca60c87e5b5589432418d66b3c}{00093}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacescipy_1_1stats_1_1__sensitivity__analysis_a51768cca60c87e5b5589432418d66b3c}{sample\_AB}}(A:\ np.ndarray,\ B:\ np.ndarray)\ -\/>\ np.ndarray:}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00094}00094\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}AB\ matrix.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00095}00095\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00096}00096\ \textcolor{stringliteral}{\ \ \ \ AB:\ rows\ of\ B\ into\ A.\ Shape\ (d,\ d,\ n).}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00097}00097\ \textcolor{stringliteral}{\ \ \ \ -\/\ Copy\ A\ into\ d\ "{}pages"{}}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00098}00098\ \textcolor{stringliteral}{\ \ \ \ -\/\ In\ the\ first\ page,\ replace\ 1st\ rows\ of\ A\ with\ 1st\ row\ of\ B.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00099}00099\ \textcolor{stringliteral}{\ \ \ \ ...}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00100}00100\ \textcolor{stringliteral}{\ \ \ \ -\/\ In\ the\ dth\ page,\ replace\ dth\ row\ of\ A\ with\ dth\ row\ of\ B.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00101}00101\ \textcolor{stringliteral}{\ \ \ \ -\/\ return\ the\ stack\ of\ pages}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00102}00102\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00103}00103\ \ \ \ \ d,\ n\ =\ A.shape}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00104}00104\ \ \ \ \ AB\ =\ np.tile(A,\ (d,\ 1,\ 1))}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00105}00105\ \ \ \ \ i\ =\ np.arange(d)}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00106}00106\ \ \ \ \ AB[i,\ i]\ =\ B[i]}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00107}00107\ \ \ \ \ \textcolor{keywordflow}{return}\ AB}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00108}00108\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00109}00109\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00110}\mbox{\hyperlink{namespacescipy_1_1stats_1_1__sensitivity__analysis_a3394b5a581b10a87f91479884fd95a65}{00110}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacescipy_1_1stats_1_1__sensitivity__analysis_a3394b5a581b10a87f91479884fd95a65}{saltelli\_2010}}(}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00111}00111\ \ \ \ \ f\_A:\ np.ndarray,\ f\_B:\ np.ndarray,\ f\_AB:\ np.ndarray}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00112}00112\ )\ -\/>\ tuple[np.ndarray,\ np.ndarray]:}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00113}00113\ \ \ \ \ \textcolor{stringliteral}{r"{}"{}"{}Saltelli2010\ formulation.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00114}00114\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00115}00115\ \textcolor{stringliteral}{\ \ \ \ ..\ math::}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00116}00116\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00117}00117\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ S\_i\ =\ \(\backslash\)frac\{1\}\{N\}\ \(\backslash\)sum\_\{j=1\}\string^N}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00118}00118\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ f(\(\backslash\)mathbf\{B\})\_j\ (f(\(\backslash\)mathbf\{AB\}\string^\{(i)\})\_j\ -\/\ f(\(\backslash\)mathbf\{A\})\_j)}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00119}00119\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00120}00120\ \textcolor{stringliteral}{\ \ \ \ ..\ math::}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00121}00121\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00122}00122\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ S\_\{T\_i\}\ =\ \(\backslash\)frac\{1\}\{N\}\ \(\backslash\)sum\_\{j=1\}\string^N}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00123}00123\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ (f(\(\backslash\)mathbf\{A\})\_j\ -\/\ f(\(\backslash\)mathbf\{AB\}\string^\{(i)\})\_j)\string^2}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00124}00124\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00125}00125\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00126}00126\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00127}00127\ \textcolor{stringliteral}{\ \ \ \ f\_A,\ f\_B\ :\ array\_like\ (s,\ n)}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00128}00128\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Function\ values\ at\ A\ and\ B,\ respectively}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00129}00129\ \textcolor{stringliteral}{\ \ \ \ f\_AB\ :\ array\_like\ (d,\ s,\ n)}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00130}00130\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Function\ values\ at\ each\ of\ the\ AB\ pages}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00131}00131\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00132}00132\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00133}00133\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00134}00134\ \textcolor{stringliteral}{\ \ \ \ s,\ st\ :\ array\_like\ (s,\ d)}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00135}00135\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ First\ order\ and\ total\ order\ Sobol'\ indices.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00136}00136\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00137}00137\ \textcolor{stringliteral}{\ \ \ \ References}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00138}00138\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00139}00139\ \textcolor{stringliteral}{\ \ \ \ ..\ [1]\ Saltelli,\ A.,\ P.\ Annoni,\ I.\ Azzini,\ F.\ Campolongo,\ M.\ Ratto,\ and}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00140}00140\ \textcolor{stringliteral}{\ \ \ \ \ \ \ S.\ Tarantola.\ "{}Variance\ based\ sensitivity\ analysis\ of\ model}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00141}00141\ \textcolor{stringliteral}{\ \ \ \ \ \ \ output.\ Design\ and\ estimator\ for\ the\ total\ sensitivity\ index."{}}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00142}00142\ \textcolor{stringliteral}{\ \ \ \ \ \ \ Computer\ Physics\ Communications,\ 181(2):259-\/270,}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00143}00143\ \textcolor{stringliteral}{\ \ \ \ \ \ \ :doi:\`{}10.1016/j.cpc.2009.09.018\`{},\ 2010.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00144}00144\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00145}00145\ \ \ \ \ \textcolor{comment}{\#\ Empirical\ variance\ calculated\ using\ output\ from\ A\ and\ B\ which\ are}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00146}00146\ \ \ \ \ \textcolor{comment}{\#\ independent.\ Output\ of\ AB\ is\ not\ independent\ and\ cannot\ be\ used}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00147}00147\ \ \ \ \ var\ =\ np.var([f\_A,\ f\_B],\ axis=(0,\ -\/1))}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00148}00148\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00149}00149\ \ \ \ \ \textcolor{comment}{\#\ We\ divide\ by\ the\ variance\ to\ have\ a\ ratio\ of\ variance}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00150}00150\ \ \ \ \ \textcolor{comment}{\#\ this\ leads\ to\ eq.\ 2}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00151}00151\ \ \ \ \ s\ =\ np.mean(f\_B\ *\ (f\_AB\ -\/\ f\_A),\ axis=-\/1)\ /\ var\ \ \textcolor{comment}{\#\ Table\ 2\ (b)}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00152}00152\ \ \ \ \ st\ =\ 0.5\ *\ np.mean((f\_A\ -\/\ f\_AB)\ **\ 2,\ axis=-\/1)\ /\ var\ \ \textcolor{comment}{\#\ Table\ 2\ (f)}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00153}00153\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00154}00154\ \ \ \ \ \textcolor{keywordflow}{return}\ s.T,\ st.T}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00155}00155\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00156}00156\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00157}00157\ \textcolor{preprocessor}{@dataclass}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00158}\mbox{\hyperlink{classscipy_1_1stats_1_1__sensitivity__analysis_1_1BootstrapSobolResult}{00158}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classscipy_1_1stats_1_1__sensitivity__analysis_1_1BootstrapSobolResult}{BootstrapSobolResult}}:}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00159}00159\ \ \ \ \ first\_order:\ BootstrapResult}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00160}00160\ \ \ \ \ total\_order:\ BootstrapResult}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00161}00161\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00162}00162\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00163}00163\ \textcolor{preprocessor}{@dataclass}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00164}\mbox{\hyperlink{classscipy_1_1stats_1_1__sensitivity__analysis_1_1SobolResult}{00164}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classscipy_1_1stats_1_1__sensitivity__analysis_1_1SobolResult}{SobolResult}}:}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00165}00165\ \ \ \ \ first\_order:\ np.ndarray}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00166}00166\ \ \ \ \ total\_order:\ np.ndarray}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00167}00167\ \ \ \ \ \_indices\_method:\ Callable}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00168}00168\ \ \ \ \ \_f\_A:\ np.ndarray}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00169}00169\ \ \ \ \ \_f\_B:\ np.ndarray}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00170}00170\ \ \ \ \ \_f\_AB:\ np.ndarray}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00171}00171\ \ \ \ \ \_A:\ np.ndarray\ |\ \textcolor{keywordtype}{None}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00172}00172\ \ \ \ \ \_B:\ np.ndarray\ |\ \textcolor{keywordtype}{None}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00173}00173\ \ \ \ \ \_AB:\ np.ndarray\ |\ \textcolor{keywordtype}{None}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00174}00174\ \ \ \ \ \_bootstrap\_result:\ BootstrapResult\ |\ \textcolor{keywordtype}{None}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00175}00175\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00176}\mbox{\hyperlink{classscipy_1_1stats_1_1__sensitivity__analysis_1_1SobolResult_ad9d1dd736049830a095983463f8bfdd1}{00176}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classscipy_1_1stats_1_1__sensitivity__analysis_1_1SobolResult_ad9d1dd736049830a095983463f8bfdd1}{bootstrap}}(}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00177}00177\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00178}00178\ \ \ \ \ \ \ \ \ confidence\_level:\ DecimalNumber\ =\ 0.95,}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00179}00179\ \ \ \ \ \ \ \ \ n\_resamples:\ IntNumber\ =\ 999}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00180}00180\ \ \ \ \ )\ -\/>\ BootstrapSobolResult:}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00181}00181\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Bootstrap\ Sobol'\ indices\ to\ provide\ confidence\ intervals.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00182}00182\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00183}00183\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00184}00184\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00185}00185\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ confidence\_level\ :\ float,\ default:\ \`{}\`{}0.95\`{}\`{}}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00186}00186\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ confidence\ level\ of\ the\ confidence\ intervals.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00187}00187\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ n\_resamples\ :\ int,\ default:\ \`{}\`{}999\`{}\`{}}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00188}00188\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ number\ of\ resamples\ performed\ to\ form\ the\ bootstrap}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00189}00189\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ distribution\ of\ the\ indices.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00190}00190\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00191}00191\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00192}00192\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00193}00193\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ res\ :\ BootstrapSobolResult}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00194}00194\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Bootstrap\ result\ containing\ the\ confidence\ intervals\ and\ the}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00195}00195\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ bootstrap\ distribution\ of\ the\ indices.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00196}00196\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00197}00197\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ An\ object\ with\ attributes:}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00198}00198\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00199}00199\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ first\_order\ :\ BootstrapResult}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00200}00200\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ Bootstrap\ result\ of\ the\ first\ order\ indices.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00201}00201\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ total\_order\ :\ BootstrapResult}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00202}00202\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ Bootstrap\ result\ of\ the\ total\ order\ indices.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00203}00203\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ See\ \`{}BootstrapResult\`{}\ for\ more\ details.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00204}00204\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00205}00205\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00206}00206\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }statistic(idx):}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00207}00207\ \ \ \ \ \ \ \ \ \ \ \ \ f\_A\_\ =\ self.\mbox{\hyperlink{classscipy_1_1stats_1_1__sensitivity__analysis_1_1SobolResult_ab3a0f83f45db8d62568d6387f8cdd528}{\_f\_A}}[:,\ idx]}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00208}00208\ \ \ \ \ \ \ \ \ \ \ \ \ f\_B\_\ =\ self.\mbox{\hyperlink{classscipy_1_1stats_1_1__sensitivity__analysis_1_1SobolResult_a78a68c665a9722cd2eada077a9248ce4}{\_f\_B}}[:,\ idx]}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00209}00209\ \ \ \ \ \ \ \ \ \ \ \ \ f\_AB\_\ =\ self.\mbox{\hyperlink{classscipy_1_1stats_1_1__sensitivity__analysis_1_1SobolResult_a577a1c337b5a82ba8d234b6778bd3691}{\_f\_AB}}[...,\ idx]}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00210}00210\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\_indices\_method(f\_A\_,\ f\_B\_,\ f\_AB\_)}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00211}00211\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00212}00212\ \ \ \ \ \ \ \ \ n\ =\ self.\mbox{\hyperlink{classscipy_1_1stats_1_1__sensitivity__analysis_1_1SobolResult_ab3a0f83f45db8d62568d6387f8cdd528}{\_f\_A}}.shape[1]}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00213}00213\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00214}00214\ \ \ \ \ \ \ \ \ res\ =\ \mbox{\hyperlink{classscipy_1_1stats_1_1__sensitivity__analysis_1_1SobolResult_ad9d1dd736049830a095983463f8bfdd1}{bootstrap}}(}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00215}00215\ \ \ \ \ \ \ \ \ \ \ \ \ [np.arange(n)],\ statistic=statistic,\ method=\textcolor{stringliteral}{"{}BCa"{}},}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00216}00216\ \ \ \ \ \ \ \ \ \ \ \ \ n\_resamples=n\_resamples,}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00217}00217\ \ \ \ \ \ \ \ \ \ \ \ \ confidence\_level=confidence\_level,}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00218}00218\ \ \ \ \ \ \ \ \ \ \ \ \ bootstrap\_result=self.\mbox{\hyperlink{classscipy_1_1stats_1_1__sensitivity__analysis_1_1SobolResult_adca41a8f863d9d4a213fefbc2604e548}{\_bootstrap\_result}}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00219}00219\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00220}00220\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1stats_1_1__sensitivity__analysis_1_1SobolResult_adca41a8f863d9d4a213fefbc2604e548}{\_bootstrap\_result}}\ =\ res}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00221}00221\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00222}00222\ \ \ \ \ \ \ \ \ first\_order\ =\ \mbox{\hyperlink{classscipy_1_1stats_1_1__resampling_1_1BootstrapResult}{BootstrapResult}}(}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00223}00223\ \ \ \ \ \ \ \ \ \ \ \ \ confidence\_interval=ConfidenceInterval(}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00224}00224\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ res.confidence\_interval.low[0],\ res.confidence\_interval.high[0]}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00225}00225\ \ \ \ \ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00226}00226\ \ \ \ \ \ \ \ \ \ \ \ \ bootstrap\_distribution=res.bootstrap\_distribution[0],}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00227}00227\ \ \ \ \ \ \ \ \ \ \ \ \ standard\_error=res.standard\_error[0],}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00228}00228\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00229}00229\ \ \ \ \ \ \ \ \ total\_order\ =\ \mbox{\hyperlink{classscipy_1_1stats_1_1__resampling_1_1BootstrapResult}{BootstrapResult}}(}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00230}00230\ \ \ \ \ \ \ \ \ \ \ \ \ confidence\_interval=ConfidenceInterval(}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00231}00231\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ res.confidence\_interval.low[1],\ res.confidence\_interval.high[1]}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00232}00232\ \ \ \ \ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00233}00233\ \ \ \ \ \ \ \ \ \ \ \ \ bootstrap\_distribution=res.bootstrap\_distribution[1],}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00234}00234\ \ \ \ \ \ \ \ \ \ \ \ \ standard\_error=res.standard\_error[1],}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00235}00235\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00236}00236\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00237}00237\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classscipy_1_1stats_1_1__sensitivity__analysis_1_1BootstrapSobolResult}{BootstrapSobolResult}}(}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00238}00238\ \ \ \ \ \ \ \ \ \ \ \ \ first\_order=first\_order,\ total\_order=total\_order}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00239}00239\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00240}00240\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00241}00241\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00242}\mbox{\hyperlink{classscipy_1_1stats_1_1__sensitivity__analysis_1_1PPFDist}{00242}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classscipy_1_1stats_1_1__sensitivity__analysis_1_1PPFDist}{PPFDist}}(\mbox{\hyperlink{classProtocol}{Protocol}}):}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00243}00243\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00244}00244\ \ \ \ \ \textcolor{keyword}{def\ }ppf(self)\ -\/>\ Callable[...,\ float]:}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00245}00245\ \ \ \ \ \ \ \ \ ...}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00246}00246\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00247}00247\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00248}\mbox{\hyperlink{namespacescipy_1_1stats_1_1__sensitivity__analysis_a7f7cabcfd790452d50dc83de8ae3377a}{00248}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacescipy_1_1stats_1_1__sensitivity__analysis_a7f7cabcfd790452d50dc83de8ae3377a}{sobol\_indices}}(}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00249}00249\ \ \ \ \ *,}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00250}00250\ \ \ \ \ func:\ Callable[[np.ndarray],\ npt.ArrayLike]\ |}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00251}00251\ \ \ \ \ \ \ \ \ \ \ dict[Literal[\textcolor{stringliteral}{'f\_A'},\ \textcolor{stringliteral}{'f\_B'},\ \textcolor{stringliteral}{'f\_AB'}],\ np.ndarray],\ \ \textcolor{comment}{\#\ noqa}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00252}00252\ \ \ \ \ n:\ IntNumber,}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00253}00253\ \ \ \ \ dists:\ list[PPFDist]\ |\ \textcolor{keywordtype}{None}\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00254}00254\ \ \ \ \ method:\ Callable\ |\ Literal[\textcolor{stringliteral}{'saltelli\_2010'}]\ =\ \textcolor{stringliteral}{'saltelli\_2010'},}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00255}00255\ \ \ \ \ random\_state:\ SeedType\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00256}00256\ )\ -\/>\ SobolResult:}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00257}00257\ \ \ \ \ \textcolor{stringliteral}{r"{}"{}"{}Global\ sensitivity\ indices\ of\ Sobol'.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00258}00258\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00259}00259\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00260}00260\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00261}00261\ \textcolor{stringliteral}{\ \ \ \ func\ :\ callable\ or\ dict(str,\ array\_like)}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00262}00262\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ \`{}func\`{}\ is\ a\ callable,\ function\ to\ compute\ the\ Sobol'\ indices\ from.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00263}00263\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Its\ signature\ must\ be::}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00264}00264\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00265}00265\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ func(x:\ ArrayLike)\ -\/>\ ArrayLike}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00266}00266\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00267}00267\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ with\ \`{}\`{}x\`{}\`{}\ of\ shape\ \`{}\`{}(d,\ n)\`{}\`{}\ and\ output\ of\ shape\ \`{}\`{}(s,\ n)\`{}\`{}\ where:}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00268}00268\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00269}00269\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ \`{}\`{}d\`{}\`{}\ is\ the\ input\ dimensionality\ of\ \`{}func\`{}}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00270}00270\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ (number\ of\ input\ variables),}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00271}00271\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ \`{}\`{}s\`{}\`{}\ is\ the\ output\ dimensionality\ of\ \`{}func\`{}}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00272}00272\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ (number\ of\ output\ variables),\ and}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00273}00273\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ \`{}\`{}n\`{}\`{}\ is\ the\ number\ of\ samples\ (see\ \`{}n\`{}\ below).}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00274}00274\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00275}00275\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Function\ evaluation\ values\ must\ be\ finite.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00276}00276\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00277}00277\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ \`{}func\`{}\ is\ a\ dictionary,\ contains\ the\ function\ evaluations\ from\ three}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00278}00278\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ different\ arrays.\ Keys\ must\ be:\ \`{}\`{}f\_A\`{}\`{},\ \`{}\`{}f\_B\`{}\`{}\ and\ \`{}\`{}f\_AB\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00279}00279\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}f\_A\`{}\`{}\ and\ \`{}\`{}f\_B\`{}\`{}\ should\ have\ a\ shape\ \`{}\`{}(s,\ n)\`{}\`{}\ and\ \`{}\`{}f\_AB\`{}\`{}}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00280}00280\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ should\ have\ a\ shape\ \`{}\`{}(d,\ s,\ n)\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00281}00281\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ This\ is\ an\ advanced\ feature\ and\ misuse\ can\ lead\ to\ wrong\ analysis.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00282}00282\ \textcolor{stringliteral}{\ \ \ \ n\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00283}00283\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ samples\ used\ to\ generate\ the\ matrices\ \`{}\`{}A\`{}\`{}\ and\ \`{}\`{}B\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00284}00284\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Must\ be\ a\ power\ of\ 2.\ The\ total\ number\ of\ points\ at\ which\ \`{}func\`{}\ is}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00285}00285\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ evaluated\ will\ be\ \`{}\`{}n*(d+2)\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00286}00286\ \textcolor{stringliteral}{\ \ \ \ dists\ :\ list(distributions),\ optional}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00287}00287\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ List\ of\ each\ parameter's\ distribution.\ The\ distribution\ of\ parameters}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00288}00288\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ depends\ on\ the\ application\ and\ should\ be\ carefully\ chosen.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00289}00289\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters\ are\ assumed\ to\ be\ independently\ distributed,\ meaning\ there}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00290}00290\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ is\ no\ constraint\ nor\ relationship\ between\ their\ values.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00291}00291\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00292}00292\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Distributions\ must\ be\ an\ instance\ of\ a\ class\ with\ a\ \`{}\`{}ppf\`{}\`{}}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00293}00293\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ method.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00294}00294\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00295}00295\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Must\ be\ specified\ if\ \`{}func\`{}\ is\ a\ callable,\ and\ ignored\ otherwise.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00296}00296\ \textcolor{stringliteral}{\ \ \ \ method\ :\ Callable\ or\ str,\ default:\ 'saltelli\_2010'}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00297}00297\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Method\ used\ to\ compute\ the\ first\ and\ total\ Sobol'\ indices.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00298}00298\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00299}00299\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ a\ callable,\ its\ signature\ must\ be::}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00300}00300\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00301}00301\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ func(f\_A:\ np.ndarray,\ f\_B:\ np.ndarray,\ f\_AB:\ np.ndarray)}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00302}00302\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ -\/>\ Tuple[np.ndarray,\ np.ndarray]}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00303}00303\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00304}00304\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ with\ \`{}\`{}f\_A,\ f\_B\`{}\`{}\ of\ shape\ \`{}\`{}(s,\ n)\`{}\`{}\ and\ \`{}\`{}f\_AB\`{}\`{}\ of\ shape}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00305}00305\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}(d,\ s,\ n)\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00306}00306\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ These\ arrays\ contain\ the\ function\ evaluations\ from\ three\ different\ sets}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00307}00307\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ of\ samples.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00308}00308\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ output\ is\ a\ tuple\ of\ the\ first\ and\ total\ indices\ with}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00309}00309\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ shape\ \`{}\`{}(s,\ d)\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00310}00310\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ This\ is\ an\ advanced\ feature\ and\ misuse\ can\ lead\ to\ wrong\ analysis.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00311}00311\ \textcolor{stringliteral}{\ \ \ \ random\_state\ :\ \{None,\ int,\ \`{}numpy.random.Generator\`{}\},\ optional}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00312}00312\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ \`{}random\_state\`{}\ is\ an\ int\ or\ None,\ a\ new\ \`{}numpy.random.Generator\`{}\ is}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00313}00313\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ created\ using\ \`{}\`{}np.random.default\_rng(random\_state)\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00314}00314\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ \`{}random\_state\`{}\ is\ already\ a\ \`{}\`{}Generator\`{}\`{}\ instance,\ then\ the}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00315}00315\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ provided\ instance\ is\ used.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00316}00316\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00317}00317\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00318}00318\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00319}00319\ \textcolor{stringliteral}{\ \ \ \ res\ :\ SobolResult}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00320}00320\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ An\ object\ with\ attributes:}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00321}00321\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00322}00322\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ first\_order\ :\ ndarray\ of\ shape\ (s,\ d)}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00323}00323\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ First\ order\ Sobol'\ indices.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00324}00324\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ total\_order\ :\ ndarray\ of\ shape\ (s,\ d)}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00325}00325\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Total\ order\ Sobol'\ indices.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00326}00326\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00327}00327\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ And\ method:}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00328}00328\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00329}00329\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ bootstrap(confidence\_level:\ float,\ n\_resamples:\ int)}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00330}00330\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/>\ BootstrapSobolResult}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00331}00331\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00332}00332\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ A\ method\ providing\ confidence\ intervals\ on\ the\ indices.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00333}00333\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ See\ \`{}scipy.stats.bootstrap\`{}\ for\ more\ details.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00334}00334\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00335}00335\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ bootstrapping\ is\ done\ on\ both\ first\ and\ total\ order\ indices,}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00336}00336\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ and\ they\ are\ available\ in\ \`{}BootstrapSobolResult\`{}\ as\ attributes}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00337}00337\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \`{}\`{}first\_order\`{}\`{}\ and\ \`{}\`{}total\_order\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00338}00338\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00339}00339\ \textcolor{stringliteral}{\ \ \ \ Notes}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00340}00340\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00341}00341\ \textcolor{stringliteral}{\ \ \ \ The\ Sobol'\ method\ [1]\_,\ [2]\_\ is\ a\ variance-\/based\ Sensitivity\ Analysis\ which}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00342}00342\ \textcolor{stringliteral}{\ \ \ \ obtains\ the\ contribution\ of\ each\ parameter\ to\ the\ variance\ of\ the}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00343}00343\ \textcolor{stringliteral}{\ \ \ \ quantities\ of\ interest\ (QoIs;\ i.e.,\ the\ outputs\ of\ \`{}func\`{}).}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00344}00344\ \textcolor{stringliteral}{\ \ \ \ Respective\ contributions\ can\ be\ used\ to\ rank\ the\ parameters\ and}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00345}00345\ \textcolor{stringliteral}{\ \ \ \ also\ gauge\ the\ complexity\ of\ the\ model\ by\ computing\ the}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00346}00346\ \textcolor{stringliteral}{\ \ \ \ model's\ effective\ (or\ mean)\ dimension.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00347}00347\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00348}00348\ \textcolor{stringliteral}{\ \ \ \ ..\ note::}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00349}00349\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00350}00350\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters\ are\ assumed\ to\ be\ independently\ distributed.\ Each}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00351}00351\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ parameter\ can\ still\ follow\ any\ distribution.\ In\ fact,\ the\ distribution}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00352}00352\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ is\ very\ important\ and\ should\ match\ the\ real\ distribution\ of\ the}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00353}00353\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ parameters.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00354}00354\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00355}00355\ \textcolor{stringliteral}{\ \ \ \ It\ uses\ a\ functional\ decomposition\ of\ the\ variance\ of\ the\ function\ to}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00356}00356\ \textcolor{stringliteral}{\ \ \ \ explore}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00357}00357\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00358}00358\ \textcolor{stringliteral}{\ \ \ \ ..\ math::}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00359}00359\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00360}00360\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \(\backslash\)mathbb\{V\}(Y)\ =\ \(\backslash\)sum\_\{i\}\string^\{d\}\ \(\backslash\)mathbb\{V\}\_i\ (Y)\ +\ \(\backslash\)sum\_\{i<j\}\string^\{d\}}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00361}00361\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \(\backslash\)mathbb\{V\}\_\{ij\}(Y)\ +\ ...\ +\ \(\backslash\)mathbb\{V\}\_\{1,2,...,d\}(Y),}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00362}00362\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00363}00363\ \textcolor{stringliteral}{\ \ \ \ introducing\ conditional\ variances:}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00364}00364\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00365}00365\ \textcolor{stringliteral}{\ \ \ \ ..\ math::}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00366}00366\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00367}00367\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \(\backslash\)mathbb\{V\}\_i(Y)\ =\ \(\backslash\)mathbb\{\(\backslash\)mathbb\{V\}\}[\(\backslash\)mathbb\{E\}(Y|x\_i)]}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00368}00368\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \(\backslash\)qquad}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00369}00369\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \(\backslash\)mathbb\{V\}\_\{ij\}(Y)\ =\ \(\backslash\)mathbb\{\(\backslash\)mathbb\{V\}\}[\(\backslash\)mathbb\{E\}(Y|x\_i\ x\_j)]}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00370}00370\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ \(\backslash\)mathbb\{V\}\_i(Y)\ -\/\ \(\backslash\)mathbb\{V\}\_j(Y),}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00371}00371\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00372}00372\ \textcolor{stringliteral}{\ \ \ \ Sobol'\ indices\ are\ expressed\ as}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00373}00373\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00374}00374\ \textcolor{stringliteral}{\ \ \ \ ..\ math::}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00375}00375\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00376}00376\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ S\_i\ =\ \(\backslash\)frac\{\(\backslash\)mathbb\{V\}\_i(Y)\}\{\(\backslash\)mathbb\{V\}[Y]\}}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00377}00377\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \(\backslash\)qquad}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00378}00378\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ S\_\{ij\}\ =\(\backslash\)frac\{\(\backslash\)mathbb\{V\}\_\{ij\}(Y)\}\{\(\backslash\)mathbb\{V\}[Y]\}.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00379}00379\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00380}00380\ \textcolor{stringliteral}{\ \ \ \ :math:\`{}S\_\{i\}\`{}\ corresponds\ to\ the\ first-\/order\ term\ which\ apprises\ the}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00381}00381\ \textcolor{stringliteral}{\ \ \ \ contribution\ of\ the\ i-\/th\ parameter,\ while\ :math:\`{}S\_\{ij\}\`{}\ corresponds\ to\ the}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00382}00382\ \textcolor{stringliteral}{\ \ \ \ second-\/order\ term\ which\ informs\ about\ the\ contribution\ of\ interactions}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00383}00383\ \textcolor{stringliteral}{\ \ \ \ between\ the\ i-\/th\ and\ the\ j-\/th\ parameters.\ These\ equations\ can\ be}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00384}00384\ \textcolor{stringliteral}{\ \ \ \ generalized\ to\ compute\ higher\ order\ terms;\ however,\ they\ are\ expensive\ to}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00385}00385\ \textcolor{stringliteral}{\ \ \ \ compute\ and\ their\ interpretation\ is\ complex.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00386}00386\ \textcolor{stringliteral}{\ \ \ \ This\ is\ why\ only\ first\ order\ indices\ are\ provided.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00387}00387\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00388}00388\ \textcolor{stringliteral}{\ \ \ \ Total\ order\ indices\ represent\ the\ global\ contribution\ of\ the\ parameters}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00389}00389\ \textcolor{stringliteral}{\ \ \ \ to\ the\ variance\ of\ the\ QoI\ and\ are\ defined\ as:}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00390}00390\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00391}00391\ \textcolor{stringliteral}{\ \ \ \ ..\ math::}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00392}00392\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00393}00393\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ S\_\{T\_i\}\ =\ S\_i\ +\ \(\backslash\)sum\_j\ S\_\{ij\}\ +\ \(\backslash\)sum\_\{j,k\}\ S\_\{ijk\}\ +\ ...}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00394}00394\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ =\ 1\ -\/\ \(\backslash\)frac\{\(\backslash\)mathbb\{V\}[\(\backslash\)mathbb\{E\}(Y|x\_\{\(\backslash\)sim\ i\})]\}\{\(\backslash\)mathbb\{V\}[Y]\}.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00395}00395\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00396}00396\ \textcolor{stringliteral}{\ \ \ \ First\ order\ indices\ sum\ to\ at\ most\ 1,\ while\ total\ order\ indices\ sum\ to\ at}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00397}00397\ \textcolor{stringliteral}{\ \ \ \ least\ 1.\ If\ there\ are\ no\ interactions,\ then\ first\ and\ total\ order\ indices}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00398}00398\ \textcolor{stringliteral}{\ \ \ \ are\ equal,\ and\ both\ first\ and\ total\ order\ indices\ sum\ to\ 1.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00399}00399\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00400}00400\ \textcolor{stringliteral}{\ \ \ \ ..\ warning::}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00401}00401\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00402}00402\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Negative\ Sobol'\ values\ are\ due\ to\ numerical\ errors.\ Increasing\ the}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00403}00403\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ number\ of\ points\ \`{}n\`{}\ should\ help.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00404}00404\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00405}00405\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ number\ of\ sample\ required\ to\ have\ a\ good\ analysis\ increases\ with}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00406}00406\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ dimensionality\ of\ the\ problem.\ e.g.\ for\ a\ 3\ dimension\ problem,}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00407}00407\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ consider\ at\ minima\ \`{}\`{}n\ >=\ 2**12\`{}\`{}.\ The\ more\ complex\ the\ model\ is,}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00408}00408\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ more\ samples\ will\ be\ needed.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00409}00409\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00410}00410\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Even\ for\ a\ purely\ addiditive\ model,\ the\ indices\ may\ not\ sum\ to\ 1\ due}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00411}00411\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ to\ numerical\ noise.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00412}00412\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00413}00413\ \textcolor{stringliteral}{\ \ \ \ References}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00414}00414\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00415}00415\ \textcolor{stringliteral}{\ \ \ \ ..\ [1]\ Sobol,\ I.\ M..\ "{}Sensitivity\ analysis\ for\ nonlinear\ mathematical}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00416}00416\ \textcolor{stringliteral}{\ \ \ \ \ \ \ models."{}\ Mathematical\ Modeling\ and\ Computational\ Experiment,\ 1:407-\/414,}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00417}00417\ \textcolor{stringliteral}{\ \ \ \ \ \ \ 1993.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00418}00418\ \textcolor{stringliteral}{\ \ \ \ ..\ [2]\ Sobol,\ I.\ M.\ (2001).\ "{}Global\ sensitivity\ indices\ for\ nonlinear}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00419}00419\ \textcolor{stringliteral}{\ \ \ \ \ \ \ mathematical\ models\ and\ their\ Monte\ Carlo\ estimates."{}\ Mathematics}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00420}00420\ \textcolor{stringliteral}{\ \ \ \ \ \ \ and\ Computers\ in\ Simulation,\ 55(1-\/3):271-\/280,}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00421}00421\ \textcolor{stringliteral}{\ \ \ \ \ \ \ :doi:\`{}10.1016/S0378-\/4754(00)00270-\/6\`{},\ 2001.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00422}00422\ \textcolor{stringliteral}{\ \ \ \ ..\ [3]\ Saltelli,\ A.\ "{}Making\ best\ use\ of\ model\ evaluations\ to}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00423}00423\ \textcolor{stringliteral}{\ \ \ \ \ \ \ compute\ sensitivity\ indices."{}\ \ Computer\ Physics\ Communications,}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00424}00424\ \textcolor{stringliteral}{\ \ \ \ \ \ \ 145(2):280-\/297,\ :doi:\`{}10.1016/S0010-\/4655(02)00280-\/1\`{},\ 2002.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00425}00425\ \textcolor{stringliteral}{\ \ \ \ ..\ [4]\ Saltelli,\ A.,\ M.\ Ratto,\ T.\ Andres,\ F.\ Campolongo,\ J.\ Cariboni,}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00426}00426\ \textcolor{stringliteral}{\ \ \ \ \ \ \ D.\ Gatelli,\ M.\ Saisana,\ and\ S.\ Tarantola.\ "{}Global\ Sensitivity\ Analysis.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00427}00427\ \textcolor{stringliteral}{\ \ \ \ \ \ \ The\ Primer."{}\ 2007.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00428}00428\ \textcolor{stringliteral}{\ \ \ \ ..\ [5]\ Saltelli,\ A.,\ P.\ Annoni,\ I.\ Azzini,\ F.\ Campolongo,\ M.\ Ratto,\ and}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00429}00429\ \textcolor{stringliteral}{\ \ \ \ \ \ \ S.\ Tarantola.\ "{}Variance\ based\ sensitivity\ analysis\ of\ model}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00430}00430\ \textcolor{stringliteral}{\ \ \ \ \ \ \ output.\ Design\ and\ estimator\ for\ the\ total\ sensitivity\ index."{}}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00431}00431\ \textcolor{stringliteral}{\ \ \ \ \ \ \ Computer\ Physics\ Communications,\ 181(2):259-\/270,}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00432}00432\ \textcolor{stringliteral}{\ \ \ \ \ \ \ :doi:\`{}10.1016/j.cpc.2009.09.018\`{},\ 2010.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00433}00433\ \textcolor{stringliteral}{\ \ \ \ ..\ [6]\ Ishigami,\ T.\ and\ T.\ Homma.\ "{}An\ importance\ quantification\ technique}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00434}00434\ \textcolor{stringliteral}{\ \ \ \ \ \ \ in\ uncertainty\ analysis\ for\ computer\ models."{}\ IEEE,}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00435}00435\ \textcolor{stringliteral}{\ \ \ \ \ \ \ :doi:\`{}10.1109/ISUMA.1990.151285\`{},\ 1990.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00436}00436\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00437}00437\ \textcolor{stringliteral}{\ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00438}00438\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00439}00439\ \textcolor{stringliteral}{\ \ \ \ The\ following\ is\ an\ example\ with\ the\ Ishigami\ function\ [6]\_}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00440}00440\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00441}00441\ \textcolor{stringliteral}{\ \ \ \ ..\ math::}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00442}00442\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00443}00443\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Y(\(\backslash\)mathbf\{x\})\ =\ \(\backslash\)sin\ x\_1\ +\ 7\ \(\backslash\)sin\string^2\ x\_2\ +\ 0.1\ x\_3\string^4\ \(\backslash\)sin\ x\_1,}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00444}00444\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00445}00445\ \textcolor{stringliteral}{\ \ \ \ with\ :math:\`{}\(\backslash\)mathbf\{x\}\ \(\backslash\)in\ [-\/\(\backslash\)pi,\ \(\backslash\)pi]\string^3\`{}.\ This\ function\ exhibits\ strong}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00446}00446\ \textcolor{stringliteral}{\ \ \ \ non-\/linearity\ and\ non-\/monotonicity.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00447}00447\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00448}00448\ \textcolor{stringliteral}{\ \ \ \ Remember,\ Sobol'\ indices\ assumes\ that\ samples\ are\ independently}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00449}00449\ \textcolor{stringliteral}{\ \ \ \ distributed.\ In\ this\ case\ we\ use\ a\ uniform\ distribution\ on\ each\ marginals.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00450}00450\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00451}00451\ \textcolor{stringliteral}{\ \ \ \ >>>\ import\ numpy\ as\ np}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00452}00452\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ scipy.stats\ import\ sobol\_indices,\ uniform}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00453}00453\ \textcolor{stringliteral}{\ \ \ \ >>>\ rng\ =\ np.random.default\_rng()}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00454}00454\ \textcolor{stringliteral}{\ \ \ \ >>>\ def\ f\_ishigami(x):}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00455}00455\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ f\_eval\ =\ (}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00456}00456\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ \ \ \ np.sin(x[0])}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00457}00457\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ \ \ \ +\ 7\ *\ np.sin(x[1])**2}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00458}00458\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ \ \ \ +\ 0.1\ *\ (x[2]**4)\ *\ np.sin(x[0])}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00459}00459\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ )}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00460}00460\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ return\ f\_eval}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00461}00461\ \textcolor{stringliteral}{\ \ \ \ >>>\ indices\ =\ sobol\_indices(}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00462}00462\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ func=f\_ishigami,\ n=1024,}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00463}00463\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ dists=[}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00464}00464\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ \ \ \ uniform(loc=-\/np.pi,\ scale=2*np.pi),}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00465}00465\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ \ \ \ uniform(loc=-\/np.pi,\ scale=2*np.pi),}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00466}00466\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ \ \ \ uniform(loc=-\/np.pi,\ scale=2*np.pi)}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00467}00467\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ ],}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00468}00468\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ random\_state=rng}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00469}00469\ \textcolor{stringliteral}{\ \ \ \ ...\ )}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00470}00470\ \textcolor{stringliteral}{\ \ \ \ >>>\ indices.first\_order}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00471}00471\ \textcolor{stringliteral}{\ \ \ \ array([0.31637954,\ 0.43781162,\ 0.00318825])}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00472}00472\ \textcolor{stringliteral}{\ \ \ \ >>>\ indices.total\_order}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00473}00473\ \textcolor{stringliteral}{\ \ \ \ array([0.56122127,\ 0.44287857,\ 0.24229595])}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00474}00474\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00475}00475\ \textcolor{stringliteral}{\ \ \ \ Confidence\ interval\ can\ be\ obtained\ using\ bootstrapping.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00476}00476\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00477}00477\ \textcolor{stringliteral}{\ \ \ \ >>>\ boot\ =\ indices.bootstrap()}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00478}00478\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00479}00479\ \textcolor{stringliteral}{\ \ \ \ Then,\ this\ information\ can\ be\ easily\ visualized.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00480}00480\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00481}00481\ \textcolor{stringliteral}{\ \ \ \ >>>\ import\ matplotlib.pyplot\ as\ plt}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00482}00482\ \textcolor{stringliteral}{\ \ \ \ >>>\ fig,\ axs\ =\ plt.subplots(1,\ 2,\ figsize=(9,\ 4))}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00483}00483\ \textcolor{stringliteral}{\ \ \ \ >>>\ \_\ =\ axs[0].errorbar(}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00484}00484\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ [1,\ 2,\ 3],\ indices.first\_order,\ fmt='o',}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00485}00485\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ yerr=[}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00486}00486\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ \ \ \ indices.first\_order\ -\/\ boot.first\_order.confidence\_interval.low,}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00487}00487\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ \ \ \ boot.first\_order.confidence\_interval.high\ -\/\ indices.first\_order}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00488}00488\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ ],}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00489}00489\ \textcolor{stringliteral}{\ \ \ \ ...\ )}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00490}00490\ \textcolor{stringliteral}{\ \ \ \ >>>\ axs[0].set\_ylabel("{}First\ order\ Sobol'\ indices"{})}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00491}00491\ \textcolor{stringliteral}{\ \ \ \ >>>\ axs[0].set\_xlabel('Input\ parameters')}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00492}00492\ \textcolor{stringliteral}{\ \ \ \ >>>\ axs[0].set\_xticks([1,\ 2,\ 3])}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00493}00493\ \textcolor{stringliteral}{\ \ \ \ >>>\ \_\ =\ axs[1].errorbar(}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00494}00494\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ [1,\ 2,\ 3],\ indices.total\_order,\ fmt='o',}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00495}00495\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ yerr=[}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00496}00496\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ \ \ \ indices.total\_order\ -\/\ boot.total\_order.confidence\_interval.low,}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00497}00497\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ \ \ \ boot.total\_order.confidence\_interval.high\ -\/\ indices.total\_order}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00498}00498\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ ],}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00499}00499\ \textcolor{stringliteral}{\ \ \ \ ...\ )}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00500}00500\ \textcolor{stringliteral}{\ \ \ \ >>>\ axs[1].set\_ylabel("{}Total\ order\ Sobol'\ indices"{})}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00501}00501\ \textcolor{stringliteral}{\ \ \ \ >>>\ axs[1].set\_xlabel('Input\ parameters')}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00502}00502\ \textcolor{stringliteral}{\ \ \ \ >>>\ axs[1].set\_xticks([1,\ 2,\ 3])}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00503}00503\ \textcolor{stringliteral}{\ \ \ \ >>>\ plt.tight\_layout()}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00504}00504\ \textcolor{stringliteral}{\ \ \ \ >>>\ plt.show()}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00505}00505\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00506}00506\ \textcolor{stringliteral}{\ \ \ \ ..\ note::}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00507}00507\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00508}00508\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ By\ default,\ \`{}scipy.stats.uniform\`{}\ has\ support\ \`{}\`{}[0,\ 1]\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00509}00509\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Using\ the\ parameters\ \`{}\`{}loc\`{}\`{}\ and\ \`{}\`{}scale\`{}\`{},\ one\ obtains\ the\ uniform}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00510}00510\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ distribution\ on\ \`{}\`{}[loc,\ loc\ +\ scale]\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00511}00511\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00512}00512\ \textcolor{stringliteral}{\ \ \ \ This\ result\ is\ particularly\ interesting\ because\ the\ first\ order\ index}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00513}00513\ \textcolor{stringliteral}{\ \ \ \ :math:\`{}S\_\{x\_3\}\ =\ 0\`{}\ whereas\ its\ total\ order\ is\ :math:\`{}S\_\{T\_\{x\_3\}\}\ =\ 0.244\`{}.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00514}00514\ \textcolor{stringliteral}{\ \ \ \ This\ means\ that\ higher\ order\ interactions\ with\ :math:\`{}x\_3\`{}\ are\ responsible}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00515}00515\ \textcolor{stringliteral}{\ \ \ \ for\ the\ difference.\ Almost\ 25\%\ of\ the\ observed\ variance}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00516}00516\ \textcolor{stringliteral}{\ \ \ \ on\ the\ QoI\ is\ due\ to\ the\ correlations\ between\ :math:\`{}x\_3\`{}\ and\ :math:\`{}x\_1\`{},}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00517}00517\ \textcolor{stringliteral}{\ \ \ \ although\ :math:\`{}x\_3\`{}\ by\ itself\ has\ no\ impact\ on\ the\ QoI.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00518}00518\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00519}00519\ \textcolor{stringliteral}{\ \ \ \ The\ following\ gives\ a\ visual\ explanation\ of\ Sobol'\ indices\ on\ this}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00520}00520\ \textcolor{stringliteral}{\ \ \ \ function.\ Let's\ generate\ 1024\ samples\ in\ :math:\`{}[-\/\(\backslash\)pi,\ \(\backslash\)pi]\string^3\`{}\ and}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00521}00521\ \textcolor{stringliteral}{\ \ \ \ calculate\ the\ value\ of\ the\ output.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00522}00522\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00523}00523\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ scipy.stats\ import\ qmc}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00524}00524\ \textcolor{stringliteral}{\ \ \ \ >>>\ n\_dim\ =\ 3}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00525}00525\ \textcolor{stringliteral}{\ \ \ \ >>>\ p\_labels\ =\ ['\$x\_1\$',\ '\$x\_2\$',\ '\$x\_3\$']}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00526}00526\ \textcolor{stringliteral}{\ \ \ \ >>>\ sample\ =\ qmc.Sobol(d=n\_dim,\ seed=rng).random(1024)}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00527}00527\ \textcolor{stringliteral}{\ \ \ \ >>>\ sample\ =\ qmc.scale(}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00528}00528\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ sample=sample,}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00529}00529\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ l\_bounds=[-\/np.pi,\ -\/np.pi,\ -\/np.pi],}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00530}00530\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ u\_bounds=[np.pi,\ np.pi,\ np.pi]}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00531}00531\ \textcolor{stringliteral}{\ \ \ \ ...\ )}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00532}00532\ \textcolor{stringliteral}{\ \ \ \ >>>\ output\ =\ f\_ishigami(sample.T)}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00533}00533\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00534}00534\ \textcolor{stringliteral}{\ \ \ \ Now\ we\ can\ do\ scatter\ plots\ of\ the\ output\ with\ respect\ to\ each\ parameter.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00535}00535\ \textcolor{stringliteral}{\ \ \ \ This\ gives\ a\ visual\ way\ to\ understand\ how\ each\ parameter\ impacts\ the}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00536}00536\ \textcolor{stringliteral}{\ \ \ \ output\ of\ the\ function.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00537}00537\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00538}00538\ \textcolor{stringliteral}{\ \ \ \ >>>\ fig,\ ax\ =\ plt.subplots(1,\ n\_dim,\ figsize=(12,\ 4))}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00539}00539\ \textcolor{stringliteral}{\ \ \ \ >>>\ for\ i\ in\ range(n\_dim):}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00540}00540\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ xi\ =\ sample[:,\ i]}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00541}00541\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ ax[i].scatter(xi,\ output,\ marker='+')}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00542}00542\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ ax[i].set\_xlabel(p\_labels[i])}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00543}00543\ \textcolor{stringliteral}{\ \ \ \ >>>\ ax[0].set\_ylabel('Y')}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00544}00544\ \textcolor{stringliteral}{\ \ \ \ >>>\ plt.tight\_layout()}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00545}00545\ \textcolor{stringliteral}{\ \ \ \ >>>\ plt.show()}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00546}00546\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00547}00547\ \textcolor{stringliteral}{\ \ \ \ Now\ Sobol'\ goes\ a\ step\ further:}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00548}00548\ \textcolor{stringliteral}{\ \ \ \ by\ conditioning\ the\ output\ value\ by\ given\ values\ of\ the\ parameter}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00549}00549\ \textcolor{stringliteral}{\ \ \ \ (black\ lines),\ the\ conditional\ output\ mean\ is\ computed.\ It\ corresponds\ to}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00550}00550\ \textcolor{stringliteral}{\ \ \ \ the\ term\ :math:\`{}\(\backslash\)mathbb\{E\}(Y|x\_i)\`{}.\ Taking\ the\ variance\ of\ this\ term\ gives}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00551}00551\ \textcolor{stringliteral}{\ \ \ \ the\ numerator\ of\ the\ Sobol'\ indices.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00552}00552\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00553}00553\ \textcolor{stringliteral}{\ \ \ \ >>>\ mini\ =\ np.min(output)}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00554}00554\ \textcolor{stringliteral}{\ \ \ \ >>>\ maxi\ =\ np.max(output)}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00555}00555\ \textcolor{stringliteral}{\ \ \ \ >>>\ n\_bins\ =\ 10}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00556}00556\ \textcolor{stringliteral}{\ \ \ \ >>>\ bins\ =\ np.linspace(-\/np.pi,\ np.pi,\ num=n\_bins,\ endpoint=False)}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00557}00557\ \textcolor{stringliteral}{\ \ \ \ >>>\ dx\ =\ bins[1]\ -\/\ bins[0]}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00558}00558\ \textcolor{stringliteral}{\ \ \ \ >>>\ fig,\ ax\ =\ plt.subplots(1,\ n\_dim,\ figsize=(12,\ 4))}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00559}00559\ \textcolor{stringliteral}{\ \ \ \ >>>\ for\ i\ in\ range(n\_dim):}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00560}00560\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ xi\ =\ sample[:,\ i]}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00561}00561\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ ax[i].scatter(xi,\ output,\ marker='+')}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00562}00562\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ ax[i].set\_xlabel(p\_labels[i])}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00563}00563\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ for\ bin\_\ in\ bins:}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00564}00564\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ \ \ \ idx\ =\ np.where((bin\_\ <=\ xi)\ \&\ (xi\ <=\ bin\_\ +\ dx))}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00565}00565\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ \ \ \ xi\_\ =\ xi[idx]}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00566}00566\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ \ \ \ y\_\ =\ output[idx]}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00567}00567\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ \ \ \ ave\_y\_\ =\ np.mean(y\_)}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00568}00568\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ \ \ \ ax[i].plot([bin\_\ +\ dx/2]\ *\ 2,\ [mini,\ maxi],\ c='k')}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00569}00569\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ \ \ \ ax[i].scatter(bin\_\ +\ dx/2,\ ave\_y\_,\ c='r')}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00570}00570\ \textcolor{stringliteral}{\ \ \ \ >>>\ ax[0].set\_ylabel('Y')}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00571}00571\ \textcolor{stringliteral}{\ \ \ \ >>>\ plt.tight\_layout()}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00572}00572\ \textcolor{stringliteral}{\ \ \ \ >>>\ plt.show()}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00573}00573\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00574}00574\ \textcolor{stringliteral}{\ \ \ \ Looking\ at\ :math:\`{}x\_3\`{},\ the\ variance}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00575}00575\ \textcolor{stringliteral}{\ \ \ \ of\ the\ mean\ is\ zero\ leading\ to\ :math:\`{}S\_\{x\_3\}\ =\ 0\`{}.\ But\ we\ can\ further}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00576}00576\ \textcolor{stringliteral}{\ \ \ \ observe\ that\ the\ variance\ of\ the\ output\ is\ not\ constant\ along\ the\ parameter}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00577}00577\ \textcolor{stringliteral}{\ \ \ \ values\ of\ :math:\`{}x\_3\`{}.\ This\ heteroscedasticity\ is\ explained\ by\ higher\ order}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00578}00578\ \textcolor{stringliteral}{\ \ \ \ interactions.\ Moreover,\ an\ heteroscedasticity\ is\ also\ noticeable\ on}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00579}00579\ \textcolor{stringliteral}{\ \ \ \ :math:\`{}x\_1\`{}\ leading\ to\ an\ interaction\ between\ :math:\`{}x\_3\`{}\ and\ :math:\`{}x\_1\`{}.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00580}00580\ \textcolor{stringliteral}{\ \ \ \ On\ :math:\`{}x\_2\`{},\ the\ variance\ seems\ to\ be\ constant\ and\ thus\ null\ interaction}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00581}00581\ \textcolor{stringliteral}{\ \ \ \ with\ this\ parameter\ can\ be\ supposed.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00582}00582\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00583}00583\ \textcolor{stringliteral}{\ \ \ \ This\ case\ is\ fairly\ simple\ to\ analyse\ visually-\/-\/-\/although\ it\ is\ only\ a}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00584}00584\ \textcolor{stringliteral}{\ \ \ \ qualitative\ analysis.\ Nevertheless,\ when\ the\ number\ of\ input\ parameters}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00585}00585\ \textcolor{stringliteral}{\ \ \ \ increases\ such\ analysis\ becomes\ unrealistic\ as\ it\ would\ be\ difficult\ to}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00586}00586\ \textcolor{stringliteral}{\ \ \ \ conclude\ on\ high-\/order\ terms.\ Hence\ the\ benefit\ of\ using\ Sobol'\ indices.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00587}00587\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00588}00588\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00589}00589\ \ \ \ \ random\_state\ =\ check\_random\_state(random\_state)}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00590}00590\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00591}00591\ \ \ \ \ n\_\ =\ int(n)}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00592}00592\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ (n\_\ \&\ (n\_\ -\/\ 1)\ ==\ 0)\ \textcolor{keywordflow}{or}\ n\ !=\ n\_:}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00593}00593\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00594}00594\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}The\ balance\ properties\ of\ Sobol'\ points\ require\ 'n'\ "{}}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00595}00595\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}to\ be\ a\ power\ of\ 2."{}}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00596}00596\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00597}00597\ \ \ \ \ n\ =\ n\_}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00598}00598\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00599}00599\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ callable(method):}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00600}00600\ \ \ \ \ \ \ \ \ indices\_methods:\ dict[str,\ Callable]\ =\ \{}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00601}00601\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}saltelli\_2010"{}}:\ saltelli\_2010,}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00602}00602\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00603}00603\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00604}00604\ \ \ \ \ \ \ \ \ \ \ \ \ method\ =\ method.lower()\ \ \textcolor{comment}{\#\ type:\ ignore[assignment]}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00605}00605\ \ \ \ \ \ \ \ \ \ \ \ \ indices\_method\_\ =\ indices\_methods[method]}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00606}00606\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ KeyError\ \textcolor{keyword}{as}\ exc:}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00607}00607\ \ \ \ \ \ \ \ \ \ \ \ \ message\ =\ (}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00608}00608\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\{method!r\}\ is\ not\ a\ valid\ 'method'.\ It\ must\ be\ one\ of"{}}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00609}00609\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\ \{set(indices\_methods)!r\}\ or\ a\ callable."{}}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00610}00610\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00611}00611\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(message)\ \textcolor{keyword}{from}\ exc}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00612}00612\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00613}00613\ \ \ \ \ \ \ \ \ indices\_method\_\ =\ method}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00614}00614\ \ \ \ \ \ \ \ \ sig\ =\ inspect.signature(indices\_method\_)}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00615}00615\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00616}00616\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ set(sig.parameters)\ !=\ \{\textcolor{stringliteral}{'f\_A'},\ \textcolor{stringliteral}{'f\_B'},\ \textcolor{stringliteral}{'f\_AB'}\}:}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00617}00617\ \ \ \ \ \ \ \ \ \ \ \ \ message\ =\ (}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00618}00618\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}If\ 'method'\ is\ a\ callable,\ it\ must\ have\ the\ following"{}}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00619}00619\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\ signature:\ \{inspect.signature(saltelli\_2010)\}"{}}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00620}00620\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00621}00621\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(message)}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00622}00622\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00623}00623\ \ \ \ \ \textcolor{keyword}{def\ }indices\_method(f\_A,\ f\_B,\ f\_AB):}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00624}00624\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Wrap\ indices\ method\ to\ ensure\ proper\ output\ dimension.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00625}00625\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00626}00626\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 1D\ when\ single\ output,\ 2D\ otherwise.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00627}00627\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00628}00628\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ np.squeeze(indices\_method\_(f\_A=f\_A,\ f\_B=f\_B,\ f\_AB=f\_AB))}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00629}00629\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00630}00630\ \ \ \ \ \textcolor{keywordflow}{if}\ callable(func):}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00631}00631\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ dists\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00632}00632\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00633}00633\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}'dists'\ must\ be\ defined\ when\ 'func'\ is\ a\ callable."{}}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00634}00634\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00635}00635\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00636}00636\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }wrapped\_func(x):}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00637}00637\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ np.atleast\_2d(func(x))}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00638}00638\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00639}00639\ \ \ \ \ \ \ \ \ A,\ B\ =\ \mbox{\hyperlink{namespacescipy_1_1stats_1_1__sensitivity__analysis_a56a4ae12ce501b64edd12f5384277070}{sample\_A\_B}}(n=n,\ dists=dists,\ random\_state=random\_state)}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00640}00640\ \ \ \ \ \ \ \ \ AB\ =\ \mbox{\hyperlink{namespacescipy_1_1stats_1_1__sensitivity__analysis_a51768cca60c87e5b5589432418d66b3c}{sample\_AB}}(A=A,\ B=B)}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00641}00641\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00642}00642\ \ \ \ \ \ \ \ \ f\_A\ =\ wrapped\_func(A)}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00643}00643\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00644}00644\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ f\_A.shape[1]\ !=\ n:}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00645}00645\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00646}00646\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}'func'\ output\ should\ have\ a\ shape\ \`{}\`{}(s,\ -\/1)``\ with\ \`{}\`{}s``\ "{}}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00647}00647\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}the\ number\ of\ output."{}}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00648}00648\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00649}00649\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00650}00650\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }funcAB(AB):}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00651}00651\ \ \ \ \ \ \ \ \ \ \ \ \ d,\ d,\ n\ =\ AB.shape}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00652}00652\ \ \ \ \ \ \ \ \ \ \ \ \ AB\ =\ np.moveaxis(AB,\ 0,\ -\/1).reshape(d,\ n*d)}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00653}00653\ \ \ \ \ \ \ \ \ \ \ \ \ f\_AB\ =\ wrapped\_func(AB)}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00654}00654\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ np.moveaxis(f\_AB.reshape((-\/1,\ n,\ d)),\ -\/1,\ 0)}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00655}00655\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00656}00656\ \ \ \ \ \ \ \ \ f\_B\ =\ wrapped\_func(B)}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00657}00657\ \ \ \ \ \ \ \ \ f\_AB\ =\ funcAB(AB)}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00658}00658\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00659}00659\ \ \ \ \ \ \ \ \ message\ =\ (}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00660}00660\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}When\ 'func'\ is\ a\ dictionary,\ it\ must\ contain\ the\ following\ "{}}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00661}00661\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}keys:\ 'f\_A',\ 'f\_B'\ and\ 'f\_AB'."{}}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00662}00662\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}'f\_A'\ and\ 'f\_B'\ should\ have\ a\ shape\ \`{}\`{}(s,\ n)``\ and\ 'f\_AB'\ "{}}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00663}00663\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}should\ have\ a\ shape\ \`{}\`{}(d,\ s,\ n)``."{}}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00664}00664\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00665}00665\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00666}00666\ \ \ \ \ \ \ \ \ \ \ \ \ f\_A,\ f\_B,\ f\_AB\ =\ np.atleast\_2d(}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00667}00667\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ func[\textcolor{stringliteral}{'f\_A'}],\ func[\textcolor{stringliteral}{'f\_B'}],\ func[\textcolor{stringliteral}{'f\_AB'}]}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00668}00668\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00669}00669\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ KeyError\ \textcolor{keyword}{as}\ exc:}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00670}00670\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(message)\ \textcolor{keyword}{from}\ exc}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00671}00671\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00672}00672\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ f\_A.shape[1]\ !=\ n\ \textcolor{keywordflow}{or}\ f\_A.shape\ !=\ f\_B.shape\ \textcolor{keywordflow}{or}\ \(\backslash\)}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00673}00673\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\_AB.shape\ ==\ f\_A.shape\ \textcolor{keywordflow}{or}\ f\_AB.shape[-\/1]\ \%\ n\ !=\ 0:}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00674}00674\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(message)}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00675}00675\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00676}00676\ \ \ \ \ \textcolor{comment}{\#\ Normalization\ by\ mean}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00677}00677\ \ \ \ \ \textcolor{comment}{\#\ Sobol',\ I.\ and\ Levitan,\ Y.\ L.\ (1999).\ On\ the\ use\ of\ variance\ reducing}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00678}00678\ \ \ \ \ \textcolor{comment}{\#\ multipliers\ in\ monte\ carlo\ computations\ of\ a\ global\ sensitivity\ index.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00679}00679\ \ \ \ \ \textcolor{comment}{\#\ Computer\ Physics\ Communications,\ 117(1)\ :52-\/61.}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00680}00680\ \ \ \ \ mean\ =\ np.mean([f\_A,\ f\_B],\ axis=(0,\ -\/1)).reshape(-\/1,\ 1)}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00681}00681\ \ \ \ \ f\_A\ -\/=\ mean}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00682}00682\ \ \ \ \ f\_B\ -\/=\ mean}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00683}00683\ \ \ \ \ f\_AB\ -\/=\ mean}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00684}00684\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00685}00685\ \ \ \ \ \textcolor{comment}{\#\ Compute\ indices}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00686}00686\ \ \ \ \ \textcolor{comment}{\#\ Filter\ warnings\ for\ constant\ output\ as\ var\ =\ 0}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00687}00687\ \ \ \ \ \textcolor{keyword}{with}\ np.errstate(divide=\textcolor{stringliteral}{'ignore'},\ invalid=\textcolor{stringliteral}{'ignore'}):}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00688}00688\ \ \ \ \ \ \ \ \ first\_order,\ total\_order\ =\ indices\_method(f\_A=f\_A,\ f\_B=f\_B,\ f\_AB=f\_AB)}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00689}00689\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00690}00690\ \ \ \ \ \textcolor{comment}{\#\ null\ variance\ means\ null\ indices}}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00691}00691\ \ \ \ \ first\_order[\string~np.isfinite(first\_order)]\ =\ 0}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00692}00692\ \ \ \ \ total\_order[\string~np.isfinite(total\_order)]\ =\ 0}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00693}00693\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00694}00694\ \ \ \ \ res\ =\ dict(}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00695}00695\ \ \ \ \ \ \ \ \ first\_order=first\_order,}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00696}00696\ \ \ \ \ \ \ \ \ total\_order=total\_order,}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00697}00697\ \ \ \ \ \ \ \ \ \_indices\_method=indices\_method,}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00698}00698\ \ \ \ \ \ \ \ \ \_f\_A=f\_A,}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00699}00699\ \ \ \ \ \ \ \ \ \_f\_B=f\_B,}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00700}00700\ \ \ \ \ \ \ \ \ \_f\_AB=f\_AB}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00701}00701\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00702}00702\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00703}00703\ \ \ \ \ \textcolor{keywordflow}{if}\ callable(func):}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00704}00704\ \ \ \ \ \ \ \ \ res.update(}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00705}00705\ \ \ \ \ \ \ \ \ \ \ \ \ dict(}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00706}00706\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_A=A,}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00707}00707\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_B=B,}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00708}00708\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_AB=AB,}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00709}00709\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00710}00710\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00711}00711\ }
+\DoxyCodeLine{\Hypertarget{__sensitivity__analysis_8py_source_l00712}00712\ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classscipy_1_1stats_1_1__sensitivity__analysis_1_1SobolResult}{SobolResult}}(**res)}
+
+\end{DoxyCode}

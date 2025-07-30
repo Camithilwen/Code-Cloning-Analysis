@@ -1,0 +1,672 @@
+\doxysection{pytables.\+py}
+\hypertarget{core_2computation_2pytables_8py_source}{}\label{core_2computation_2pytables_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/pandas/core/computation/pytables.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/pandas/core/computation/pytables.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00001}\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1pytables}{00001}}\ \textcolor{stringliteral}{"{}"{}"{}\ manage\ PyTables\ query\ interface\ via\ Expressions\ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00002}00002\ \textcolor{keyword}{from}\ \_\_future\_\_\ \textcolor{keyword}{import}\ annotations}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00003}00003\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00004}00004\ \textcolor{keyword}{import}\ ast}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00005}00005\ \textcolor{keyword}{from}\ decimal\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00006}00006\ \ \ \ \ Decimal,}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00007}00007\ \ \ \ \ InvalidOperation,}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00008}00008\ )}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00009}00009\ \textcolor{keyword}{from}\ functools\ \textcolor{keyword}{import}\ partial}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00010}00010\ \textcolor{keyword}{from}\ typing\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00011}00011\ \ \ \ \ TYPE\_CHECKING,}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00012}00012\ \ \ \ \ Any,}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00013}00013\ \ \ \ \ ClassVar,}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00014}00014\ )}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00015}00015\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00016}00016\ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00017}00017\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00018}00018\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1__libs_1_1tslibs}{pandas.\_libs.tslibs}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00019}00019\ \ \ \ \ Timedelta,}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00020}00020\ \ \ \ \ Timestamp,}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00021}00021\ )}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00022}00022\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1errors}{pandas.errors}}\ \textcolor{keyword}{import}\ UndefinedVariableError}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00023}00023\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00024}00024\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1dtypes_1_1common}{pandas.core.dtypes.common}}\ \textcolor{keyword}{import}\ is\_list\_like}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00025}00025\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00026}00026\ \textcolor{keyword}{import}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1common}{pandas.core.common}}\ \textcolor{keyword}{as}\ com}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00027}00027\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1computation}{pandas.core.computation}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00028}00028\ \ \ \ \ expr,}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00029}00029\ \ \ \ \ ops,}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00030}00030\ \ \ \ \ scope\ \textcolor{keyword}{as}\ \_scope,}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00031}00031\ )}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00032}00032\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1common}{pandas.core.computation.common}}\ \textcolor{keyword}{import}\ ensure\_decoded}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00033}00033\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr}{pandas.core.computation.expr}}\ \textcolor{keyword}{import}\ BaseExprVisitor}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00034}00034\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1ops}{pandas.core.computation.ops}}\ \textcolor{keyword}{import}\ is\_term}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00035}00035\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1construction}{pandas.core.construction}}\ \textcolor{keyword}{import}\ extract\_array}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00036}00036\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1indexes_1_1base}{pandas.core.indexes.base}}\ \textcolor{keyword}{import}\ Index}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00037}00037\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00038}00038\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1io_1_1formats_1_1printing}{pandas.io.formats.printing}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00039}00039\ \ \ \ \ pprint\_thing,}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00040}00040\ \ \ \ \ pprint\_thing\_encoded,}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00041}00041\ )}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00042}00042\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00043}00043\ \textcolor{keywordflow}{if}\ TYPE\_CHECKING:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00044}00044\ \ \ \ \ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1__typing}{pandas.\_typing}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00045}00045\ \ \ \ \ \ \ \ \ Self,}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00046}00046\ \ \ \ \ \ \ \ \ npt,}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00047}00047\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00048}00048\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00049}00049\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00050}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1PyTablesScope}{00050}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1PyTablesScope}{PyTablesScope}}(\_scope.Scope):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00051}00051\ \ \ \ \ \_\_slots\_\_\ =\ (\textcolor{stringliteral}{"{}queryables"{}},)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00052}00052\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00053}00053\ \ \ \ \ queryables:\ dict[str,\ Any]}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00054}00054\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00055}00055\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00056}00056\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00057}00057\ \ \ \ \ \ \ \ \ level:\ int,}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00058}00058\ \ \ \ \ \ \ \ \ global\_dict=\textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00059}00059\ \ \ \ \ \ \ \ \ local\_dict=\textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00060}00060\ \ \ \ \ \ \ \ \ queryables:\ dict[str,\ Any]\ |\ \textcolor{keywordtype}{None}\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00061}00061\ \ \ \ \ )\ -\/>\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00062}00062\ \ \ \ \ \ \ \ \ super().\_\_init\_\_(level\ +\ 1,\ global\_dict=global\_dict,\ local\_dict=local\_dict)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00063}00063\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1PyTablesScope_af6f7c584cf50e739afe8529920b86dc0}{queryables}}\ =\ queryables\ \textcolor{keywordflow}{or}\ \{\}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00064}00064\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00065}00065\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00066}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1Term}{00066}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1Term}{Term}}(\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1ops_1_1Term}{ops.Term}}):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00067}00067\ \ \ \ \ env:\ PyTablesScope}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00068}00068\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00069}00069\ \ \ \ \ \textcolor{keyword}{def\ }\_\_new\_\_(cls,\ name,\ env,\ side=None,\ encoding=None):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00070}00070\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(name,\ str):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00071}00071\ \ \ \ \ \ \ \ \ \ \ \ \ klass\ =\ cls}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00072}00072\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00073}00073\ \ \ \ \ \ \ \ \ \ \ \ \ klass\ =\ Constant}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00074}00074\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ object.\_\_new\_\_(klass)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00075}00075\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00076}00076\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ name,\ env:\ PyTablesScope,\ side=\textcolor{keywordtype}{None},\ encoding=\textcolor{keywordtype}{None})\ -\/>\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00077}00077\ \ \ \ \ \ \ \ \ super().\_\_init\_\_(name,\ env,\ side=side,\ encoding=encoding)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00078}00078\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00079}00079\ \ \ \ \ \textcolor{keyword}{def\ }\_resolve\_name(self):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00080}00080\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ must\ be\ a\ queryables}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00081}00081\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1ops_1_1Term_a80947a570dff59269edd1c039a5ca14b}{side}}\ ==\ \textcolor{stringliteral}{"{}left"{}}:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00082}00082\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Note:\ The\ behavior\ of\ \_\_new\_\_\ ensures\ that\ self.name\ is\ a\ str\ here}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00083}00083\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1ops_1_1Term_a1f55eec9f998c9ca0e1b99b4cd96e844}{name}}\ \textcolor{keywordflow}{not}\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1ops_1_1Term_a015a03d87a95a5ab6fe8e3f2ff1509d2}{env}}.queryables:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00084}00084\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classNameError}{NameError}}(f\textcolor{stringliteral}{"{}name\ \{repr(self.name)\}\ is\ not\ defined"{}})}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00085}00085\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1ops_1_1Term_a1f55eec9f998c9ca0e1b99b4cd96e844}{name}}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00086}00086\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00087}00087\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ resolve\ the\ rhs\ (and\ allow\ it\ to\ be\ None)}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00088}00088\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00089}00089\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1ops_1_1Term_a015a03d87a95a5ab6fe8e3f2ff1509d2}{env}}.resolve(self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1ops_1_1Term_a1f55eec9f998c9ca0e1b99b4cd96e844}{name}},\ is\_local=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00090}00090\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ UndefinedVariableError:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00091}00091\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1ops_1_1Term_a1f55eec9f998c9ca0e1b99b4cd96e844}{name}}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00092}00092\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00093}00093\ \ \ \ \ \textcolor{comment}{\#\ read-\/only\ property\ overwriting\ read/write\ property}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00094}00094\ \ \ \ \ \textcolor{preprocessor}{@property}\ \ \textcolor{comment}{\#\ type:\ ignore[misc]}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00095}00095\ \ \ \ \ \textcolor{keyword}{def\ }value(self):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00096}00096\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1ops_1_1Term_aa27bd31993a5d2b7a79df07ce467c904}{\_value}}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00097}00097\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00098}00098\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00099}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1Constant}{00099}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1Constant}{Constant}}(\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1Term}{Term}}):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00100}00100\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ name,\ env:\ PyTablesScope,\ side=\textcolor{keywordtype}{None},\ encoding=\textcolor{keywordtype}{None})\ -\/>\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00101}00101\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ isinstance(env,\ PyTablesScope),\ type(env)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00102}00102\ \ \ \ \ \ \ \ \ super().\_\_init\_\_(name,\ env,\ side=side,\ encoding=encoding)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00103}00103\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00104}00104\ \ \ \ \ \textcolor{keyword}{def\ }\_resolve\_name(self):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00105}00105\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1ops_1_1Term_a34663c59b5fbbcb7379484e8fe46f217}{\_name}}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00106}00106\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00107}00107\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00108}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1BinOp}{00108}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1BinOp}{BinOp}}(\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1ops_1_1BinOp}{ops.BinOp}}):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00109}00109\ \ \ \ \ \_max\_selectors\ =\ 31}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00110}00110\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00111}00111\ \ \ \ \ op:\ str}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00112}00112\ \ \ \ \ queryables:\ dict[str,\ Any]}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00113}00113\ \ \ \ \ condition:\ str\ |\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00114}00114\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00115}00115\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ op:\ str,\ lhs,\ rhs,\ queryables:\ dict[str,\ Any],\ encoding)\ -\/>\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00116}00116\ \ \ \ \ \ \ \ \ super().\_\_init\_\_(op,\ lhs,\ rhs)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00117}00117\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1BinOp_a8b7a869648fa635509d932cfcb62d705}{queryables}}\ =\ queryables}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00118}00118\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1ops_1_1Op_a4381ef081b40065f387cc65001b21692}{encoding}}\ =\ encoding}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00119}00119\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1BinOp_abb8f6b7966a49d6b27cf2be6e1c364f9}{condition}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00120}00120\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00121}00121\ \ \ \ \ \textcolor{keyword}{def\ }\_disallow\_scalar\_only\_bool\_ops(self)\ -\/>\ None:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00122}00122\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{pass}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00123}00123\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00124}00124\ \ \ \ \ \textcolor{keyword}{def\ }prune(self,\ klass):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00125}00125\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }pr(left,\ right):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00126}00126\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}create\ and\ return\ a\ new\ specialized\ BinOp\ from\ myself"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00127}00127\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ left\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00128}00128\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ right}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00129}00129\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ right\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00130}00130\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ left}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00131}00131\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00132}00132\ \ \ \ \ \ \ \ \ \ \ \ \ k\ =\ klass}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00133}00133\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(left,\ ConditionBinOp):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00134}00134\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(right,\ ConditionBinOp):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00135}00135\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ k\ =\ JointConditionBinOp}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00136}00136\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ isinstance(left,\ k):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00137}00137\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ left}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00138}00138\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ isinstance(right,\ k):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00139}00139\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ right}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00140}00140\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00141}00141\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ isinstance(left,\ FilterBinOp):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00142}00142\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(right,\ FilterBinOp):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00143}00143\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ k\ =\ JointFilterBinOp}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00144}00144\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ isinstance(left,\ k):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00145}00145\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ left}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00146}00146\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ isinstance(right,\ k):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00147}00147\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ right}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00148}00148\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00149}00149\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ k(}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00150}00150\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.op,\ left,\ right,\ queryables=self.queryables,\ encoding=self.encoding}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00151}00151\ \ \ \ \ \ \ \ \ \ \ \ \ ).\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1ops_1_1BinOp_afc6c3ce99f0cedaa114554900d772626}{evaluate}}()}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00152}00152\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00153}00153\ \ \ \ \ \ \ \ \ left,\ right\ =\ self.lhs,\ self.rhs}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00154}00154\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00155}00155\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ is\_term(left)\ \textcolor{keywordflow}{and}\ is\_term(right):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00156}00156\ \ \ \ \ \ \ \ \ \ \ \ \ res\ =\ pr(left.value,\ right.value)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00157}00157\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ \textcolor{keywordflow}{not}\ is\_term(left)\ \textcolor{keywordflow}{and}\ is\_term(right):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00158}00158\ \ \ \ \ \ \ \ \ \ \ \ \ res\ =\ pr(left.prune(klass),\ right.value)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00159}00159\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ is\_term(left)\ \textcolor{keywordflow}{and}\ \textcolor{keywordflow}{not}\ is\_term(right):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00160}00160\ \ \ \ \ \ \ \ \ \ \ \ \ res\ =\ pr(left.value,\ right.prune(klass))}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00161}00161\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ \textcolor{keywordflow}{not}\ (is\_term(left)\ \textcolor{keywordflow}{or}\ is\_term(right)):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00162}00162\ \ \ \ \ \ \ \ \ \ \ \ \ res\ =\ pr(left.prune(klass),\ right.prune(klass))}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00163}00163\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00164}00164\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ res}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00165}00165\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00166}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1BinOp_a7ed896858548debfd09134f8fa2e1dc6}{00166}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1BinOp_a7ed896858548debfd09134f8fa2e1dc6}{conform}}(self,\ rhs):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00167}00167\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}inplace\ conform\ rhs"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00168}00168\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ is\_list\_like(rhs):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00169}00169\ \ \ \ \ \ \ \ \ \ \ \ \ rhs\ =\ [rhs]}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00170}00170\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(rhs,\ np.ndarray):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00171}00171\ \ \ \ \ \ \ \ \ \ \ \ \ rhs\ =\ rhs.ravel()}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00172}00172\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ rhs}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00173}00173\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00174}00174\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00175}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1BinOp_ab56e8c0d2d311a5aa41f2dc798a0a45e}{00175}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1BinOp_ab56e8c0d2d311a5aa41f2dc798a0a45e}{is\_valid}}(self)\ -\/>\ bool:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00176}00176\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}return\ True\ if\ this\ is\ a\ valid\ field"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00177}00177\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1ops_1_1BinOp_ac568ca60066e1acbb1a967bac3fbba1a}{lhs}}\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1BinOp_a8b7a869648fa635509d932cfcb62d705}{queryables}}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00178}00178\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00179}00179\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00180}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1BinOp_a151d594f848fe8980364274db89dc16f}{00180}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1BinOp_a151d594f848fe8980364274db89dc16f}{is\_in\_table}}(self)\ -\/>\ bool:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00181}00181\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00182}00182\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ return\ True\ if\ this\ is\ a\ valid\ column\ name\ for\ generation\ (e.g.\ an}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00183}00183\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ actual\ column\ in\ the\ table)}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00184}00184\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00185}00185\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1BinOp_a8b7a869648fa635509d932cfcb62d705}{queryables}}.get(self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1ops_1_1BinOp_ac568ca60066e1acbb1a967bac3fbba1a}{lhs}})\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00186}00186\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00187}00187\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00188}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1BinOp_afdc58c1a7e390ee44b220c5749f6b109}{00188}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1BinOp_afdc58c1a7e390ee44b220c5749f6b109}{kind}}(self):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00189}00189\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}the\ kind\ of\ my\ field"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00190}00190\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ getattr(self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1BinOp_a8b7a869648fa635509d932cfcb62d705}{queryables}}.get(self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1ops_1_1BinOp_ac568ca60066e1acbb1a967bac3fbba1a}{lhs}}),\ \textcolor{stringliteral}{"{}kind"{}},\ \textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00191}00191\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00192}00192\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00193}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1BinOp_aeedbd78d139b47a5fbabc86235ed4b2b}{00193}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1BinOp_aeedbd78d139b47a5fbabc86235ed4b2b}{meta}}(self):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00194}00194\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}the\ meta\ of\ my\ field"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00195}00195\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ getattr(self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1BinOp_a8b7a869648fa635509d932cfcb62d705}{queryables}}.get(self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1ops_1_1BinOp_ac568ca60066e1acbb1a967bac3fbba1a}{lhs}}),\ \textcolor{stringliteral}{"{}meta"{}},\ \textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00196}00196\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00197}00197\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00198}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1BinOp_ae3044a37012e6108e139f4d5f06e34b6}{00198}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1BinOp_ae3044a37012e6108e139f4d5f06e34b6}{metadata}}(self):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00199}00199\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}the\ metadata\ of\ my\ field"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00200}00200\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ getattr(self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1BinOp_a8b7a869648fa635509d932cfcb62d705}{queryables}}.get(self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1ops_1_1BinOp_ac568ca60066e1acbb1a967bac3fbba1a}{lhs}}),\ \textcolor{stringliteral}{"{}metadata"{}},\ \textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00201}00201\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00202}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1BinOp_a18f93d6b4f7d3578ea99dfa60578ea56}{00202}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1BinOp_a18f93d6b4f7d3578ea99dfa60578ea56}{generate}}(self,\ v)\ -\/>\ str:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00203}00203\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}create\ and\ return\ the\ op\ string\ for\ this\ TermValue"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00204}00204\ \ \ \ \ \ \ \ \ val\ =\ v.tostring(self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1ops_1_1Op_a4381ef081b40065f387cc65001b21692}{encoding}})}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00205}00205\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ f\textcolor{stringliteral}{"{}(\{self.lhs\}\ \{self.op\}\ \{val\})"{}}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00206}00206\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00207}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1BinOp_a843a84601bc8b3f8c805b7e2681ffc42}{00207}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1BinOp_a843a84601bc8b3f8c805b7e2681ffc42}{convert\_value}}(self,\ v)\ -\/>\ TermValue:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00208}00208\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00209}00209\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ convert\ the\ expression\ that\ is\ in\ the\ term\ to\ something\ that\ is}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00210}00210\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ accepted\ by\ pytables}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00211}00211\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00212}00212\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00213}00213\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }stringify(value):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00214}00214\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1ops_1_1Op_a4381ef081b40065f387cc65001b21692}{encoding}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00215}00215\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ pprint\_thing\_encoded(value,\ encoding=self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1ops_1_1Op_a4381ef081b40065f387cc65001b21692}{encoding}})}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00216}00216\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ pprint\_thing(value)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00217}00217\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00218}00218\ \ \ \ \ \ \ \ \ kind\ =\ ensure\_decoded(self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1BinOp_afdc58c1a7e390ee44b220c5749f6b109}{kind}})}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00219}00219\ \ \ \ \ \ \ \ \ meta\ =\ ensure\_decoded(self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1BinOp_aeedbd78d139b47a5fbabc86235ed4b2b}{meta}})}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00220}00220\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ kind\ ==\ \textcolor{stringliteral}{"{}datetime"{}}\ \textcolor{keywordflow}{or}\ (kind\ \textcolor{keywordflow}{and}\ kind.startswith(\textcolor{stringliteral}{"{}datetime64"{}})):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00221}00221\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(v,\ (int,\ float)):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00222}00222\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ v\ =\ stringify(v)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00223}00223\ \ \ \ \ \ \ \ \ \ \ \ \ v\ =\ ensure\_decoded(v)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00224}00224\ \ \ \ \ \ \ \ \ \ \ \ \ v\ =\ Timestamp(v).as\_unit(\textcolor{stringliteral}{"{}ns"{}})}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00225}00225\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ v.tz\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00226}00226\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ v\ =\ v.tz\_convert(\textcolor{stringliteral}{"{}UTC"{}})}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00227}00227\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1TermValue}{TermValue}}(v,\ v.\_value,\ kind)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00228}00228\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ kind\ \textcolor{keywordflow}{in}\ (\textcolor{stringliteral}{"{}timedelta64"{}},\ \textcolor{stringliteral}{"{}timedelta"{}}):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00229}00229\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(v,\ str):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00230}00230\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ v\ =\ Timedelta(v)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00231}00231\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00232}00232\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ v\ =\ Timedelta(v,\ unit=\textcolor{stringliteral}{"{}s"{}})}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00233}00233\ \ \ \ \ \ \ \ \ \ \ \ \ v\ =\ v.as\_unit(\textcolor{stringliteral}{"{}ns"{}}).\_value}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00234}00234\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1TermValue}{TermValue}}(int(v),\ v,\ kind)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00235}00235\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ meta\ ==\ \textcolor{stringliteral}{"{}category"{}}:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00236}00236\ \ \ \ \ \ \ \ \ \ \ \ \ metadata\ =\ extract\_array(self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1BinOp_ae3044a37012e6108e139f4d5f06e34b6}{metadata}},\ extract\_numpy=\textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00237}00237\ \ \ \ \ \ \ \ \ \ \ \ \ result:\ npt.NDArray[np.intp]\ |\ np.intp\ |\ int}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00238}00238\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ v\ \textcolor{keywordflow}{not}\ \textcolor{keywordflow}{in}\ metadata:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00239}00239\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ result\ =\ -\/1}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00240}00240\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00241}00241\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ result\ =\ metadata.searchsorted(v,\ side=\textcolor{stringliteral}{"{}left"{}})}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00242}00242\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1TermValue}{TermValue}}(result,\ result,\ \textcolor{stringliteral}{"{}integer"{}})}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00243}00243\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ kind\ ==\ \textcolor{stringliteral}{"{}integer"{}}:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00244}00244\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00245}00245\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ v\_dec\ =\ Decimal(v)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00246}00246\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ InvalidOperation:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00247}00247\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ GH\ 54186}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00248}00248\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ convert\ v\ to\ float\ to\ raise\ float's\ ValueError}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00249}00249\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ float(v)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00250}00250\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00251}00251\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ v\ =\ int(v\_dec.to\_integral\_exact(rounding=\textcolor{stringliteral}{"{}ROUND\_HALF\_EVEN"{}}))}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00252}00252\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1TermValue}{TermValue}}(v,\ v,\ kind)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00253}00253\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ kind\ ==\ \textcolor{stringliteral}{"{}float"{}}:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00254}00254\ \ \ \ \ \ \ \ \ \ \ \ \ v\ =\ float(v)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00255}00255\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1TermValue}{TermValue}}(v,\ v,\ kind)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00256}00256\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ kind\ ==\ \textcolor{stringliteral}{"{}bool"{}}:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00257}00257\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(v,\ str):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00258}00258\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ v\ =\ v.strip().lower()\ \textcolor{keywordflow}{not}\ \textcolor{keywordflow}{in}\ [}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00259}00259\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}false"{}},}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00260}00260\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}f"{}},}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00261}00261\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}no"{}},}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00262}00262\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}n"{}},}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00263}00263\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}none"{}},}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00264}00264\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}0"{}},}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00265}00265\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}[]"{}},}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00266}00266\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\{\}"{}},}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00267}00267\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}},}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00268}00268\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ]}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00269}00269\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00270}00270\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ v\ =\ bool(v)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00271}00271\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1TermValue}{TermValue}}(v,\ v,\ kind)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00272}00272\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ isinstance(v,\ str):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00273}00273\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ string\ quoting}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00274}00274\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1TermValue}{TermValue}}(v,\ stringify(v),\ \textcolor{stringliteral}{"{}string"{}})}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00275}00275\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00276}00276\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classTypeError}{TypeError}}(f\textcolor{stringliteral}{"{}Cannot\ compare\ \{v\}\ of\ type\ \{type(v)\}\ to\ \{kind\}\ column"{}})}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00277}00277\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00278}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1BinOp_a2b98245a10d41145ff47ae18d7c3c821}{00278}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1BinOp_a2b98245a10d41145ff47ae18d7c3c821}{convert\_values}}(self)\ -\/>\ None:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00279}00279\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{pass}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00280}00280\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00281}00281\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00282}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1FilterBinOp}{00282}}\ \textcolor{keyword}{class\ }FilterBinOp(BinOp):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00283}00283\ \ \ \ \ filter:\ tuple[Any,\ Any,\ Index]\ |\ \textcolor{keywordtype}{None}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00284}00284\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00285}00285\ \ \ \ \ \textcolor{keyword}{def\ }\_\_repr\_\_(self)\ -\/>\ str:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00286}00286\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.filter\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00287}00287\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{stringliteral}{"{}Filter:\ Not\ Initialized"{}}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00288}00288\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ pprint\_thing(f\textcolor{stringliteral}{"{}[Filter\ :\ [\{self.filter[0]\}]\ -\/>\ [\{self.filter[1]\}]"{}})}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00289}00289\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00290}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1FilterBinOp_a52ed31833223d7d1c278a5847c451532}{00290}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1FilterBinOp_a52ed31833223d7d1c278a5847c451532}{invert}}(self)\ -\/>\ Self:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00291}00291\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}invert\ the\ filter"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00292}00292\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ if\ self.filter\ is\ not\ None:}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00293}00293\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ self.filter\ =\ (}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00294}00294\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.filter[0],}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00295}00295\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.generate\_filter\_op(invert=True),}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00296}00296\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.filter[2],}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00297}00297\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ )}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00298}00298\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ return\ self}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00299}00299\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00300}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1FilterBinOp_a3f9142f17db2d8bce26955599635682f}{00300}}\ \textcolor{stringliteral}{\ \ \ \ def\ format(self):}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00301}00301\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}return\ the\ actual\ filter\ format"{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00302}00302\ \ \ \ \ \ \ \ \ return\ [self.filter]}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00303}00303\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00304}00304\ \ \ \ \ \#\ error:\ Signature\ of\ "{}evaluate"{}\ incompatible\ with\ supertype\ "{}BinOp"{}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00305}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1FilterBinOp_aaecb4f8fad8cddf589e90b48bfe55455}{00305}}\ \ \ \ \ def\ evaluate(self)\ -\/>\ Self\ |\ None:\ \ \#\ type:\ ignore[override]}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00306}00306\ \ \ \ \ \ \ \ \ if\ not\ self.is\_valid:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00307}00307\ \ \ \ \ \ \ \ \ \ \ \ \ raise\ ValueError(f"{}query\ term\ is\ not\ valid\ [\{self\}]"{})}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00308}00308\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00309}00309\ \ \ \ \ \ \ \ \ rhs\ =\ self.conform(self.rhs)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00310}00310\ \ \ \ \ \ \ \ \ values\ =\ list(rhs)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00311}00311\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00312}00312\ \ \ \ \ \ \ \ \ if\ self.is\_in\_table:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00313}00313\ \ \ \ \ \ \ \ \ \ \ \ \ \#\ if\ too\ many\ values\ to\ create\ the\ expression,\ use\ a\ filter\ instead}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00314}00314\ \ \ \ \ \ \ \ \ \ \ \ \ if\ self.op\ in\ ["{}=="{},\ "{}!="{}]\ and\ len(values)\ >\ self.\_max\_selectors:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00315}00315\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ filter\_op\ =\ self.generate\_filter\_op()}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00316}00316\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.filter\ =\ (self.lhs,\ filter\_op,\ Index(values))}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00317}00317\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00318}00318\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ return\ self}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00319}00319\ \ \ \ \ \ \ \ \ \ \ \ \ return\ None}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00320}00320\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00321}00321\ \ \ \ \ \ \ \ \ \#\ equality\ conditions}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00322}00322\ \ \ \ \ \ \ \ \ if\ self.op\ in\ ["{}=="{},\ "{}!="{}]:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00323}00323\ \ \ \ \ \ \ \ \ \ \ \ \ filter\_op\ =\ self.generate\_filter\_op()}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00324}00324\ \ \ \ \ \ \ \ \ \ \ \ \ self.filter\ =\ (self.lhs,\ filter\_op,\ Index(values))}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00325}00325\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00326}00326\ \ \ \ \ \ \ \ \ else:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00327}00327\ \ \ \ \ \ \ \ \ \ \ \ \ raise\ TypeError(}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00328}00328\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f"{}passing\ a\ filterable\ condition\ to\ a\ non-\/table\ indexer\ [\{self\}]"{}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00329}00329\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00330}00330\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00331}00331\ \ \ \ \ \ \ \ \ return\ self}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00332}00332\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00333}00333\ \ \ \ \ def\ generate\_filter\_op(self,\ invert:\ bool\ =\ False):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00334}00334\ \ \ \ \ \ \ \ \ if\ (self.op\ ==\ "{}!="{}\ and\ not\ invert)\ or\ (self.op\ ==\ "{}=="{}\ and\ invert):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00335}00335\ \ \ \ \ \ \ \ \ \ \ \ \ return\ lambda\ axis,\ vals:\ \string~axis.isin(vals)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00336}00336\ \ \ \ \ \ \ \ \ else:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00337}00337\ \ \ \ \ \ \ \ \ \ \ \ \ return\ lambda\ axis,\ vals:\ axis.isin(vals)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00338}00338\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00339}00339\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00340}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1JointFilterBinOp}{00340}}\ class\ JointFilterBinOp(FilterBinOp):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00341}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1JointFilterBinOp_a0f49ffd8fc8ce0bde4803991702fbaea}{00341}}\ \ \ \ \ def\ format(self):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00342}00342\ \ \ \ \ \ \ \ \ raise\ NotImplementedError("{}unable\ to\ collapse\ Joint\ Filters"{})}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00343}00343\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00344}00344\ \ \ \ \ \#\ error:\ Signature\ of\ "{}evaluate"{}\ incompatible\ with\ supertype\ "{}BinOp"{}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00345}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1JointFilterBinOp_a185070318905861fc473e0d5523d8d92}{00345}}\ \ \ \ \ def\ evaluate(self)\ -\/>\ Self:\ \ \#\ type:\ ignore[override]}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00346}00346\ \ \ \ \ \ \ \ \ return\ self}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00347}00347\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00348}00348\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00349}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1ConditionBinOp}{00349}}\ class\ ConditionBinOp(BinOp):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00350}00350\ \ \ \ \ def\ \_\_repr\_\_(self)\ -\/>\ str:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00351}00351\ \ \ \ \ \ \ \ \ return\ pprint\_thing(f"{}[Condition\ :\ [\{self.condition\}]]"{})}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00352}00352\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00353}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1ConditionBinOp_a0bcb0464acb987e1a09f71fe07e15411}{00353}}\ \ \ \ \ def\ invert(self):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00354}00354\ \ \ \ \ \ \ \ \ "{}"{}"{}invert\ the\ condition"{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00355}00355\ \ \ \ \ \ \ \ \ \#\ if\ self.condition\ is\ not\ None:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00356}00356\ \ \ \ \ \ \ \ \ \#\ \ \ \ self.condition\ =\ "{}\string~(\%s)"{}\ \%\ self.condition}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00357}00357\ \ \ \ \ \ \ \ \ \#\ return\ self}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00358}00358\ \ \ \ \ \ \ \ \ raise\ NotImplementedError(}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00359}00359\ \ \ \ \ \ \ \ \ \ \ \ \ "{}cannot\ use\ an\ invert\ condition\ when\ passing\ to\ numexpr"{}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00360}00360\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00361}00361\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00362}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1ConditionBinOp_ac23ac84c08ec680d77309e037b555e8f}{00362}}\ \ \ \ \ def\ format(self):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00363}00363\ \ \ \ \ \ \ \ \ "{}"{}"{}return\ the\ actual\ ne\ format"{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00364}00364\ \ \ \ \ \ \ \ \ return\ self.condition}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00365}00365\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00366}00366\ \ \ \ \ \#\ error:\ Signature\ of\ "{}evaluate"{}\ incompatible\ with\ supertype\ "{}BinOp"{}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00367}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1ConditionBinOp_a5edbd2021bc8f695c65cf8ad0b6f7a56}{00367}}\ \ \ \ \ def\ evaluate(self)\ -\/>\ Self\ |\ None:\ \ \#\ type:\ ignore[override]}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00368}00368\ \ \ \ \ \ \ \ \ if\ not\ self.is\_valid:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00369}00369\ \ \ \ \ \ \ \ \ \ \ \ \ raise\ ValueError(f"{}query\ term\ is\ not\ valid\ [\{self\}]"{})}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00370}00370\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00371}00371\ \ \ \ \ \ \ \ \ \#\ convert\ values\ if\ we\ are\ in\ the\ table}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00372}00372\ \ \ \ \ \ \ \ \ if\ not\ self.is\_in\_table:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00373}00373\ \ \ \ \ \ \ \ \ \ \ \ \ return\ None}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00374}00374\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00375}00375\ \ \ \ \ \ \ \ \ rhs\ =\ self.conform(self.rhs)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00376}00376\ \ \ \ \ \ \ \ \ values\ =\ [self.convert\_value(v)\ for\ v\ in\ rhs]}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00377}00377\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00378}00378\ \ \ \ \ \ \ \ \ \#\ equality\ conditions}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00379}00379\ \ \ \ \ \ \ \ \ if\ self.op\ in\ ["{}=="{},\ "{}!="{}]:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00380}00380\ \ \ \ \ \ \ \ \ \ \ \ \ \#\ too\ many\ values\ to\ create\ the\ expression?}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00381}00381\ \ \ \ \ \ \ \ \ \ \ \ \ if\ len(values)\ <=\ self.\_max\_selectors:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00382}00382\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ vs\ =\ [self.generate(v)\ for\ v\ in\ values]}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00383}00383\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.condition\ =\ f"{}(\{'\ |\ '.join(vs)\})"{}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00384}00384\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00385}00385\ \ \ \ \ \ \ \ \ \ \ \ \ \#\ use\ a\ filter\ after\ reading}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00386}00386\ \ \ \ \ \ \ \ \ \ \ \ \ else:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00387}00387\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ return\ None}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00388}00388\ \ \ \ \ \ \ \ \ else:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00389}00389\ \ \ \ \ \ \ \ \ \ \ \ \ self.condition\ =\ self.generate(values[0])}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00390}00390\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00391}00391\ \ \ \ \ \ \ \ \ return\ self}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00392}00392\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00393}00393\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00394}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1JointConditionBinOp}{00394}}\ class\ JointConditionBinOp(ConditionBinOp):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00395}00395\ \ \ \ \ \#\ error:\ Signature\ of\ "{}evaluate"{}\ incompatible\ with\ supertype\ "{}BinOp"{}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00396}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1JointConditionBinOp_a4c5f1abecfaa9389f78b08b736e6de90}{00396}}\ \ \ \ \ def\ evaluate(self)\ -\/>\ Self:\ \ \#\ type:\ ignore[override]}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00397}00397\ \ \ \ \ \ \ \ \ self.condition\ =\ f"{}(\{self.lhs.condition\}\ \{self.op\}\ \{self.rhs.condition\})"{}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00398}00398\ \ \ \ \ \ \ \ \ return\ self}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00399}00399\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00400}00400\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00401}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1UnaryOp}{00401}}\ class\ UnaryOp(ops.UnaryOp):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00402}00402\ \ \ \ \ def\ prune(self,\ klass):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00403}00403\ \ \ \ \ \ \ \ \ if\ self.op\ !=\ "{}\string~"{}:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00404}00404\ \ \ \ \ \ \ \ \ \ \ \ \ raise\ NotImplementedError("{}UnaryOp\ only\ support\ invert\ type\ ops"{})}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00405}00405\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00406}00406\ \ \ \ \ \ \ \ \ operand\ =\ self.operand}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00407}00407\ \ \ \ \ \ \ \ \ operand\ =\ operand.prune(klass)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00408}00408\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00409}00409\ \ \ \ \ \ \ \ \ if\ operand\ is\ not\ None\ and\ (}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00410}00410\ \ \ \ \ \ \ \ \ \ \ \ \ issubclass(klass,\ ConditionBinOp)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00411}00411\ \ \ \ \ \ \ \ \ \ \ \ \ and\ operand.condition\ is\ not\ None}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00412}00412\ \ \ \ \ \ \ \ \ \ \ \ \ or\ not\ issubclass(klass,\ ConditionBinOp)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00413}00413\ \ \ \ \ \ \ \ \ \ \ \ \ and\ issubclass(klass,\ FilterBinOp)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00414}00414\ \ \ \ \ \ \ \ \ \ \ \ \ and\ operand.filter\ is\ not\ None}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00415}00415\ \ \ \ \ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00416}00416\ \ \ \ \ \ \ \ \ \ \ \ \ return\ operand.invert()}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00417}00417\ \ \ \ \ \ \ \ \ return\ None}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00418}00418\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00419}00419\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00420}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1PyTablesExprVisitor}{00420}}\ class\ PyTablesExprVisitor(BaseExprVisitor):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00421}00421\ \ \ \ \ const\_type:\ ClassVar[type[ops.Term]]\ =\ Constant}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00422}00422\ \ \ \ \ term\_type:\ ClassVar[type[Term]]\ =\ Term}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00423}00423\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00424}00424\ \ \ \ \ def\ \_\_init\_\_(self,\ env,\ engine,\ parser,\ **kwargs)\ -\/>\ None:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00425}00425\ \ \ \ \ \ \ \ \ super().\_\_init\_\_(env,\ engine,\ parser)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00426}00426\ \ \ \ \ \ \ \ \ for\ bin\_op\ in\ self.binary\_ops:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00427}00427\ \ \ \ \ \ \ \ \ \ \ \ \ bin\_node\ =\ self.binary\_op\_nodes\_map[bin\_op]}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00428}00428\ \ \ \ \ \ \ \ \ \ \ \ \ setattr(}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00429}00429\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00430}00430\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f"{}visit\_\{bin\_node\}"{},}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00431}00431\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ lambda\ node,\ bin\_op=bin\_op:\ partial(BinOp,\ bin\_op,\ **kwargs),}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00432}00432\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00433}00433\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00434}00434\ \ \ \ \ def\ visit\_UnaryOp(self,\ node,\ **kwargs)\ -\/>\ ops.Term\ |\ UnaryOp\ |\ None:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00435}00435\ \ \ \ \ \ \ \ \ if\ isinstance(node.op,\ (ast.Not,\ ast.Invert)):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00436}00436\ \ \ \ \ \ \ \ \ \ \ \ \ return\ UnaryOp("{}\string~"{},\ self.visit(node.operand))}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00437}00437\ \ \ \ \ \ \ \ \ elif\ isinstance(node.op,\ ast.USub):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00438}00438\ \ \ \ \ \ \ \ \ \ \ \ \ return\ self.const\_type(-\/self.visit(node.operand).value,\ self.env)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00439}00439\ \ \ \ \ \ \ \ \ elif\ isinstance(node.op,\ ast.UAdd):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00440}00440\ \ \ \ \ \ \ \ \ \ \ \ \ raise\ NotImplementedError("{}Unary\ addition\ not\ supported"{})}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00441}00441\ \ \ \ \ \ \ \ \ \#\ TODO:\ return\ None\ might\ never\ be\ reached}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00442}00442\ \ \ \ \ \ \ \ \ return\ None}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00443}00443\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00444}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1PyTablesExprVisitor_a8ecb91fed024405485ebd9ecdca31e21}{00444}}\ \ \ \ \ def\ visit\_Index(self,\ node,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00445}00445\ \ \ \ \ \ \ \ \ return\ self.visit(node.value).value}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00446}00446\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00447}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1PyTablesExprVisitor_af0a36ef06d0c776b0c54d53a1c4aea1e}{00447}}\ \ \ \ \ def\ visit\_Assign(self,\ node,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00448}00448\ \ \ \ \ \ \ \ \ cmpr\ =\ ast.Compare(}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00449}00449\ \ \ \ \ \ \ \ \ \ \ \ \ ops=[ast.Eq()],\ left=node.targets[0],\ comparators=[node.value]}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00450}00450\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00451}00451\ \ \ \ \ \ \ \ \ return\ self.visit(cmpr)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00452}00452\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00453}00453\ \ \ \ \ def\ visit\_Subscript(self,\ node,\ **kwargs)\ -\/>\ ops.Term:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00454}00454\ \ \ \ \ \ \ \ \ \#\ only\ allow\ simple\ subscripts}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00455}00455\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00456}00456\ \ \ \ \ \ \ \ \ value\ =\ self.visit(node.value)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00457}00457\ \ \ \ \ \ \ \ \ slobj\ =\ self.visit(node.slice)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00458}00458\ \ \ \ \ \ \ \ \ try:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00459}00459\ \ \ \ \ \ \ \ \ \ \ \ \ value\ =\ value.value}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00460}00460\ \ \ \ \ \ \ \ \ except\ AttributeError:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00461}00461\ \ \ \ \ \ \ \ \ \ \ \ \ pass}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00462}00462\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00463}00463\ \ \ \ \ \ \ \ \ if\ isinstance(slobj,\ Term):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00464}00464\ \ \ \ \ \ \ \ \ \ \ \ \ \#\ In\ py39\ np.ndarray\ lookups\ with\ Term\ containing\ int\ raise}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00465}00465\ \ \ \ \ \ \ \ \ \ \ \ \ slobj\ =\ slobj.value}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00466}00466\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00467}00467\ \ \ \ \ \ \ \ \ try:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00468}00468\ \ \ \ \ \ \ \ \ \ \ \ \ return\ self.const\_type(value[slobj],\ self.env)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00469}00469\ \ \ \ \ \ \ \ \ except\ TypeError\ as\ err:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00470}00470\ \ \ \ \ \ \ \ \ \ \ \ \ raise\ ValueError(}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00471}00471\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f"{}cannot\ subscript\ \{repr(value)\}\ with\ \{repr(slobj)\}"{}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00472}00472\ \ \ \ \ \ \ \ \ \ \ \ \ )\ from\ err}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00473}00473\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00474}00474\ \ \ \ \ def\ visit\_Attribute(self,\ node,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00475}00475\ \ \ \ \ \ \ \ \ attr\ =\ node.attr}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00476}00476\ \ \ \ \ \ \ \ \ value\ =\ node.value}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00477}00477\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00478}00478\ \ \ \ \ \ \ \ \ ctx\ =\ type(node.ctx)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00479}00479\ \ \ \ \ \ \ \ \ if\ ctx\ ==\ ast.Load:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00480}00480\ \ \ \ \ \ \ \ \ \ \ \ \ \#\ resolve\ the\ value}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00481}00481\ \ \ \ \ \ \ \ \ \ \ \ \ resolved\ =\ self.visit(value)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00482}00482\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00483}00483\ \ \ \ \ \ \ \ \ \ \ \ \ \#\ try\ to\ get\ the\ value\ to\ see\ if\ we\ are\ another\ expression}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00484}00484\ \ \ \ \ \ \ \ \ \ \ \ \ try:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00485}00485\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ resolved\ =\ resolved.value}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00486}00486\ \ \ \ \ \ \ \ \ \ \ \ \ except\ AttributeError:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00487}00487\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ pass}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00488}00488\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00489}00489\ \ \ \ \ \ \ \ \ \ \ \ \ try:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00490}00490\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ return\ self.term\_type(getattr(resolved,\ attr),\ self.env)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00491}00491\ \ \ \ \ \ \ \ \ \ \ \ \ except\ AttributeError:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00492}00492\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \#\ something\ like\ datetime.datetime\ where\ scope\ is\ overridden}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00493}00493\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ if\ isinstance(value,\ ast.Name)\ and\ value.id\ ==\ attr:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00494}00494\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ return\ resolved}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00495}00495\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00496}00496\ \ \ \ \ \ \ \ \ raise\ ValueError(f"{}Invalid\ Attribute\ context\ \{ctx.\_\_name\_\_\}"{})}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00497}00497\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00498}00498\ \ \ \ \ def\ translate\_In(self,\ op):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00499}00499\ \ \ \ \ \ \ \ \ return\ ast.Eq()\ if\ isinstance(op,\ ast.In)\ else\ op}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00500}00500\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00501}00501\ \ \ \ \ def\ \_rewrite\_membership\_op(self,\ node,\ left,\ right):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00502}00502\ \ \ \ \ \ \ \ \ return\ self.visit(node.op),\ node.op,\ left,\ right}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00503}00503\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00504}00504\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00505}\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1pytables_a99f7a9ce2df7f6f7c98c9ffb2053107b}{00505}}\ def\ \_validate\_where(w):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00506}00506\ \ \ \ \ "{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00507}00507\ \ \ \ \ Validate\ that\ the\ where\ statement\ is\ of\ the\ right\ type.}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00508}00508\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00509}00509\ \ \ \ \ The\ type\ may\ either\ be\ String,\ Expr,\ or\ list-\/like\ of\ Exprs.}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00510}00510\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00511}00511\ \ \ \ \ Parameters}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00512}00512\ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00513}00513\ \ \ \ \ w\ :\ String\ term\ expression,\ Expr,\ or\ list-\/like\ of\ Exprs.}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00514}00514\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00515}00515\ \ \ \ \ Returns}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00516}00516\ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00517}00517\ \ \ \ \ where\ :\ The\ original\ where\ clause\ if\ the\ check\ was\ successful.}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00518}00518\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00519}00519\ \ \ \ \ Raises}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00520}00520\ \ \ \ \ -\/-\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00521}00521\ \ \ \ \ TypeError\ :\ An\ invalid\ data\ type\ was\ passed\ in\ for\ w\ (e.g.\ dict).}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00522}00522\ \ \ \ \ "{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00523}00523\ \ \ \ \ if\ not\ (isinstance(w,\ (PyTablesExpr,\ str))\ or\ is\_list\_like(w)):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00524}00524\ \ \ \ \ \ \ \ \ raise\ TypeError(}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00525}00525\ \ \ \ \ \ \ \ \ \ \ \ \ "{}where\ must\ be\ passed\ as\ a\ string,\ PyTablesExpr,\ "{}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00526}00526\ \ \ \ \ \ \ \ \ \ \ \ \ "{}or\ list-\/like\ of\ PyTablesExpr"{}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00527}00527\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00528}00528\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00529}00529\ \ \ \ \ return\ w}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00530}00530\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00531}00531\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00532}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1PyTablesExpr}{00532}}\ class\ PyTablesExpr(expr.Expr):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00533}00533\ \ \ \ \ "{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00534}00534\ \ \ \ \ Hold\ a\ pytables-\/like\ expression,\ comprised\ of\ possibly\ multiple\ 'terms'.}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00535}00535\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00536}00536\ \ \ \ \ Parameters}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00537}00537\ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00538}00538\ \ \ \ \ where\ :\ string\ term\ expression,\ PyTablesExpr,\ or\ list-\/like\ of\ PyTablesExprs}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00539}00539\ \ \ \ \ queryables\ :\ a\ "{}kinds"{}\ map\ (dict\ of\ column\ name\ -\/>\ kind),\ or\ None\ if\ column}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00540}00540\ \ \ \ \ \ \ \ \ is\ non-\/indexable}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00541}00541\ \ \ \ \ encoding\ :\ an\ encoding\ that\ will\ encode\ the\ query\ terms}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00542}00542\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00543}00543\ \ \ \ \ Returns}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00544}00544\ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00545}00545\ \ \ \ \ a\ PyTablesExpr\ object}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00546}00546\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00547}00547\ \ \ \ \ Examples}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00548}00548\ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00549}00549\ \ \ \ \ 'index>=date'}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00550}00550\ \ \ \ \ "{}columns=['A',\ 'D']"{}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00551}00551\ \ \ \ \ 'columns=A'}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00552}00552\ \ \ \ \ 'columns==A'}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00553}00553\ \ \ \ \ "{}\string~(columns=['A','B'])"{}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00554}00554\ \ \ \ \ 'index>df.index[3]\ \&\ string="{}bar"{}'}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00555}00555\ \ \ \ \ '(index>df.index[3]\ \&\ index<=df.index[6])\ |\ string="{}bar"{}'}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00556}00556\ \ \ \ \ "{}ts>=Timestamp('2012-\/02-\/01')"{}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00557}00557\ \ \ \ \ "{}major\_axis>=20130101"{}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00558}00558\ \ \ \ \ "{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00559}00559\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00560}00560\ \ \ \ \ \_visitor:\ PyTablesExprVisitor\ |\ None}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00561}00561\ \ \ \ \ env:\ PyTablesScope}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00562}00562\ \ \ \ \ expr:\ str}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00563}00563\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00564}00564\ \ \ \ \ def\ \_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00565}00565\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00566}00566\ \ \ \ \ \ \ \ \ where,}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00567}00567\ \ \ \ \ \ \ \ \ queryables:\ dict[str,\ Any]\ |\ None\ =\ None,}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00568}00568\ \ \ \ \ \ \ \ \ encoding=None,}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00569}00569\ \ \ \ \ \ \ \ \ scope\_level:\ int\ =\ 0,}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00570}00570\ \ \ \ \ )\ -\/>\ None:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00571}00571\ \ \ \ \ \ \ \ \ where\ =\ \_validate\_where(where)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00572}00572\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00573}00573\ \ \ \ \ \ \ \ \ self.encoding\ =\ encoding}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00574}00574\ \ \ \ \ \ \ \ \ self.condition\ =\ None}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00575}00575\ \ \ \ \ \ \ \ \ self.filter\ =\ None}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00576}00576\ \ \ \ \ \ \ \ \ self.terms\ =\ None}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00577}00577\ \ \ \ \ \ \ \ \ self.\_visitor\ =\ None}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00578}00578\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00579}00579\ \ \ \ \ \ \ \ \ \#\ capture\ the\ environment\ if\ needed}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00580}00580\ \ \ \ \ \ \ \ \ local\_dict:\ \_scope.DeepChainMap[Any,\ Any]\ |\ None\ =\ None}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00581}00581\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00582}00582\ \ \ \ \ \ \ \ \ if\ isinstance(where,\ PyTablesExpr):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00583}00583\ \ \ \ \ \ \ \ \ \ \ \ \ local\_dict\ =\ where.env.scope}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00584}00584\ \ \ \ \ \ \ \ \ \ \ \ \ \_where\ =\ where.expr}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00585}00585\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00586}00586\ \ \ \ \ \ \ \ \ elif\ is\_list\_like(where):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00587}00587\ \ \ \ \ \ \ \ \ \ \ \ \ where\ =\ list(where)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00588}00588\ \ \ \ \ \ \ \ \ \ \ \ \ for\ idx,\ w\ in\ enumerate(where):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00589}00589\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ if\ isinstance(w,\ PyTablesExpr):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00590}00590\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ local\_dict\ =\ w.env.scope}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00591}00591\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ else:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00592}00592\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ where[idx]\ =\ \_validate\_where(w)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00593}00593\ \ \ \ \ \ \ \ \ \ \ \ \ \_where\ =\ "{}\ \&\ "{}.join([f"{}(\{w\})"{}\ for\ w\ in\ com.flatten(where)])}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00594}00594\ \ \ \ \ \ \ \ \ else:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00595}00595\ \ \ \ \ \ \ \ \ \ \ \ \ \#\ \_validate\_where\ ensures\ we\ otherwise\ have\ a\ string}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00596}00596\ \ \ \ \ \ \ \ \ \ \ \ \ \_where\ =\ where}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00597}00597\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00598}00598\ \ \ \ \ \ \ \ \ self.expr\ =\ \_where}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00599}00599\ \ \ \ \ \ \ \ \ self.env\ =\ PyTablesScope(scope\_level\ +\ 1,\ local\_dict=local\_dict)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00600}00600\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00601}00601\ \ \ \ \ \ \ \ \ if\ queryables\ is\ not\ None\ and\ isinstance(self.expr,\ str):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00602}00602\ \ \ \ \ \ \ \ \ \ \ \ \ self.env.queryables.update(queryables)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00603}00603\ \ \ \ \ \ \ \ \ \ \ \ \ self.\_visitor\ =\ PyTablesExprVisitor(}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00604}00604\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.env,}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00605}00605\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ queryables=queryables,}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00606}00606\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ parser="{}pytables"{},}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00607}00607\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ engine="{}pytables"{},}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00608}00608\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ encoding=encoding,}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00609}00609\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00610}00610\ \ \ \ \ \ \ \ \ \ \ \ \ self.terms\ =\ self.parse()}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00611}00611\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00612}00612\ \ \ \ \ def\ \_\_repr\_\_(self)\ -\/>\ str:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00613}00613\ \ \ \ \ \ \ \ \ if\ self.terms\ is\ not\ None:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00614}00614\ \ \ \ \ \ \ \ \ \ \ \ \ return\ pprint\_thing(self.terms)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00615}00615\ \ \ \ \ \ \ \ \ return\ pprint\_thing(self.expr)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00616}00616\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00617}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1PyTablesExpr_a7ffbd65082b36d2a21758f33168cdf3d}{00617}}\ \ \ \ \ def\ evaluate(self):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00618}00618\ \ \ \ \ \ \ \ \ "{}"{}"{}create\ and\ return\ the\ numexpr\ condition\ and\ filte\textcolor{stringliteral}{r"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00619}00619\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ try:}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00620}00620\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ self.condition\ =\ self.terms.prune(ConditionBinOp)}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00621}00621\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ except\ AttributeError\ as\ err:}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00622}00622\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ raise\ ValueError(}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00623}00623\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f"{}cannot\ process\ expression\ [\{self.expr\}],\ [\{self\}]\ "{}}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00624}00624\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "{}is\ not\ a\ valid\ condition"{}}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00625}00625\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ )\ from\ err}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00626}00626\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ try:}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00627}00627\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ self.filter\ =\ self.terms.prune(FilterBinOp)}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00628}00628\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ except\ AttributeError\ as\ err:}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00629}00629\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ raise\ ValueError(}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00630}00630\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f"{}cannot\ process\ expression\ [\{self.expr\}],\ [\{self\}]\ "{}}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00631}00631\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "{}is\ not\ a\ valid\ filter"{}}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00632}00632\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ )\ from\ err}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00633}00633\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00634}00634\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ return\ self.condition,\ self.filter}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00635}00635\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00636}00636\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00637}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1TermValue}{00637}}\ \textcolor{stringliteral}{class\ TermValue:}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00638}00638\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}hold\ a\ term\ value\ the\ we\ use\ to\ construct\ a\ condition/filte\textcolor{stringliteral}{r"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00639}00639\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00640}00640\ \textcolor{stringliteral}{\ \ \ \ def\ \_\_init\_\_(self,\ value,\ converted,\ kind:\ str)\ -\/>\ None:}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00641}00641\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ assert\ isinstance(kind,\ str),\ kind}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00642}00642\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ self.value\ =\ value}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00643}00643\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ self.converted\ =\ converted}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00644}00644\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ self.kind\ =\ kind}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00645}00645\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00646}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1pytables_1_1TermValue_a905d35cddfeb44c3e2954dbbf6e5911d}{00646}}\ \textcolor{stringliteral}{\ \ \ \ def\ tostring(self,\ encoding)\ -\/>\ str:}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00647}00647\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}quote\ the\ string\ if\ not\ encoded\ else\ encode\ and\ return"{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00648}00648\ \ \ \ \ \ \ \ \ if\ self.kind\ ==\ "{}string"{}:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00649}00649\ \ \ \ \ \ \ \ \ \ \ \ \ if\ encoding\ is\ not\ None:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00650}00650\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ return\ str(self.converted)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00651}00651\ \ \ \ \ \ \ \ \ \ \ \ \ return\ f'"{}\{self.converted\}"{}'}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00652}00652\ \ \ \ \ \ \ \ \ elif\ self.kind\ ==\ "{}float"{}:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00653}00653\ \ \ \ \ \ \ \ \ \ \ \ \ \#\ python\ 2\ str(float)\ is\ not\ always}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00654}00654\ \ \ \ \ \ \ \ \ \ \ \ \ \#\ round-\/trippable\ so\ use\ repr()}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00655}00655\ \ \ \ \ \ \ \ \ \ \ \ \ return\ repr(self.converted)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00656}00656\ \ \ \ \ \ \ \ \ return\ str(self.converted)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00657}00657\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00658}00658\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00659}\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1pytables_af7518542e0d462563429c86bde2d870c}{00659}}\ def\ maybe\_expression(s)\ -\/>\ bool:}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00660}00660\ \ \ \ \ "{}"{}"{}loose\ checking\ if\ s\ is\ a\ pytables-\/acceptable\ expression"{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00661}00661\ \ \ \ \ if\ not\ isinstance(s,\ str):}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00662}00662\ \ \ \ \ \ \ \ \ return\ False}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00663}00663\ \ \ \ \ operations\ =\ PyTablesExprVisitor.binary\_ops\ +\ PyTablesExprVisitor.unary\_ops\ +\ ("{}="{},)}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00664}00664\ }
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00665}00665\ \ \ \ \ \#\ make\ sure\ we\ have\ an\ op\ at\ least}
+\DoxyCodeLine{\Hypertarget{core_2computation_2pytables_8py_source_l00666}00666\ \ \ \ \ return\ any(op\ in\ s\ for\ op\ in\ operations)}
+
+\end{DoxyCode}

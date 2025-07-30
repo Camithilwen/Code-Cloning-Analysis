@@ -1,0 +1,57 @@
+var namespacescipy_1_1stats_1_1tests =
+[
+    [ "common_tests", "d9/db7/namespacescipy_1_1stats_1_1tests_1_1common__tests.html", null ],
+    [ "test_axis_nan_policy", "d3/d2e/namespacescipy_1_1stats_1_1tests_1_1test__axis__nan__policy.html", null ],
+    [ "test_binned_statistic", "db/d24/namespacescipy_1_1stats_1_1tests_1_1test__binned__statistic.html", "db/d24/namespacescipy_1_1stats_1_1tests_1_1test__binned__statistic" ],
+    [ "test_boost_ufuncs", "d9/d1b/namespacescipy_1_1stats_1_1tests_1_1test__boost__ufuncs.html", null ],
+    [ "test_censored_data", "d7/dc8/namespacescipy_1_1stats_1_1tests_1_1test__censored__data.html", "d7/dc8/namespacescipy_1_1stats_1_1tests_1_1test__censored__data" ],
+    [ "test_contingency", "d0/dd2/namespacescipy_1_1stats_1_1tests_1_1test__contingency.html", null ],
+    [ "test_continuous_basic", "da/d6e/namespacescipy_1_1stats_1_1tests_1_1test__continuous__basic.html", null ],
+    [ "test_continuous_fit_censored", "d9/d3e/namespacescipy_1_1stats_1_1tests_1_1test__continuous__fit__censored.html", [
+      [ "test_beta", "d9/d3e/namespacescipy_1_1stats_1_1tests_1_1test__continuous__fit__censored.html#aec5004ade85a082d025427a564cfec68", null ],
+      [ "test_cauchy_mixed", "d9/d3e/namespacescipy_1_1stats_1_1tests_1_1test__continuous__fit__censored.html#a40c20070b4c868c6dafb142be969ea2d", null ],
+      [ "test_cauchy_right_censored", "d9/d3e/namespacescipy_1_1stats_1_1tests_1_1test__continuous__fit__censored.html#aae63be8fc43f28d86f3cb6b690af47b6", null ],
+      [ "test_chi2_mixed", "d9/d3e/namespacescipy_1_1stats_1_1tests_1_1test__continuous__fit__censored.html#a190b7be26de01d3563ab15c8ae90f873", null ],
+      [ "test_expon_right_censored", "d9/d3e/namespacescipy_1_1stats_1_1tests_1_1test__continuous__fit__censored.html#a02fbc1c914033eb1b0553e89bd3f3ab1", null ],
+      [ "test_gamma_right_censored", "d9/d3e/namespacescipy_1_1stats_1_1tests_1_1test__continuous__fit__censored.html#a178a0aec63af9405a29e7d26edecf917", null ],
+      [ "test_gumbel", "d9/d3e/namespacescipy_1_1stats_1_1tests_1_1test__continuous__fit__censored.html#a828db0278d1772e23ecd4f0340c15683", null ],
+      [ "test_invgauss", "d9/d3e/namespacescipy_1_1stats_1_1tests_1_1test__continuous__fit__censored.html#a8f60565f5eb87735b75b818697a499f3", null ],
+      [ "test_invweibull", "d9/d3e/namespacescipy_1_1stats_1_1tests_1_1test__continuous__fit__censored.html#a2a749df037513c83c278a8a28c5413ef", null ],
+      [ "test_laplace", "d9/d3e/namespacescipy_1_1stats_1_1tests_1_1test__continuous__fit__censored.html#a34ca92a8d64451da051238b61375d8ad", null ],
+      [ "test_logistic", "d9/d3e/namespacescipy_1_1stats_1_1tests_1_1test__continuous__fit__censored.html#acbff65076b02f5edfd9ef54672b674dd", null ],
+      [ "test_lognorm", "d9/d3e/namespacescipy_1_1stats_1_1tests_1_1test__continuous__fit__censored.html#a1c387b10af29803ee4af8537988315a4", null ],
+      [ "test_nct", "d9/d3e/namespacescipy_1_1stats_1_1tests_1_1test__continuous__fit__censored.html#a1f01f648046b2d222f3df4ffb91b7133", null ],
+      [ "test_ncx2", "d9/d3e/namespacescipy_1_1stats_1_1tests_1_1test__continuous__fit__censored.html#ab792b0c9c81bbd776b925f3475725c67", null ],
+      [ "test_norm", "d9/d3e/namespacescipy_1_1stats_1_1tests_1_1test__continuous__fit__censored.html#a1745fca607d834e4f6ce544a7337bc7e", null ]
+    ] ],
+    [ "test_crosstab", "dd/dc5/namespacescipy_1_1stats_1_1tests_1_1test__crosstab.html", null ],
+    [ "test_discrete_basic", "dc/d14/namespacescipy_1_1stats_1_1tests_1_1test__discrete__basic.html", [
+      [ "check_discrete_chisquare", "dc/d14/namespacescipy_1_1stats_1_1tests_1_1test__discrete__basic.html#af6d0a95f50cc3882b1eb847d1467c9fb", null ]
+    ] ],
+    [ "test_discrete_distns", "d3/d5c/namespacescipy_1_1stats_1_1tests_1_1test__discrete__distns.html", "d3/d5c/namespacescipy_1_1stats_1_1tests_1_1test__discrete__distns" ],
+    [ "test_distributions", "d6/dc1/namespacescipy_1_1stats_1_1tests_1_1test__distributions.html", "d6/dc1/namespacescipy_1_1stats_1_1tests_1_1test__distributions" ],
+    [ "test_entropy", "d3/daf/namespacescipy_1_1stats_1_1tests_1_1test__entropy.html", "d3/daf/namespacescipy_1_1stats_1_1tests_1_1test__entropy" ],
+    [ "test_fit", "d6/d6b/namespacescipy_1_1stats_1_1tests_1_1test__fit.html", "d6/d6b/namespacescipy_1_1stats_1_1tests_1_1test__fit" ],
+    [ "test_hypotests", "db/db0/namespacescipy_1_1stats_1_1tests_1_1test__hypotests.html", "db/db0/namespacescipy_1_1stats_1_1tests_1_1test__hypotests" ],
+    [ "test_kdeoth", "d5/d99/namespacescipy_1_1stats_1_1tests_1_1test__kdeoth.html", "d5/d99/namespacescipy_1_1stats_1_1tests_1_1test__kdeoth" ],
+    [ "test_morestats", "d4/dda/namespacescipy_1_1stats_1_1tests_1_1test__morestats.html", "d4/dda/namespacescipy_1_1stats_1_1tests_1_1test__morestats" ],
+    [ "test_mstats_basic", "d0/d04/namespacescipy_1_1stats_1_1tests_1_1test__mstats__basic.html", "d0/d04/namespacescipy_1_1stats_1_1tests_1_1test__mstats__basic" ],
+    [ "test_mstats_extras", "d2/de2/namespacescipy_1_1stats_1_1tests_1_1test__mstats__extras.html", "d2/de2/namespacescipy_1_1stats_1_1tests_1_1test__mstats__extras" ],
+    [ "test_multicomp", "d2/d62/namespacescipy_1_1stats_1_1tests_1_1test__multicomp.html", "d2/d62/namespacescipy_1_1stats_1_1tests_1_1test__multicomp" ],
+    [ "test_multivariate", "d5/df9/namespacescipy_1_1stats_1_1tests_1_1test__multivariate.html", "d5/df9/namespacescipy_1_1stats_1_1tests_1_1test__multivariate" ],
+    [ "test_odds_ratio", "d9/d03/namespacescipy_1_1stats_1_1tests_1_1test__odds__ratio.html", "d9/d03/namespacescipy_1_1stats_1_1tests_1_1test__odds__ratio" ],
+    [ "test_qmc", "df/d90/namespacescipy_1_1stats_1_1tests_1_1test__qmc.html", "df/d90/namespacescipy_1_1stats_1_1tests_1_1test__qmc" ],
+    [ "test_rank", "db/d80/namespacescipy_1_1stats_1_1tests_1_1test__rank.html", "db/d80/namespacescipy_1_1stats_1_1tests_1_1test__rank" ],
+    [ "test_relative_risk", "dc/db1/namespacescipy_1_1stats_1_1tests_1_1test__relative__risk.html", null ],
+    [ "test_resampling", "d6/dbe/namespacescipy_1_1stats_1_1tests_1_1test__resampling.html", "d6/dbe/namespacescipy_1_1stats_1_1tests_1_1test__resampling" ],
+    [ "test_sampling", "da/dd6/namespacescipy_1_1stats_1_1tests_1_1test__sampling.html", "da/dd6/namespacescipy_1_1stats_1_1tests_1_1test__sampling" ],
+    [ "test_sensitivity_analysis", "d3/de2/namespacescipy_1_1stats_1_1tests_1_1test__sensitivity__analysis.html", "d3/de2/namespacescipy_1_1stats_1_1tests_1_1test__sensitivity__analysis" ],
+    [ "test_stats", "d1/d4e/namespacescipy_1_1stats_1_1tests_1_1test__stats.html", "d1/d4e/namespacescipy_1_1stats_1_1tests_1_1test__stats" ],
+    [ "test_survival", "dd/d2a/namespacescipy_1_1stats_1_1tests_1_1test__survival.html", "dd/d2a/namespacescipy_1_1stats_1_1tests_1_1test__survival" ],
+    [ "test_tukeylambda_stats", "d3/d12/namespacescipy_1_1stats_1_1tests_1_1test__tukeylambda__stats.html", [
+      [ "test_tukeylambda_stats_invalid", "d3/d12/namespacescipy_1_1stats_1_1tests_1_1test__tukeylambda__stats.html#adb727c6ab17b448336ed99e6b176cb00", null ],
+      [ "test_tukeylambda_stats_known_exact", "d3/d12/namespacescipy_1_1stats_1_1tests_1_1test__tukeylambda__stats.html#a782fa41d9b3bf994d654fcbaa9022d9e", null ],
+      [ "test_tukeylambda_stats_mpmath", "d3/d12/namespacescipy_1_1stats_1_1tests_1_1test__tukeylambda__stats.html#a85c0f4b9205e2bdfec151ab15452128c", null ]
+    ] ],
+    [ "test_variation", "d9/d7e/namespacescipy_1_1stats_1_1tests_1_1test__variation.html", "d9/d7e/namespacescipy_1_1stats_1_1tests_1_1test__variation" ]
+];

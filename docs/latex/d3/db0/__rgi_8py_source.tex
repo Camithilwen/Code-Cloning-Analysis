@@ -1,0 +1,677 @@
+\doxysection{\+\_\+rgi.\+py}
+\hypertarget{__rgi_8py_source}{}\label{__rgi_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/scipy/interpolate/\_rgi.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/scipy/interpolate/\_rgi.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00001}\mbox{\hyperlink{namespacescipy_1_1interpolate_1_1__rgi}{00001}}\ \_\_all\_\_\ =\ [\textcolor{stringliteral}{'RegularGridInterpolator'},\ \textcolor{stringliteral}{'interpn'}]}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00002}00002\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00003}00003\ \textcolor{keyword}{import}\ itertools}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00004}00004\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00005}00005\ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00006}00006\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00007}00007\ \textcolor{keyword}{from}\ .interpnd\ \textcolor{keyword}{import}\ \_ndim\_coords\_from\_arrays}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00008}00008\ \textcolor{keyword}{from}\ .\_cubic\ \textcolor{keyword}{import}\ PchipInterpolator}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00009}00009\ \textcolor{keyword}{from}\ .\_rgi\_cython\ \textcolor{keyword}{import}\ evaluate\_linear\_2d,\ find\_indices}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00010}00010\ \textcolor{keyword}{from}\ .\_bsplines\ \textcolor{keyword}{import}\ make\_interp\_spline}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00011}00011\ \textcolor{keyword}{from}\ .\_fitpack2\ \textcolor{keyword}{import}\ RectBivariateSpline}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00012}00012\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00013}00013\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00014}00014\ \textcolor{keyword}{def\ }\_check\_points(points):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00015}00015\ \ \ \ \ descending\_dimensions\ =\ []}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00016}00016\ \ \ \ \ grid\ =\ []}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00017}00017\ \ \ \ \ \textcolor{keywordflow}{for}\ i,\ p\ \textcolor{keywordflow}{in}\ enumerate(points):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00018}00018\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ early\ make\ points\ float}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00019}00019\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ see\ https://github.com/scipy/scipy/pull/17230}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00020}00020\ \ \ \ \ \ \ \ \ p\ =\ np.asarray(p,\ dtype=float)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00021}00021\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ np.all(p[1:]\ >\ p[:-\/1]):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00022}00022\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ np.all(p[1:]\ <\ p[:-\/1]):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00023}00023\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ input\ is\ descending,\ so\ make\ it\ ascending}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00024}00024\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ descending\_dimensions.append(i)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00025}00025\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p\ =\ np.flip(p)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00026}00026\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00027}00027\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00028}00028\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}The\ points\ in\ dimension\ \%d\ must\ be\ strictly\ "{}}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00029}00029\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}ascending\ or\ descending"{}}\ \%\ i)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00030}00030\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ see\ https://github.com/scipy/scipy/issues/17716}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00031}00031\ \ \ \ \ \ \ \ \ p\ =\ np.ascontiguousarray(p)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00032}00032\ \ \ \ \ \ \ \ \ grid.append(p)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00033}00033\ \ \ \ \ \textcolor{keywordflow}{return}\ tuple(grid),\ tuple(descending\_dimensions)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00034}00034\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00035}00035\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00036}00036\ \textcolor{keyword}{def\ }\_check\_dimensionality(points,\ values):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00037}00037\ \ \ \ \ \textcolor{keywordflow}{if}\ len(points)\ >\ values.ndim:}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00038}00038\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}There\ are\ \%d\ point\ arrays,\ but\ values\ has\ \%d\ "{}}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00039}00039\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}dimensions"{}}\ \%\ (len(points),\ values.ndim))}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00040}00040\ \ \ \ \ \textcolor{keywordflow}{for}\ i,\ p\ \textcolor{keywordflow}{in}\ enumerate(points):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00041}00041\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ np.asarray(p).ndim\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00042}00042\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}The\ points\ in\ dimension\ \%d\ must\ be\ "{}}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00043}00043\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}1-\/dimensional"{}}\ \%\ i)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00044}00044\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ values.shape[i]\ ==\ len(p):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00045}00045\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}There\ are\ \%d\ points\ and\ \%d\ values\ in\ "{}}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00046}00046\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}dimension\ \%d"{}}\ \%\ (len(p),\ values.shape[i],\ i))}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00047}00047\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00048}00048\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00049}\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator}{00049}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator}{RegularGridInterpolator}}:}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00050}00050\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00051}00051\ \textcolor{stringliteral}{\ \ \ \ Interpolation\ on\ a\ regular\ or\ rectilinear\ grid\ in\ arbitrary\ dimensions.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00052}00052\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00053}00053\ \textcolor{stringliteral}{\ \ \ \ The\ data\ must\ be\ defined\ on\ a\ rectilinear\ grid;\ that\ is,\ a\ rectangular}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00054}00054\ \textcolor{stringliteral}{\ \ \ \ grid\ with\ even\ or\ uneven\ spacing.\ Linear,\ nearest-\/neighbor,\ spline}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00055}00055\ \textcolor{stringliteral}{\ \ \ \ interpolations\ are\ supported.\ After\ setting\ up\ the\ interpolator\ object,}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00056}00056\ \textcolor{stringliteral}{\ \ \ \ the\ interpolation\ method\ may\ be\ chosen\ at\ each\ evaluation.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00057}00057\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00058}00058\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00059}00059\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00060}00060\ \textcolor{stringliteral}{\ \ \ \ points\ :\ tuple\ of\ ndarray\ of\ float,\ with\ shapes\ (m1,\ ),\ ...,\ (mn,\ )}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00061}00061\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ points\ defining\ the\ regular\ grid\ in\ n\ dimensions.\ The\ points\ in}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00062}00062\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ each\ dimension\ (i.e.\ every\ elements\ of\ the\ points\ tuple)\ must\ be}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00063}00063\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ strictly\ ascending\ or\ descending.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00064}00064\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00065}00065\ \textcolor{stringliteral}{\ \ \ \ values\ :\ array\_like,\ shape\ (m1,\ ...,\ mn,\ ...)}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00066}00066\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ data\ on\ the\ regular\ grid\ in\ n\ dimensions.\ Complex\ data\ can\ be}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00067}00067\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ acceptable.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00068}00068\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00069}00069\ \textcolor{stringliteral}{\ \ \ \ method\ :\ str,\ optional}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00070}00070\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ method\ of\ interpolation\ to\ perform.\ Supported\ are\ "{}linear"{},}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00071}00071\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}nearest"{},\ "{}slinear"{},\ "{}cubic"{},\ "{}quintic"{}\ and\ "{}pchip"{}.\ This}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00072}00072\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ parameter\ will\ become\ the\ default\ for\ the\ object's\ \`{}\`{}\_\_call\_\_\`{}\`{}}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00073}00073\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ method.\ Default\ is\ "{}linear"{}.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00074}00074\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00075}00075\ \textcolor{stringliteral}{\ \ \ \ bounds\_error\ :\ bool,\ optional}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00076}00076\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ True,\ when\ interpolated\ values\ are\ requested\ outside\ of\ the}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00077}00077\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ domain\ of\ the\ input\ data,\ a\ ValueError\ is\ raised.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00078}00078\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ False,\ then\ \`{}fill\_value\`{}\ is\ used.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00079}00079\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Default\ is\ True.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00080}00080\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00081}00081\ \textcolor{stringliteral}{\ \ \ \ fill\_value\ :\ float\ or\ None,\ optional}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00082}00082\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ value\ to\ use\ for\ points\ outside\ of\ the\ interpolation\ domain.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00083}00083\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ None,\ values\ outside\ the\ domain\ are\ extrapolated.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00084}00084\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Default\ is\ \`{}\`{}np.nan\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00085}00085\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00086}00086\ \textcolor{stringliteral}{\ \ \ \ Methods}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00087}00087\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00088}00088\ \textcolor{stringliteral}{\ \ \ \ \_\_call\_\_}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00089}00089\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00090}00090\ \textcolor{stringliteral}{\ \ \ \ Attributes}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00091}00091\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00092}00092\ \textcolor{stringliteral}{\ \ \ \ grid\ :\ tuple\ of\ ndarrays}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00093}00093\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ points\ defining\ the\ regular\ grid\ in\ n\ dimensions.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00094}00094\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ This\ tuple\ defines\ the\ full\ grid\ via}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00095}00095\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}np.meshgrid(*grid,\ indexing='ij')\`{}\`{}}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00096}00096\ \textcolor{stringliteral}{\ \ \ \ values\ :\ ndarray}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00097}00097\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Data\ values\ at\ the\ grid.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00098}00098\ \textcolor{stringliteral}{\ \ \ \ method\ :\ str}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00099}00099\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Interpolation\ method.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00100}00100\ \textcolor{stringliteral}{\ \ \ \ fill\_value\ :\ float\ or\ \`{}\`{}None\`{}\`{}}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00101}00101\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Use\ this\ value\ for\ out-\/of-\/bounds\ arguments\ to\ \`{}\_\_call\_\_\`{}.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00102}00102\ \textcolor{stringliteral}{\ \ \ \ bounds\_error\ :\ bool}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00103}00103\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ \`{}\`{}True\`{}\`{},\ out-\/of-\/bounds\ argument\ raise\ a\ \`{}\`{}ValueError\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00104}00104\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00105}00105\ \textcolor{stringliteral}{\ \ \ \ Notes}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00106}00106\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00107}00107\ \textcolor{stringliteral}{\ \ \ \ Contrary\ to\ \`{}LinearNDInterpolator\`{}\ and\ \`{}NearestNDInterpolator\`{},\ this\ class}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00108}00108\ \textcolor{stringliteral}{\ \ \ \ avoids\ expensive\ triangulation\ of\ the\ input\ data\ by\ taking\ advantage\ of\ the}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00109}00109\ \textcolor{stringliteral}{\ \ \ \ regular\ grid\ structure.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00110}00110\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00111}00111\ \textcolor{stringliteral}{\ \ \ \ In\ other\ words,\ this\ class\ assumes\ that\ the\ data\ is\ defined\ on\ a}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00112}00112\ \textcolor{stringliteral}{\ \ \ \ *rectilinear*\ grid.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00113}00113\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00114}00114\ \textcolor{stringliteral}{\ \ \ \ ..\ versionadded::\ 0.14}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00115}00115\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00116}00116\ \textcolor{stringliteral}{\ \ \ \ The\ 'slinear'(k=1),\ 'cubic'(k=3),\ and\ 'quintic'(k=5)\ methods\ are}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00117}00117\ \textcolor{stringliteral}{\ \ \ \ tensor-\/product\ spline\ interpolators,\ where\ \`{}k\`{}\ is\ the\ spline\ degree,}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00118}00118\ \textcolor{stringliteral}{\ \ \ \ If\ any\ dimension\ has\ fewer\ points\ than\ \`{}k\`{}\ +\ 1,\ an\ error\ will\ be\ raised.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00119}00119\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00120}00120\ \textcolor{stringliteral}{\ \ \ \ ..\ versionadded::\ 1.9}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00121}00121\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00122}00122\ \textcolor{stringliteral}{\ \ \ \ If\ the\ input\ data\ is\ such\ that\ dimensions\ have\ incommensurate}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00123}00123\ \textcolor{stringliteral}{\ \ \ \ units\ and\ differ\ by\ many\ orders\ of\ magnitude,\ the\ interpolant\ may\ have}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00124}00124\ \textcolor{stringliteral}{\ \ \ \ numerical\ artifacts.\ Consider\ rescaling\ the\ data\ before\ interpolating.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00125}00125\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00126}00126\ \textcolor{stringliteral}{\ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00127}00127\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00128}00128\ \textcolor{stringliteral}{\ \ \ \ **Evaluate\ a\ function\ on\ the\ points\ of\ a\ 3-\/D\ grid**}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00129}00129\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00130}00130\ \textcolor{stringliteral}{\ \ \ \ As\ a\ first\ example,\ we\ evaluate\ a\ simple\ example\ function\ on\ the\ points\ of}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00131}00131\ \textcolor{stringliteral}{\ \ \ \ a\ 3-\/D\ grid:}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00132}00132\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00133}00133\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ scipy.interpolate\ import\ RegularGridInterpolator}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00134}00134\ \textcolor{stringliteral}{\ \ \ \ >>>\ import\ numpy\ as\ np}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00135}00135\ \textcolor{stringliteral}{\ \ \ \ >>>\ def\ f(x,\ y,\ z):}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00136}00136\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ return\ 2\ *\ x**3\ +\ 3\ *\ y**2\ -\/\ z}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00137}00137\ \textcolor{stringliteral}{\ \ \ \ >>>\ x\ =\ np.linspace(1,\ 4,\ 11)}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00138}00138\ \textcolor{stringliteral}{\ \ \ \ >>>\ y\ =\ np.linspace(4,\ 7,\ 22)}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00139}00139\ \textcolor{stringliteral}{\ \ \ \ >>>\ z\ =\ np.linspace(7,\ 9,\ 33)}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00140}00140\ \textcolor{stringliteral}{\ \ \ \ >>>\ xg,\ yg\ ,zg\ =\ np.meshgrid(x,\ y,\ z,\ indexing='ij',\ sparse=True)}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00141}00141\ \textcolor{stringliteral}{\ \ \ \ >>>\ data\ =\ f(xg,\ yg,\ zg)}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00142}00142\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00143}00143\ \textcolor{stringliteral}{\ \ \ \ \`{}\`{}data\`{}\`{}\ is\ now\ a\ 3-\/D\ array\ with\ \`{}\`{}data[i,\ j,\ k]\ =\ f(x[i],\ y[j],\ z[k])\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00144}00144\ \textcolor{stringliteral}{\ \ \ \ Next,\ define\ an\ interpolating\ function\ from\ this\ data:}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00145}00145\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00146}00146\ \textcolor{stringliteral}{\ \ \ \ >>>\ interp\ =\ RegularGridInterpolator((x,\ y,\ z),\ data)}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00147}00147\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00148}00148\ \textcolor{stringliteral}{\ \ \ \ Evaluate\ the\ interpolating\ function\ at\ the\ two\ points}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00149}00149\ \textcolor{stringliteral}{\ \ \ \ \`{}\`{}(x,y,z)\ =\ (2.1,\ 6.2,\ 8.3)\`{}\`{}\ and\ \`{}\`{}(3.3,\ 5.2,\ 7.1)\`{}\`{}:}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00150}00150\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00151}00151\ \textcolor{stringliteral}{\ \ \ \ >>>\ pts\ =\ np.array([[2.1,\ 6.2,\ 8.3],}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00152}00152\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ [3.3,\ 5.2,\ 7.1]])}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00153}00153\ \textcolor{stringliteral}{\ \ \ \ >>>\ interp(pts)}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00154}00154\ \textcolor{stringliteral}{\ \ \ \ array([\ 125.80469388,\ \ 146.30069388])}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00155}00155\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00156}00156\ \textcolor{stringliteral}{\ \ \ \ which\ is\ indeed\ a\ close\ approximation\ to}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00157}00157\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00158}00158\ \textcolor{stringliteral}{\ \ \ \ >>>\ f(2.1,\ 6.2,\ 8.3),\ f(3.3,\ 5.2,\ 7.1)}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00159}00159\ \textcolor{stringliteral}{\ \ \ \ (125.54200000000002,\ 145.894)}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00160}00160\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00161}00161\ \textcolor{stringliteral}{\ \ \ \ **Interpolate\ and\ extrapolate\ a\ 2D\ dataset**}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00162}00162\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00163}00163\ \textcolor{stringliteral}{\ \ \ \ As\ a\ second\ example,\ we\ interpolate\ and\ extrapolate\ a\ 2D\ data\ set:}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00164}00164\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00165}00165\ \textcolor{stringliteral}{\ \ \ \ >>>\ x,\ y\ =\ np.array([-\/2,\ 0,\ 4]),\ np.array([-\/2,\ 0,\ 2,\ 5])}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00166}00166\ \textcolor{stringliteral}{\ \ \ \ >>>\ def\ ff(x,\ y):}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00167}00167\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ return\ x**2\ +\ y**2}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00168}00168\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00169}00169\ \textcolor{stringliteral}{\ \ \ \ >>>\ xg,\ yg\ =\ np.meshgrid(x,\ y,\ indexing='ij')}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00170}00170\ \textcolor{stringliteral}{\ \ \ \ >>>\ data\ =\ ff(xg,\ yg)}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00171}00171\ \textcolor{stringliteral}{\ \ \ \ >>>\ interp\ =\ RegularGridInterpolator((x,\ y),\ data,}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00172}00172\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ bounds\_error=False,\ fill\_value=None)}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00173}00173\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00174}00174\ \textcolor{stringliteral}{\ \ \ \ >>>\ import\ matplotlib.pyplot\ as\ plt}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00175}00175\ \textcolor{stringliteral}{\ \ \ \ >>>\ fig\ =\ plt.figure()}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00176}00176\ \textcolor{stringliteral}{\ \ \ \ >>>\ ax\ =\ fig.add\_subplot(projection='3d')}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00177}00177\ \textcolor{stringliteral}{\ \ \ \ >>>\ ax.scatter(xg.ravel(),\ yg.ravel(),\ data.ravel(),}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00178}00178\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ \ \ \ \ \ \ s=60,\ c='k',\ label='data')}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00179}00179\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00180}00180\ \textcolor{stringliteral}{\ \ \ \ Evaluate\ and\ plot\ the\ interpolator\ on\ a\ finer\ grid}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00181}00181\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00182}00182\ \textcolor{stringliteral}{\ \ \ \ >>>\ xx\ =\ np.linspace(-\/4,\ 9,\ 31)}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00183}00183\ \textcolor{stringliteral}{\ \ \ \ >>>\ yy\ =\ np.linspace(-\/4,\ 9,\ 31)}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00184}00184\ \textcolor{stringliteral}{\ \ \ \ >>>\ X,\ Y\ =\ np.meshgrid(xx,\ yy,\ indexing='ij')}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00185}00185\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00186}00186\ \textcolor{stringliteral}{\ \ \ \ >>>\ \#\ interpolator}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00187}00187\ \textcolor{stringliteral}{\ \ \ \ >>>\ ax.plot\_wireframe(X,\ Y,\ interp((X,\ Y)),\ rstride=3,\ cstride=3,}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00188}00188\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ alpha=0.4,\ color='m',\ label='linear\ interp')}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00189}00189\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00190}00190\ \textcolor{stringliteral}{\ \ \ \ >>>\ \#\ ground\ truth}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00191}00191\ \textcolor{stringliteral}{\ \ \ \ >>>\ ax.plot\_wireframe(X,\ Y,\ ff(X,\ Y),\ rstride=3,\ cstride=3,}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00192}00192\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ alpha=0.4,\ label='ground\ truth')}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00193}00193\ \textcolor{stringliteral}{\ \ \ \ >>>\ plt.legend()}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00194}00194\ \textcolor{stringliteral}{\ \ \ \ >>>\ plt.show()}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00195}00195\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00196}00196\ \textcolor{stringliteral}{\ \ \ \ Other\ examples\ are\ given}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00197}00197\ \textcolor{stringliteral}{\ \ \ \ :ref:\`{}in\ the\ tutorial\ <tutorial-\/interpolate\_regular\_grid\_interpolator>\`{}.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00198}00198\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00199}00199\ \textcolor{stringliteral}{\ \ \ \ See\ Also}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00200}00200\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00201}00201\ \textcolor{stringliteral}{\ \ \ \ NearestNDInterpolator\ :\ Nearest\ neighbor\ interpolation\ on\ *unstructured*}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00202}00202\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ data\ in\ N\ dimensions}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00203}00203\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00204}00204\ \textcolor{stringliteral}{\ \ \ \ LinearNDInterpolator\ :\ Piecewise\ linear\ interpolant\ on\ *unstructured*\ data}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00205}00205\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ in\ N\ dimensions}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00206}00206\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00207}00207\ \textcolor{stringliteral}{\ \ \ \ interpn\ :\ a\ convenience\ function\ which\ wraps\ \`{}RegularGridInterpolator\`{}}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00208}00208\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00209}00209\ \textcolor{stringliteral}{\ \ \ \ scipy.ndimage.map\_coordinates\ :\ interpolation\ on\ grids\ with\ equal\ spacing}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00210}00210\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (suitable\ for\ e.g.,\ N-\/D\ image\ resampling)}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00211}00211\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00212}00212\ \textcolor{stringliteral}{\ \ \ \ References}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00213}00213\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00214}00214\ \textcolor{stringliteral}{\ \ \ \ ..\ [1]\ Python\ package\ *regulargrid*\ by\ Johannes\ Buchner,\ see}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00215}00215\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ https://pypi.python.org/pypi/regulargrid/}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00216}00216\ \textcolor{stringliteral}{\ \ \ \ ..\ [2]\ Wikipedia,\ "{}Trilinear\ interpolation"{},}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00217}00217\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ https://en.wikipedia.org/wiki/Trilinear\_interpolation}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00218}00218\ \textcolor{stringliteral}{\ \ \ \ ..\ [3]\ Weiser,\ Alan,\ and\ Sergio\ E.\ Zarantonello.\ "{}A\ note\ on\ piecewise\ linear}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00219}00219\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ and\ multilinear\ table\ interpolation\ in\ many\ dimensions."{}\ MATH.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00220}00220\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ COMPUT.\ 50.181\ (1988):\ 189-\/196.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00221}00221\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ https://www.ams.org/journals/mcom/1988-\/50-\/181/S0025-\/5718-\/1988-\/0917826-\/0/S0025-\/5718-\/1988-\/0917826-\/0.pdf}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00222}00222\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ :doi:\`{}10.1090/S0025-\/5718-\/1988-\/0917826-\/0\`{}}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00223}00223\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00224}00224\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00225}00225\ \ \ \ \ \textcolor{comment}{\#\ this\ class\ is\ based\ on\ code\ originally\ programmed\ by\ Johannes\ Buchner,}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00226}00226\ \ \ \ \ \textcolor{comment}{\#\ see\ https://github.com/JohannesBuchner/regulargrid}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00227}00227\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00228}00228\ \ \ \ \ \_SPLINE\_DEGREE\_MAP\ =\ \{\textcolor{stringliteral}{"{}slinear"{}}:\ 1,\ \textcolor{stringliteral}{"{}cubic"{}}:\ 3,\ \textcolor{stringliteral}{"{}quintic"{}}:\ 5,\ \textcolor{stringliteral}{'pchip'}:\ 3\}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00229}00229\ \ \ \ \ \_SPLINE\_METHODS\ =\ list(\_SPLINE\_DEGREE\_MAP.keys())}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00230}00230\ \ \ \ \ \_ALL\_METHODS\ =\ [\textcolor{stringliteral}{"{}linear"{}},\ \textcolor{stringliteral}{"{}nearest"{}}]\ +\ \_SPLINE\_METHODS}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00231}00231\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00232}00232\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ points,\ values,\ method="{}linear"{},\ bounds\_error=True,}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00233}00233\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ fill\_value=np.nan):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00234}00234\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ method\ \textcolor{keywordflow}{not}\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_ac7bd9b6847e42f9ec39c9f06790ff637}{\_ALL\_METHODS}}:}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00235}00235\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}Method\ '\%s'\ is\ not\ defined"{}}\ \%\ method)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00236}00236\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ method\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_afbe29fafa0bd5e4cde858b5dba4101c7}{\_SPLINE\_METHODS}}:}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00237}00237\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a73525fb89c3a375288989e20405dd2b6}{\_validate\_grid\_dimensions}}(points,\ method)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00238}00238\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_ad0e0c2ae7452f52ddd7556f751981fac}{method}}\ =\ method}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00239}00239\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a72abc157a6ba194584982d2b95017ec8}{bounds\_error}}\ =\ bounds\_error}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00240}00240\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a8df66ed90b00aa5c1119a846aee37ae3}{grid}},\ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a62d610efecd6dec11677e935bdcbb0ba}{\_descending\_dimensions}}\ =\ \_check\_points(points)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00241}00241\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a2b5de6f4b28feb1c73558c912f1ed9a8}{values}}\ =\ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a2237ae59f252fc9df61cc709189d5525}{\_check\_values}}(values)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00242}00242\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_adeeee4eb3d3e7bf263decbabc61ffaf7}{\_check\_dimensionality}}(self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a8df66ed90b00aa5c1119a846aee37ae3}{grid}},\ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a2b5de6f4b28feb1c73558c912f1ed9a8}{values}})}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00243}00243\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_adcf40aa964291d70af245ea18e8282bd}{fill\_value}}\ =\ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_af351d5527205ef0756434835980c9668}{\_check\_fill\_value}}(self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a2b5de6f4b28feb1c73558c912f1ed9a8}{values}},\ fill\_value)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00244}00244\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a62d610efecd6dec11677e935bdcbb0ba}{\_descending\_dimensions}}:}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00245}00245\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a2b5de6f4b28feb1c73558c912f1ed9a8}{values}}\ =\ np.flip(values,\ axis=self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a62d610efecd6dec11677e935bdcbb0ba}{\_descending\_dimensions}})}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00246}00246\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00247}00247\ \ \ \ \ \textcolor{keyword}{def\ }\_check\_dimensionality(self,\ grid,\ values):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00248}00248\ \ \ \ \ \ \ \ \ \_check\_dimensionality(grid,\ values)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00249}00249\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00250}00250\ \ \ \ \ \textcolor{keyword}{def\ }\_check\_points(self,\ points):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00251}00251\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \_check\_points(points)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00252}00252\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00253}00253\ \ \ \ \ \textcolor{keyword}{def\ }\_check\_values(self,\ values):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00254}00254\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ hasattr(values,\ \textcolor{stringliteral}{'ndim'}):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00255}00255\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ allow\ reasonable\ duck-\/typed\ values}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00256}00256\ \ \ \ \ \ \ \ \ \ \ \ \ values\ =\ np.asarray(values)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00257}00257\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00258}00258\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ hasattr(values,\ \textcolor{stringliteral}{'dtype'})\ \textcolor{keywordflow}{and}\ hasattr(values,\ \textcolor{stringliteral}{'astype'}):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00259}00259\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ np.issubdtype(values.dtype,\ np.inexact):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00260}00260\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ values\ =\ values.astype(float)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00261}00261\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00262}00262\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ values}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00263}00263\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00264}00264\ \ \ \ \ \textcolor{keyword}{def\ }\_check\_fill\_value(self,\ values,\ fill\_value):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00265}00265\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ fill\_value\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00266}00266\ \ \ \ \ \ \ \ \ \ \ \ \ fill\_value\_dtype\ =\ np.asarray(fill\_value).dtype}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00267}00267\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (hasattr(values,\ \textcolor{stringliteral}{'dtype'})\ \textcolor{keywordflow}{and}\ \textcolor{keywordflow}{not}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00268}00268\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ np.can\_cast(fill\_value\_dtype,\ values.dtype,}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00269}00269\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ casting=\textcolor{stringliteral}{'same\_kind'})):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00270}00270\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}fill\_value\ must\ be\ either\ 'None'\ or\ "{}}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00271}00271\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}of\ a\ type\ compatible\ with\ values"{}})}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00272}00272\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ fill\_value}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00273}00273\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00274}\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_af1da4d84c183819b5ab22da0984dbd75}{00274}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_af1da4d84c183819b5ab22da0984dbd75}{\_\_call\_\_}}(self,\ xi,\ method=None):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00275}00275\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00276}00276\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Interpolation\ at\ coordinates.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00277}00277\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00278}00278\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00279}00279\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00280}00280\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ xi\ :\ ndarray\ of\ shape\ (...,\ ndim)}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00281}00281\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ coordinates\ to\ evaluate\ the\ interpolator\ at.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00282}00282\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00283}00283\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ method\ :\ str,\ optional}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00284}00284\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ method\ of\ interpolation\ to\ perform.\ Supported\ are\ "{}linear"{},}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00285}00285\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ "{}nearest"{},\ "{}slinear"{},\ "{}cubic"{},\ "{}quintic"{}\ and\ "{}pchip"{}.\ Default\ is}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00286}00286\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ the\ method\ chosen\ when\ the\ interpolator\ was\ created.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00287}00287\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00288}00288\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00289}00289\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00290}00290\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ values\_x\ :\ ndarray,\ shape\ xi.shape[:-\/1]\ +\ values.shape[ndim:]}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00291}00291\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Interpolated\ values\ at\ \`{}xi\`{}.\ See\ notes\ for\ behaviour\ when}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00292}00292\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \`{}\`{}xi.ndim\ ==\ 1\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00293}00293\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00294}00294\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Notes}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00295}00295\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00296}00296\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ In\ the\ case\ that\ \`{}\`{}xi.ndim\ ==\ 1\`{}\`{}\ a\ new\ axis\ is\ inserted\ into}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00297}00297\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ 0\ position\ of\ the\ returned\ array,\ values\_x,\ so\ its\ shape\ is}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00298}00298\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ instead\ \`{}\`{}(1,)\ +\ values.shape[ndim:]\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00299}00299\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00300}00300\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00301}00301\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00302}00302\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Here\ we\ define\ a\ nearest-\/neighbor\ interpolator\ of\ a\ simple\ function}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00303}00303\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00304}00304\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ import\ numpy\ as\ np}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00305}00305\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ x,\ y\ =\ np.array([0,\ 1,\ 2]),\ np.array([1,\ 3,\ 7])}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00306}00306\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ def\ f(x,\ y):}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00307}00307\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ...\ \ \ \ \ return\ x**2\ +\ y**2}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00308}00308\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ data\ =\ f(*np.meshgrid(x,\ y,\ indexing='ij',\ sparse=True))}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00309}00309\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ from\ scipy.interpolate\ import\ RegularGridInterpolator}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00310}00310\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ interp\ =\ RegularGridInterpolator((x,\ y),\ data,\ method='nearest')}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00311}00311\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00312}00312\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ By\ construction,\ the\ interpolator\ uses\ the\ nearest-\/neighbor}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00313}00313\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ interpolation}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00314}00314\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00315}00315\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ interp([[1.5,\ 1.3],\ [0.3,\ 4.5]])}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00316}00316\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ array([2.,\ 9.])}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00317}00317\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00318}00318\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ We\ can\ however\ evaluate\ the\ linear\ interpolant\ by\ overriding\ the}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00319}00319\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}method\`{}\ parameter}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00320}00320\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00321}00321\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ interp([[1.5,\ 1.3],\ [0.3,\ 4.5]],\ method='linear')}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00322}00322\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ array([\ 4.7,\ 24.3])}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00323}00323\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00324}00324\ \ \ \ \ \ \ \ \ is\_method\_changed\ =\ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_ad0e0c2ae7452f52ddd7556f751981fac}{method}}\ !=\ method}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00325}00325\ \ \ \ \ \ \ \ \ method\ =\ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_ad0e0c2ae7452f52ddd7556f751981fac}{method}}\ \textcolor{keywordflow}{if}\ method\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{else}\ method}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00326}00326\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ method\ \textcolor{keywordflow}{not}\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_ac7bd9b6847e42f9ec39c9f06790ff637}{\_ALL\_METHODS}}:}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00327}00327\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}Method\ '\%s'\ is\ not\ defined"{}}\ \%\ method)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00328}00328\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00329}00329\ \ \ \ \ \ \ \ \ xi,\ xi\_shape,\ ndim,\ nans,\ out\_of\_bounds\ =\ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_acc870228dfd4304016c3cf93c5276d8f}{\_prepare\_xi}}(xi)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00330}00330\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00331}00331\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ method\ ==\ \textcolor{stringliteral}{"{}linear"{}}:}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00332}00332\ \ \ \ \ \ \ \ \ \ \ \ \ indices,\ norm\_distances\ =\ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_af218dacc63ea234401cbf1a5bde24f51}{\_find\_indices}}(xi.T)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00333}00333\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (ndim\ ==\ 2\ \textcolor{keywordflow}{and}\ hasattr(self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a2b5de6f4b28feb1c73558c912f1ed9a8}{values}},\ \textcolor{stringliteral}{'dtype'})\ \textcolor{keywordflow}{and}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00334}00334\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a2b5de6f4b28feb1c73558c912f1ed9a8}{values}}.ndim\ ==\ 2\ \textcolor{keywordflow}{and}\ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a2b5de6f4b28feb1c73558c912f1ed9a8}{values}}.flags.writeable\ \textcolor{keywordflow}{and}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00335}00335\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a2b5de6f4b28feb1c73558c912f1ed9a8}{values}}.dtype\ \textcolor{keywordflow}{in}\ (np.float64,\ np.complex128)\ \textcolor{keywordflow}{and}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00336}00336\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a2b5de6f4b28feb1c73558c912f1ed9a8}{values}}.dtype.byteorder\ ==\ \textcolor{stringliteral}{'='}):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00337}00337\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ until\ cython\ supports\ const\ fused\ types,\ the\ fast\ path}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00338}00338\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ cannot\ support\ non-\/writeable\ values}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00339}00339\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ a\ fast\ path}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00340}00340\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ out\ =\ np.empty(indices.shape[1],\ dtype=self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a2b5de6f4b28feb1c73558c912f1ed9a8}{values}}.dtype)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00341}00341\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ result\ =\ evaluate\_linear\_2d(self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a2b5de6f4b28feb1c73558c912f1ed9a8}{values}},}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00342}00342\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ indices,}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00343}00343\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ norm\_distances,}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00344}00344\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a8df66ed90b00aa5c1119a846aee37ae3}{grid}},}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00345}00345\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ out)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00346}00346\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00347}00347\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ result\ =\ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a06651703869755e80d569642b11763c1}{\_evaluate\_linear}}(indices,\ norm\_distances)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00348}00348\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ method\ ==\ \textcolor{stringliteral}{"{}nearest"{}}:}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00349}00349\ \ \ \ \ \ \ \ \ \ \ \ \ indices,\ norm\_distances\ =\ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_af218dacc63ea234401cbf1a5bde24f51}{\_find\_indices}}(xi.T)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00350}00350\ \ \ \ \ \ \ \ \ \ \ \ \ result\ =\ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_ad5fc39a9daf34ba258506bc1b5b9a2d4}{\_evaluate\_nearest}}(indices,\ norm\_distances)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00351}00351\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ method\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_afbe29fafa0bd5e4cde858b5dba4101c7}{\_SPLINE\_METHODS}}:}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00352}00352\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ is\_method\_changed:}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00353}00353\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a73525fb89c3a375288989e20405dd2b6}{\_validate\_grid\_dimensions}}(self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a8df66ed90b00aa5c1119a846aee37ae3}{grid}},\ method)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00354}00354\ \ \ \ \ \ \ \ \ \ \ \ \ result\ =\ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a0785bfbb6b09fcc7b829f518b67d80c9}{\_evaluate\_spline}}(xi,\ method)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00355}00355\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00356}00356\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a72abc157a6ba194584982d2b95017ec8}{bounds\_error}}\ \textcolor{keywordflow}{and}\ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_adcf40aa964291d70af245ea18e8282bd}{fill\_value}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00357}00357\ \ \ \ \ \ \ \ \ \ \ \ \ result[out\_of\_bounds]\ =\ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_adcf40aa964291d70af245ea18e8282bd}{fill\_value}}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00358}00358\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00359}00359\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ f(nan)\ =\ nan,\ if\ any}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00360}00360\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ np.any(nans):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00361}00361\ \ \ \ \ \ \ \ \ \ \ \ \ result[nans]\ =\ np.nan}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00362}00362\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ result.reshape(xi\_shape[:-\/1]\ +\ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a2b5de6f4b28feb1c73558c912f1ed9a8}{values}}.shape[ndim:])}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00363}00363\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00364}00364\ \ \ \ \ \textcolor{keyword}{def\ }\_prepare\_xi(self,\ xi):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00365}00365\ \ \ \ \ \ \ \ \ ndim\ =\ len(self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a8df66ed90b00aa5c1119a846aee37ae3}{grid}})}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00366}00366\ \ \ \ \ \ \ \ \ xi\ =\ \_ndim\_coords\_from\_arrays(xi,\ ndim=ndim)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00367}00367\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ xi.shape[-\/1]\ !=\ len(self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a8df66ed90b00aa5c1119a846aee37ae3}{grid}}):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00368}00368\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}The\ requested\ sample\ points\ xi\ have\ dimension\ "{}}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00369}00369\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\{xi.shape[-\/1]\}\ but\ this\ "{}}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00370}00370\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}RegularGridInterpolator\ has\ dimension\ \{ndim\}"{}})}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00371}00371\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00372}00372\ \ \ \ \ \ \ \ \ xi\_shape\ =\ xi.shape}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00373}00373\ \ \ \ \ \ \ \ \ xi\ =\ xi.reshape(-\/1,\ xi\_shape[-\/1])}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00374}00374\ \ \ \ \ \ \ \ \ xi\ =\ np.asarray(xi,\ dtype=float)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00375}00375\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00376}00376\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ find\ nans\ in\ input}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00377}00377\ \ \ \ \ \ \ \ \ nans\ =\ np.any(np.isnan(xi),\ axis=-\/1)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00378}00378\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00379}00379\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a72abc157a6ba194584982d2b95017ec8}{bounds\_error}}:}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00380}00380\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ i,\ p\ \textcolor{keywordflow}{in}\ enumerate(xi.T):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00381}00381\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ np.logical\_and(np.all(self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a8df66ed90b00aa5c1119a846aee37ae3}{grid}}[i][0]\ <=\ p),}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00382}00382\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ np.all(p\ <=\ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a8df66ed90b00aa5c1119a846aee37ae3}{grid}}[i][-\/1])):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00383}00383\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}One\ of\ the\ requested\ xi\ is\ out\ of\ bounds\ "{}}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00384}00384\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}in\ dimension\ \%d"{}}\ \%\ i)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00385}00385\ \ \ \ \ \ \ \ \ \ \ \ \ out\_of\_bounds\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00386}00386\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00387}00387\ \ \ \ \ \ \ \ \ \ \ \ \ out\_of\_bounds\ =\ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_ae677ef59c570af963cbe942e970a8c98}{\_find\_out\_of\_bounds}}(xi.T)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00388}00388\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00389}00389\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ xi,\ xi\_shape,\ ndim,\ nans,\ out\_of\_bounds}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00390}00390\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00391}00391\ \ \ \ \ \textcolor{keyword}{def\ }\_evaluate\_linear(self,\ indices,\ norm\_distances):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00392}00392\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ slice\ for\ broadcasting\ over\ trailing\ dimensions\ in\ self.values}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00393}00393\ \ \ \ \ \ \ \ \ vslice\ =\ (slice(\textcolor{keywordtype}{None}),)\ +\ (\textcolor{keywordtype}{None},)*(self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a2b5de6f4b28feb1c73558c912f1ed9a8}{values}}.ndim\ -\/\ len(indices))}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00394}00394\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00395}00395\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Compute\ shifting\ up\ front\ before\ zipping\ everything\ together}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00396}00396\ \ \ \ \ \ \ \ \ shift\_norm\_distances\ =\ [1\ -\/\ yi\ \textcolor{keywordflow}{for}\ yi\ \textcolor{keywordflow}{in}\ norm\_distances]}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00397}00397\ \ \ \ \ \ \ \ \ shift\_indices\ =\ [i\ +\ 1\ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ indices]}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00398}00398\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00399}00399\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ formula\ for\ linear\ interpolation\ in\ 2d\ takes\ the\ form:}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00400}00400\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ values\ =\ self.values[(i0,\ i1)]\ *\ (1\ -\/\ y0)\ *\ (1\ -\/\ y1)\ +\ \(\backslash\)}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00401}00401\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ \ \ \ \ \ \ self.values[(i0,\ i1\ +\ 1)]\ *\ (1\ -\/\ y0)\ *\ y1\ +\ \(\backslash\)}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00402}00402\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ \ \ \ \ \ \ self.values[(i0\ +\ 1,\ i1)]\ *\ y0\ *\ (1\ -\/\ y1)\ +\ \(\backslash\)}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00403}00403\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ \ \ \ \ \ \ self.values[(i0\ +\ 1,\ i1\ +\ 1)]\ *\ y0\ *\ y1}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00404}00404\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ We\ pair\ i\ with\ 1\ -\/\ yi\ (zipped1)\ and\ i\ +\ 1\ with\ yi\ (zipped2)}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00405}00405\ \ \ \ \ \ \ \ \ zipped1\ =\ zip(indices,\ shift\_norm\_distances)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00406}00406\ \ \ \ \ \ \ \ \ zipped2\ =\ zip(shift\_indices,\ norm\_distances)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00407}00407\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00408}00408\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Take\ all\ products\ of\ zipped1\ and\ zipped2\ and\ iterate\ over\ them}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00409}00409\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ to\ get\ the\ terms\ in\ the\ above\ formula.\ This\ corresponds\ to\ iterating}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00410}00410\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ over\ the\ vertices\ of\ a\ hypercube.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00411}00411\ \ \ \ \ \ \ \ \ hypercube\ =\ itertools.product(*zip(zipped1,\ zipped2))}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00412}00412\ \ \ \ \ \ \ \ \ value\ =\ np.array([0.])}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00413}00413\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ h\ \textcolor{keywordflow}{in}\ hypercube:}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00414}00414\ \ \ \ \ \ \ \ \ \ \ \ \ edge\_indices,\ weights\ =\ zip(*h)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00415}00415\ \ \ \ \ \ \ \ \ \ \ \ \ weight\ =\ np.array([1.])}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00416}00416\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ w\ \textcolor{keywordflow}{in}\ weights:}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00417}00417\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ weight\ =\ weight\ *\ w}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00418}00418\ \ \ \ \ \ \ \ \ \ \ \ \ term\ =\ np.asarray(self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a2b5de6f4b28feb1c73558c912f1ed9a8}{values}}[edge\_indices])\ *\ weight[vslice]}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00419}00419\ \ \ \ \ \ \ \ \ \ \ \ \ value\ =\ value\ +\ term\ \ \ \textcolor{comment}{\#\ cannot\ use\ +=\ because\ broadcasting}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00420}00420\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ value}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00421}00421\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00422}00422\ \ \ \ \ \textcolor{keyword}{def\ }\_evaluate\_nearest(self,\ indices,\ norm\_distances):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00423}00423\ \ \ \ \ \ \ \ \ idx\_res\ =\ [np.where(yi\ <=\ .5,\ i,\ i\ +\ 1)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00424}00424\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ i,\ yi\ \textcolor{keywordflow}{in}\ zip(indices,\ norm\_distances)]}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00425}00425\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a2b5de6f4b28feb1c73558c912f1ed9a8}{values}}[tuple(idx\_res)]}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00426}00426\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00427}00427\ \ \ \ \ \textcolor{keyword}{def\ }\_validate\_grid\_dimensions(self,\ points,\ method):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00428}00428\ \ \ \ \ \ \ \ \ k\ =\ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_aaee82fce9140211ddc5d1166b7f74168}{\_SPLINE\_DEGREE\_MAP}}[method]}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00429}00429\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ i,\ point\ \textcolor{keywordflow}{in}\ enumerate(points):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00430}00430\ \ \ \ \ \ \ \ \ \ \ \ \ ndim\ =\ len(np.atleast\_1d(point))}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00431}00431\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ ndim\ <=\ k:}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00432}00432\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(f\textcolor{stringliteral}{"{}There\ are\ \{ndim\}\ points\ in\ dimension\ \{i\},"{}}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00433}00433\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\ but\ method\ \{method\}\ requires\ at\ least\ "{}}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00434}00434\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\ \{k+1\}\ points\ per\ dimension."{}})}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00435}00435\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00436}00436\ \ \ \ \ \textcolor{keyword}{def\ }\_evaluate\_spline(self,\ xi,\ method):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00437}00437\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ ensure\ xi\ is\ 2D\ list\ of\ points\ to\ evaluate\ (`m`\ is\ the\ number\ of}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00438}00438\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ points\ and\ \`{}n`\ is\ the\ number\ of\ interpolation\ dimensions,}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00439}00439\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \`{}\`{}n\ ==\ len(self.grid)``.)}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00440}00440\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ xi.ndim\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00441}00441\ \ \ \ \ \ \ \ \ \ \ \ \ xi\ =\ xi.reshape((1,\ xi.size))}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00442}00442\ \ \ \ \ \ \ \ \ m,\ n\ =\ xi.shape}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00443}00443\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00444}00444\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Reorder\ the\ axes:\ n-\/dimensional\ process\ iterates\ over\ the}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00445}00445\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ interpolation\ axes\ from\ the\ last\ axis\ downwards:\ E.g.\ for\ a\ 4D\ grid}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00446}00446\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ the\ order\ of\ axes\ is\ 3,\ 2,\ 1,\ 0.\ Each\ 1D\ interpolation\ works\ along}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00447}00447\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ the\ 0th\ axis\ of\ its\ argument\ array\ (for\ 1D\ routine\ it's\ its\ \`{}\`{}y``}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00448}00448\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ array).\ Thus\ permute\ the\ interpolation\ axes\ of\ \`{}values`\ *and\ keep}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00449}00449\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ trailing\ dimensions\ trailing*.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00450}00450\ \ \ \ \ \ \ \ \ axes\ =\ tuple(range(self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a2b5de6f4b28feb1c73558c912f1ed9a8}{values}}.ndim))}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00451}00451\ \ \ \ \ \ \ \ \ axx\ =\ axes[:n][::-\/1]\ +\ axes[n:]}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00452}00452\ \ \ \ \ \ \ \ \ values\ =\ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a2b5de6f4b28feb1c73558c912f1ed9a8}{values}}.transpose(axx)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00453}00453\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00454}00454\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ method\ ==\ \textcolor{stringliteral}{'pchip'}:}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00455}00455\ \ \ \ \ \ \ \ \ \ \ \ \ \_eval\_func\ =\ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_aab70e61439ca1d09f69ae64e2f1759c7}{\_do\_pchip}}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00456}00456\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00457}00457\ \ \ \ \ \ \ \ \ \ \ \ \ \_eval\_func\ =\ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a4933ef378fc23262f5f14746a22337ad}{\_do\_spline\_fit}}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00458}00458\ \ \ \ \ \ \ \ \ k\ =\ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_aaee82fce9140211ddc5d1166b7f74168}{\_SPLINE\_DEGREE\_MAP}}[method]}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00459}00459\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00460}00460\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Non-\/stationary\ procedure:\ difficult\ to\ vectorize\ this\ part\ entirely}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00461}00461\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ into\ numpy-\/level\ operations.\ Unfortunately\ this\ requires\ explicit}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00462}00462\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ looping\ over\ each\ point\ in\ xi.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00463}00463\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00464}00464\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ can\ at\ least\ vectorize\ the\ first\ pass\ across\ all\ points\ in\ the}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00465}00465\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ last\ variable\ of\ xi.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00466}00466\ \ \ \ \ \ \ \ \ last\_dim\ =\ n\ -\/\ 1}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00467}00467\ \ \ \ \ \ \ \ \ first\_values\ =\ \_eval\_func(self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a8df66ed90b00aa5c1119a846aee37ae3}{grid}}[last\_dim],}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00468}00468\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ values,}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00469}00469\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ xi[:,\ last\_dim],}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00470}00470\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ k)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00471}00471\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00472}00472\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ the\ rest\ of\ the\ dimensions\ have\ to\ be\ on\ a\ per\ point-\/in-\/xi\ basis}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00473}00473\ \ \ \ \ \ \ \ \ shape\ =\ (m,\ *self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a2b5de6f4b28feb1c73558c912f1ed9a8}{values}}.shape[n:])}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00474}00474\ \ \ \ \ \ \ \ \ result\ =\ np.empty(shape,\ dtype=self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a2b5de6f4b28feb1c73558c912f1ed9a8}{values}}.dtype)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00475}00475\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ j\ \textcolor{keywordflow}{in}\ range(m):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00476}00476\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Main\ process:\ Apply\ 1D\ interpolate\ in\ each\ dimension}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00477}00477\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ sequentially,\ starting\ with\ the\ last\ dimension.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00478}00478\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ These\ are\ then\ "{}folded"{}\ into\ the\ next\ dimension\ in-\/place.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00479}00479\ \ \ \ \ \ \ \ \ \ \ \ \ folded\_values\ =\ first\_values[j,\ ...]}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00480}00480\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(last\_dim-\/1,\ -\/1,\ -\/1):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00481}00481\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Interpolate\ for\ each\ 1D\ from\ the\ last\ dimensions.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00482}00482\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ This\ collapses\ each\ 1D\ sequence\ into\ a\ scalar.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00483}00483\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ folded\_values\ =\ \_eval\_func(self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a8df66ed90b00aa5c1119a846aee37ae3}{grid}}[i],}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00484}00484\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ folded\_values,}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00485}00485\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ xi[j,\ i],}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00486}00486\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ k)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00487}00487\ \ \ \ \ \ \ \ \ \ \ \ \ result[j,\ ...]\ =\ folded\_values}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00488}00488\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00489}00489\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ result}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00490}00490\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00491}00491\ \ \ \ \ \textcolor{preprocessor}{@staticmethod}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00492}00492\ \ \ \ \ \textcolor{keyword}{def\ }\_do\_spline\_fit(x,\ y,\ pt,\ k):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00493}00493\ \ \ \ \ \ \ \ \ local\_interp\ =\ \mbox{\hyperlink{namespacescipy_1_1interpolate_1_1__bsplines_a301d5b15ab29ed96dd4caed6f3f83be6}{make\_interp\_spline}}(x,\ y,\ k=k,\ axis=0)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00494}00494\ \ \ \ \ \ \ \ \ values\ =\ local\_interp(pt)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00495}00495\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ values}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00496}00496\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00497}00497\ \ \ \ \ \textcolor{preprocessor}{@staticmethod}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00498}00498\ \ \ \ \ \textcolor{keyword}{def\ }\_do\_pchip(x,\ y,\ pt,\ k):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00499}00499\ \ \ \ \ \ \ \ \ local\_interp\ =\ \mbox{\hyperlink{classscipy_1_1interpolate_1_1__cubic_1_1PchipInterpolator}{PchipInterpolator}}(x,\ y,\ axis=0)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00500}00500\ \ \ \ \ \ \ \ \ values\ =\ local\_interp(pt)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00501}00501\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ values}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00502}00502\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00503}00503\ \ \ \ \ \textcolor{keyword}{def\ }\_find\_indices(self,\ xi):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00504}00504\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ find\_indices(self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a8df66ed90b00aa5c1119a846aee37ae3}{grid}},\ xi)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00505}00505\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00506}00506\ \ \ \ \ \textcolor{keyword}{def\ }\_find\_out\_of\_bounds(self,\ xi):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00507}00507\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ check\ for\ out\ of\ bounds\ xi}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00508}00508\ \ \ \ \ \ \ \ \ out\_of\_bounds\ =\ np.zeros((xi.shape[1]),\ dtype=bool)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00509}00509\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ iterate\ through\ dimensions}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00510}00510\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ x,\ grid\ \textcolor{keywordflow}{in}\ zip(xi,\ self.\mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator_a8df66ed90b00aa5c1119a846aee37ae3}{grid}}):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00511}00511\ \ \ \ \ \ \ \ \ \ \ \ \ out\_of\_bounds\ +=\ x\ <\ grid[0]}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00512}00512\ \ \ \ \ \ \ \ \ \ \ \ \ out\_of\_bounds\ +=\ x\ >\ grid[-\/1]}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00513}00513\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ out\_of\_bounds}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00514}00514\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00515}00515\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00516}\mbox{\hyperlink{namespacescipy_1_1interpolate_1_1__rgi_a31c4a916c1a0a3b0e6b3453b3a15d4c8}{00516}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacescipy_1_1interpolate_1_1__rgi_a31c4a916c1a0a3b0e6b3453b3a15d4c8}{interpn}}(points,\ values,\ xi,\ method="{}linear"{},\ bounds\_error=True,}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00517}00517\ \ \ \ \ \ \ \ \ \ \ \ \ fill\_value=np.nan):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00518}00518\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00519}00519\ \textcolor{stringliteral}{\ \ \ \ Multidimensional\ interpolation\ on\ regular\ or\ rectilinear\ grids.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00520}00520\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00521}00521\ \textcolor{stringliteral}{\ \ \ \ Strictly\ speaking,\ not\ all\ regular\ grids\ are\ supported\ -\/\ this\ function}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00522}00522\ \textcolor{stringliteral}{\ \ \ \ works\ on\ *rectilinear*\ grids,\ that\ is,\ a\ rectangular\ grid\ with\ even\ or}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00523}00523\ \textcolor{stringliteral}{\ \ \ \ uneven\ spacing.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00524}00524\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00525}00525\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00526}00526\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00527}00527\ \textcolor{stringliteral}{\ \ \ \ points\ :\ tuple\ of\ ndarray\ of\ float,\ with\ shapes\ (m1,\ ),\ ...,\ (mn,\ )}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00528}00528\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ points\ defining\ the\ regular\ grid\ in\ n\ dimensions.\ The\ points\ in}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00529}00529\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ each\ dimension\ (i.e.\ every\ elements\ of\ the\ points\ tuple)\ must\ be}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00530}00530\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ strictly\ ascending\ or\ descending.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00531}00531\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00532}00532\ \textcolor{stringliteral}{\ \ \ \ values\ :\ array\_like,\ shape\ (m1,\ ...,\ mn,\ ...)}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00533}00533\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ data\ on\ the\ regular\ grid\ in\ n\ dimensions.\ Complex\ data\ can\ be}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00534}00534\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ acceptable.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00535}00535\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00536}00536\ \textcolor{stringliteral}{\ \ \ \ xi\ :\ ndarray\ of\ shape\ (...,\ ndim)}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00537}00537\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ coordinates\ to\ sample\ the\ gridded\ data\ at}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00538}00538\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00539}00539\ \textcolor{stringliteral}{\ \ \ \ method\ :\ str,\ optional}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00540}00540\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ method\ of\ interpolation\ to\ perform.\ Supported\ are\ "{}linear"{},}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00541}00541\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}nearest"{},\ "{}slinear"{},\ "{}cubic"{},\ "{}quintic"{},\ "{}pchip"{},\ and\ "{}splinef2d"{}.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00542}00542\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}splinef2d"{}\ is\ only\ supported\ for\ 2-\/dimensional\ data.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00543}00543\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00544}00544\ \textcolor{stringliteral}{\ \ \ \ bounds\_error\ :\ bool,\ optional}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00545}00545\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ True,\ when\ interpolated\ values\ are\ requested\ outside\ of\ the}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00546}00546\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ domain\ of\ the\ input\ data,\ a\ ValueError\ is\ raised.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00547}00547\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ False,\ then\ \`{}fill\_value\`{}\ is\ used.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00548}00548\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00549}00549\ \textcolor{stringliteral}{\ \ \ \ fill\_value\ :\ number,\ optional}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00550}00550\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ provided,\ the\ value\ to\ use\ for\ points\ outside\ of\ the}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00551}00551\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ interpolation\ domain.\ If\ None,\ values\ outside}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00552}00552\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ domain\ are\ extrapolated.\ \ Extrapolation\ is\ not\ supported\ by\ method}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00553}00553\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}splinef2d"{}.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00554}00554\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00555}00555\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00556}00556\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00557}00557\ \textcolor{stringliteral}{\ \ \ \ values\_x\ :\ ndarray,\ shape\ xi.shape[:-\/1]\ +\ values.shape[ndim:]}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00558}00558\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Interpolated\ values\ at\ \`{}xi\`{}.\ See\ notes\ for\ behaviour\ when}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00559}00559\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}xi.ndim\ ==\ 1\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00560}00560\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00561}00561\ \textcolor{stringliteral}{\ \ \ \ See\ Also}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00562}00562\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00563}00563\ \textcolor{stringliteral}{\ \ \ \ NearestNDInterpolator\ :\ Nearest\ neighbor\ interpolation\ on\ unstructured}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00564}00564\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ data\ in\ N\ dimensions}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00565}00565\ \textcolor{stringliteral}{\ \ \ \ LinearNDInterpolator\ :\ Piecewise\ linear\ interpolant\ on\ unstructured\ data}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00566}00566\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ in\ N\ dimensions}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00567}00567\ \textcolor{stringliteral}{\ \ \ \ RegularGridInterpolator\ :\ interpolation\ on\ a\ regular\ or\ rectilinear\ grid}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00568}00568\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ in\ arbitrary\ dimensions\ (\`{}interpn\`{}\ wraps\ this}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00569}00569\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ class).}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00570}00570\ \textcolor{stringliteral}{\ \ \ \ RectBivariateSpline\ :\ Bivariate\ spline\ approximation\ over\ a\ rectangular\ mesh}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00571}00571\ \textcolor{stringliteral}{\ \ \ \ scipy.ndimage.map\_coordinates\ :\ interpolation\ on\ grids\ with\ equal\ spacing}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00572}00572\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (suitable\ for\ e.g.,\ N-\/D\ image\ resampling)}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00573}00573\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00574}00574\ \textcolor{stringliteral}{\ \ \ \ Notes}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00575}00575\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00576}00576\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00577}00577\ \textcolor{stringliteral}{\ \ \ \ ..\ versionadded::\ 0.14}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00578}00578\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00579}00579\ \textcolor{stringliteral}{\ \ \ \ In\ the\ case\ that\ \`{}\`{}xi.ndim\ ==\ 1\`{}\`{}\ a\ new\ axis\ is\ inserted\ into}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00580}00580\ \textcolor{stringliteral}{\ \ \ \ the\ 0\ position\ of\ the\ returned\ array,\ values\_x,\ so\ its\ shape\ is}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00581}00581\ \textcolor{stringliteral}{\ \ \ \ instead\ \`{}\`{}(1,)\ +\ values.shape[ndim:]\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00582}00582\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00583}00583\ \textcolor{stringliteral}{\ \ \ \ If\ the\ input\ data\ is\ such\ that\ input\ dimensions\ have\ incommensurate}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00584}00584\ \textcolor{stringliteral}{\ \ \ \ units\ and\ differ\ by\ many\ orders\ of\ magnitude,\ the\ interpolant\ may\ have}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00585}00585\ \textcolor{stringliteral}{\ \ \ \ numerical\ artifacts.\ Consider\ rescaling\ the\ data\ before\ interpolation.}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00586}00586\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00587}00587\ \textcolor{stringliteral}{\ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00588}00588\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00589}00589\ \textcolor{stringliteral}{\ \ \ \ Evaluate\ a\ simple\ example\ function\ on\ the\ points\ of\ a\ regular\ 3-\/D\ grid:}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00590}00590\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00591}00591\ \textcolor{stringliteral}{\ \ \ \ >>>\ import\ numpy\ as\ np}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00592}00592\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ scipy.interpolate\ import\ interpn}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00593}00593\ \textcolor{stringliteral}{\ \ \ \ >>>\ def\ value\_func\_3d(x,\ y,\ z):}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00594}00594\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ return\ 2\ *\ x\ +\ 3\ *\ y\ -\/\ z}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00595}00595\ \textcolor{stringliteral}{\ \ \ \ >>>\ x\ =\ np.linspace(0,\ 4,\ 5)}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00596}00596\ \textcolor{stringliteral}{\ \ \ \ >>>\ y\ =\ np.linspace(0,\ 5,\ 6)}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00597}00597\ \textcolor{stringliteral}{\ \ \ \ >>>\ z\ =\ np.linspace(0,\ 6,\ 7)}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00598}00598\ \textcolor{stringliteral}{\ \ \ \ >>>\ points\ =\ (x,\ y,\ z)}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00599}00599\ \textcolor{stringliteral}{\ \ \ \ >>>\ values\ =\ value\_func\_3d(*np.meshgrid(*points,\ indexing='ij'))}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00600}00600\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00601}00601\ \textcolor{stringliteral}{\ \ \ \ Evaluate\ the\ interpolating\ function\ at\ a\ point}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00602}00602\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00603}00603\ \textcolor{stringliteral}{\ \ \ \ >>>\ point\ =\ np.array([2.21,\ 3.12,\ 1.15])}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00604}00604\ \textcolor{stringliteral}{\ \ \ \ >>>\ print(interpn(points,\ values,\ point))}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00605}00605\ \textcolor{stringliteral}{\ \ \ \ [12.63]}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00606}00606\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00607}00607\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00608}00608\ \ \ \ \ \textcolor{comment}{\#\ sanity\ check\ 'method'\ kwarg}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00609}00609\ \ \ \ \ \textcolor{keywordflow}{if}\ method\ \textcolor{keywordflow}{not}\ \textcolor{keywordflow}{in}\ [\textcolor{stringliteral}{"{}linear"{}},\ \textcolor{stringliteral}{"{}nearest"{}},\ \textcolor{stringliteral}{"{}cubic"{}},\ \textcolor{stringliteral}{"{}quintic"{}},\ \textcolor{stringliteral}{"{}pchip"{}},}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00610}00610\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}splinef2d"{}},\ \textcolor{stringliteral}{"{}slinear"{}}]:}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00611}00611\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}interpn\ only\ understands\ the\ methods\ 'linear',\ "{}}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00612}00612\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}'nearest',\ 'slinear',\ 'cubic',\ 'quintic',\ 'pchip',\ "{}}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00613}00613\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}and\ 'splinef2d'.\ You\ provided\ \{method\}."{}})}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00614}00614\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00615}00615\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ hasattr(values,\ \textcolor{stringliteral}{'ndim'}):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00616}00616\ \ \ \ \ \ \ \ \ values\ =\ np.asarray(values)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00617}00617\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00618}00618\ \ \ \ \ ndim\ =\ values.ndim}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00619}00619\ \ \ \ \ \textcolor{keywordflow}{if}\ ndim\ >\ 2\ \textcolor{keywordflow}{and}\ method\ ==\ \textcolor{stringliteral}{"{}splinef2d"{}}:}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00620}00620\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}The\ method\ splinef2d\ can\ only\ be\ used\ for\ "{}}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00621}00621\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}2-\/dimensional\ input\ data"{}})}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00622}00622\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ bounds\_error\ \textcolor{keywordflow}{and}\ fill\_value\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{and}\ method\ ==\ \textcolor{stringliteral}{"{}splinef2d"{}}:}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00623}00623\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}The\ method\ splinef2d\ does\ not\ support\ extrapolation."{}})}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00624}00624\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00625}00625\ \ \ \ \ \textcolor{comment}{\#\ sanity\ check\ consistency\ of\ input\ dimensions}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00626}00626\ \ \ \ \ \textcolor{keywordflow}{if}\ len(points)\ >\ ndim:}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00627}00627\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}There\ are\ \%d\ point\ arrays,\ but\ values\ has\ \%d\ "{}}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00628}00628\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}dimensions"{}}\ \%\ (len(points),\ ndim))}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00629}00629\ \ \ \ \ \textcolor{keywordflow}{if}\ len(points)\ !=\ ndim\ \textcolor{keywordflow}{and}\ method\ ==\ \textcolor{stringliteral}{'splinef2d'}:}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00630}00630\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}The\ method\ splinef2d\ can\ only\ be\ used\ for\ "{}}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00631}00631\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}scalar\ data\ with\ one\ point\ per\ coordinate"{}})}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00632}00632\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00633}00633\ \ \ \ \ grid,\ descending\_dimensions\ =\ \_check\_points(points)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00634}00634\ \ \ \ \ \_check\_dimensionality(grid,\ values)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00635}00635\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00636}00636\ \ \ \ \ \textcolor{comment}{\#\ sanity\ check\ requested\ xi}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00637}00637\ \ \ \ \ xi\ =\ \_ndim\_coords\_from\_arrays(xi,\ ndim=len(grid))}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00638}00638\ \ \ \ \ \textcolor{keywordflow}{if}\ xi.shape[-\/1]\ !=\ len(grid):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00639}00639\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}The\ requested\ sample\ points\ xi\ have\ dimension\ "{}}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00640}00640\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\%d,\ but\ this\ RegularGridInterpolator\ has\ "{}}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00641}00641\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}dimension\ \%d"{}}\ \%\ (xi.shape[-\/1],\ len(grid)))}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00642}00642\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00643}00643\ \ \ \ \ \textcolor{keywordflow}{if}\ bounds\_error:}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00644}00644\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ i,\ p\ \textcolor{keywordflow}{in}\ enumerate(xi.T):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00645}00645\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ np.logical\_and(np.all(grid[i][0]\ <=\ p),}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00646}00646\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ np.all(p\ <=\ grid[i][-\/1])):}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00647}00647\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}One\ of\ the\ requested\ xi\ is\ out\ of\ bounds\ "{}}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00648}00648\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}in\ dimension\ \%d"{}}\ \%\ i)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00649}00649\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00650}00650\ \ \ \ \ \textcolor{comment}{\#\ perform\ interpolation}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00651}00651\ \ \ \ \ \textcolor{keywordflow}{if}\ method\ \textcolor{keywordflow}{in}\ [\textcolor{stringliteral}{"{}linear"{}},\ \textcolor{stringliteral}{"{}nearest"{}},\ \textcolor{stringliteral}{"{}slinear"{}},\ \textcolor{stringliteral}{"{}cubic"{}},\ \textcolor{stringliteral}{"{}quintic"{}},\ \textcolor{stringliteral}{"{}pchip"{}}]:}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00652}00652\ \ \ \ \ \ \ \ \ interp\ =\ \mbox{\hyperlink{classscipy_1_1interpolate_1_1__rgi_1_1RegularGridInterpolator}{RegularGridInterpolator}}(points,\ values,\ method=method,}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00653}00653\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ bounds\_error=bounds\_error,}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00654}00654\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ fill\_value=fill\_value)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00655}00655\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ interp(xi)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00656}00656\ \ \ \ \ \textcolor{keywordflow}{elif}\ method\ ==\ \textcolor{stringliteral}{"{}splinef2d"{}}:}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00657}00657\ \ \ \ \ \ \ \ \ xi\_shape\ =\ xi.shape}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00658}00658\ \ \ \ \ \ \ \ \ xi\ =\ xi.reshape(-\/1,\ xi.shape[-\/1])}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00659}00659\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00660}00660\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ RectBivariateSpline\ doesn't\ support\ fill\_value;\ we\ need\ to\ wrap\ here}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00661}00661\ \ \ \ \ \ \ \ \ idx\_valid\ =\ np.all((grid[0][0]\ <=\ xi[:,\ 0],\ xi[:,\ 0]\ <=\ grid[0][-\/1],}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00662}00662\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ grid[1][0]\ <=\ xi[:,\ 1],\ xi[:,\ 1]\ <=\ grid[1][-\/1]),}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00663}00663\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ axis=0)}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00664}00664\ \ \ \ \ \ \ \ \ result\ =\ np.empty\_like(xi[:,\ 0])}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00665}00665\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00666}00666\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ make\ a\ copy\ of\ values\ for\ RectBivariateSpline}}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00667}00667\ \ \ \ \ \ \ \ \ interp\ =\ \mbox{\hyperlink{classscipy_1_1interpolate_1_1__fitpack2_1_1RectBivariateSpline}{RectBivariateSpline}}(points[0],\ points[1],\ values[:])}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00668}00668\ \ \ \ \ \ \ \ \ result[idx\_valid]\ =\ interp.ev(xi[idx\_valid,\ 0],\ xi[idx\_valid,\ 1])}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00669}00669\ \ \ \ \ \ \ \ \ result[np.logical\_not(idx\_valid)]\ =\ fill\_value}
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00670}00670\ }
+\DoxyCodeLine{\Hypertarget{__rgi_8py_source_l00671}00671\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ result.reshape(xi\_shape[:-\/1])}
+
+\end{DoxyCode}

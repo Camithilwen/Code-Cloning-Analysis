@@ -1,0 +1,399 @@
+\doxysection{remove\+Overlaps.\+py}
+\hypertarget{removeOverlaps_8py_source}{}\label{removeOverlaps_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/fontTools/ttLib/removeOverlaps.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/fontTools/ttLib/removeOverlaps.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00001}\mbox{\hyperlink{namespacefontTools_1_1ttLib_1_1removeOverlaps}{00001}}\ \textcolor{stringliteral}{"{}"{}"{}\ Simplify\ TrueType\ glyphs\ by\ merging\ overlapping\ contours/components.}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00002}00002\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00003}00003\ \textcolor{stringliteral}{Requires\ https://github.com/fonttools/skia-\/pathops}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00004}00004\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00005}00005\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00006}00006\ \textcolor{keyword}{import}\ itertools}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00007}00007\ \textcolor{keyword}{import}\ logging}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00008}00008\ \textcolor{keyword}{from}\ typing\ \textcolor{keyword}{import}\ Callable,\ Iterable,\ Optional,\ Mapping}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00009}00009\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00010}00010\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1cffLib}{fontTools.cffLib}}\ \textcolor{keyword}{import}\ CFFFontSet}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00011}00011\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1ttLib}{fontTools.ttLib}}\ \textcolor{keyword}{import}\ ttFont}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00012}00012\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1ttLib_1_1tables}{fontTools.ttLib.tables}}\ \textcolor{keyword}{import}\ \_g\_l\_y\_f}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00013}00013\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1ttLib_1_1tables}{fontTools.ttLib.tables}}\ \textcolor{keyword}{import}\ \_h\_m\_t\_x}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00014}00014\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1misc_1_1psCharStrings}{fontTools.misc.psCharStrings}}\ \textcolor{keyword}{import}\ T2CharString}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00015}00015\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1misc_1_1roundTools}{fontTools.misc.roundTools}}\ \textcolor{keyword}{import}\ otRound,\ noRound}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00016}00016\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1pens_1_1ttGlyphPen}{fontTools.pens.ttGlyphPen}}\ \textcolor{keyword}{import}\ TTGlyphPen}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00017}00017\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1pens_1_1t2CharStringPen}{fontTools.pens.t2CharStringPen}}\ \textcolor{keyword}{import}\ T2CharStringPen}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00018}00018\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00019}00019\ \textcolor{keyword}{import}\ pathops}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00020}00020\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00021}00021\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00022}00022\ \_\_all\_\_\ =\ [\textcolor{stringliteral}{"{}removeOverlaps"{}}]}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00023}00023\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00024}00024\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00025}\mbox{\hyperlink{classfontTools_1_1ttLib_1_1removeOverlaps_1_1RemoveOverlapsError}{00025}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classfontTools_1_1ttLib_1_1removeOverlaps_1_1RemoveOverlapsError}{RemoveOverlapsError}}(\mbox{\hyperlink{classException}{Exception}}):}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00026}00026\ \ \ \ \ \textcolor{keywordflow}{pass}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00027}00027\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00028}00028\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00029}00029\ log\ =\ logging.getLogger(\textcolor{stringliteral}{"{}fontTools.ttLib.removeOverlaps"{}})}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00030}00030\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00031}00031\ \_TTGlyphMapping\ =\ Mapping[str,\ \mbox{\hyperlink{classfontTools_1_1ttLib_1_1ttGlyphSet_1_1__TTGlyph}{ttFont.\_TTGlyph}}]}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00032}00032\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00033}00033\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00034}00034\ \textcolor{keyword}{def\ }skPathFromGlyph(glyphName:\ str,\ glyphSet:\ \_TTGlyphMapping)\ -\/>\ pathops.Path:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00035}00035\ \ \ \ \ path\ =\ pathops.Path()}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00036}00036\ \ \ \ \ pathPen\ =\ path.getPen(glyphSet=glyphSet)}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00037}00037\ \ \ \ \ glyphSet[glyphName].draw(pathPen)}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00038}00038\ \ \ \ \ \textcolor{keywordflow}{return}\ path}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00039}00039\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00040}00040\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00041}00041\ \textcolor{keyword}{def\ }skPathFromGlyphComponent(}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00042}00042\ \ \ \ \ component:\ \_g\_l\_y\_f.GlyphComponent,\ glyphSet:\ \_TTGlyphMapping}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00043}00043\ ):}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00044}00044\ \ \ \ \ baseGlyphName,\ transformation\ =\ component.getComponentInfo()}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00045}00045\ \ \ \ \ path\ =\ skPathFromGlyph(baseGlyphName,\ glyphSet)}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00046}00046\ \ \ \ \ \textcolor{keywordflow}{return}\ path.transform(*transformation)}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00047}00047\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00048}00048\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00049}00049\ \textcolor{keyword}{def\ }componentsOverlap(glyph:\ \_g\_l\_y\_f.Glyph,\ glyphSet:\ \_TTGlyphMapping)\ -\/>\ bool:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00050}00050\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ glyph.isComposite():}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00051}00051\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}This\ method\ only\ works\ with\ TrueType\ composite\ glyphs"{}})}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00052}00052\ \ \ \ \ \textcolor{keywordflow}{if}\ len(glyph.components)\ <\ 2:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00053}00053\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}\ \ \textcolor{comment}{\#\ single\ component,\ no\ overlaps}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00054}00054\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00055}00055\ \ \ \ \ component\_paths\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00056}00056\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00057}00057\ \ \ \ \ \textcolor{keyword}{def\ }\_get\_nth\_component\_path(index:\ int)\ -\/>\ pathops.Path:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00058}00058\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ index\ \textcolor{keywordflow}{not}\ \textcolor{keywordflow}{in}\ component\_paths:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00059}00059\ \ \ \ \ \ \ \ \ \ \ \ \ component\_paths[index]\ =\ skPathFromGlyphComponent(}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00060}00060\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ glyph.components[index],\ glyphSet}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00061}00061\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00062}00062\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ component\_paths[index]}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00063}00063\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00064}00064\ \ \ \ \ \textcolor{keywordflow}{return}\ any(}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00065}00065\ \ \ \ \ \ \ \ \ pathops.op(}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00066}00066\ \ \ \ \ \ \ \ \ \ \ \ \ \_get\_nth\_component\_path(i),}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00067}00067\ \ \ \ \ \ \ \ \ \ \ \ \ \_get\_nth\_component\_path(j),}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00068}00068\ \ \ \ \ \ \ \ \ \ \ \ \ pathops.PathOp.INTERSECTION,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00069}00069\ \ \ \ \ \ \ \ \ \ \ \ \ fix\_winding=\textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00070}00070\ \ \ \ \ \ \ \ \ \ \ \ \ keep\_starting\_points=\textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00071}00071\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00072}00072\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ i,\ j\ \textcolor{keywordflow}{in}\ itertools.combinations(range(len(glyph.components)),\ 2)}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00073}00073\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00074}00074\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00075}00075\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00076}00076\ \textcolor{keyword}{def\ }ttfGlyphFromSkPath(path:\ pathops.Path)\ -\/>\ \mbox{\hyperlink{classfontTools_1_1ttLib_1_1tables_1_1__g__l__y__f_1_1Glyph}{\_g\_l\_y\_f.Glyph}}:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00077}00077\ \ \ \ \ \textcolor{comment}{\#\ Skia\ paths\ have\ no\ 'components',\ no\ need\ for\ glyphSet}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00078}00078\ \ \ \ \ ttPen\ =\ \mbox{\hyperlink{classfontTools_1_1pens_1_1ttGlyphPen_1_1TTGlyphPen}{TTGlyphPen}}(glyphSet=\textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00079}00079\ \ \ \ \ path.draw(ttPen)}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00080}00080\ \ \ \ \ glyph\ =\ ttPen.glyph()}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00081}00081\ \ \ \ \ \textcolor{keyword}{assert}\ \textcolor{keywordflow}{not}\ glyph.isComposite()}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00082}00082\ \ \ \ \ \textcolor{comment}{\#\ compute\ glyph.xMin\ (glyfTable\ parameter\ unused\ for\ non\ composites)}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00083}00083\ \ \ \ \ glyph.recalcBounds(glyfTable=\textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00084}00084\ \ \ \ \ \textcolor{keywordflow}{return}\ glyph}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00085}00085\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00086}00086\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00087}00087\ \textcolor{keyword}{def\ }\_charString\_from\_SkPath(}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00088}00088\ \ \ \ \ path:\ pathops.Path,\ charString:\ T2CharString}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00089}00089\ )\ -\/>\ T2CharString:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00090}00090\ \ \ \ \ \textcolor{keywordflow}{if}\ charString.width\ ==\ charString.private.defaultWidthX:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00091}00091\ \ \ \ \ \ \ \ \ width\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00092}00092\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00093}00093\ \ \ \ \ \ \ \ \ width\ =\ charString.width\ -\/\ charString.private.nominalWidthX}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00094}00094\ \ \ \ \ t2Pen\ =\ \mbox{\hyperlink{classfontTools_1_1pens_1_1t2CharStringPen_1_1T2CharStringPen}{T2CharStringPen}}(width=width,\ glyphSet=\textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00095}00095\ \ \ \ \ path.draw(t2Pen)}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00096}00096\ \ \ \ \ \textcolor{keywordflow}{return}\ t2Pen.getCharString(charString.private,\ charString.globalSubrs)}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00097}00097\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00098}00098\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00099}00099\ \textcolor{keyword}{def\ }\_round\_path(}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00100}00100\ \ \ \ \ path:\ pathops.Path,\ round:\ Callable[[float],\ float]\ =\ otRound}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00101}00101\ )\ -\/>\ pathops.Path:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00102}00102\ \ \ \ \ rounded\_path\ =\ pathops.Path()}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00103}00103\ \ \ \ \ \textcolor{keywordflow}{for}\ verb,\ points\ \textcolor{keywordflow}{in}\ path:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00104}00104\ \ \ \ \ \ \ \ \ rounded\_path.add(verb,\ *((round(p[0]),\ round(p[1]))\ \textcolor{keywordflow}{for}\ p\ \textcolor{keywordflow}{in}\ points))}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00105}00105\ \ \ \ \ \textcolor{keywordflow}{return}\ rounded\_path}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00106}00106\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00107}00107\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00108}00108\ \textcolor{keyword}{def\ }\_simplify(}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00109}00109\ \ \ \ \ path:\ pathops.Path,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00110}00110\ \ \ \ \ debugGlyphName:\ str,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00111}00111\ \ \ \ \ *,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00112}00112\ \ \ \ \ round:\ Callable[[float],\ float]\ =\ otRound,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00113}00113\ )\ -\/>\ pathops.Path:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00114}00114\ \ \ \ \ \textcolor{comment}{\#\ skia-\/pathops\ has\ a\ bug\ where\ it\ sometimes\ fails\ to\ simplify\ paths\ when\ there}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00115}00115\ \ \ \ \ \textcolor{comment}{\#\ are\ float\ coordinates\ and\ control\ points\ are\ very\ close\ to\ one\ another.}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00116}00116\ \ \ \ \ \textcolor{comment}{\#\ Rounding\ coordinates\ to\ integers\ works\ around\ the\ bug.}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00117}00117\ \ \ \ \ \textcolor{comment}{\#\ Since\ we\ are\ going\ to\ round\ glyf\ coordinates\ later\ on\ anyway,\ here\ it\ is}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00118}00118\ \ \ \ \ \textcolor{comment}{\#\ ok(-\/ish)\ to\ also\ round\ before\ simplify.\ Better\ than\ failing\ the\ whole\ process}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00119}00119\ \ \ \ \ \textcolor{comment}{\#\ for\ the\ entire\ font.}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00120}00120\ \ \ \ \ \textcolor{comment}{\#\ https://bugs.chromium.org/p/skia/issues/detail?id=11958}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00121}00121\ \ \ \ \ \textcolor{comment}{\#\ https://github.com/google/fonts/issues/3365}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00122}00122\ \ \ \ \ \textcolor{comment}{\#\ TODO(anthrotype):\ remove\ once\ this\ Skia\ bug\ is\ fixed}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00123}00123\ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00124}00124\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ pathops.simplify(path,\ clockwise=path.clockwise)}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00125}00125\ \ \ \ \ \textcolor{keywordflow}{except}\ pathops.PathOpsError:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00126}00126\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{pass}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00127}00127\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00128}00128\ \ \ \ \ path\ =\ \_round\_path(path,\ round=round)}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00129}00129\ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00130}00130\ \ \ \ \ \ \ \ \ path\ =\ pathops.simplify(path,\ clockwise=path.clockwise)}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00131}00131\ \ \ \ \ \ \ \ \ log.debug(}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00132}00132\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}skia-\/pathops\ failed\ to\ simplify\ '\%s'\ with\ float\ coordinates,\ "{}}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00133}00133\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}but\ succeded\ using\ rounded\ integer\ coordinates"{}},}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00134}00134\ \ \ \ \ \ \ \ \ \ \ \ \ debugGlyphName,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00135}00135\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00136}00136\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ path}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00137}00137\ \ \ \ \ \textcolor{keywordflow}{except}\ pathops.PathOpsError\ \textcolor{keyword}{as}\ e:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00138}00138\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ log.isEnabledFor(logging.DEBUG):}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00139}00139\ \ \ \ \ \ \ \ \ \ \ \ \ path.dump()}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00140}00140\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classfontTools_1_1ttLib_1_1removeOverlaps_1_1RemoveOverlapsError}{RemoveOverlapsError}}(}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00141}00141\ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}Failed\ to\ remove\ overlaps\ from\ glyph\ \{debugGlyphName!r\}"{}}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00142}00142\ \ \ \ \ \ \ \ \ )\ \textcolor{keyword}{from}\ e}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00143}00143\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00144}00144\ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classAssertionError}{AssertionError}}(\textcolor{stringliteral}{"{}Unreachable"{}})}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00145}00145\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00146}00146\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00147}00147\ \textcolor{keyword}{def\ }\_same\_path(path1:\ pathops.Path,\ path2:\ pathops.Path)\ -\/>\ bool:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00148}00148\ \ \ \ \ \textcolor{keywordflow}{return}\ \{tuple(c)\ \textcolor{keywordflow}{for}\ c\ \textcolor{keywordflow}{in}\ path1.contours\}\ ==\ \{tuple(c)\ \textcolor{keywordflow}{for}\ c\ \textcolor{keywordflow}{in}\ path2.contours\}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00149}00149\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00150}00150\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00151}00151\ \textcolor{keyword}{def\ }removeTTGlyphOverlaps(}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00152}00152\ \ \ \ \ glyphName:\ str,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00153}00153\ \ \ \ \ glyphSet:\ \_TTGlyphMapping,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00154}00154\ \ \ \ \ glyfTable:\ \mbox{\hyperlink{classfontTools_1_1ttLib_1_1tables_1_1__g__l__y__f_1_1table____g__l__y__f}{\_g\_l\_y\_f.table\_\_g\_l\_y\_f}},}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00155}00155\ \ \ \ \ hmtxTable:\ \mbox{\hyperlink{classfontTools_1_1ttLib_1_1tables_1_1__h__m__t__x_1_1table____h__m__t__x}{\_h\_m\_t\_x.table\_\_h\_m\_t\_x}},}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00156}00156\ \ \ \ \ removeHinting:\ bool\ =\ \textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00157}00157\ )\ -\/>\ bool:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00158}00158\ \ \ \ \ glyph\ =\ glyfTable[glyphName]}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00159}00159\ \ \ \ \ \textcolor{comment}{\#\ decompose\ composite\ glyphs\ only\ if\ components\ overlap\ each\ other}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00160}00160\ \ \ \ \ \textcolor{keywordflow}{if}\ (}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00161}00161\ \ \ \ \ \ \ \ \ glyph.numberOfContours\ >\ 0}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00162}00162\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{or}\ glyph.isComposite()}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00163}00163\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}\ componentsOverlap(glyph,\ glyphSet)}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00164}00164\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00165}00165\ \ \ \ \ \ \ \ \ path\ =\ skPathFromGlyph(glyphName,\ glyphSet)}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00166}00166\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00167}00167\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ remove\ overlaps}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00168}00168\ \ \ \ \ \ \ \ \ path2\ =\ \_simplify(path,\ glyphName)}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00169}00169\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00170}00170\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ replace\ TTGlyph\ if\ simplified\ path\ is\ different\ (ignoring\ contour\ order)}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00171}00171\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ \_same\_path(path,\ path2):}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00172}00172\ \ \ \ \ \ \ \ \ \ \ \ \ glyfTable[glyphName]\ =\ glyph\ =\ ttfGlyphFromSkPath(path2)}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00173}00173\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ simplified\ glyph\ is\ always\ unhinted}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00174}00174\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ \textcolor{keywordflow}{not}\ glyph.program}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00175}00175\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ also\ ensure\ hmtx\ LSB\ ==\ glyph.xMin\ so\ glyph\ origin\ is\ at\ x=0}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00176}00176\ \ \ \ \ \ \ \ \ \ \ \ \ width,\ lsb\ =\ hmtxTable[glyphName]}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00177}00177\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ lsb\ !=\ glyph.xMin:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00178}00178\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ hmtxTable[glyphName]\ =\ (width,\ glyph.xMin)}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00179}00179\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00180}00180\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00181}00181\ \ \ \ \ \textcolor{keywordflow}{if}\ removeHinting:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00182}00182\ \ \ \ \ \ \ \ \ glyph.removeHinting()}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00183}00183\ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00184}00184\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00185}00185\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00186}00186\ \textcolor{keyword}{def\ }\_remove\_glyf\_overlaps(}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00187}00187\ \ \ \ \ *,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00188}00188\ \ \ \ \ font:\ ttFont.TTFont,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00189}00189\ \ \ \ \ glyphNames:\ Iterable[str],}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00190}00190\ \ \ \ \ glyphSet:\ \_TTGlyphMapping,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00191}00191\ \ \ \ \ removeHinting:\ bool,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00192}00192\ \ \ \ \ ignoreErrors:\ bool,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00193}00193\ )\ -\/>\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00194}00194\ \ \ \ \ glyfTable\ =\ font[\textcolor{stringliteral}{"{}glyf"{}}]}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00195}00195\ \ \ \ \ hmtxTable\ =\ font[\textcolor{stringliteral}{"{}hmtx"{}}]}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00196}00196\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00197}00197\ \ \ \ \ \textcolor{comment}{\#\ process\ all\ simple\ glyphs\ first,\ then\ composites\ with\ increasing\ component\ depth,}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00198}00198\ \ \ \ \ \textcolor{comment}{\#\ so\ that\ by\ the\ time\ we\ test\ for\ component\ intersections\ the\ respective\ base\ glyphs}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00199}00199\ \ \ \ \ \textcolor{comment}{\#\ have\ already\ been\ simplified}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00200}00200\ \ \ \ \ glyphNames\ =\ sorted(}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00201}00201\ \ \ \ \ \ \ \ \ glyphNames,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00202}00202\ \ \ \ \ \ \ \ \ key=\textcolor{keyword}{lambda}\ name:\ (}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00203}00203\ \ \ \ \ \ \ \ \ \ \ \ \ (}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00204}00204\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ glyfTable[name].getCompositeMaxpValues(glyfTable).maxComponentDepth}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00205}00205\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ glyfTable[name].isComposite()}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00206}00206\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}\ 0}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00207}00207\ \ \ \ \ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00208}00208\ \ \ \ \ \ \ \ \ \ \ \ \ name,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00209}00209\ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00210}00210\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00211}00211\ \ \ \ \ modified\ =\ set()}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00212}00212\ \ \ \ \ \textcolor{keywordflow}{for}\ glyphName\ \textcolor{keywordflow}{in}\ glyphNames:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00213}00213\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00214}00214\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ removeTTGlyphOverlaps(}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00215}00215\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ glyphName,\ glyphSet,\ glyfTable,\ hmtxTable,\ removeHinting}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00216}00216\ \ \ \ \ \ \ \ \ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00217}00217\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ modified.add(glyphName)}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00218}00218\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ RemoveOverlapsError:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00219}00219\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ ignoreErrors:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00220}00220\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00221}00221\ \ \ \ \ \ \ \ \ \ \ \ \ log.error(\textcolor{stringliteral}{"{}Failed\ to\ remove\ overlaps\ for\ '\%s'"{}},\ glyphName)}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00222}00222\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00223}00223\ \ \ \ \ log.debug(\textcolor{stringliteral}{"{}Removed\ overlaps\ for\ \%s\ glyphs:\(\backslash\)n\%s"{}},\ len(modified),\ \textcolor{stringliteral}{"{}\ "{}}.join(modified))}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00224}00224\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00225}00225\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00226}00226\ \textcolor{keyword}{def\ }\_remove\_charstring\_overlaps(}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00227}00227\ \ \ \ \ *,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00228}00228\ \ \ \ \ glyphName:\ str,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00229}00229\ \ \ \ \ glyphSet:\ \_TTGlyphMapping,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00230}00230\ \ \ \ \ cffFontSet:\ CFFFontSet,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00231}00231\ )\ -\/>\ bool:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00232}00232\ \ \ \ \ path\ =\ skPathFromGlyph(glyphName,\ glyphSet)}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00233}00233\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00234}00234\ \ \ \ \ \textcolor{comment}{\#\ remove\ overlaps}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00235}00235\ \ \ \ \ path2\ =\ \_simplify(path,\ glyphName,\ round=noRound)}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00236}00236\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00237}00237\ \ \ \ \ \textcolor{comment}{\#\ replace\ TTGlyph\ if\ simplified\ path\ is\ different\ (ignoring\ contour\ order)}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00238}00238\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ \_same\_path(path,\ path2):}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00239}00239\ \ \ \ \ \ \ \ \ charStrings\ =\ cffFontSet[0].CharStrings}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00240}00240\ \ \ \ \ \ \ \ \ charStrings[glyphName]\ =\ \_charString\_from\_SkPath(path2,\ charStrings[glyphName])}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00241}00241\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00242}00242\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00243}00243\ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00244}00244\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00245}00245\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00246}00246\ \textcolor{keyword}{def\ }\_remove\_cff\_overlaps(}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00247}00247\ \ \ \ \ *,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00248}00248\ \ \ \ \ font:\ ttFont.TTFont,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00249}00249\ \ \ \ \ glyphNames:\ Iterable[str],}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00250}00250\ \ \ \ \ glyphSet:\ \_TTGlyphMapping,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00251}00251\ \ \ \ \ removeHinting:\ bool,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00252}00252\ \ \ \ \ ignoreErrors:\ bool,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00253}00253\ \ \ \ \ removeUnusedSubroutines:\ bool\ =\ \textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00254}00254\ )\ -\/>\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00255}00255\ \ \ \ \ cffFontSet\ =\ font[\textcolor{stringliteral}{"{}CFF\ "{}}].cff}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00256}00256\ \ \ \ \ modified\ =\ set()}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00257}00257\ \ \ \ \ \textcolor{keywordflow}{for}\ glyphName\ \textcolor{keywordflow}{in}\ glyphNames:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00258}00258\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00259}00259\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \_remove\_charstring\_overlaps(}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00260}00260\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ glyphName=glyphName,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00261}00261\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ glyphSet=glyphSet,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00262}00262\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ cffFontSet=cffFontSet,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00263}00263\ \ \ \ \ \ \ \ \ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00264}00264\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ modified.add(glyphName)}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00265}00265\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ RemoveOverlapsError:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00266}00266\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ ignoreErrors:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00267}00267\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00268}00268\ \ \ \ \ \ \ \ \ \ \ \ \ log.error(\textcolor{stringliteral}{"{}Failed\ to\ remove\ overlaps\ for\ '\%s'"{}},\ glyphName)}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00269}00269\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00270}00270\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ modified:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00271}00271\ \ \ \ \ \ \ \ \ log.debug(\textcolor{stringliteral}{"{}No\ overlaps\ found\ in\ the\ specified\ CFF\ glyphs"{}})}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00272}00272\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00273}00273\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00274}00274\ \ \ \ \ \textcolor{keywordflow}{if}\ removeHinting:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00275}00275\ \ \ \ \ \ \ \ \ cffFontSet.remove\_hints()}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00276}00276\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00277}00277\ \ \ \ \ \textcolor{keywordflow}{if}\ removeUnusedSubroutines:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00278}00278\ \ \ \ \ \ \ \ \ cffFontSet.remove\_unused\_subroutines()}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00279}00279\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00280}00280\ \ \ \ \ log.debug(\textcolor{stringliteral}{"{}Removed\ overlaps\ for\ \%s\ glyphs:\(\backslash\)n\%s"{}},\ len(modified),\ \textcolor{stringliteral}{"{}\ "{}}.join(modified))}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00281}00281\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00282}00282\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00283}\mbox{\hyperlink{namespacefontTools_1_1ttLib_1_1removeOverlaps_ac37c9fa8df4b9b38df3f4369b5c1a617}{00283}}\ \textcolor{keyword}{def\ }removeOverlaps(}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00284}00284\ \ \ \ \ font:\ ttFont.TTFont,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00285}00285\ \ \ \ \ glyphNames:\ Optional[Iterable[str]]\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00286}00286\ \ \ \ \ removeHinting:\ bool\ =\ \textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00287}00287\ \ \ \ \ ignoreErrors:\ bool\ =\ \textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00288}00288\ \ \ \ \ *,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00289}00289\ \ \ \ \ removeUnusedSubroutines:\ bool\ =\ \textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00290}00290\ )\ -\/>\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00291}00291\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Simplify\ glyphs\ in\ TTFont\ by\ merging\ overlapping\ contours.}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00292}00292\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00293}00293\ \textcolor{stringliteral}{\ \ \ \ Overlapping\ components\ are\ first\ decomposed\ to\ simple\ contours,\ then\ merged.}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00294}00294\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00295}00295\ \textcolor{stringliteral}{\ \ \ \ Currently\ this\ only\ works\ for\ fonts\ with\ 'glyf'\ or\ 'CFF\ '\ tables.}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00296}00296\ \textcolor{stringliteral}{\ \ \ \ Raises\ NotImplementedError\ if\ 'glyf'\ or\ 'CFF\ '\ tables\ are\ absent.}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00297}00297\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00298}00298\ \textcolor{stringliteral}{\ \ \ \ Note\ that\ removing\ overlaps\ invalidates\ the\ hinting.\ By\ default\ we\ drop\ hinting}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00299}00299\ \textcolor{stringliteral}{\ \ \ \ from\ all\ glyphs\ whether\ or\ not\ overlaps\ are\ removed\ from\ a\ given\ one,\ as\ it\ would}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00300}00300\ \textcolor{stringliteral}{\ \ \ \ look\ weird\ if\ only\ some\ glyphs\ are\ left\ (un)hinted.}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00301}00301\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00302}00302\ \textcolor{stringliteral}{\ \ \ \ Args:}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00303}00303\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ font:\ input\ TTFont\ object,\ modified\ in\ place.}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00304}00304\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ glyphNames:\ optional\ iterable\ of\ glyph\ names\ (str)\ to\ remove\ overlaps\ from.}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00305}00305\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ By\ default,\ all\ glyphs\ in\ the\ font\ are\ processed.}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00306}00306\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ removeHinting\ (bool):\ set\ to\ False\ to\ keep\ hinting\ for\ unmodified\ glyphs.}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00307}00307\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ignoreErrors\ (bool):\ set\ to\ True\ to\ ignore\ errors\ while\ removing\ overlaps,}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00308}00308\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ thus\ keeping\ the\ tricky\ glyphs\ unchanged\ (fonttools/fonttools\#2363).}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00309}00309\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ removeUnusedSubroutines\ (bool):\ set\ to\ False\ to\ keep\ unused\ subroutines}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00310}00310\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ in\ CFF\ table\ after\ removing\ overlaps.\ Default\ is\ to\ remove\ them\ if}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00311}00311\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ any\ glyphs\ are\ modified.}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00312}00312\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00313}00313\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00314}00314\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{stringliteral}{"{}glyf"{}}\ \textcolor{keywordflow}{not}\ \textcolor{keywordflow}{in}\ font\ \textcolor{keywordflow}{and}\ \textcolor{stringliteral}{"{}CFF\ "{}}\ \textcolor{keywordflow}{not}\ \textcolor{keywordflow}{in}\ font:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00315}00315\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classNotImplementedError}{NotImplementedError}}(}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00316}00316\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}No\ outline\ data\ found\ in\ the\ font:\ missing\ 'glyf'\ or\ 'CFF\ '\ table"{}}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00317}00317\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00318}00318\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00319}00319\ \ \ \ \ \textcolor{keywordflow}{if}\ glyphNames\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00320}00320\ \ \ \ \ \ \ \ \ glyphNames\ =\ font.getGlyphOrder()}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00321}00321\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00322}00322\ \ \ \ \ \textcolor{comment}{\#\ Wraps\ the\ underlying\ glyphs,\ takes\ care\ of\ interfacing\ with\ drawing\ pens}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00323}00323\ \ \ \ \ glyphSet\ =\ font.getGlyphSet()}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00324}00324\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00325}00325\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{stringliteral}{"{}glyf"{}}\ \textcolor{keywordflow}{in}\ font:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00326}00326\ \ \ \ \ \ \ \ \ \_remove\_glyf\_overlaps(}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00327}00327\ \ \ \ \ \ \ \ \ \ \ \ \ font=font,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00328}00328\ \ \ \ \ \ \ \ \ \ \ \ \ glyphNames=glyphNames,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00329}00329\ \ \ \ \ \ \ \ \ \ \ \ \ glyphSet=glyphSet,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00330}00330\ \ \ \ \ \ \ \ \ \ \ \ \ removeHinting=removeHinting,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00331}00331\ \ \ \ \ \ \ \ \ \ \ \ \ ignoreErrors=ignoreErrors,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00332}00332\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00333}00333\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00334}00334\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{stringliteral}{"{}CFF\ "{}}\ \textcolor{keywordflow}{in}\ font:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00335}00335\ \ \ \ \ \ \ \ \ \_remove\_cff\_overlaps(}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00336}00336\ \ \ \ \ \ \ \ \ \ \ \ \ font=font,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00337}00337\ \ \ \ \ \ \ \ \ \ \ \ \ glyphNames=glyphNames,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00338}00338\ \ \ \ \ \ \ \ \ \ \ \ \ glyphSet=glyphSet,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00339}00339\ \ \ \ \ \ \ \ \ \ \ \ \ removeHinting=removeHinting,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00340}00340\ \ \ \ \ \ \ \ \ \ \ \ \ ignoreErrors=ignoreErrors,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00341}00341\ \ \ \ \ \ \ \ \ \ \ \ \ removeUnusedSubroutines=removeUnusedSubroutines,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00342}00342\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00343}00343\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00344}00344\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00345}\mbox{\hyperlink{namespacefontTools_1_1ttLib_1_1removeOverlaps_a8c294cb9d074a32eef84b46aade97c37}{00345}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacemain}{main}}(args=None):}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00346}00346\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Simplify\ glyphs\ in\ TTFont\ by\ merging\ overlapping\ contours."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00347}00347\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00348}00348\ \ \ \ \ \textcolor{keyword}{import}\ argparse}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00349}00349\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00350}00350\ \ \ \ \ parser\ =\ argparse.ArgumentParser(}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00351}00351\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}fonttools\ ttLib.removeOverlaps"{}},\ description=\_\_doc\_\_}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00352}00352\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00353}00353\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00354}00354\ \ \ \ \ parser.add\_argument(\textcolor{stringliteral}{"{}input"{}},\ metavar=\textcolor{stringliteral}{"{}INPUT.ttf"{}},\ help=\textcolor{stringliteral}{"{}Input\ font\ file"{}})}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00355}00355\ \ \ \ \ parser.add\_argument(\textcolor{stringliteral}{"{}output"{}},\ metavar=\textcolor{stringliteral}{"{}OUTPUT.ttf"{}},\ help=\textcolor{stringliteral}{"{}Output\ font\ file"{}})}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00356}00356\ \ \ \ \ parser.add\_argument(}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00357}00357\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}glyphs"{}},}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00358}00358\ \ \ \ \ \ \ \ \ metavar=\textcolor{stringliteral}{"{}GLYPHS"{}},}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00359}00359\ \ \ \ \ \ \ \ \ nargs=\textcolor{stringliteral}{"{}*"{}},}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00360}00360\ \ \ \ \ \ \ \ \ help=\textcolor{stringliteral}{"{}Optional\ list\ of\ glyph\ names\ to\ remove\ overlaps\ from"{}},}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00361}00361\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00362}00362\ \ \ \ \ parser.add\_argument(}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00363}00363\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}-\/-\/keep-\/hinting"{}},}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00364}00364\ \ \ \ \ \ \ \ \ action=\textcolor{stringliteral}{"{}store\_true"{}},}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00365}00365\ \ \ \ \ \ \ \ \ help=\textcolor{stringliteral}{"{}Keep\ hinting\ for\ unmodified\ glyphs,\ default\ is\ to\ drop\ hinting"{}},}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00366}00366\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00367}00367\ \ \ \ \ parser.add\_argument(}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00368}00368\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}-\/-\/ignore-\/errors"{}},}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00369}00369\ \ \ \ \ \ \ \ \ action=\textcolor{stringliteral}{"{}store\_true"{}},}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00370}00370\ \ \ \ \ \ \ \ \ help=\textcolor{stringliteral}{"{}ignore\ errors\ while\ removing\ overlaps,\ "{}}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00371}00371\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}thus\ keeping\ the\ tricky\ glyphs\ unchanged"{}},}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00372}00372\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00373}00373\ \ \ \ \ parser.add\_argument(}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00374}00374\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}-\/-\/keep-\/unused-\/subroutines"{}},}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00375}00375\ \ \ \ \ \ \ \ \ action=\textcolor{stringliteral}{"{}store\_true"{}},}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00376}00376\ \ \ \ \ \ \ \ \ help=\textcolor{stringliteral}{"{}Keep\ unused\ subroutines\ in\ CFF\ table\ after\ removing\ overlaps,\ "{}}}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00377}00377\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}default\ is\ to\ remove\ them\ if\ any\ glyphs\ are\ modified"{}},}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00378}00378\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00379}00379\ \ \ \ \ args\ =\ parser.parse\_args(args)}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00380}00380\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00381}00381\ \ \ \ \ \textcolor{keyword}{with}\ \mbox{\hyperlink{classfontTools_1_1ttLib_1_1ttFont_1_1TTFont}{ttFont.TTFont}}(args.input)\ \textcolor{keyword}{as}\ font:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00382}00382\ \ \ \ \ \ \ \ \ removeOverlaps(}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00383}00383\ \ \ \ \ \ \ \ \ \ \ \ \ font=font,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00384}00384\ \ \ \ \ \ \ \ \ \ \ \ \ glyphNames=args.glyphs\ \textcolor{keywordflow}{or}\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00385}00385\ \ \ \ \ \ \ \ \ \ \ \ \ removeHinting=\textcolor{keywordflow}{not}\ args.keep\_hinting,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00386}00386\ \ \ \ \ \ \ \ \ \ \ \ \ ignoreErrors=args.ignore\_errors,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00387}00387\ \ \ \ \ \ \ \ \ \ \ \ \ removeUnusedSubroutines=\textcolor{keywordflow}{not}\ args.keep\_unused\_subroutines,}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00388}00388\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00389}00389\ \ \ \ \ \ \ \ \ font.save(args.output)}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00390}00390\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00391}00391\ }
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00392}00392\ \textcolor{keywordflow}{if}\ \_\_name\_\_\ ==\ \textcolor{stringliteral}{"{}\_\_main\_\_"{}}:}
+\DoxyCodeLine{\Hypertarget{removeOverlaps_8py_source_l00393}00393\ \ \ \ \ \mbox{\hyperlink{namespacemain}{main}}()}
+
+\end{DoxyCode}

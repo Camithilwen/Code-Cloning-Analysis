@@ -1,0 +1,319 @@
+\doxysection{\+\_\+permutation\+\_\+importance.\+py}
+\hypertarget{__permutation__importance_8py_source}{}\label{__permutation__importance_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/sklearn/inspection/\_permutation\_importance.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/sklearn/inspection/\_permutation\_importance.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00001}\mbox{\hyperlink{namespacesklearn_1_1inspection_1_1__permutation__importance}{00001}}\ \textcolor{stringliteral}{"{}"{}"{}Permutation\ importance\ for\ estimators."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00002}00002\ }
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00003}00003\ \textcolor{comment}{\#\ Authors:\ The\ scikit-\/learn\ developers}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00004}00004\ \textcolor{comment}{\#\ SPDX-\/License-\/Identifier:\ BSD-\/3-\/Clause}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00005}00005\ }
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00006}00006\ \textcolor{keyword}{import}\ numbers}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00007}00007\ }
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00008}00008\ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00009}00009\ }
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00010}00010\ \textcolor{keyword}{from}\ ..ensemble.\_bagging\ \textcolor{keyword}{import}\ \_generate\_indices}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00011}00011\ \textcolor{keyword}{from}\ ..metrics\ \textcolor{keyword}{import}\ check\_scoring,\ get\_scorer\_names}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00012}00012\ \textcolor{keyword}{from}\ ..model\_selection.\_validation\ \textcolor{keyword}{import}\ \_aggregate\_score\_dicts}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00013}00013\ \textcolor{keyword}{from}\ ..utils\ \textcolor{keyword}{import}\ Bunch,\ \_safe\_indexing,\ check\_array,\ check\_random\_state}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00014}00014\ \textcolor{keyword}{from}\ ..utils.\_param\_validation\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00015}00015\ \ \ \ \ HasMethods,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00016}00016\ \ \ \ \ Integral,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00017}00017\ \ \ \ \ Interval,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00018}00018\ \ \ \ \ RealNotInt,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00019}00019\ \ \ \ \ StrOptions,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00020}00020\ \ \ \ \ validate\_params,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00021}00021\ )}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00022}00022\ \textcolor{keyword}{from}\ ..utils.parallel\ \textcolor{keyword}{import}\ Parallel,\ delayed}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00023}00023\ }
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00024}00024\ }
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00025}00025\ \textcolor{keyword}{def\ }\_weights\_scorer(scorer,\ estimator,\ X,\ y,\ sample\_weight):}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00026}00026\ \ \ \ \ \textcolor{keywordflow}{if}\ sample\_weight\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00027}00027\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ scorer(estimator,\ X,\ y,\ sample\_weight=sample\_weight)}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00028}00028\ \ \ \ \ \textcolor{keywordflow}{return}\ scorer(estimator,\ X,\ y)}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00029}00029\ }
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00030}00030\ }
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00031}\mbox{\hyperlink{namespacesklearn_1_1inspection_1_1__permutation__importance_a1ee170fa30a79c810be07bcab2ba9cd5}{00031}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1inspection_1_1__permutation__importance_a1ee170fa30a79c810be07bcab2ba9cd5}{\_calculate\_permutation\_scores}}(}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00032}00032\ \ \ \ \ estimator,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00033}00033\ \ \ \ \ X,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00034}00034\ \ \ \ \ y,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00035}00035\ \ \ \ \ sample\_weight,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00036}00036\ \ \ \ \ col\_idx,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00037}00037\ \ \ \ \ random\_state,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00038}00038\ \ \ \ \ n\_repeats,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00039}00039\ \ \ \ \ scorer,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00040}00040\ \ \ \ \ max\_samples,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00041}00041\ ):}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00042}00042\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Calculate\ score\ when\ \`{}col\_idx\`{}\ is\ permuted."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00043}00043\ \ \ \ \ random\_state\ =\ check\_random\_state(random\_state)}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00044}00044\ }
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00045}00045\ \ \ \ \ \textcolor{comment}{\#\ Work\ on\ a\ copy\ of\ X\ to\ ensure\ thread-\/safety\ in\ case\ of\ threading\ based}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00046}00046\ \ \ \ \ \textcolor{comment}{\#\ parallelism.\ Furthermore,\ making\ a\ copy\ is\ also\ useful\ when\ the\ joblib}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00047}00047\ \ \ \ \ \textcolor{comment}{\#\ backend\ is\ 'loky'\ (default)\ or\ the\ old\ 'multiprocessing':\ in\ those\ cases,}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00048}00048\ \ \ \ \ \textcolor{comment}{\#\ if\ X\ is\ large\ it\ will\ be\ automatically\ be\ backed\ by\ a\ readonly\ memory\ map}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00049}00049\ \ \ \ \ \textcolor{comment}{\#\ (memmap).\ X.copy()\ on\ the\ other\ hand\ is\ always\ guaranteed\ to\ return\ a}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00050}00050\ \ \ \ \ \textcolor{comment}{\#\ writable\ data-\/structure\ whose\ columns\ can\ be\ shuffled\ inplace.}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00051}00051\ \ \ \ \ \textcolor{keywordflow}{if}\ max\_samples\ <\ X.shape[0]:}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00052}00052\ \ \ \ \ \ \ \ \ row\_indices\ =\ \_generate\_indices(}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00053}00053\ \ \ \ \ \ \ \ \ \ \ \ \ random\_state=random\_state,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00054}00054\ \ \ \ \ \ \ \ \ \ \ \ \ bootstrap=\textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00055}00055\ \ \ \ \ \ \ \ \ \ \ \ \ n\_population=X.shape[0],}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00056}00056\ \ \ \ \ \ \ \ \ \ \ \ \ n\_samples=max\_samples,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00057}00057\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00058}00058\ \ \ \ \ \ \ \ \ X\_permuted\ =\ \_safe\_indexing(X,\ row\_indices,\ axis=0)}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00059}00059\ \ \ \ \ \ \ \ \ y\ =\ \_safe\_indexing(y,\ row\_indices,\ axis=0)}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00060}00060\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ sample\_weight\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00061}00061\ \ \ \ \ \ \ \ \ \ \ \ \ sample\_weight\ =\ \_safe\_indexing(sample\_weight,\ row\_indices,\ axis=0)}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00062}00062\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00063}00063\ \ \ \ \ \ \ \ \ X\_permuted\ =\ X.copy()}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00064}00064\ }
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00065}00065\ \ \ \ \ scores\ =\ []}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00066}00066\ \ \ \ \ shuffling\_idx\ =\ np.arange(X\_permuted.shape[0])}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00067}00067\ \ \ \ \ \textcolor{keywordflow}{for}\ \_\ \textcolor{keywordflow}{in}\ range(n\_repeats):}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00068}00068\ \ \ \ \ \ \ \ \ random\_state.shuffle(shuffling\_idx)}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00069}00069\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ hasattr(X\_permuted,\ \textcolor{stringliteral}{"{}iloc"{}}):}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00070}00070\ \ \ \ \ \ \ \ \ \ \ \ \ col\ =\ X\_permuted.iloc[shuffling\_idx,\ col\_idx]}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00071}00071\ \ \ \ \ \ \ \ \ \ \ \ \ col.index\ =\ X\_permuted.index}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00072}00072\ \ \ \ \ \ \ \ \ \ \ \ \ X\_permuted[X\_permuted.columns[col\_idx]]\ =\ col}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00073}00073\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00074}00074\ \ \ \ \ \ \ \ \ \ \ \ \ X\_permuted[:,\ col\_idx]\ =\ X\_permuted[shuffling\_idx,\ col\_idx]}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00075}00075\ \ \ \ \ \ \ \ \ scores.append(\_weights\_scorer(scorer,\ estimator,\ X\_permuted,\ y,\ sample\_weight))}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00076}00076\ }
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00077}00077\ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(scores[0],\ dict):}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00078}00078\ \ \ \ \ \ \ \ \ scores\ =\ \_aggregate\_score\_dicts(scores)}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00079}00079\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00080}00080\ \ \ \ \ \ \ \ \ scores\ =\ np.array(scores)}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00081}00081\ }
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00082}00082\ \ \ \ \ \textcolor{keywordflow}{return}\ scores}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00083}00083\ }
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00084}00084\ }
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00085}\mbox{\hyperlink{namespacesklearn_1_1inspection_1_1__permutation__importance_a3fec4d55ca3c27b0924fae0d6ed4456d}{00085}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1inspection_1_1__permutation__importance_a3fec4d55ca3c27b0924fae0d6ed4456d}{\_create\_importances\_bunch}}(baseline\_score,\ permuted\_score):}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00086}00086\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Compute\ the\ importances\ as\ the\ decrease\ in\ score.}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00087}00087\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00088}00088\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00089}00089\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00090}00090\ \textcolor{stringliteral}{\ \ \ \ baseline\_score\ :\ ndarray\ of\ shape\ (n\_features,)}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00091}00091\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ baseline\ score\ without\ permutation.}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00092}00092\ \textcolor{stringliteral}{\ \ \ \ permuted\_score\ :\ ndarray\ of\ shape\ (n\_features,\ n\_repeats)}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00093}00093\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ permuted\ scores\ for\ the\ \`{}n\`{}\ repetitions.}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00094}00094\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00095}00095\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00096}00096\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00097}00097\ \textcolor{stringliteral}{\ \ \ \ importances\ :\ :class:\`{}\string~sklearn.utils.Bunch\`{}}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00098}00098\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Dictionary-\/like\ object,\ with\ the\ following\ attributes.}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00099}00099\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ importances\_mean\ :\ ndarray,\ shape\ (n\_features,\ )}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00100}00100\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Mean\ of\ feature\ importance\ over\ \`{}n\_repeats\`{}.}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00101}00101\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ importances\_std\ :\ ndarray,\ shape\ (n\_features,\ )}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00102}00102\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Standard\ deviation\ over\ \`{}n\_repeats\`{}.}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00103}00103\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ importances\ :\ ndarray,\ shape\ (n\_features,\ n\_repeats)}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00104}00104\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Raw\ permutation\ importance\ scores.}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00105}00105\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00106}00106\ \ \ \ \ importances\ =\ baseline\_score\ -\/\ permuted\_score}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00107}00107\ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classsklearn_1_1utils_1_1__bunch_1_1Bunch}{Bunch}}(}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00108}00108\ \ \ \ \ \ \ \ \ importances\_mean=np.mean(importances,\ axis=1),}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00109}00109\ \ \ \ \ \ \ \ \ importances\_std=np.std(importances,\ axis=1),}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00110}00110\ \ \ \ \ \ \ \ \ importances=importances,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00111}00111\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00112}00112\ }
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00113}00113\ }
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00114}00114\ \textcolor{preprocessor}{@validate\_params}(}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00115}00115\ \ \ \ \ \{}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00116}00116\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}estimator"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1HasMethods}{HasMethods}}([\textcolor{stringliteral}{"{}fit"{}}])],}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00117}00117\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}X"{}}:\ [\textcolor{stringliteral}{"{}array-\/like"{}}],}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00118}00118\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}y"{}}:\ [\textcolor{stringliteral}{"{}array-\/like"{}},\ \textcolor{keywordtype}{None}],}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00119}00119\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}scoring"{}}:\ [}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00120}00120\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1StrOptions}{StrOptions}}(set(get\_scorer\_names())),}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00121}00121\ \ \ \ \ \ \ \ \ \ \ \ \ callable,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00122}00122\ \ \ \ \ \ \ \ \ \ \ \ \ list,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00123}00123\ \ \ \ \ \ \ \ \ \ \ \ \ tuple,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00124}00124\ \ \ \ \ \ \ \ \ \ \ \ \ dict,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00125}00125\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00126}00126\ \ \ \ \ \ \ \ \ ],}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00127}00127\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}n\_repeats"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Integral,\ 1,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}})],}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00128}00128\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}n\_jobs"{}}:\ [Integral,\ \textcolor{keywordtype}{None}],}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00129}00129\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}random\_state"{}}:\ [\textcolor{stringliteral}{"{}random\_state"{}}],}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00130}00130\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}sample\_weight"{}}:\ [\textcolor{stringliteral}{"{}array-\/like"{}},\ \textcolor{keywordtype}{None}],}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00131}00131\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}max\_samples"{}}:\ [}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00132}00132\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Integral,\ 1,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}}),}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00133}00133\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(RealNotInt,\ 0,\ 1,\ closed=\textcolor{stringliteral}{"{}right"{}}),}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00134}00134\ \ \ \ \ \ \ \ \ ],}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00135}00135\ \ \ \ \ \},}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00136}00136\ \ \ \ \ prefer\_skip\_nested\_validation=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00137}00137\ )}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00138}\mbox{\hyperlink{namespacesklearn_1_1inspection_1_1__permutation__importance_a3151d2edf392add75b391cea4695dc37}{00138}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1inspection_1_1__permutation__importance_a3151d2edf392add75b391cea4695dc37}{permutation\_importance}}(}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00139}00139\ \ \ \ \ estimator,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00140}00140\ \ \ \ \ X,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00141}00141\ \ \ \ \ y,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00142}00142\ \ \ \ \ *,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00143}00143\ \ \ \ \ scoring=None,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00144}00144\ \ \ \ \ n\_repeats=5,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00145}00145\ \ \ \ \ n\_jobs=None,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00146}00146\ \ \ \ \ random\_state=None,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00147}00147\ \ \ \ \ sample\_weight=None,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00148}00148\ \ \ \ \ max\_samples=1.0,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00149}00149\ ):}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00150}00150\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Permutation\ importance\ for\ feature\ evaluation\ [BRE]\_.}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00151}00151\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00152}00152\ \textcolor{stringliteral}{\ \ \ \ The\ :term:\`{}estimator\`{}\ is\ required\ to\ be\ a\ fitted\ estimator.\ \`{}X\`{}\ can\ be\ the}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00153}00153\ \textcolor{stringliteral}{\ \ \ \ data\ set\ used\ to\ train\ the\ estimator\ or\ a\ hold-\/out\ set.\ The\ permutation}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00154}00154\ \textcolor{stringliteral}{\ \ \ \ importance\ of\ a\ feature\ is\ calculated\ as\ follows.\ First,\ a\ baseline\ metric,}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00155}00155\ \textcolor{stringliteral}{\ \ \ \ defined\ by\ :term:\`{}scoring\`{},\ is\ evaluated\ on\ a\ (potentially\ different)}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00156}00156\ \textcolor{stringliteral}{\ \ \ \ dataset\ defined\ by\ the\ \`{}X\`{}.\ Next,\ a\ feature\ column\ from\ the\ validation\ set}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00157}00157\ \textcolor{stringliteral}{\ \ \ \ is\ permuted\ and\ the\ metric\ is\ evaluated\ again.\ The\ permutation\ importance}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00158}00158\ \textcolor{stringliteral}{\ \ \ \ is\ defined\ to\ be\ the\ difference\ between\ the\ baseline\ metric\ and\ metric\ from}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00159}00159\ \textcolor{stringliteral}{\ \ \ \ permutating\ the\ feature\ column.}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00160}00160\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00161}00161\ \textcolor{stringliteral}{\ \ \ \ Read\ more\ in\ the\ :ref:\`{}User\ Guide\ <permutation\_importance>\`{}.}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00162}00162\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00163}00163\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00164}00164\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00165}00165\ \textcolor{stringliteral}{\ \ \ \ estimator\ :\ object}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00166}00166\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ An\ estimator\ that\ has\ already\ been\ :term:\`{}fitted\`{}\ and\ is\ compatible}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00167}00167\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ with\ :term:\`{}scorer\`{}.}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00168}00168\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00169}00169\ \textcolor{stringliteral}{\ \ \ \ X\ :\ ndarray\ or\ DataFrame,\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00170}00170\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Data\ on\ which\ permutation\ importance\ will\ be\ computed.}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00171}00171\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00172}00172\ \textcolor{stringliteral}{\ \ \ \ y\ :\ array-\/like\ or\ None,\ shape\ (n\_samples,\ )\ or\ (n\_samples,\ n\_classes)}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00173}00173\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Targets\ for\ supervised\ or\ \`{}None\`{}\ for\ unsupervised.}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00174}00174\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00175}00175\ \textcolor{stringliteral}{\ \ \ \ scoring\ :\ str,\ callable,\ list,\ tuple,\ or\ dict,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00176}00176\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Scorer\ to\ use.}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00177}00177\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ \`{}scoring\`{}\ represents\ a\ single\ score,\ one\ can\ use:}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00178}00178\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00179}00179\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ str:\ see\ :ref:\`{}scoring\_string\_names\`{}\ for\ options.}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00180}00180\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ callable:\ a\ scorer\ callable\ object\ (e.g.,\ function)\ with\ signature}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00181}00181\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \`{}\`{}scorer(estimator,\ X,\ y)\`{}\`{}.\ See\ :ref:\`{}scoring\_callable\`{}\ for\ details.}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00182}00182\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ \`{}None\`{}:\ the\ \`{}estimator\`{}'s}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00183}00183\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ :ref:\`{}default\ evaluation\ criterion\ <scoring\_api\_overview>\`{}\ is\ used.}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00184}00184\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00185}00185\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ \`{}scoring\`{}\ represents\ multiple\ scores,\ one\ can\ use:}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00186}00186\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00187}00187\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ a\ list\ or\ tuple\ of\ unique\ strings;}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00188}00188\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ a\ callable\ returning\ a\ dictionary\ where\ the\ keys\ are\ the\ metric}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00189}00189\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ names\ and\ the\ values\ are\ the\ metric\ scores;}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00190}00190\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ a\ dictionary\ with\ metric\ names\ as\ keys\ and\ callables\ a\ values.}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00191}00191\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00192}00192\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Passing\ multiple\ scores\ to\ \`{}scoring\`{}\ is\ more\ efficient\ than\ calling}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00193}00193\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}permutation\_importance\`{}\ for\ each\ of\ the\ scores\ as\ it\ reuses}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00194}00194\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ predictions\ to\ avoid\ redundant\ computation.}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00195}00195\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00196}00196\ \textcolor{stringliteral}{\ \ \ \ n\_repeats\ :\ int,\ default=5}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00197}00197\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ times\ to\ permute\ a\ feature.}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00198}00198\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00199}00199\ \textcolor{stringliteral}{\ \ \ \ n\_jobs\ :\ int\ or\ None,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00200}00200\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ jobs\ to\ run\ in\ parallel.\ The\ computation\ is\ done\ by\ computing}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00201}00201\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ permutation\ score\ for\ each\ columns\ and\ parallelized\ over\ the\ columns.}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00202}00202\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}None\`{}\ means\ 1\ unless\ in\ a\ :obj:\`{}joblib.parallel\_backend\`{}\ context.}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00203}00203\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}-\/1\`{}\ means\ using\ all\ processors.\ See\ :term:\`{}Glossary\ <n\_jobs>\`{}}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00204}00204\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ for\ more\ details.}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00205}00205\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00206}00206\ \textcolor{stringliteral}{\ \ \ \ random\_state\ :\ int,\ RandomState\ instance,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00207}00207\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Pseudo-\/random\ number\ generator\ to\ control\ the\ permutations\ of\ each}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00208}00208\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ feature.}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00209}00209\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Pass\ an\ int\ to\ get\ reproducible\ results\ across\ function\ calls.}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00210}00210\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ See\ :term:\`{}Glossary\ <random\_state>\`{}.}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00211}00211\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00212}00212\ \textcolor{stringliteral}{\ \ \ \ sample\_weight\ :\ array-\/like\ of\ shape\ (n\_samples,),\ default=None}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00213}00213\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Sample\ weights\ used\ in\ scoring.}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00214}00214\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00215}00215\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 0.24}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00216}00216\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00217}00217\ \textcolor{stringliteral}{\ \ \ \ max\_samples\ :\ int\ or\ float,\ default=1.0}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00218}00218\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ number\ of\ samples\ to\ draw\ from\ X\ to\ compute\ feature\ importance}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00219}00219\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ in\ each\ repeat\ (without\ replacement).}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00220}00220\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00221}00221\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ If\ int,\ then\ draw\ \`{}max\_samples\`{}\ samples.}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00222}00222\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ If\ float,\ then\ draw\ \`{}max\_samples\ *\ X.shape[0]\`{}\ samples.}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00223}00223\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ If\ \`{}max\_samples\`{}\ is\ equal\ to\ \`{}1.0\`{}\ or\ \`{}X.shape[0]\`{},\ all\ samples}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00224}00224\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ will\ be\ used.}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00225}00225\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00226}00226\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ While\ using\ this\ option\ may\ provide\ less\ accurate\ importance\ estimates,}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00227}00227\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ it\ keeps\ the\ method\ tractable\ when\ evaluating\ feature\ importance\ on}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00228}00228\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ large\ datasets.\ In\ combination\ with\ \`{}n\_repeats\`{},\ this\ allows\ to\ control}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00229}00229\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ computational\ speed\ vs\ statistical\ accuracy\ trade-\/off\ of\ this\ method.}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00230}00230\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00231}00231\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 1.0}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00232}00232\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00233}00233\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00234}00234\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00235}00235\ \textcolor{stringliteral}{\ \ \ \ result\ :\ :class:\`{}\string~sklearn.utils.Bunch\`{}\ or\ dict\ of\ such\ instances}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00236}00236\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Dictionary-\/like\ object,\ with\ the\ following\ attributes.}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00237}00237\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00238}00238\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ importances\_mean\ :\ ndarray\ of\ shape\ (n\_features,\ )}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00239}00239\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Mean\ of\ feature\ importance\ over\ \`{}n\_repeats\`{}.}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00240}00240\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ importances\_std\ :\ ndarray\ of\ shape\ (n\_features,\ )}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00241}00241\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Standard\ deviation\ over\ \`{}n\_repeats\`{}.}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00242}00242\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ importances\ :\ ndarray\ of\ shape\ (n\_features,\ n\_repeats)}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00243}00243\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Raw\ permutation\ importance\ scores.}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00244}00244\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00245}00245\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ there\ are\ multiple\ scoring\ metrics\ in\ the\ scoring\ parameter}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00246}00246\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}result\`{}\ is\ a\ dict\ with\ scorer\ names\ as\ keys\ (e.g.\ 'roc\_auc')\ and}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00247}00247\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}Bunch\`{}\ objects\ like\ above\ as\ values.}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00248}00248\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00249}00249\ \textcolor{stringliteral}{\ \ \ \ References}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00250}00250\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00251}00251\ \textcolor{stringliteral}{\ \ \ \ ..\ [BRE]\ :doi:\`{}L.\ Breiman,\ "{}Random\ Forests"{},\ Machine\ Learning,\ 45(1),\ 5-\/32,}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00252}00252\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ 2001.\ <10.1023/A:1010933404324>\`{}}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00253}00253\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00254}00254\ \textcolor{stringliteral}{\ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00255}00255\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00256}00256\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.linear\_model\ import\ LogisticRegression}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00257}00257\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.inspection\ import\ permutation\_importance}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00258}00258\ \textcolor{stringliteral}{\ \ \ \ >>>\ X\ =\ [[1,\ 9,\ 9],[1,\ 9,\ 9],[1,\ 9,\ 9],}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00259}00259\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ [0,\ 9,\ 9],[0,\ 9,\ 9],[0,\ 9,\ 9]]}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00260}00260\ \textcolor{stringliteral}{\ \ \ \ >>>\ y\ =\ [1,\ 1,\ 1,\ 0,\ 0,\ 0]}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00261}00261\ \textcolor{stringliteral}{\ \ \ \ >>>\ clf\ =\ LogisticRegression().fit(X,\ y)}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00262}00262\ \textcolor{stringliteral}{\ \ \ \ >>>\ result\ =\ permutation\_importance(clf,\ X,\ y,\ n\_repeats=10,}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00263}00263\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ random\_state=0)}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00264}00264\ \textcolor{stringliteral}{\ \ \ \ >>>\ result.importances\_mean}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00265}00265\ \textcolor{stringliteral}{\ \ \ \ array([0.4666,\ 0.\ \ \ \ \ \ \ ,\ 0.\ \ \ \ \ \ \ ])}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00266}00266\ \textcolor{stringliteral}{\ \ \ \ >>>\ result.importances\_std}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00267}00267\ \textcolor{stringliteral}{\ \ \ \ array([0.2211,\ 0.\ \ \ \ \ \ \ ,\ 0.\ \ \ \ \ \ \ ])}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00268}00268\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00269}00269\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ hasattr(X,\ \textcolor{stringliteral}{"{}iloc"{}}):}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00270}00270\ \ \ \ \ \ \ \ \ X\ =\ check\_array(X,\ ensure\_all\_finite=\textcolor{stringliteral}{"{}allow-\/nan"{}},\ dtype=\textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00271}00271\ }
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00272}00272\ \ \ \ \ \textcolor{comment}{\#\ Precompute\ random\ seed\ from\ the\ random\ state\ to\ be\ used}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00273}00273\ \ \ \ \ \textcolor{comment}{\#\ to\ get\ a\ fresh\ independent\ RandomState\ instance\ for\ each}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00274}00274\ \ \ \ \ \textcolor{comment}{\#\ parallel\ call\ to\ \_calculate\_permutation\_scores,\ irrespective\ of}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00275}00275\ \ \ \ \ \textcolor{comment}{\#\ the\ fact\ that\ variables\ are\ shared\ or\ not\ depending\ on\ the\ active}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00276}00276\ \ \ \ \ \textcolor{comment}{\#\ joblib\ backend\ (sequential,\ thread-\/based\ or\ process-\/based).}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00277}00277\ \ \ \ \ random\_state\ =\ check\_random\_state(random\_state)}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00278}00278\ \ \ \ \ random\_seed\ =\ random\_state.randint(np.iinfo(np.int32).max\ +\ 1)}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00279}00279\ }
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00280}00280\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ isinstance(max\_samples,\ numbers.Integral):}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00281}00281\ \ \ \ \ \ \ \ \ max\_samples\ =\ int(max\_samples\ *\ X.shape[0])}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00282}00282\ \ \ \ \ \textcolor{keywordflow}{elif}\ max\_samples\ >\ X.shape[0]:}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00283}00283\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}max\_samples\ must\ be\ <=\ n\_samples"{}})}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00284}00284\ }
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00285}00285\ \ \ \ \ scorer\ =\ check\_scoring(estimator,\ scoring=scoring)}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00286}00286\ \ \ \ \ baseline\_score\ =\ \_weights\_scorer(scorer,\ estimator,\ X,\ y,\ sample\_weight)}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00287}00287\ }
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00288}00288\ \ \ \ \ scores\ =\ \mbox{\hyperlink{classsklearn_1_1utils_1_1parallel_1_1Parallel}{Parallel}}(n\_jobs=n\_jobs)(}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00289}00289\ \ \ \ \ \ \ \ \ delayed(\_calculate\_permutation\_scores)(}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00290}00290\ \ \ \ \ \ \ \ \ \ \ \ \ estimator,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00291}00291\ \ \ \ \ \ \ \ \ \ \ \ \ X,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00292}00292\ \ \ \ \ \ \ \ \ \ \ \ \ y,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00293}00293\ \ \ \ \ \ \ \ \ \ \ \ \ sample\_weight,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00294}00294\ \ \ \ \ \ \ \ \ \ \ \ \ col\_idx,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00295}00295\ \ \ \ \ \ \ \ \ \ \ \ \ random\_seed,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00296}00296\ \ \ \ \ \ \ \ \ \ \ \ \ n\_repeats,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00297}00297\ \ \ \ \ \ \ \ \ \ \ \ \ scorer,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00298}00298\ \ \ \ \ \ \ \ \ \ \ \ \ max\_samples,}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00299}00299\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00300}00300\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ col\_idx\ \textcolor{keywordflow}{in}\ range(X.shape[1])}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00301}00301\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00302}00302\ }
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00303}00303\ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(baseline\_score,\ dict):}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00304}00304\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \{}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00305}00305\ \ \ \ \ \ \ \ \ \ \ \ \ name:\ \mbox{\hyperlink{namespacesklearn_1_1inspection_1_1__permutation__importance_a3fec4d55ca3c27b0924fae0d6ed4456d}{\_create\_importances\_bunch}}(}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00306}00306\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ baseline\_score[name],}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00307}00307\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ unpack\ the\ permuted\ scores}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00308}00308\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ np.array([scores[col\_idx][name]\ \textcolor{keywordflow}{for}\ col\_idx\ \textcolor{keywordflow}{in}\ range(X.shape[1])]),}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00309}00309\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00310}00310\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ name\ \textcolor{keywordflow}{in}\ baseline\_score}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00311}00311\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00312}00312\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__permutation__importance_8py_source_l00313}00313\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{namespacesklearn_1_1inspection_1_1__permutation__importance_a3fec4d55ca3c27b0924fae0d6ed4456d}{\_create\_importances\_bunch}}(baseline\_score,\ np.array(scores))}
+
+\end{DoxyCode}

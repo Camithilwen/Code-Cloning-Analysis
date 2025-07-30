@@ -1,0 +1,1214 @@
+\doxysection{ops.\+py}
+\hypertarget{core_2groupby_2ops_8py_source}{}\label{core_2groupby_2ops_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/pandas/core/groupby/ops.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/pandas/core/groupby/ops.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00001}\mbox{\hyperlink{namespacepandas_1_1core_1_1groupby_1_1ops}{00001}}\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00002}00002\ \textcolor{stringliteral}{Provide\ classes\ to\ perform\ the\ groupby\ aggregate\ operations.}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00003}00003\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00004}00004\ \textcolor{stringliteral}{These\ are\ not\ exposed\ to\ the\ user\ and\ provide\ implementations\ of\ the\ grouping}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00005}00005\ \textcolor{stringliteral}{operations,\ primarily\ in\ cython.\ These\ classes\ (BaseGrouper\ and\ BinGrouper)}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00006}00006\ \textcolor{stringliteral}{are\ contained\ *in*\ the\ SeriesGroupBy\ and\ DataFrameGroupBy\ objects.}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00007}00007\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00008}00008\ \textcolor{keyword}{from}\ \_\_future\_\_\ \textcolor{keyword}{import}\ annotations}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00009}00009\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00010}00010\ \textcolor{keyword}{import}\ collections}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00011}00011\ \textcolor{keyword}{import}\ functools}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00012}00012\ \textcolor{keyword}{from}\ typing\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00013}00013\ \ \ \ \ TYPE\_CHECKING,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00014}00014\ \ \ \ \ Callable,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00015}00015\ \ \ \ \ Generic,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00016}00016\ \ \ \ \ final,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00017}00017\ )}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00018}00018\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00019}00019\ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00020}00020\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00021}00021\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1__libs}{pandas.\_libs}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00022}00022\ \ \ \ \ NaT,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00023}00023\ \ \ \ \ lib,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00024}00024\ )}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00025}00025\ \textcolor{keyword}{import}\ pandas.\_libs.groupby\ \textcolor{keyword}{as}\ libgroupby}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00026}00026\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1__typing}{pandas.\_typing}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00027}00027\ \ \ \ \ ArrayLike,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00028}00028\ \ \ \ \ AxisInt,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00029}00029\ \ \ \ \ NDFrameT,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00030}00030\ \ \ \ \ Shape,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00031}00031\ \ \ \ \ npt,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00032}00032\ )}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00033}00033\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1errors}{pandas.errors}}\ \textcolor{keyword}{import}\ AbstractMethodError}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00034}00034\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1util_1_1__decorators}{pandas.util.\_decorators}}\ \textcolor{keyword}{import}\ cache\_readonly}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00035}00035\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00036}00036\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1dtypes_1_1cast}{pandas.core.dtypes.cast}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00037}00037\ \ \ \ \ maybe\_cast\_pointwise\_result,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00038}00038\ \ \ \ \ maybe\_downcast\_to\_dtype,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00039}00039\ )}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00040}00040\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1dtypes_1_1common}{pandas.core.dtypes.common}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00041}00041\ \ \ \ \ ensure\_float64,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00042}00042\ \ \ \ \ ensure\_int64,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00043}00043\ \ \ \ \ ensure\_platform\_int,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00044}00044\ \ \ \ \ ensure\_uint64,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00045}00045\ \ \ \ \ is\_1d\_only\_ea\_dtype,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00046}00046\ )}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00047}00047\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1dtypes_1_1missing}{pandas.core.dtypes.missing}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00048}00048\ \ \ \ \ isna,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00049}00049\ \ \ \ \ maybe\_fill,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00050}00050\ )}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00051}00051\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00052}00052\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1frame}{pandas.core.frame}}\ \textcolor{keyword}{import}\ DataFrame}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00053}00053\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1groupby}{pandas.core.groupby}}\ \textcolor{keyword}{import}\ grouper}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00054}00054\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1indexes_1_1api}{pandas.core.indexes.api}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00055}00055\ \ \ \ \ CategoricalIndex,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00056}00056\ \ \ \ \ Index,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00057}00057\ \ \ \ \ MultiIndex,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00058}00058\ \ \ \ \ ensure\_index,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00059}00059\ )}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00060}00060\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1series}{pandas.core.series}}\ \textcolor{keyword}{import}\ Series}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00061}00061\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1sorting}{pandas.core.sorting}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00062}00062\ \ \ \ \ compress\_group\_index,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00063}00063\ \ \ \ \ decons\_obs\_group\_ids,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00064}00064\ \ \ \ \ get\_flattened\_list,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00065}00065\ \ \ \ \ get\_group\_index,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00066}00066\ \ \ \ \ get\_group\_index\_sorter,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00067}00067\ \ \ \ \ get\_indexer\_dict,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00068}00068\ )}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00069}00069\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00070}00070\ \textcolor{keywordflow}{if}\ TYPE\_CHECKING:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00071}00071\ \ \ \ \ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacecollections_1_1abc}{collections.abc}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00072}00072\ \ \ \ \ \ \ \ \ Hashable,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00073}00073\ \ \ \ \ \ \ \ \ Iterator,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00074}00074\ \ \ \ \ \ \ \ \ Sequence,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00075}00075\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00076}00076\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00077}00077\ \ \ \ \ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1generic}{pandas.core.generic}}\ \textcolor{keyword}{import}\ NDFrame}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00078}00078\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00079}00079\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00080}00080\ \textcolor{keyword}{def\ }check\_result\_array(obj,\ dtype)\ -\/>\ None:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00081}00081\ \ \ \ \ \textcolor{comment}{\#\ Our\ operation\ is\ supposed\ to\ be\ an\ aggregation/reduction.\ If}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00082}00082\ \ \ \ \ \textcolor{comment}{\#\ \ it\ returns\ an\ ndarray,\ this\ likely\ means\ an\ invalid\ operation\ has}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00083}00083\ \ \ \ \ \textcolor{comment}{\#\ \ been\ passed.\ See\ test\_apply\_without\_aggregation,\ test\_agg\_must\_agg}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00084}00084\ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(obj,\ np.ndarray):}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00085}00085\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ dtype\ !=\ object:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00086}00086\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ If\ it\ is\ object\ dtype,\ the\ function\ can\ be\ a\ reduction/aggregation}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00087}00087\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ and\ still\ return\ an\ ndarray\ e.g.\ test\_agg\_over\_numpy\_arrays}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00088}00088\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}Must\ produce\ aggregated\ value"{}})}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00089}00089\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00090}00090\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00091}\mbox{\hyperlink{namespacepandas_1_1core_1_1groupby_1_1ops_a5eb51784c9135e2ab89da6a517e055b9}{00091}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1core_1_1groupby_1_1ops_a5eb51784c9135e2ab89da6a517e055b9}{extract\_result}}(res):}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00092}00092\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00093}00093\ \textcolor{stringliteral}{\ \ \ \ Extract\ the\ result\ object,\ it\ might\ be\ a\ 0-\/dim\ ndarray}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00094}00094\ \textcolor{stringliteral}{\ \ \ \ or\ a\ len-\/1\ 0-\/dim,\ or\ a\ scalar}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00095}00095\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00096}00096\ \ \ \ \ \textcolor{keywordflow}{if}\ hasattr(res,\ \textcolor{stringliteral}{"{}\_values"{}}):}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00097}00097\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Preserve\ EA}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00098}00098\ \ \ \ \ \ \ \ \ res\ =\ res.\_values}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00099}00099\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ res.ndim\ ==\ 1\ \textcolor{keywordflow}{and}\ len(res)\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00100}00100\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ see\ test\_agg\_lambda\_with\_timezone,\ test\_resampler\_grouper.py::test\_apply}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00101}00101\ \ \ \ \ \ \ \ \ \ \ \ \ res\ =\ res[0]}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00102}00102\ \ \ \ \ \textcolor{keywordflow}{return}\ res}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00103}00103\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00104}00104\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00105}\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp}{00105}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp}{WrappedCythonOp}}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00106}00106\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00107}00107\ \textcolor{stringliteral}{\ \ \ \ Dispatch\ logic\ for\ functions\ defined\ in\ \_libs.groupby}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00108}00108\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00109}00109\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00110}00110\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00111}00111\ \textcolor{stringliteral}{\ \ \ \ kind:\ str}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00112}00112\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Whether\ the\ operation\ is\ an\ aggregate\ or\ transform.}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00113}00113\ \textcolor{stringliteral}{\ \ \ \ how:\ str}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00114}00114\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Operation\ name,\ e.g.\ "{}mean"{}.}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00115}00115\ \textcolor{stringliteral}{\ \ \ \ has\_dropped\_na:\ bool}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00116}00116\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ True\ precisely\ when\ dropna=True\ and\ the\ grouper\ contains\ a\ null\ value.}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00117}00117\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00118}00118\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00119}00119\ \ \ \ \ \textcolor{comment}{\#\ Functions\ for\ which\ we\ do\ \_not\_\ attempt\ to\ cast\ the\ cython\ result}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00120}00120\ \ \ \ \ \textcolor{comment}{\#\ \ back\ to\ the\ original\ dtype.}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00121}00121\ \ \ \ \ cast\_blocklist\ =\ frozenset(}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00122}00122\ \ \ \ \ \ \ \ \ [\textcolor{stringliteral}{"{}any"{}},\ \textcolor{stringliteral}{"{}all"{}},\ \textcolor{stringliteral}{"{}rank"{}},\ \textcolor{stringliteral}{"{}count"{}},\ \textcolor{stringliteral}{"{}size"{}},\ \textcolor{stringliteral}{"{}idxmin"{}},\ \textcolor{stringliteral}{"{}idxmax"{}}]}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00123}00123\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00124}00124\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00125}00125\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ kind:\ str,\ how:\ str,\ has\_dropped\_na:\ bool)\ -\/>\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00126}00126\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_af1f6884199f917776fe787d2d9bee6a7}{kind}}\ =\ kind}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00127}00127\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_a942f252adb10ac74e964f53965163bc3}{how}}\ =\ how}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00128}00128\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_a6fe613dbbcda46983d8303faf4f493e0}{has\_dropped\_na}}\ =\ has\_dropped\_na}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00129}00129\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00130}00130\ \ \ \ \ \_CYTHON\_FUNCTIONS:\ dict[str,\ dict]\ =\ \{}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00131}00131\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}aggregate"{}}:\ \{}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00132}00132\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}any"{}}:\ functools.partial(libgroupby.group\_any\_all,\ val\_test=\textcolor{stringliteral}{"{}any"{}}),}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00133}00133\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}all"{}}:\ functools.partial(libgroupby.group\_any\_all,\ val\_test=\textcolor{stringliteral}{"{}all"{}}),}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00134}00134\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}sum"{}}:\ \textcolor{stringliteral}{"{}group\_sum"{}},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00135}00135\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}prod"{}}:\ \textcolor{stringliteral}{"{}group\_prod"{}},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00136}00136\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}idxmin"{}}:\ functools.partial(libgroupby.group\_idxmin\_idxmax,\ name=\textcolor{stringliteral}{"{}idxmin"{}}),}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00137}00137\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}idxmax"{}}:\ functools.partial(libgroupby.group\_idxmin\_idxmax,\ name=\textcolor{stringliteral}{"{}idxmax"{}}),}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00138}00138\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}min"{}}:\ \textcolor{stringliteral}{"{}group\_min"{}},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00139}00139\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}max"{}}:\ \textcolor{stringliteral}{"{}group\_max"{}},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00140}00140\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}mean"{}}:\ \textcolor{stringliteral}{"{}group\_mean"{}},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00141}00141\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}median"{}}:\ \textcolor{stringliteral}{"{}group\_median\_float64"{}},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00142}00142\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}var"{}}:\ \textcolor{stringliteral}{"{}group\_var"{}},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00143}00143\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}std"{}}:\ functools.partial(libgroupby.group\_var,\ name=\textcolor{stringliteral}{"{}std"{}}),}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00144}00144\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}sem"{}}:\ functools.partial(libgroupby.group\_var,\ name=\textcolor{stringliteral}{"{}sem"{}}),}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00145}00145\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}skew"{}}:\ \textcolor{stringliteral}{"{}group\_skew"{}},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00146}00146\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}first"{}}:\ \textcolor{stringliteral}{"{}group\_nth"{}},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00147}00147\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}last"{}}:\ \textcolor{stringliteral}{"{}group\_last"{}},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00148}00148\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}ohlc"{}}:\ \textcolor{stringliteral}{"{}group\_ohlc"{}},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00149}00149\ \ \ \ \ \ \ \ \ \},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00150}00150\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}transform"{}}:\ \{}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00151}00151\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}cumprod"{}}:\ \textcolor{stringliteral}{"{}group\_cumprod"{}},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00152}00152\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}cumsum"{}}:\ \textcolor{stringliteral}{"{}group\_cumsum"{}},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00153}00153\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}cummin"{}}:\ \textcolor{stringliteral}{"{}group\_cummin"{}},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00154}00154\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}cummax"{}}:\ \textcolor{stringliteral}{"{}group\_cummax"{}},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00155}00155\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}rank"{}}:\ \textcolor{stringliteral}{"{}group\_rank"{}},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00156}00156\ \ \ \ \ \ \ \ \ \},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00157}00157\ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00158}00158\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00159}00159\ \ \ \ \ \_cython\_arity\ =\ \{\textcolor{stringliteral}{"{}ohlc"{}}:\ 4\}\ \ \textcolor{comment}{\#\ OHLC}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00160}00160\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00161}00161\ \ \ \ \ \textcolor{preprocessor}{@classmethod}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00162}00162\ \ \ \ \ \textcolor{keyword}{def\ }get\_kind\_from\_how(cls,\ how:\ str)\ -\/>\ str:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00163}00163\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ how\ \textcolor{keywordflow}{in}\ cls.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_a9ac192dc484fee25c33a84ed4795ef86}{\_CYTHON\_FUNCTIONS}}[\textcolor{stringliteral}{"{}aggregate"{}}]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00164}00164\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{stringliteral}{"{}aggregate"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00165}00165\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{stringliteral}{"{}transform"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00166}00166\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00167}00167\ \ \ \ \ \textcolor{comment}{\#\ Note:\ we\ make\ this\ a\ classmethod\ and\ pass\ kind+how\ so\ that\ caching}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00168}00168\ \ \ \ \ \textcolor{comment}{\#\ \ works\ at\ the\ class\ level\ and\ not\ the\ instance\ level}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00169}00169\ \ \ \ \ \textcolor{preprocessor}{@classmethod}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00170}00170\ \ \ \ \ \textcolor{preprocessor}{@functools.cache}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00171}00171\ \ \ \ \ \textcolor{keyword}{def\ }\_get\_cython\_function(}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00172}00172\ \ \ \ \ \ \ \ \ cls,\ kind:\ str,\ how:\ str,\ dtype:\ np.dtype,\ is\_numeric:\ bool}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00173}00173\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00174}00174\ \ \ \ \ \ \ \ \ dtype\_str\ =\ dtype.name}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00175}00175\ \ \ \ \ \ \ \ \ ftype\ =\ cls.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_a9ac192dc484fee25c33a84ed4795ef86}{\_CYTHON\_FUNCTIONS}}[kind][how]}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00176}00176\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00177}00177\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ see\ if\ there\ is\ a\ fused-\/type\ version\ of\ function}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00178}00178\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ only\ valid\ for\ numeric}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00179}00179\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ callable(ftype):}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00180}00180\ \ \ \ \ \ \ \ \ \ \ \ \ f\ =\ ftype}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00181}00181\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00182}00182\ \ \ \ \ \ \ \ \ \ \ \ \ f\ =\ getattr(libgroupby,\ ftype)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00183}00183\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ is\_numeric:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00184}00184\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ f}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00185}00185\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ dtype\ ==\ np.dtype(object):}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00186}00186\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ how\ \textcolor{keywordflow}{in}\ [\textcolor{stringliteral}{"{}median"{}},\ \textcolor{stringliteral}{"{}cumprod"{}}]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00187}00187\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ no\ fused\ types\ -\/>\ no\ \_\_signatures\_\_}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00188}00188\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classNotImplementedError}{NotImplementedError}}(}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00189}00189\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}function\ is\ not\ implemented\ for\ this\ dtype:\ "{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00190}00190\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}[how-\/>\{how\},dtype-\/>\{dtype\_str\}]"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00191}00191\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00192}00192\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ how\ \textcolor{keywordflow}{in}\ [\textcolor{stringliteral}{"{}std"{}},\ \textcolor{stringliteral}{"{}sem"{}},\ \textcolor{stringliteral}{"{}idxmin"{}},\ \textcolor{stringliteral}{"{}idxmax"{}}]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00193}00193\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ We\ have\ a\ partial\ object\ that\ does\ not\ have\ \_\_signatures\_\_}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00194}00194\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ f}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00195}00195\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ how\ ==\ \textcolor{stringliteral}{"{}skew"{}}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00196}00196\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \_get\_cython\_vals\ will\ convert\ to\ float64}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00197}00197\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{pass}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00198}00198\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ \textcolor{stringliteral}{"{}object"{}}\ \textcolor{keywordflow}{not}\ \textcolor{keywordflow}{in}\ f.\_\_signatures\_\_:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00199}00199\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ raise\ NotImplementedError\ here\ rather\ than\ TypeError\ later}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00200}00200\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classNotImplementedError}{NotImplementedError}}(}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00201}00201\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}function\ is\ not\ implemented\ for\ this\ dtype:\ "{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00202}00202\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}[how-\/>\{how\},dtype-\/>\{dtype\_str\}]"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00203}00203\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00204}00204\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ f}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00205}00205\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00206}00206\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classNotImplementedError}{NotImplementedError}}(}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00207}00207\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}This\ should\ not\ be\ reached.\ Please\ report\ a\ bug\ at\ "{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00208}00208\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}github.com/pandas-\/dev/pandas/"{}},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00209}00209\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ dtype,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00210}00210\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00211}00211\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00212}\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_aa7ec1961fbeeb4add84790ee9e1cbb63}{00212}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_aa7ec1961fbeeb4add84790ee9e1cbb63}{\_get\_cython\_vals}}(self,\ values:\ np.ndarray)\ -\/>\ np.ndarray:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00213}00213\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00214}00214\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Cast\ numeric\ dtypes\ to\ float64\ for\ functions\ that\ only\ support\ that.}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00215}00215\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00216}00216\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00217}00217\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00218}00218\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ values\ :\ np.ndarray}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00219}00219\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00220}00220\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00221}00221\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00222}00222\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ values\ :\ np.ndarray}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00223}00223\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00224}00224\ \ \ \ \ \ \ \ \ how\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_a942f252adb10ac74e964f53965163bc3}{how}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00225}00225\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00226}00226\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ how\ \textcolor{keywordflow}{in}\ [\textcolor{stringliteral}{"{}median"{}},\ \textcolor{stringliteral}{"{}std"{}},\ \textcolor{stringliteral}{"{}sem"{}},\ \textcolor{stringliteral}{"{}skew"{}}]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00227}00227\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ median\ only\ has\ a\ float64\ implementation}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00228}00228\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ We\ should\ only\ get\ here\ with\ is\_numeric,\ as\ non-\/numeric\ cases}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00229}00229\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ should\ raise\ in\ \_get\_cython\_function}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00230}00230\ \ \ \ \ \ \ \ \ \ \ \ \ values\ =\ ensure\_float64(values)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00231}00231\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00232}00232\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ values.dtype.kind\ \textcolor{keywordflow}{in}\ \textcolor{stringliteral}{"{}iu"{}}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00233}00233\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ how\ \textcolor{keywordflow}{in}\ [\textcolor{stringliteral}{"{}var"{}},\ \textcolor{stringliteral}{"{}mean"{}}]\ \textcolor{keywordflow}{or}\ (}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00234}00234\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_af1f6884199f917776fe787d2d9bee6a7}{kind}}\ ==\ \textcolor{stringliteral}{"{}transform"{}}\ \textcolor{keywordflow}{and}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_a6fe613dbbcda46983d8303faf4f493e0}{has\_dropped\_na}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00235}00235\ \ \ \ \ \ \ \ \ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00236}00236\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ has\_dropped\_na\ check\ need\ for\ test\_null\_group\_str\_transformer}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00237}00237\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ result\ may\ still\ include\ NaN,\ so\ we\ have\ to\ cast}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00238}00238\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ values\ =\ ensure\_float64(values)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00239}00239\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00240}00240\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ how\ \textcolor{keywordflow}{in}\ [\textcolor{stringliteral}{"{}sum"{}},\ \textcolor{stringliteral}{"{}ohlc"{}},\ \textcolor{stringliteral}{"{}prod"{}},\ \textcolor{stringliteral}{"{}cumsum"{}},\ \textcolor{stringliteral}{"{}cumprod"{}}]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00241}00241\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Avoid\ overflow\ during\ group\ op}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00242}00242\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ values.dtype.kind\ ==\ \textcolor{stringliteral}{"{}i"{}}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00243}00243\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ values\ =\ ensure\_int64(values)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00244}00244\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00245}00245\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ values\ =\ ensure\_uint64(values)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00246}00246\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00247}00247\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ values}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00248}00248\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00249}00249\ \ \ \ \ \textcolor{keyword}{def\ }\_get\_output\_shape(self,\ ngroups:\ int,\ values:\ np.ndarray)\ -\/>\ Shape:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00250}00250\ \ \ \ \ \ \ \ \ how\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_a942f252adb10ac74e964f53965163bc3}{how}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00251}00251\ \ \ \ \ \ \ \ \ kind\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_af1f6884199f917776fe787d2d9bee6a7}{kind}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00252}00252\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00253}00253\ \ \ \ \ \ \ \ \ arity\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_ad1ab9191873e6fb0ad1b9632aacef136}{\_cython\_arity}}.get(how,\ 1)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00254}00254\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00255}00255\ \ \ \ \ \ \ \ \ out\_shape:\ Shape}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00256}00256\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ how\ ==\ \textcolor{stringliteral}{"{}ohlc"{}}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00257}00257\ \ \ \ \ \ \ \ \ \ \ \ \ out\_shape\ =\ (ngroups,\ arity)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00258}00258\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ arity\ >\ 1:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00259}00259\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classNotImplementedError}{NotImplementedError}}(}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00260}00260\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}arity\ of\ more\ than\ 1\ is\ not\ supported\ for\ the\ 'how'\ argument"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00261}00261\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00262}00262\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ kind\ ==\ \textcolor{stringliteral}{"{}transform"{}}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00263}00263\ \ \ \ \ \ \ \ \ \ \ \ \ out\_shape\ =\ values.shape}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00264}00264\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00265}00265\ \ \ \ \ \ \ \ \ \ \ \ \ out\_shape\ =\ (ngroups,)\ +\ values.shape[1:]}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00266}00266\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ out\_shape}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00267}00267\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00268}00268\ \ \ \ \ \textcolor{keyword}{def\ }\_get\_out\_dtype(self,\ dtype:\ np.dtype)\ -\/>\ np.dtype:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00269}00269\ \ \ \ \ \ \ \ \ how\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_a942f252adb10ac74e964f53965163bc3}{how}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00270}00270\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00271}00271\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ how\ ==\ \textcolor{stringliteral}{"{}rank"{}}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00272}00272\ \ \ \ \ \ \ \ \ \ \ \ \ out\_dtype\ =\ \textcolor{stringliteral}{"{}float64"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00273}00273\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ how\ \textcolor{keywordflow}{in}\ [\textcolor{stringliteral}{"{}idxmin"{}},\ \textcolor{stringliteral}{"{}idxmax"{}}]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00274}00274\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ Cython\ implementation\ only\ produces\ the\ row\ number;\ we'll\ take}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00275}00275\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ from\ the\ index\ using\ this\ in\ post\ processing}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00276}00276\ \ \ \ \ \ \ \ \ \ \ \ \ out\_dtype\ =\ \textcolor{stringliteral}{"{}intp"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00277}00277\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00278}00278\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ dtype.kind\ \textcolor{keywordflow}{in}\ \textcolor{stringliteral}{"{}iufcb"{}}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00279}00279\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ out\_dtype\ =\ f\textcolor{stringliteral}{"{}\{dtype.kind\}\{dtype.itemsize\}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00280}00280\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00281}00281\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ out\_dtype\ =\ \textcolor{stringliteral}{"{}object"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00282}00282\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ np.dtype(out\_dtype)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00283}00283\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00284}\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_a8b47be723862b53a59e413365ea10c3f}{00284}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_a8b47be723862b53a59e413365ea10c3f}{\_get\_result\_dtype}}(self,\ dtype:\ np.dtype)\ -\/>\ np.dtype:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00285}00285\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00286}00286\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Get\ the\ desired\ dtype\ of\ a\ result\ based\ on\ the}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00287}00287\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ input\ dtype\ and\ how\ it\ was\ computed.}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00288}00288\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00289}00289\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00290}00290\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00291}00291\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ dtype\ :\ np.dtype}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00292}00292\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00293}00293\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00294}00294\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00295}00295\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ np.dtype}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00296}00296\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ desired\ dtype\ of\ the\ result.}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00297}00297\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00298}00298\ \ \ \ \ \ \ \ \ how\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_a942f252adb10ac74e964f53965163bc3}{how}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00299}00299\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00300}00300\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ how\ \textcolor{keywordflow}{in}\ [\textcolor{stringliteral}{"{}sum"{}},\ \textcolor{stringliteral}{"{}cumsum"{}},\ \textcolor{stringliteral}{"{}sum"{}},\ \textcolor{stringliteral}{"{}prod"{}},\ \textcolor{stringliteral}{"{}cumprod"{}}]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00301}00301\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ dtype\ ==\ np.dtype(bool):}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00302}00302\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ np.dtype(np.int64)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00303}00303\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ how\ \textcolor{keywordflow}{in}\ [\textcolor{stringliteral}{"{}mean"{}},\ \textcolor{stringliteral}{"{}median"{}},\ \textcolor{stringliteral}{"{}var"{}},\ \textcolor{stringliteral}{"{}std"{}},\ \textcolor{stringliteral}{"{}sem"{}}]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00304}00304\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ dtype.kind\ \textcolor{keywordflow}{in}\ \textcolor{stringliteral}{"{}fc"{}}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00305}00305\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ dtype}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00306}00306\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ dtype.kind\ \textcolor{keywordflow}{in}\ \textcolor{stringliteral}{"{}iub"{}}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00307}00307\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ np.dtype(np.float64)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00308}00308\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ dtype}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00309}00309\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00310}00310\ \ \ \ \ \textcolor{preprocessor}{@final}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00311}00311\ \ \ \ \ \textcolor{keyword}{def\ }\_cython\_op\_ndim\_compat(}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00312}00312\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00313}00313\ \ \ \ \ \ \ \ \ values:\ np.ndarray,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00314}00314\ \ \ \ \ \ \ \ \ *,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00315}00315\ \ \ \ \ \ \ \ \ min\_count:\ int,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00316}00316\ \ \ \ \ \ \ \ \ ngroups:\ int,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00317}00317\ \ \ \ \ \ \ \ \ comp\_ids:\ np.ndarray,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00318}00318\ \ \ \ \ \ \ \ \ mask:\ npt.NDArray[np.bool\_]\ |\ \textcolor{keywordtype}{None}\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00319}00319\ \ \ \ \ \ \ \ \ result\_mask:\ npt.NDArray[np.bool\_]\ |\ \textcolor{keywordtype}{None}\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00320}00320\ \ \ \ \ \ \ \ \ **kwargs,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00321}00321\ \ \ \ \ )\ -\/>\ np.ndarray:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00322}00322\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ values.ndim\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00323}00323\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ expand\ to\ 2d,\ dispatch,\ then\ squeeze\ if\ appropriate}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00324}00324\ \ \ \ \ \ \ \ \ \ \ \ \ values2d\ =\ values[\textcolor{keywordtype}{None},\ :]}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00325}00325\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ mask\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00326}00326\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ mask\ =\ mask[\textcolor{keywordtype}{None},\ :]}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00327}00327\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ result\_mask\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00328}00328\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ result\_mask\ =\ result\_mask[\textcolor{keywordtype}{None},\ :]}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00329}00329\ \ \ \ \ \ \ \ \ \ \ \ \ res\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_a31175d49ed1ad122bd4604219e025397}{\_call\_cython\_op}}(}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00330}00330\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ values2d,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00331}00331\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ min\_count=min\_count,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00332}00332\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ngroups=ngroups,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00333}00333\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ comp\_ids=comp\_ids,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00334}00334\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ mask=mask,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00335}00335\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ result\_mask=result\_mask,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00336}00336\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ **kwargs,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00337}00337\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00338}00338\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ res.shape[0]\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00339}00339\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ res[0]}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00340}00340\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00341}00341\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ otherwise\ we\ have\ OHLC}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00342}00342\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ res.T}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00343}00343\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00344}00344\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_a31175d49ed1ad122bd4604219e025397}{\_call\_cython\_op}}(}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00345}00345\ \ \ \ \ \ \ \ \ \ \ \ \ values,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00346}00346\ \ \ \ \ \ \ \ \ \ \ \ \ min\_count=min\_count,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00347}00347\ \ \ \ \ \ \ \ \ \ \ \ \ ngroups=ngroups,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00348}00348\ \ \ \ \ \ \ \ \ \ \ \ \ comp\_ids=comp\_ids,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00349}00349\ \ \ \ \ \ \ \ \ \ \ \ \ mask=mask,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00350}00350\ \ \ \ \ \ \ \ \ \ \ \ \ result\_mask=result\_mask,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00351}00351\ \ \ \ \ \ \ \ \ \ \ \ \ **kwargs,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00352}00352\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00353}00353\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00354}00354\ \ \ \ \ \textcolor{preprocessor}{@final}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00355}00355\ \ \ \ \ \textcolor{keyword}{def\ }\_call\_cython\_op(}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00356}00356\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00357}00357\ \ \ \ \ \ \ \ \ values:\ np.ndarray,\ \ \textcolor{comment}{\#\ np.ndarray[ndim=2]}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00358}00358\ \ \ \ \ \ \ \ \ *,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00359}00359\ \ \ \ \ \ \ \ \ min\_count:\ int,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00360}00360\ \ \ \ \ \ \ \ \ ngroups:\ int,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00361}00361\ \ \ \ \ \ \ \ \ comp\_ids:\ np.ndarray,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00362}00362\ \ \ \ \ \ \ \ \ mask:\ npt.NDArray[np.bool\_]\ |\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00363}00363\ \ \ \ \ \ \ \ \ result\_mask:\ npt.NDArray[np.bool\_]\ |\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00364}00364\ \ \ \ \ \ \ \ \ **kwargs,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00365}00365\ \ \ \ \ )\ -\/>\ np.ndarray:\ \ \textcolor{comment}{\#\ np.ndarray[ndim=2]}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00366}00366\ \ \ \ \ \ \ \ \ orig\_values\ =\ values}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00367}00367\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00368}00368\ \ \ \ \ \ \ \ \ dtype\ =\ values.dtype}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00369}00369\ \ \ \ \ \ \ \ \ is\_numeric\ =\ dtype.kind\ \textcolor{keywordflow}{in}\ \textcolor{stringliteral}{"{}iufcb"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00370}00370\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00371}00371\ \ \ \ \ \ \ \ \ is\_datetimelike\ =\ dtype.kind\ \textcolor{keywordflow}{in}\ \textcolor{stringliteral}{"{}mM"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00372}00372\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00373}00373\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ is\_datetimelike:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00374}00374\ \ \ \ \ \ \ \ \ \ \ \ \ values\ =\ values.view(\textcolor{stringliteral}{"{}int64"{}})}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00375}00375\ \ \ \ \ \ \ \ \ \ \ \ \ is\_numeric\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00376}00376\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ dtype.kind\ ==\ \textcolor{stringliteral}{"{}b"{}}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00377}00377\ \ \ \ \ \ \ \ \ \ \ \ \ values\ =\ values.view(\textcolor{stringliteral}{"{}uint8"{}})}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00378}00378\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ values.dtype\ ==\ \textcolor{stringliteral}{"{}float16"{}}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00379}00379\ \ \ \ \ \ \ \ \ \ \ \ \ values\ =\ values.astype(np.float32)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00380}00380\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00381}00381\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_a942f252adb10ac74e964f53965163bc3}{how}}\ \textcolor{keywordflow}{in}\ [\textcolor{stringliteral}{"{}any"{}},\ \textcolor{stringliteral}{"{}all"{}}]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00382}00382\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ mask\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00383}00383\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ mask\ =\ isna(values)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00384}00384\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ dtype\ ==\ object:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00385}00385\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ kwargs[\textcolor{stringliteral}{"{}skipna"{}}]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00386}00386\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ GH\#37501:\ don't\ raise\ on\ pd.NA\ when\ skipna=True}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00387}00387\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ mask.any():}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00388}00388\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ mask\ on\ original\ values\ computed\ separately}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00389}00389\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ values\ =\ values.copy()}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00390}00390\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ values[mask]\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00391}00391\ \ \ \ \ \ \ \ \ \ \ \ \ values\ =\ values.astype(bool,\ copy=\textcolor{keyword}{False}).view(np.int8)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00392}00392\ \ \ \ \ \ \ \ \ \ \ \ \ is\_numeric\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00393}00393\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00394}00394\ \ \ \ \ \ \ \ \ values\ =\ values.T}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00395}00395\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ mask\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00396}00396\ \ \ \ \ \ \ \ \ \ \ \ \ mask\ =\ mask.T}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00397}00397\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ result\_mask\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00398}00398\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ result\_mask\ =\ result\_mask.T}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00399}00399\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00400}00400\ \ \ \ \ \ \ \ \ out\_shape\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_aad194f79e004c7e68c98e6cd43821e60}{\_get\_output\_shape}}(ngroups,\ values)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00401}00401\ \ \ \ \ \ \ \ \ func\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_ada6793c3df8fbe7405a922bf9311a59e}{\_get\_cython\_function}}(self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_af1f6884199f917776fe787d2d9bee6a7}{kind}},\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_a942f252adb10ac74e964f53965163bc3}{how}},\ values.dtype,\ is\_numeric)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00402}00402\ \ \ \ \ \ \ \ \ values\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_aa7ec1961fbeeb4add84790ee9e1cbb63}{\_get\_cython\_vals}}(values)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00403}00403\ \ \ \ \ \ \ \ \ out\_dtype\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_a8ac75db758ba63263f34f0975c2acfa1}{\_get\_out\_dtype}}(values.dtype)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00404}00404\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00405}00405\ \ \ \ \ \ \ \ \ result\ =\ maybe\_fill(np.empty(out\_shape,\ dtype=out\_dtype))}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00406}00406\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_af1f6884199f917776fe787d2d9bee6a7}{kind}}\ ==\ \textcolor{stringliteral}{"{}aggregate"{}}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00407}00407\ \ \ \ \ \ \ \ \ \ \ \ \ counts\ =\ np.zeros(ngroups,\ dtype=np.int64)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00408}00408\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_a942f252adb10ac74e964f53965163bc3}{how}}\ \textcolor{keywordflow}{in}\ [}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00409}00409\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}idxmin"{}},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00410}00410\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}idxmax"{}},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00411}00411\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}min"{}},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00412}00412\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}max"{}},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00413}00413\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}mean"{}},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00414}00414\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}last"{}},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00415}00415\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}first"{}},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00416}00416\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}sum"{}},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00417}00417\ \ \ \ \ \ \ \ \ \ \ \ \ ]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00418}00418\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ func(}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00419}00419\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ out=result,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00420}00420\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ counts=counts,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00421}00421\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ values=values,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00422}00422\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ labels=comp\_ids,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00423}00423\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ min\_count=min\_count,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00424}00424\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ mask=mask,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00425}00425\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ result\_mask=result\_mask,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00426}00426\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ is\_datetimelike=is\_datetimelike,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00427}00427\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ **kwargs,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00428}00428\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00429}00429\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_a942f252adb10ac74e964f53965163bc3}{how}}\ \textcolor{keywordflow}{in}\ [\textcolor{stringliteral}{"{}sem"{}},\ \textcolor{stringliteral}{"{}std"{}},\ \textcolor{stringliteral}{"{}var"{}},\ \textcolor{stringliteral}{"{}ohlc"{}},\ \textcolor{stringliteral}{"{}prod"{}},\ \textcolor{stringliteral}{"{}median"{}}]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00430}00430\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_a942f252adb10ac74e964f53965163bc3}{how}}\ \textcolor{keywordflow}{in}\ [\textcolor{stringliteral}{"{}std"{}},\ \textcolor{stringliteral}{"{}sem"{}}]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00431}00431\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ kwargs[\textcolor{stringliteral}{"{}is\_datetimelike"{}}]\ =\ is\_datetimelike}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00432}00432\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ func(}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00433}00433\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ result,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00434}00434\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ counts,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00435}00435\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ values,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00436}00436\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ comp\_ids,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00437}00437\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ min\_count=min\_count,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00438}00438\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ mask=mask,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00439}00439\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ result\_mask=result\_mask,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00440}00440\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ **kwargs,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00441}00441\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00442}00442\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_a942f252adb10ac74e964f53965163bc3}{how}}\ \textcolor{keywordflow}{in}\ [\textcolor{stringliteral}{"{}any"{}},\ \textcolor{stringliteral}{"{}all"{}}]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00443}00443\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ func(}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00444}00444\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ out=result,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00445}00445\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ values=values,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00446}00446\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ labels=comp\_ids,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00447}00447\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ mask=mask,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00448}00448\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ result\_mask=result\_mask,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00449}00449\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ **kwargs,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00450}00450\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00451}00451\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ result\ =\ result.astype(bool,\ copy=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00452}00452\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_a942f252adb10ac74e964f53965163bc3}{how}}\ \textcolor{keywordflow}{in}\ [\textcolor{stringliteral}{"{}skew"{}}]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00453}00453\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ func(}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00454}00454\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ out=result,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00455}00455\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ counts=counts,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00456}00456\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ values=values,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00457}00457\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ labels=comp\_ids,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00458}00458\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ mask=mask,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00459}00459\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ result\_mask=result\_mask,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00460}00460\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ **kwargs,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00461}00461\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00462}00462\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ dtype\ ==\ object:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00463}00463\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ result\ =\ result.astype(object)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00464}00464\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00465}00465\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00466}00466\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classNotImplementedError}{NotImplementedError}}(f\textcolor{stringliteral}{"{}\{self.how\}\ is\ not\ implemented"{}})}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00467}00467\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00468}00468\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ TODO:\ min\_count}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00469}00469\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_a942f252adb10ac74e964f53965163bc3}{how}}\ !=\ \textcolor{stringliteral}{"{}rank"{}}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00470}00470\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ TODO:\ should\ rank\ take\ result\_mask?}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00471}00471\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ kwargs[\textcolor{stringliteral}{"{}result\_mask"{}}]\ =\ result\_mask}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00472}00472\ \ \ \ \ \ \ \ \ \ \ \ \ func(}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00473}00473\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ out=result,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00474}00474\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ values=values,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00475}00475\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ labels=comp\_ids,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00476}00476\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ngroups=ngroups,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00477}00477\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ is\_datetimelike=is\_datetimelike,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00478}00478\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ mask=mask,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00479}00479\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ **kwargs,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00480}00480\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00481}00481\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00482}00482\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_af1f6884199f917776fe787d2d9bee6a7}{kind}}\ ==\ \textcolor{stringliteral}{"{}aggregate"{}}\ \textcolor{keywordflow}{and}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_a942f252adb10ac74e964f53965163bc3}{how}}\ \textcolor{keywordflow}{not}\ \textcolor{keywordflow}{in}\ [\textcolor{stringliteral}{"{}idxmin"{}},\ \textcolor{stringliteral}{"{}idxmax"{}}]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00483}00483\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ i.e.\ counts\ is\ defined.\ \ Locations\ where\ count<min\_count}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00484}00484\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ need\ to\ have\ the\ result\ set\ to\ np.nan,\ which\ may\ require\ casting,}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00485}00485\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ see\ GH\#40767.\ For\ idxmin/idxmax\ is\ handled\ specially\ via\ post-\/processing}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00486}00486\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ result.dtype.kind\ \textcolor{keywordflow}{in}\ \textcolor{stringliteral}{"{}iu"{}}\ \textcolor{keywordflow}{and}\ \textcolor{keywordflow}{not}\ is\_datetimelike:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00487}00487\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ if\ the\ op\ keeps\ the\ int\ dtypes,\ we\ have\ to\ use\ 0}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00488}00488\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ cutoff\ =\ max(0\ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_a942f252adb10ac74e964f53965163bc3}{how}}\ \textcolor{keywordflow}{in}\ [\textcolor{stringliteral}{"{}sum"{}},\ \textcolor{stringliteral}{"{}prod"{}}]\ \textcolor{keywordflow}{else}\ 1,\ min\_count)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00489}00489\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ empty\_groups\ =\ counts\ <\ cutoff}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00490}00490\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ empty\_groups.any():}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00491}00491\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ result\_mask\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00492}00492\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ result\_mask[empty\_groups].all()}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00493}00493\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00494}00494\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Note:\ this\ conversion\ could\ be\ lossy,\ see\ GH\#40767}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00495}00495\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ result\ =\ result.astype(\textcolor{stringliteral}{"{}float64"{}})}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00496}00496\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ result[empty\_groups]\ =\ np.nan}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00497}00497\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00498}00498\ \ \ \ \ \ \ \ \ result\ =\ result.T}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00499}00499\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00500}00500\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_a942f252adb10ac74e964f53965163bc3}{how}}\ \textcolor{keywordflow}{not}\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_ad0f3389a1cd8f1820d3933844fd82dea}{cast\_blocklist}}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00501}00501\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ e.g.\ if\ we\ are\ int64\ and\ need\ to\ restore\ to\ datetime64/timedelta64}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00502}00502\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ "{}rank"{}\ is\ the\ only\ member\ of\ cast\_blocklist\ we\ get\ here}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00503}00503\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Casting\ only\ needed\ for\ float16,\ bool,\ datetimelike,}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00504}00504\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ and\ self.how\ in\ ["{}sum"{},\ "{}prod"{},\ "{}ohlc"{},\ "{}cumprod"{}]}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00505}00505\ \ \ \ \ \ \ \ \ \ \ \ \ res\_dtype\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_a8b47be723862b53a59e413365ea10c3f}{\_get\_result\_dtype}}(orig\_values.dtype)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00506}00506\ \ \ \ \ \ \ \ \ \ \ \ \ op\_result\ =\ maybe\_downcast\_to\_dtype(result,\ res\_dtype)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00507}00507\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00508}00508\ \ \ \ \ \ \ \ \ \ \ \ \ op\_result\ =\ result}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00509}00509\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00510}00510\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ op\_result}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00511}00511\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00512}00512\ \ \ \ \ \textcolor{preprocessor}{@final}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00513}00513\ \ \ \ \ \textcolor{keyword}{def\ }\_validate\_axis(self,\ axis:\ AxisInt,\ values:\ ArrayLike)\ -\/>\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00514}00514\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ values.ndim\ >\ 2:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00515}00515\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classNotImplementedError}{NotImplementedError}}(\textcolor{stringliteral}{"{}number\ of\ dimensions\ is\ currently\ limited\ to\ 2"{}})}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00516}00516\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ values.ndim\ ==\ 2:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00517}00517\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ axis\ ==\ 1,\ axis}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00518}00518\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ \textcolor{keywordflow}{not}\ is\_1d\_only\_ea\_dtype(values.dtype):}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00519}00519\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Note:\ it\ is\ *not*\ the\ case\ that\ axis\ is\ always\ 0\ for\ 1-\/dim\ values,}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00520}00520\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ as\ we\ can\ have\ 1D\ ExtensionArrays\ that\ we\ need\ to\ treat\ as\ 2D}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00521}00521\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ axis\ ==\ 0}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00522}00522\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00523}00523\ \ \ \ \ \textcolor{preprocessor}{@final}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00524}\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_a31e6c9ab7db48b316286ddb6a7dee89e}{00524}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_a31e6c9ab7db48b316286ddb6a7dee89e}{cython\_operation}}(}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00525}00525\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00526}00526\ \ \ \ \ \ \ \ \ *,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00527}00527\ \ \ \ \ \ \ \ \ values:\ ArrayLike,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00528}00528\ \ \ \ \ \ \ \ \ axis:\ AxisInt,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00529}00529\ \ \ \ \ \ \ \ \ min\_count:\ int\ =\ -\/1,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00530}00530\ \ \ \ \ \ \ \ \ comp\_ids:\ np.ndarray,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00531}00531\ \ \ \ \ \ \ \ \ ngroups:\ int,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00532}00532\ \ \ \ \ \ \ \ \ **kwargs,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00533}00533\ \ \ \ \ )\ -\/>\ ArrayLike:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00534}00534\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00535}00535\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Call\ our\ cython\ function,\ with\ appropriate\ pre-\/\ and\ post-\/\ processing.}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00536}00536\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00537}00537\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_a7b0ffc1732bda1ccb9366eb69422eeb0}{\_validate\_axis}}(axis,\ values)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00538}00538\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00539}00539\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ isinstance(values,\ np.ndarray):}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00540}00540\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ i.e.\ ExtensionArray}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00541}00541\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ values.\_groupby\_op(}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00542}00542\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ how=self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_a942f252adb10ac74e964f53965163bc3}{how}},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00543}00543\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ has\_dropped\_na=self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_a6fe613dbbcda46983d8303faf4f493e0}{has\_dropped\_na}},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00544}00544\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ min\_count=min\_count,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00545}00545\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ngroups=ngroups,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00546}00546\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ids=comp\_ids,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00547}00547\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ **kwargs,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00548}00548\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00549}00549\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00550}00550\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp_afdb3a332404eca60c49dc7d46261d55e}{\_cython\_op\_ndim\_compat}}(}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00551}00551\ \ \ \ \ \ \ \ \ \ \ \ \ values,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00552}00552\ \ \ \ \ \ \ \ \ \ \ \ \ min\_count=min\_count,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00553}00553\ \ \ \ \ \ \ \ \ \ \ \ \ ngroups=ngroups,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00554}00554\ \ \ \ \ \ \ \ \ \ \ \ \ comp\_ids=comp\_ids,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00555}00555\ \ \ \ \ \ \ \ \ \ \ \ \ mask=\textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00556}00556\ \ \ \ \ \ \ \ \ \ \ \ \ **kwargs,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00557}00557\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00558}00558\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00559}00559\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00560}\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper}{00560}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper}{BaseGrouper}}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00561}00561\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00562}00562\ \textcolor{stringliteral}{\ \ \ \ This\ is\ an\ internal\ Grouper\ class,\ which\ actually\ holds}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00563}00563\ \textcolor{stringliteral}{\ \ \ \ the\ generated\ groups}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00564}00564\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00565}00565\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00566}00566\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00567}00567\ \textcolor{stringliteral}{\ \ \ \ axis\ :\ Index}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00568}00568\ \textcolor{stringliteral}{\ \ \ \ groupings\ :\ Sequence[Grouping]}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00569}00569\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ all\ the\ grouping\ instances\ to\ handle\ in\ this\ grouper}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00570}00570\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ for\ example\ for\ grouper\ list\ to\ groupby,\ need\ to\ pass\ the\ list}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00571}00571\ \textcolor{stringliteral}{\ \ \ \ sort\ :\ bool,\ default\ True}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00572}00572\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ whether\ this\ grouper\ will\ give\ sorted\ result\ or\ not}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00573}00573\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00574}00574\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00575}00575\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00576}00576\ \ \ \ \ axis:\ Index}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00577}00577\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00578}00578\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00579}00579\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00580}00580\ \ \ \ \ \ \ \ \ axis:\ Index,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00581}00581\ \ \ \ \ \ \ \ \ groupings:\ Sequence[\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1grouper_1_1Grouping}{grouper.Grouping}}],}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00582}00582\ \ \ \ \ \ \ \ \ sort:\ bool\ =\ \textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00583}00583\ \ \ \ \ \ \ \ \ dropna:\ bool\ =\ \textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00584}00584\ \ \ \ \ )\ -\/>\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00585}00585\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ isinstance(axis,\ Index),\ axis}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00586}00586\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00587}00587\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a14211088f14e608aec3928bc472c8fa1}{axis}}\ =\ axis}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00588}00588\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_ac347b691b54dcf879d8310dd0658052c}{\_groupings}}:\ list[\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1grouper_1_1Grouping}{grouper.Grouping}}]\ =\ list(groupings)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00589}00589\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_ac1dbc532ab392f28578e22c0ebefb02c}{\_sort}}\ =\ sort}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00590}00590\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a6f2cac847283cd2e0717501b7fc34960}{dropna}}\ =\ dropna}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00591}00591\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00592}00592\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00593}00593\ \ \ \ \ \textcolor{keyword}{def\ }groupings(self)\ -\/>\ list[grouper.Grouping]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00594}00594\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_ac347b691b54dcf879d8310dd0658052c}{\_groupings}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00595}00595\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00596}00596\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00597}00597\ \ \ \ \ \textcolor{keyword}{def\ }shape(self)\ -\/>\ Shape:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00598}00598\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ tuple(ping.ngroups\ \textcolor{keywordflow}{for}\ ping\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a7287acac77f88c780269b21a05463041}{groupings}})}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00599}00599\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00600}00600\ \ \ \ \ \textcolor{keyword}{def\ }\_\_iter\_\_(self)\ -\/>\ Iterator[Hashable]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00601}00601\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ iter(self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_af20e78f40c811bf281bbc73a3fa99d5f}{indices}})}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00602}00602\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00603}00603\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00604}00604\ \ \ \ \ \textcolor{keyword}{def\ }nkeys(self)\ -\/>\ int:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00605}00605\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ len(self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a7287acac77f88c780269b21a05463041}{groupings}})}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00606}00606\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00607}\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a9bcc8b578f39e7fed950c4cd570dc93b}{00607}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a9bcc8b578f39e7fed950c4cd570dc93b}{get\_iterator}}(}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00608}00608\ \ \ \ \ \ \ \ \ self,\ data:\ NDFrameT,\ axis:\ AxisInt\ =\ 0}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00609}00609\ \ \ \ \ )\ -\/>\ Iterator[tuple[Hashable,\ NDFrameT]]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00610}00610\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00611}00611\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Groupby\ iterator}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00612}00612\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00613}00613\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00614}00614\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00615}00615\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Generator\ yielding\ sequence\ of\ (name,\ subsetted\ object)}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00616}00616\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ for\ each\ group}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00617}00617\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00618}00618\ \ \ \ \ \ \ \ \ splitter\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a159faf91a7fdbfa1f47cf45b07ac98dc}{\_get\_splitter}}(data,\ axis=axis)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00619}00619\ \ \ \ \ \ \ \ \ keys\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a4b1773f0b04e2be42a173fe4616be483}{group\_keys\_seq}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00620}00620\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{yield}\ \textcolor{keyword}{from}\ zip(keys,\ splitter)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00621}00621\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00622}00622\ \ \ \ \ \textcolor{preprocessor}{@final}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00623}\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a159faf91a7fdbfa1f47cf45b07ac98dc}{00623}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a159faf91a7fdbfa1f47cf45b07ac98dc}{\_get\_splitter}}(self,\ data:\ NDFrame,\ axis:\ AxisInt\ =\ 0)\ -\/>\ DataSplitter:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00624}00624\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00625}00625\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00626}00626\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00627}00627\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Generator\ yielding\ subsetted\ objects}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00628}00628\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00629}00629\ \ \ \ \ \ \ \ \ ids,\ \_,\ ngroups\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a0b7dca21a8f046f77508aadfab590c89}{group\_info}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00630}00630\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a159faf91a7fdbfa1f47cf45b07ac98dc}{\_get\_splitter}}(}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00631}00631\ \ \ \ \ \ \ \ \ \ \ \ \ data,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00632}00632\ \ \ \ \ \ \ \ \ \ \ \ \ ids,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00633}00633\ \ \ \ \ \ \ \ \ \ \ \ \ ngroups,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00634}00634\ \ \ \ \ \ \ \ \ \ \ \ \ sorted\_ids=self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_ac5d27ad0a3aa484c4ee80ad91c64a05d}{\_sorted\_ids}},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00635}00635\ \ \ \ \ \ \ \ \ \ \ \ \ sort\_idx=self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_abd64c3b6322da55a17c33e386371ccd4}{\_sort\_idx}},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00636}00636\ \ \ \ \ \ \ \ \ \ \ \ \ axis=axis,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00637}00637\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00638}00638\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00639}00639\ \ \ \ \ \textcolor{preprocessor}{@final}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00640}00640\ \ \ \ \ \textcolor{preprocessor}{@cache\_readonly}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00641}00641\ \ \ \ \ \textcolor{keyword}{def\ }group\_keys\_seq(self):}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00642}00642\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a7287acac77f88c780269b21a05463041}{groupings}})\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00643}00643\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_acf29c2b1e40ea6954a38ee389baa462f}{levels}}[0]}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00644}00644\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00645}00645\ \ \ \ \ \ \ \ \ \ \ \ \ ids,\ \_,\ ngroups\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a0b7dca21a8f046f77508aadfab590c89}{group\_info}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00646}00646\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00647}00647\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ provide\ "{}flattened"{}\ iterator\ for\ multi-\/group\ setting}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00648}00648\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ get\_flattened\_list(ids,\ ngroups,\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_acf29c2b1e40ea6954a38ee389baa462f}{levels}},\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_aa5aa69c8710e5e7553a6a78c4f8c561b}{codes}})}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00649}00649\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00650}00650\ \ \ \ \ \textcolor{preprocessor}{@cache\_readonly}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00651}\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a1c98abfaafeb4960b4b7818337e08857}{00651}}\ \ \ \ \ \textcolor{keyword}{def\ }indices(self)\ -\/>\ dict[Hashable,\ npt.NDArray[np.intp]]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00652}00652\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}dict\ \{group\ name\ -\/>\ group\ indices\}"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00653}00653\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a7287acac77f88c780269b21a05463041}{groupings}})\ ==\ 1\ \textcolor{keywordflow}{and}\ isinstance(self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_ada8939468534f420f0bc6839df0d768e}{result\_index}},\ CategoricalIndex):}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00654}00654\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ This\ shows\ unused\ categories\ in\ indices\ GH\#38642}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00655}00655\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a7287acac77f88c780269b21a05463041}{groupings}}[0].indices}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00656}00656\ \ \ \ \ \ \ \ \ codes\_list\ =\ [ping.codes\ \textcolor{keywordflow}{for}\ ping\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a7287acac77f88c780269b21a05463041}{groupings}}]}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00657}00657\ \ \ \ \ \ \ \ \ keys\ =\ [ping.\_group\_index\ \textcolor{keywordflow}{for}\ ping\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a7287acac77f88c780269b21a05463041}{groupings}}]}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00658}00658\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ get\_indexer\_dict(codes\_list,\ keys)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00659}00659\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00660}00660\ \ \ \ \ \textcolor{preprocessor}{@final}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00661}\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_ad7b1decdcc59f85f7bf6daa01c20faef}{00661}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_ad7b1decdcc59f85f7bf6daa01c20faef}{result\_ilocs}}(self)\ -\/>\ npt.NDArray[np.intp]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00662}00662\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00663}00663\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Get\ the\ original\ integer\ locations\ of\ result\_index\ in\ the\ input.}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00664}00664\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00665}00665\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Original\ indices\ are\ where\ group\_index\ would\ go\ via\ sorting.}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00666}00666\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ But\ when\ dropna\ is\ true,\ we\ need\ to\ remove\ null\ values\ while\ accounting\ for}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00667}00667\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ any\ gaps\ that\ then\ occur\ because\ of\ them.}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00668}00668\ \ \ \ \ \ \ \ \ group\_index\ =\ get\_group\_index(}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00669}00669\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_aa5aa69c8710e5e7553a6a78c4f8c561b}{codes}},\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a39be0f12fbb74c036d48d5bf121c95a2}{shape}},\ sort=self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_ac1dbc532ab392f28578e22c0ebefb02c}{\_sort}},\ xnull=\textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00670}00670\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00671}00671\ \ \ \ \ \ \ \ \ group\_index,\ \_\ =\ compress\_group\_index(group\_index,\ sort=self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_ac1dbc532ab392f28578e22c0ebefb02c}{\_sort}})}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00672}00672\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00673}00673\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a952f995a345a1d25088ad423aa8de547}{has\_dropped\_na}}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00674}00674\ \ \ \ \ \ \ \ \ \ \ \ \ mask\ =\ np.where(group\_index\ >=\ 0)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00675}00675\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Count\ how\ many\ gaps\ are\ caused\ by\ previous\ null\ values\ for\ each\ position}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00676}00676\ \ \ \ \ \ \ \ \ \ \ \ \ null\_gaps\ =\ np.cumsum(group\_index\ ==\ -\/1)[mask]}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00677}00677\ \ \ \ \ \ \ \ \ \ \ \ \ group\_index\ =\ group\_index[mask]}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00678}00678\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00679}00679\ \ \ \ \ \ \ \ \ result\ =\ get\_group\_index\_sorter(group\_index,\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_afea9ac21aeba197d6188de63b57e1cf8}{ngroups}})}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00680}00680\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00681}00681\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a952f995a345a1d25088ad423aa8de547}{has\_dropped\_na}}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00682}00682\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Shift\ by\ the\ number\ of\ prior\ null\ gaps}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00683}00683\ \ \ \ \ \ \ \ \ \ \ \ \ result\ +=\ np.take(null\_gaps,\ result)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00684}00684\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00685}00685\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ result}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00686}00686\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00687}00687\ \ \ \ \ \textcolor{preprocessor}{@final}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00688}00688\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00689}00689\ \ \ \ \ \textcolor{keyword}{def\ }codes(self)\ -\/>\ list[npt.NDArray[np.signedinteger]]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00690}00690\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ [ping.codes\ \textcolor{keywordflow}{for}\ ping\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a7287acac77f88c780269b21a05463041}{groupings}}]}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00691}00691\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00692}00692\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00693}00693\ \ \ \ \ \textcolor{keyword}{def\ }levels(self)\ -\/>\ list[Index]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00694}00694\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ [ping.\_group\_index\ \textcolor{keywordflow}{for}\ ping\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a7287acac77f88c780269b21a05463041}{groupings}}]}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00695}00695\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00696}00696\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00697}00697\ \ \ \ \ \textcolor{keyword}{def\ }names(self)\ -\/>\ list[Hashable]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00698}00698\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ [ping.name\ \textcolor{keywordflow}{for}\ ping\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a7287acac77f88c780269b21a05463041}{groupings}}]}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00699}00699\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00700}00700\ \ \ \ \ \textcolor{preprocessor}{@final}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00701}\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a9b27f593d297c790dd660cd39975a209}{00701}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a9b27f593d297c790dd660cd39975a209}{size}}(self)\ -\/>\ Series:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00702}00702\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00703}00703\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Compute\ group\ sizes.}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00704}00704\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00705}00705\ \ \ \ \ \ \ \ \ ids,\ \_,\ ngroups\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a0b7dca21a8f046f77508aadfab590c89}{group\_info}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00706}00706\ \ \ \ \ \ \ \ \ out:\ np.ndarray\ |\ list}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00707}00707\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ ngroups:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00708}00708\ \ \ \ \ \ \ \ \ \ \ \ \ out\ =\ np.bincount(ids[ids\ !=\ -\/1],\ minlength=ngroups)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00709}00709\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00710}00710\ \ \ \ \ \ \ \ \ \ \ \ \ out\ =\ []}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00711}00711\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classpandas_1_1core_1_1series_1_1Series}{Series}}(out,\ index=self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_ada8939468534f420f0bc6839df0d768e}{result\_index}},\ dtype=\textcolor{stringliteral}{"{}int64"{}},\ copy=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00712}00712\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00713}00713\ \ \ \ \ \textcolor{preprocessor}{@cache\_readonly}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00714}\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a6e0333cce44dcf0d32d3af3ca95997c2}{00714}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a6e0333cce44dcf0d32d3af3ca95997c2}{groups}}(self)\ -\/>\ dict[Hashable,\ np.ndarray]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00715}00715\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}dict\ \{group\ name\ -\/>\ group\ labels\}"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00716}00716\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a7287acac77f88c780269b21a05463041}{groupings}})\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00717}00717\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a7287acac77f88c780269b21a05463041}{groupings}}[0].groups}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00718}00718\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00719}00719\ \ \ \ \ \ \ \ \ \ \ \ \ to\_groupby\ =\ []}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00720}00720\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ ping\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a7287acac77f88c780269b21a05463041}{groupings}}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00721}00721\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ gv\ =\ ping.grouping\_vector}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00722}00722\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ isinstance(gv,\ BaseGrouper):}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00723}00723\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ to\_groupby.append(gv)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00724}00724\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00725}00725\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ to\_groupby.append(gv.groupings[0].grouping\_vector)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00726}00726\ \ \ \ \ \ \ \ \ \ \ \ \ index\ =\ MultiIndex.from\_arrays(to\_groupby)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00727}00727\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a14211088f14e608aec3928bc472c8fa1}{axis}}.groupby(index)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00728}00728\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00729}00729\ \ \ \ \ \textcolor{preprocessor}{@final}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00730}00730\ \ \ \ \ \textcolor{preprocessor}{@cache\_readonly}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00731}00731\ \ \ \ \ \textcolor{keyword}{def\ }is\_monotonic(self)\ -\/>\ bool:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00732}00732\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ return\ if\ my\ group\ orderings\ are\ monotonic}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00733}00733\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ Index(self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a0b7dca21a8f046f77508aadfab590c89}{group\_info}}[0]).is\_monotonic\_increasing}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00734}00734\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00735}00735\ \ \ \ \ \textcolor{preprocessor}{@final}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00736}00736\ \ \ \ \ \textcolor{preprocessor}{@cache\_readonly}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00737}\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a9f2572011096e9084378ddfcef4fa139}{00737}}\ \ \ \ \ \textcolor{keyword}{def\ }has\_dropped\_na(self)\ -\/>\ bool:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00738}00738\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00739}00739\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Whether\ grouper\ has\ null\ value(s)\ that\ are\ dropped.}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00740}00740\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00741}00741\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ bool((self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a0b7dca21a8f046f77508aadfab590c89}{group\_info}}[0]\ <\ 0).any())}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00742}00742\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00743}00743\ \ \ \ \ \textcolor{preprocessor}{@cache\_readonly}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00744}00744\ \ \ \ \ \textcolor{keyword}{def\ }group\_info(self)\ -\/>\ tuple[npt.NDArray[np.intp],\ npt.NDArray[np.intp],\ int]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00745}00745\ \ \ \ \ \ \ \ \ comp\_ids,\ obs\_group\_ids\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_abda633b5a491bf1d0d632e4e3b7e1444}{\_get\_compressed\_codes}}()}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00746}00746\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00747}00747\ \ \ \ \ \ \ \ \ ngroups\ =\ len(obs\_group\_ids)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00748}00748\ \ \ \ \ \ \ \ \ comp\_ids\ =\ ensure\_platform\_int(comp\_ids)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00749}00749\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00750}00750\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ comp\_ids,\ obs\_group\_ids,\ ngroups}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00751}00751\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00752}00752\ \ \ \ \ \textcolor{preprocessor}{@cache\_readonly}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00753}00753\ \ \ \ \ \textcolor{keyword}{def\ }codes\_info(self)\ -\/>\ npt.NDArray[np.intp]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00754}00754\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ return\ the\ codes\ of\ items\ in\ original\ grouped\ axis}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00755}00755\ \ \ \ \ \ \ \ \ ids,\ \_,\ \_\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a0b7dca21a8f046f77508aadfab590c89}{group\_info}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00756}00756\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ ids}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00757}00757\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00758}00758\ \ \ \ \ \textcolor{preprocessor}{@final}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00759}00759\ \ \ \ \ \textcolor{keyword}{def\ }\_get\_compressed\_codes(}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00760}00760\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00761}00761\ \ \ \ \ )\ -\/>\ tuple[npt.NDArray[np.signedinteger],\ npt.NDArray[np.intp]]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00762}00762\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ first\ returned\ ndarray\ may\ have\ any\ signed\ integer\ dtype}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00763}00763\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a7287acac77f88c780269b21a05463041}{groupings}})\ >\ 1:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00764}00764\ \ \ \ \ \ \ \ \ \ \ \ \ group\_index\ =\ get\_group\_index(self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_aa5aa69c8710e5e7553a6a78c4f8c561b}{codes}},\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a39be0f12fbb74c036d48d5bf121c95a2}{shape}},\ sort=\textcolor{keyword}{True},\ xnull=\textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00765}00765\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ compress\_group\_index(group\_index,\ sort=self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_ac1dbc532ab392f28578e22c0ebefb02c}{\_sort}})}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00766}00766\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ FIXME:\ compress\_group\_index's\ second\ return\ value\ is\ int64,\ not\ intp}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00767}00767\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00768}00768\ \ \ \ \ \ \ \ \ ping\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a7287acac77f88c780269b21a05463041}{groupings}}[0]}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00769}00769\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ ping.codes,\ np.arange(len(ping.\_group\_index),\ dtype=np.intp)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00770}00770\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00771}00771\ \ \ \ \ \textcolor{preprocessor}{@final}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00772}00772\ \ \ \ \ \textcolor{preprocessor}{@cache\_readonly}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00773}00773\ \ \ \ \ \textcolor{keyword}{def\ }ngroups(self)\ -\/>\ int:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00774}00774\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ len(self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_ada8939468534f420f0bc6839df0d768e}{result\_index}})}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00775}00775\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00776}00776\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00777}00777\ \ \ \ \ \textcolor{keyword}{def\ }reconstructed\_codes(self)\ -\/>\ list[npt.NDArray[np.intp]]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00778}00778\ \ \ \ \ \ \ \ \ codes\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_aa5aa69c8710e5e7553a6a78c4f8c561b}{codes}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00779}00779\ \ \ \ \ \ \ \ \ ids,\ obs\_ids,\ \_\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a0b7dca21a8f046f77508aadfab590c89}{group\_info}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00780}00780\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ decons\_obs\_group\_ids(ids,\ obs\_ids,\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a39be0f12fbb74c036d48d5bf121c95a2}{shape}},\ codes,\ xnull=\textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00781}00781\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00782}00782\ \ \ \ \ \textcolor{preprocessor}{@cache\_readonly}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00783}00783\ \ \ \ \ \textcolor{keyword}{def\ }result\_index(self)\ -\/>\ Index:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00784}00784\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a7287acac77f88c780269b21a05463041}{groupings}})\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00785}00785\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a7287acac77f88c780269b21a05463041}{groupings}}[0].\_result\_index.rename(self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a08a97ef1f454fd324cc593d20aa84dff}{names}}[0])}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00786}00786\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00787}00787\ \ \ \ \ \ \ \ \ codes\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a376cc1b57eb14009e57a88a0c20ca2db}{reconstructed\_codes}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00788}00788\ \ \ \ \ \ \ \ \ levels\ =\ [ping.\_result\_index\ \textcolor{keywordflow}{for}\ ping\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a7287acac77f88c780269b21a05463041}{groupings}}]}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00789}00789\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ MultiIndex(}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00790}00790\ \ \ \ \ \ \ \ \ \ \ \ \ levels=levels,\ codes=codes,\ verify\_integrity=\textcolor{keyword}{False},\ names=self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a08a97ef1f454fd324cc593d20aa84dff}{names}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00791}00791\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00792}00792\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00793}00793\ \ \ \ \ \textcolor{preprocessor}{@final}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00794}00794\ \ \ \ \ \textcolor{keyword}{def\ }get\_group\_levels(self)\ -\/>\ list[ArrayLike]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00795}00795\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Note:\ only\ called\ from\ \_insert\_inaxis\_grouper,\ which}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00796}00796\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ is\ only\ called\ for\ BaseGrouper,\ never\ for\ BinGrouper}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00797}00797\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a7287acac77f88c780269b21a05463041}{groupings}})\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00798}00798\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ [self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a7287acac77f88c780269b21a05463041}{groupings}}[0].\_group\_arraylike]}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00799}00799\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00800}00800\ \ \ \ \ \ \ \ \ name\_list\ =\ []}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00801}00801\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ ping,\ codes\ \textcolor{keywordflow}{in}\ zip(self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a7287acac77f88c780269b21a05463041}{groupings}},\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a376cc1b57eb14009e57a88a0c20ca2db}{reconstructed\_codes}}):}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00802}00802\ \ \ \ \ \ \ \ \ \ \ \ \ codes\ =\ ensure\_platform\_int(codes)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00803}00803\ \ \ \ \ \ \ \ \ \ \ \ \ levels\ =\ ping.\_group\_arraylike.take(codes)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00804}00804\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00805}00805\ \ \ \ \ \ \ \ \ \ \ \ \ name\_list.append(levels)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00806}00806\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00807}00807\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ name\_list}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00808}00808\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00809}00809\ \ \ \ \ \textcolor{comment}{\#\ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00810}00810\ \ \ \ \ \textcolor{comment}{\#\ Aggregation\ functions}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00811}00811\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00812}00812\ \ \ \ \ \textcolor{preprocessor}{@final}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00813}\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a0231d57db3c40481854adf9ffd7d5288}{00813}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a0231d57db3c40481854adf9ffd7d5288}{\_cython\_operation}}(}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00814}00814\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00815}00815\ \ \ \ \ \ \ \ \ kind:\ str,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00816}00816\ \ \ \ \ \ \ \ \ values,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00817}00817\ \ \ \ \ \ \ \ \ how:\ str,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00818}00818\ \ \ \ \ \ \ \ \ axis:\ AxisInt,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00819}00819\ \ \ \ \ \ \ \ \ min\_count:\ int\ =\ -\/1,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00820}00820\ \ \ \ \ \ \ \ \ **kwargs,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00821}00821\ \ \ \ \ )\ -\/>\ ArrayLike:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00822}00822\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00823}00823\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns\ the\ values\ of\ a\ cython\ operation.}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00824}00824\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00825}00825\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ kind\ \textcolor{keywordflow}{in}\ [\textcolor{stringliteral}{"{}transform"{}},\ \textcolor{stringliteral}{"{}aggregate"{}}]}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00826}00826\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00827}00827\ \ \ \ \ \ \ \ \ cy\_op\ =\ \mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1WrappedCythonOp}{WrappedCythonOp}}(kind=kind,\ how=how,\ has\_dropped\_na=self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a952f995a345a1d25088ad423aa8de547}{has\_dropped\_na}})}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00828}00828\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00829}00829\ \ \ \ \ \ \ \ \ ids,\ \_,\ \_\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a0b7dca21a8f046f77508aadfab590c89}{group\_info}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00830}00830\ \ \ \ \ \ \ \ \ ngroups\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_afea9ac21aeba197d6188de63b57e1cf8}{ngroups}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00831}00831\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ cy\_op.cython\_operation(}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00832}00832\ \ \ \ \ \ \ \ \ \ \ \ \ values=values,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00833}00833\ \ \ \ \ \ \ \ \ \ \ \ \ axis=axis,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00834}00834\ \ \ \ \ \ \ \ \ \ \ \ \ min\_count=min\_count,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00835}00835\ \ \ \ \ \ \ \ \ \ \ \ \ comp\_ids=ids,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00836}00836\ \ \ \ \ \ \ \ \ \ \ \ \ ngroups=ngroups,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00837}00837\ \ \ \ \ \ \ \ \ \ \ \ \ **kwargs,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00838}00838\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00839}00839\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00840}00840\ \ \ \ \ \textcolor{preprocessor}{@final}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00841}\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a0d17136807bf89f03133df24305feea3}{00841}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a0d17136807bf89f03133df24305feea3}{agg\_series}}(}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00842}00842\ \ \ \ \ \ \ \ \ self,\ obj:\ Series,\ func:\ Callable,\ preserve\_dtype:\ bool\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00843}00843\ \ \ \ \ )\ -\/>\ ArrayLike:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00844}00844\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00845}00845\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00846}00846\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00847}00847\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ obj\ :\ Series}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00848}00848\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ func\ :\ function\ taking\ a\ Series\ and\ returning\ a\ scalar-\/like}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00849}00849\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ preserve\_dtype\ :\ bool}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00850}00850\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Whether\ the\ aggregation\ is\ known\ to\ be\ dtype-\/preserving.}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00851}00851\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00852}00852\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00853}00853\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00854}00854\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ np.ndarray\ or\ ExtensionArray}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00855}00855\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00856}00856\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00857}00857\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ isinstance(obj.\_values,\ np.ndarray):}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00858}00858\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ we\ can\ preserve\ a\ little\ bit\ more\ aggressively\ with\ EA\ dtype}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00859}00859\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ because\ maybe\_cast\_pointwise\_result\ will\ do\ a\ try/except}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00860}00860\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ with\ \_from\_sequence.\ \ NB\ we\ are\ assuming\ here\ that\ \_from\_sequence}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00861}00861\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ is\ sufficiently\ strict\ that\ it\ casts\ appropriately.}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00862}00862\ \ \ \ \ \ \ \ \ \ \ \ \ preserve\_dtype\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00863}00863\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00864}00864\ \ \ \ \ \ \ \ \ result\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a8115519ae42e5454627a1d6ffed90dc7}{\_aggregate\_series\_pure\_python}}(obj,\ func)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00865}00865\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00866}00866\ \ \ \ \ \ \ \ \ npvalues\ =\ lib.maybe\_convert\_objects(result,\ try\_float=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00867}00867\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ preserve\_dtype:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00868}00868\ \ \ \ \ \ \ \ \ \ \ \ \ out\ =\ maybe\_cast\_pointwise\_result(npvalues,\ obj.dtype,\ numeric\_only=\textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00869}00869\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00870}00870\ \ \ \ \ \ \ \ \ \ \ \ \ out\ =\ npvalues}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00871}00871\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ out}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00872}00872\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00873}00873\ \ \ \ \ \textcolor{preprocessor}{@final}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00874}00874\ \ \ \ \ \textcolor{keyword}{def\ }\_aggregate\_series\_pure\_python(}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00875}00875\ \ \ \ \ \ \ \ \ self,\ obj:\ Series,\ func:\ Callable}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00876}00876\ \ \ \ \ )\ -\/>\ npt.NDArray[np.object\_]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00877}00877\ \ \ \ \ \ \ \ \ \_,\ \_,\ ngroups\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a0b7dca21a8f046f77508aadfab590c89}{group\_info}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00878}00878\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00879}00879\ \ \ \ \ \ \ \ \ result\ =\ np.empty(ngroups,\ dtype=\textcolor{stringliteral}{"{}O"{}})}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00880}00880\ \ \ \ \ \ \ \ \ initialized\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00881}00881\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00882}00882\ \ \ \ \ \ \ \ \ splitter\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a159faf91a7fdbfa1f47cf45b07ac98dc}{\_get\_splitter}}(obj,\ axis=0)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00883}00883\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00884}00884\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ i,\ group\ \textcolor{keywordflow}{in}\ enumerate(splitter):}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00885}00885\ \ \ \ \ \ \ \ \ \ \ \ \ res\ =\ func(group)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00886}00886\ \ \ \ \ \ \ \ \ \ \ \ \ res\ =\ \mbox{\hyperlink{namespacepandas_1_1core_1_1groupby_1_1ops_a5eb51784c9135e2ab89da6a517e055b9}{extract\_result}}(res)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00887}00887\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00888}00888\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ initialized:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00889}00889\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ We\ only\ do\ this\ validation\ on\ the\ first\ iteration}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00890}00890\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ check\_result\_array(res,\ group.dtype)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00891}00891\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ initialized\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00892}00892\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00893}00893\ \ \ \ \ \ \ \ \ \ \ \ \ result[i]\ =\ res}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00894}00894\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00895}00895\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ result}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00896}00896\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00897}00897\ \ \ \ \ \textcolor{preprocessor}{@final}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00898}00898\ \ \ \ \ \textcolor{keyword}{def\ }apply\_groupwise(}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00899}00899\ \ \ \ \ \ \ \ \ self,\ f:\ Callable,\ data:\ DataFrame\ |\ Series,\ axis:\ AxisInt\ =\ 0}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00900}00900\ \ \ \ \ )\ -\/>\ tuple[list,\ bool]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00901}00901\ \ \ \ \ \ \ \ \ mutated\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00902}00902\ \ \ \ \ \ \ \ \ splitter\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a159faf91a7fdbfa1f47cf45b07ac98dc}{\_get\_splitter}}(data,\ axis=axis)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00903}00903\ \ \ \ \ \ \ \ \ group\_keys\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a4b1773f0b04e2be42a173fe4616be483}{group\_keys\_seq}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00904}00904\ \ \ \ \ \ \ \ \ result\_values\ =\ []}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00905}00905\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00906}00906\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ This\ calls\ DataSplitter.\_\_iter\_\_}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00907}00907\ \ \ \ \ \ \ \ \ zipped\ =\ zip(group\_keys,\ splitter)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00908}00908\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00909}00909\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ key,\ group\ \textcolor{keywordflow}{in}\ zipped:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00910}00910\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Pinning\ name\ is\ needed\ for}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00911}00911\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ test\_group\_apply\_once\_per\_group,}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00912}00912\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ test\_inconsistent\_return\_type,\ test\_set\_group\_name,}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00913}00913\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ test\_group\_name\_available\_in\_inference\_pass,}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00914}00914\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ test\_groupby\_multi\_timezone}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00915}00915\ \ \ \ \ \ \ \ \ \ \ \ \ object.\_\_setattr\_\_(group,\ \textcolor{stringliteral}{"{}name"{}},\ key)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00916}00916\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00917}00917\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ group\ might\ be\ modified}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00918}00918\ \ \ \ \ \ \ \ \ \ \ \ \ group\_axes\ =\ group.axes}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00919}00919\ \ \ \ \ \ \ \ \ \ \ \ \ res\ =\ f(group)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00920}00920\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ mutated\ \textcolor{keywordflow}{and}\ \textcolor{keywordflow}{not}\ \_is\_indexed\_like(res,\ group\_axes,\ axis):}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00921}00921\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ mutated\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00922}00922\ \ \ \ \ \ \ \ \ \ \ \ \ result\_values.append(res)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00923}00923\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ getattr\ pattern\ for\ \_\_name\_\_\ is\ needed\ for\ functools.partial\ objects}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00924}00924\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(group\_keys)\ ==\ 0\ \textcolor{keywordflow}{and}\ getattr(f,\ \textcolor{stringliteral}{"{}\_\_name\_\_"{}},\ \textcolor{keywordtype}{None})\ \textcolor{keywordflow}{in}\ [}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00925}00925\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}skew"{}},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00926}00926\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}sum"{}},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00927}00927\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}prod"{}},}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00928}00928\ \ \ \ \ \ \ \ \ ]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00929}00929\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ If\ group\_keys\ is\ empty,\ then\ no\ function\ calls\ have\ been\ made,}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00930}00930\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ so\ we\ will\ not\ have\ raised\ even\ if\ this\ is\ an\ invalid\ dtype.}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00931}00931\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ So\ do\ one\ dummy\ call\ here\ to\ raise\ appropriate\ TypeError.}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00932}00932\ \ \ \ \ \ \ \ \ \ \ \ \ f(data.iloc[:0])}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00933}00933\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00934}00934\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ result\_values,\ mutated}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00935}00935\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00936}00936\ \ \ \ \ \textcolor{comment}{\#\ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00937}00937\ \ \ \ \ \textcolor{comment}{\#\ Methods\ for\ sorting\ subsets\ of\ our\ GroupBy's\ object}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00938}00938\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00939}00939\ \ \ \ \ \textcolor{preprocessor}{@final}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00940}00940\ \ \ \ \ \textcolor{preprocessor}{@cache\_readonly}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00941}00941\ \ \ \ \ \textcolor{keyword}{def\ }\_sort\_idx(self)\ -\/>\ npt.NDArray[np.intp]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00942}00942\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Counting\ sort\ indexer}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00943}00943\ \ \ \ \ \ \ \ \ ids,\ \_,\ ngroups\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a0b7dca21a8f046f77508aadfab590c89}{group\_info}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00944}00944\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ get\_group\_index\_sorter(ids,\ ngroups)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00945}00945\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00946}00946\ \ \ \ \ \textcolor{preprocessor}{@final}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00947}00947\ \ \ \ \ \textcolor{preprocessor}{@cache\_readonly}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00948}00948\ \ \ \ \ \textcolor{keyword}{def\ }\_sorted\_ids(self)\ -\/>\ npt.NDArray[np.intp]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00949}00949\ \ \ \ \ \ \ \ \ ids,\ \_,\ \_\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a0b7dca21a8f046f77508aadfab590c89}{group\_info}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00950}00950\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ ids.take(self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_abd64c3b6322da55a17c33e386371ccd4}{\_sort\_idx}})}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00951}00951\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00952}00952\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00953}\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BinGrouper}{00953}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BinGrouper}{BinGrouper}}(\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper}{BaseGrouper}}):}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00954}00954\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00955}00955\ \textcolor{stringliteral}{\ \ \ \ This\ is\ an\ internal\ Grouper\ class}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00956}00956\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00957}00957\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00958}00958\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00959}00959\ \textcolor{stringliteral}{\ \ \ \ bins\ :\ the\ split\ index\ of\ binlabels\ to\ group\ the\ item\ of\ axis}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00960}00960\ \textcolor{stringliteral}{\ \ \ \ binlabels\ :\ the\ label\ list}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00961}00961\ \textcolor{stringliteral}{\ \ \ \ indexer\ :\ np.ndarray[np.intp],\ optional}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00962}00962\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ indexer\ created\ by\ Grouper}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00963}00963\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ some\ groupers\ (TimeGrouper)\ will\ sort\ its\ axis\ and\ its}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00964}00964\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ group\_info\ is\ also\ sorted,\ so\ need\ the\ indexer\ to\ reorder}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00965}00965\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00966}00966\ \textcolor{stringliteral}{\ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00967}00967\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00968}00968\ \textcolor{stringliteral}{\ \ \ \ bins:\ [2,\ 4,\ 6,\ 8,\ 10]}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00969}00969\ \textcolor{stringliteral}{\ \ \ \ binlabels:\ DatetimeIndex(['2005-\/01-\/01',\ '2005-\/01-\/03',}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00970}00970\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ '2005-\/01-\/05',\ '2005-\/01-\/07',\ '2005-\/01-\/09'],}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00971}00971\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ dtype='datetime64[ns]',\ freq='2D')}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00972}00972\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00973}00973\ \textcolor{stringliteral}{\ \ \ \ the\ group\_info,\ which\ contains\ the\ label\ of\ each\ item\ in\ grouped}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00974}00974\ \textcolor{stringliteral}{\ \ \ \ axis,\ the\ index\ of\ label\ in\ label\ list,\ group\ number,\ is}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00975}00975\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00976}00976\ \textcolor{stringliteral}{\ \ \ \ (array([0,\ 0,\ 1,\ 1,\ 2,\ 2,\ 3,\ 3,\ 4,\ 4]),\ array([0,\ 1,\ 2,\ 3,\ 4]),\ 5)}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00977}00977\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00978}00978\ \textcolor{stringliteral}{\ \ \ \ means\ that,\ the\ grouped\ axis\ has\ 10\ items,\ can\ be\ grouped\ into\ 5}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00979}00979\ \textcolor{stringliteral}{\ \ \ \ labels,\ the\ first\ and\ second\ items\ belong\ to\ the\ first\ label,\ the}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00980}00980\ \textcolor{stringliteral}{\ \ \ \ third\ and\ forth\ items\ belong\ to\ the\ second\ label,\ and\ so\ on}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00981}00981\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00982}00982\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00983}00983\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00984}00984\ \ \ \ \ bins:\ npt.NDArray[np.int64]}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00985}00985\ \ \ \ \ binlabels:\ Index}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00986}00986\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00987}00987\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00988}00988\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00989}00989\ \ \ \ \ \ \ \ \ bins,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00990}00990\ \ \ \ \ \ \ \ \ binlabels,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00991}00991\ \ \ \ \ \ \ \ \ indexer=None,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00992}00992\ \ \ \ \ )\ -\/>\ None:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00993}00993\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BinGrouper_a71ff0df7bc3a4c9b013a98cd9288d52d}{bins}}\ =\ ensure\_int64(bins)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00994}00994\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BinGrouper_a615dd2b9e708fed91646159f42992e0a}{binlabels}}\ =\ ensure\_index(binlabels)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00995}00995\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BinGrouper_a5d30b3ea44a453f081eeebeb87467713}{indexer}}\ =\ indexer}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00996}00996\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00997}00997\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ These\ lengths\ must\ match,\ otherwise\ we\ could\ call\ agg\_series}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00998}00998\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ with\ empty\ self.bins,\ which\ would\ raise\ later.}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l00999}00999\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ len(self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BinGrouper_a615dd2b9e708fed91646159f42992e0a}{binlabels}})\ ==\ len(self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BinGrouper_a71ff0df7bc3a4c9b013a98cd9288d52d}{bins}})}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01000}01000\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01001}01001\ \ \ \ \ \textcolor{preprocessor}{@cache\_readonly}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01002}\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BinGrouper_a3cfec18af0a784434bbbd8bf1fda074c}{01002}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BinGrouper_a3cfec18af0a784434bbbd8bf1fda074c}{groups}}(self):}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01003}01003\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}dict\ \{group\ name\ -\/>\ group\ labels\}"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01004}01004\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ this\ is\ mainly\ for\ compat}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01005}01005\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ GH\ 3881}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01006}01006\ \ \ \ \ \ \ \ \ result\ =\ \{}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01007}01007\ \ \ \ \ \ \ \ \ \ \ \ \ key:\ value}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01008}01008\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ key,\ value\ \textcolor{keywordflow}{in}\ zip(self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BinGrouper_a615dd2b9e708fed91646159f42992e0a}{binlabels}},\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BinGrouper_a71ff0df7bc3a4c9b013a98cd9288d52d}{bins}})}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01009}01009\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ key\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ NaT}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01010}01010\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01011}01011\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ result}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01012}01012\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01013}01013\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01014}01014\ \ \ \ \ \textcolor{keyword}{def\ }nkeys(self)\ -\/>\ int:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01015}01015\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ still\ matches\ len(self.groupings),\ but\ we\ can\ hard-\/code}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01016}01016\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ 1}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01017}01017\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01018}01018\ \ \ \ \ \textcolor{preprocessor}{@cache\_readonly}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01019}01019\ \ \ \ \ \textcolor{keyword}{def\ }codes\_info(self)\ -\/>\ npt.NDArray[np.intp]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01020}01020\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ return\ the\ codes\ of\ items\ in\ original\ grouped\ axis}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01021}01021\ \ \ \ \ \ \ \ \ ids,\ \_,\ \_\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a0b7dca21a8f046f77508aadfab590c89}{group\_info}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01022}01022\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BinGrouper_a5d30b3ea44a453f081eeebeb87467713}{indexer}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01023}01023\ \ \ \ \ \ \ \ \ \ \ \ \ sorter\ =\ np.lexsort((ids,\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BinGrouper_a5d30b3ea44a453f081eeebeb87467713}{indexer}}))}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01024}01024\ \ \ \ \ \ \ \ \ \ \ \ \ ids\ =\ ids[sorter]}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01025}01025\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ ids}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01026}01026\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01027}\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BinGrouper_a16db18cee792bfd147bd6dd2407146d5}{01027}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BinGrouper_a16db18cee792bfd147bd6dd2407146d5}{get\_iterator}}(self,\ data:\ NDFrame,\ axis:\ AxisInt\ =\ 0):}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01028}01028\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01029}01029\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Groupby\ iterator}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01030}01030\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01031}01031\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01032}01032\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01033}01033\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Generator\ yielding\ sequence\ of\ (name,\ subsetted\ object)}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01034}01034\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ for\ each\ group}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01035}01035\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01036}01036\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ axis\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01037}01037\ \ \ \ \ \ \ \ \ \ \ \ \ slicer\ =\ \textcolor{keyword}{lambda}\ start,\ edge:\ data.iloc[start:edge]}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01038}01038\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01039}01039\ \ \ \ \ \ \ \ \ \ \ \ \ slicer\ =\ \textcolor{keyword}{lambda}\ start,\ edge:\ data.iloc[:,\ start:edge]}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01040}01040\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01041}01041\ \ \ \ \ \ \ \ \ length\ =\ len(data.axes[axis])}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01042}01042\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01043}01043\ \ \ \ \ \ \ \ \ start\ =\ 0}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01044}01044\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ edge,\ label\ \textcolor{keywordflow}{in}\ zip(self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BinGrouper_a71ff0df7bc3a4c9b013a98cd9288d52d}{bins}},\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BinGrouper_a615dd2b9e708fed91646159f42992e0a}{binlabels}}):}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01045}01045\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ label\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ NaT:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01046}01046\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{yield}\ label,\ slicer(start,\ edge)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01047}01047\ \ \ \ \ \ \ \ \ \ \ \ \ start\ =\ edge}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01048}01048\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01049}01049\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ start\ <\ length:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01050}01050\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{yield}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BinGrouper_a615dd2b9e708fed91646159f42992e0a}{binlabels}}[-\/1],\ slicer(start,\ \textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01051}01051\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01052}01052\ \ \ \ \ \textcolor{preprocessor}{@cache\_readonly}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01053}01053\ \ \ \ \ \textcolor{keyword}{def\ }indices(self):}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01054}01054\ \ \ \ \ \ \ \ \ indices\ =\ collections.defaultdict(list)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01055}01055\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01056}01056\ \ \ \ \ \ \ \ \ i\ =\ 0}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01057}01057\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ label,\ bin\ \textcolor{keywordflow}{in}\ zip(self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BinGrouper_a615dd2b9e708fed91646159f42992e0a}{binlabels}},\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BinGrouper_a71ff0df7bc3a4c9b013a98cd9288d52d}{bins}}):}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01058}01058\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ i\ <\ bin:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01059}01059\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ label\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ NaT:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01060}01060\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ indices[label]\ =\ list(range(i,\ bin))}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01061}01061\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ i\ =\ bin}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01062}01062\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ indices}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01063}01063\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01064}01064\ \ \ \ \ \textcolor{preprocessor}{@cache\_readonly}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01065}01065\ \ \ \ \ \textcolor{keyword}{def\ }group\_info(self)\ -\/>\ tuple[npt.NDArray[np.intp],\ npt.NDArray[np.intp],\ int]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01066}01066\ \ \ \ \ \ \ \ \ ngroups\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_afea9ac21aeba197d6188de63b57e1cf8}{ngroups}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01067}01067\ \ \ \ \ \ \ \ \ obs\_group\_ids\ =\ np.arange(ngroups,\ dtype=np.intp)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01068}01068\ \ \ \ \ \ \ \ \ rep\ =\ np.diff(np.r\_[0,\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BinGrouper_a71ff0df7bc3a4c9b013a98cd9288d52d}{bins}}])}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01069}01069\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01070}01070\ \ \ \ \ \ \ \ \ rep\ =\ ensure\_platform\_int(rep)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01071}01071\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ ngroups\ ==\ len(self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BinGrouper_a71ff0df7bc3a4c9b013a98cd9288d52d}{bins}}):}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01072}01072\ \ \ \ \ \ \ \ \ \ \ \ \ comp\_ids\ =\ np.repeat(np.arange(ngroups),\ rep)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01073}01073\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01074}01074\ \ \ \ \ \ \ \ \ \ \ \ \ comp\_ids\ =\ np.repeat(np.r\_[-\/1,\ np.arange(ngroups)],\ rep)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01075}01075\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01076}01076\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ (}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01077}01077\ \ \ \ \ \ \ \ \ \ \ \ \ ensure\_platform\_int(comp\_ids),}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01078}01078\ \ \ \ \ \ \ \ \ \ \ \ \ obs\_group\_ids,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01079}01079\ \ \ \ \ \ \ \ \ \ \ \ \ ngroups,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01080}01080\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01081}01081\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01082}01082\ \ \ \ \ \textcolor{preprocessor}{@cache\_readonly}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01083}01083\ \ \ \ \ \textcolor{keyword}{def\ }reconstructed\_codes(self)\ -\/>\ list[np.ndarray]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01084}01084\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ get\ unique\ result\ indices,\ and\ prepend\ 0\ as\ groupby\ starts\ from\ the\ first}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01085}01085\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ [np.r\_[0,\ np.flatnonzero(self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BinGrouper_a71ff0df7bc3a4c9b013a98cd9288d52d}{bins}}[1:]\ !=\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BinGrouper_a71ff0df7bc3a4c9b013a98cd9288d52d}{bins}}[:-\/1])\ +\ 1]]}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01086}01086\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01087}01087\ \ \ \ \ \textcolor{preprocessor}{@cache\_readonly}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01088}01088\ \ \ \ \ \textcolor{keyword}{def\ }result\_index(self)\ -\/>\ Index:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01089}01089\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BinGrouper_a615dd2b9e708fed91646159f42992e0a}{binlabels}})\ !=\ 0\ \textcolor{keywordflow}{and}\ isna(self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BinGrouper_a615dd2b9e708fed91646159f42992e0a}{binlabels}}[0]):}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01090}01090\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BinGrouper_a615dd2b9e708fed91646159f42992e0a}{binlabels}}[1:]}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01091}01091\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01092}01092\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BinGrouper_a615dd2b9e708fed91646159f42992e0a}{binlabels}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01093}01093\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01094}01094\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01095}01095\ \ \ \ \ \textcolor{keyword}{def\ }levels(self)\ -\/>\ list[Index]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01096}01096\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ [self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BinGrouper_a615dd2b9e708fed91646159f42992e0a}{binlabels}}]}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01097}01097\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01098}01098\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01099}01099\ \ \ \ \ \textcolor{keyword}{def\ }names(self)\ -\/>\ list[Hashable]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01100}01100\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ [self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BinGrouper_a615dd2b9e708fed91646159f42992e0a}{binlabels}}.name]}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01101}01101\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01102}01102\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01103}01103\ \ \ \ \ \textcolor{keyword}{def\ }groupings(self)\ -\/>\ list[grouper.Grouping]:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01104}01104\ \ \ \ \ \ \ \ \ lev\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BinGrouper_a615dd2b9e708fed91646159f42992e0a}{binlabels}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01105}01105\ \ \ \ \ \ \ \ \ codes\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1BaseGrouper_a0b7dca21a8f046f77508aadfab590c89}{group\_info}}[0]}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01106}01106\ \ \ \ \ \ \ \ \ labels\ =\ lev.take(codes)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01107}01107\ \ \ \ \ \ \ \ \ ping\ =\ \mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1grouper_1_1Grouping}{grouper.Grouping}}(}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01108}01108\ \ \ \ \ \ \ \ \ \ \ \ \ labels,\ labels,\ in\_axis=\textcolor{keyword}{False},\ level=\textcolor{keywordtype}{None},\ uniques=lev.\_values}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01109}01109\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01110}01110\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ [ping]}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01111}01111\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01112}01112\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01113}01113\ \textcolor{keyword}{def\ }\_is\_indexed\_like(obj,\ axes,\ axis:\ AxisInt)\ -\/>\ bool:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01114}01114\ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(obj,\ Series):}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01115}01115\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(axes)\ >\ 1:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01116}01116\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01117}01117\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ obj.axes[axis].equals(axes[axis])}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01118}01118\ \ \ \ \ \textcolor{keywordflow}{elif}\ isinstance(obj,\ DataFrame):}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01119}01119\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ obj.axes[axis].equals(axes[axis])}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01120}01120\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01121}01121\ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01122}01122\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01123}01123\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01124}01124\ \textcolor{comment}{\#\ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01125}01125\ \textcolor{comment}{\#\ Splitting\ /\ application}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01126}01126\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01127}01127\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01128}\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1DataSplitter}{01128}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1DataSplitter}{DataSplitter}}(\mbox{\hyperlink{classGeneric}{Generic}}[NDFrameT]):}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01129}01129\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01130}01130\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01131}01131\ \ \ \ \ \ \ \ \ data:\ NDFrameT,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01132}01132\ \ \ \ \ \ \ \ \ labels:\ npt.NDArray[np.intp],}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01133}01133\ \ \ \ \ \ \ \ \ ngroups:\ int,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01134}01134\ \ \ \ \ \ \ \ \ *,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01135}01135\ \ \ \ \ \ \ \ \ sort\_idx:\ npt.NDArray[np.intp],}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01136}01136\ \ \ \ \ \ \ \ \ sorted\_ids:\ npt.NDArray[np.intp],}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01137}01137\ \ \ \ \ \ \ \ \ axis:\ AxisInt\ =\ 0,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01138}01138\ \ \ \ \ )\ -\/>\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01139}01139\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1DataSplitter_a481bd6becb8b473604925594e8056d53}{data}}\ =\ data}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01140}01140\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1DataSplitter_af864d5cf225861b5d731d508964b6cb3}{labels}}\ =\ ensure\_platform\_int(labels)\ \ \textcolor{comment}{\#\ \_should\_\ already\ be\ np.intp}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01141}01141\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1DataSplitter_a29bae56f302d7b922c9c312626b8560c}{ngroups}}\ =\ ngroups}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01142}01142\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01143}01143\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1DataSplitter_a3d26969cc3e4a377490d8d5cc9ca2a3f}{\_slabels}}\ =\ sorted\_ids}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01144}01144\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1DataSplitter_a7885ff2f7f69a28c0bb72eedb8066de9}{\_sort\_idx}}\ =\ sort\_idx}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01145}01145\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01146}01146\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1DataSplitter_a40941c5d7f1530d75dd6f75d62b81b5a}{axis}}\ =\ axis}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01147}01147\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ isinstance(axis,\ int),\ axis}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01148}01148\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01149}01149\ \ \ \ \ \textcolor{keyword}{def\ }\_\_iter\_\_(self)\ -\/>\ Iterator:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01150}01150\ \ \ \ \ \ \ \ \ sdata\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1DataSplitter_acb16653979eb3ca56dba961733410875}{\_sorted\_data}}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01151}01151\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01152}01152\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1DataSplitter_a29bae56f302d7b922c9c312626b8560c}{ngroups}}\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01153}01153\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ we\ are\ inside\ a\ generator,\ rather\ than\ raise\ StopIteration}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01154}01154\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ we\ merely\ return\ signal\ the\ end}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01155}01155\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01156}01156\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01157}01157\ \ \ \ \ \ \ \ \ starts,\ ends\ =\ lib.generate\_slices(self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1DataSplitter_a3d26969cc3e4a377490d8d5cc9ca2a3f}{\_slabels}},\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1DataSplitter_a29bae56f302d7b922c9c312626b8560c}{ngroups}})}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01158}01158\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01159}01159\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ start,\ end\ \textcolor{keywordflow}{in}\ zip(starts,\ ends):}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01160}01160\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{yield}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1DataSplitter_a2c15768c45e8d596353db4d9114212db}{\_chop}}(sdata,\ slice(start,\ end))}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01161}01161\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01162}01162\ \ \ \ \ \textcolor{preprocessor}{@cache\_readonly}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01163}01163\ \ \ \ \ \textcolor{keyword}{def\ }\_sorted\_data(self)\ -\/>\ NDFrameT:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01164}01164\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1DataSplitter_a481bd6becb8b473604925594e8056d53}{data}}.take(self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1DataSplitter_a7885ff2f7f69a28c0bb72eedb8066de9}{\_sort\_idx}},\ axis=self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1DataSplitter_a40941c5d7f1530d75dd6f75d62b81b5a}{axis}})}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01165}01165\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01166}01166\ \ \ \ \ \textcolor{keyword}{def\ }\_chop(self,\ sdata,\ slice\_obj:\ slice)\ -\/>\ NDFrame:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01167}01167\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classpandas_1_1errors_1_1AbstractMethodError}{AbstractMethodError}}(self)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01168}01168\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01169}01169\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01170}\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1SeriesSplitter}{01170}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1SeriesSplitter}{SeriesSplitter}}(\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1DataSplitter}{DataSplitter}}):}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01171}01171\ \ \ \ \ \textcolor{keyword}{def\ }\_chop(self,\ sdata:\ Series,\ slice\_obj:\ slice)\ -\/>\ Series:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01172}01172\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ fastpath\ equivalent\ to\ \`{}sdata.iloc[slice\_obj]`}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01173}01173\ \ \ \ \ \ \ \ \ mgr\ =\ sdata.\_mgr.get\_slice(slice\_obj)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01174}01174\ \ \ \ \ \ \ \ \ ser\ =\ sdata.\_constructor\_from\_mgr(mgr,\ axes=mgr.axes)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01175}01175\ \ \ \ \ \ \ \ \ ser.\_name\ =\ sdata.name}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01176}01176\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ ser.\_\_finalize\_\_(sdata,\ method=\textcolor{stringliteral}{"{}groupby"{}})}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01177}01177\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01178}01178\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01179}\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1FrameSplitter}{01179}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1FrameSplitter}{FrameSplitter}}(\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1DataSplitter}{DataSplitter}}):}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01180}01180\ \ \ \ \ \textcolor{keyword}{def\ }\_chop(self,\ sdata:\ DataFrame,\ slice\_obj:\ slice)\ -\/>\ DataFrame:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01181}01181\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Fastpath\ equivalent\ to:}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01182}01182\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ if\ self.axis\ ==\ 0:}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01183}01183\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ \ return\ sdata.iloc[slice\_obj]}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01184}01184\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ else:}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01185}01185\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ \ return\ sdata.iloc[:,\ slice\_obj]}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01186}01186\ \ \ \ \ \ \ \ \ mgr\ =\ sdata.\_mgr.get\_slice(slice\_obj,\ axis=1\ -\/\ self.\mbox{\hyperlink{classpandas_1_1core_1_1groupby_1_1ops_1_1DataSplitter_a40941c5d7f1530d75dd6f75d62b81b5a}{axis}})}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01187}01187\ \ \ \ \ \ \ \ \ df\ =\ sdata.\_constructor\_from\_mgr(mgr,\ axes=mgr.axes)}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01188}01188\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ df.\_\_finalize\_\_(sdata,\ method=\textcolor{stringliteral}{"{}groupby"{}})}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01189}01189\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01190}01190\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01191}01191\ \textcolor{keyword}{def\ }\_get\_splitter(}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01192}01192\ \ \ \ \ data:\ NDFrame,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01193}01193\ \ \ \ \ labels:\ npt.NDArray[np.intp],}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01194}01194\ \ \ \ \ ngroups:\ int,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01195}01195\ \ \ \ \ *,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01196}01196\ \ \ \ \ sort\_idx:\ npt.NDArray[np.intp],}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01197}01197\ \ \ \ \ sorted\_ids:\ npt.NDArray[np.intp],}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01198}01198\ \ \ \ \ axis:\ AxisInt\ =\ 0,}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01199}01199\ )\ -\/>\ DataSplitter:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01200}01200\ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(data,\ Series):}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01201}01201\ \ \ \ \ \ \ \ \ klass:\ type[DataSplitter]\ =\ SeriesSplitter}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01202}01202\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01203}01203\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ i.e.\ DataFrame}}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01204}01204\ \ \ \ \ \ \ \ \ klass\ =\ FrameSplitter}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01205}01205\ }
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01206}01206\ \ \ \ \ \textcolor{keywordflow}{return}\ klass(}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01207}01207\ \ \ \ \ \ \ \ \ data,\ labels,\ ngroups,\ sort\_idx=sort\_idx,\ sorted\_ids=sorted\_ids,\ axis=axis}
+\DoxyCodeLine{\Hypertarget{core_2groupby_2ops_8py_source_l01208}01208\ \ \ \ \ )}
+
+\end{DoxyCode}

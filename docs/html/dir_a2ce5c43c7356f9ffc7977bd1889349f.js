@@ -1,0 +1,28 @@
+var dir_a2ce5c43c7356f9ffc7977bd1889349f =
+[
+    [ "constructors", "dir_937efa166b5cfca8d52519f953b4996c.html", "dir_937efa166b5cfca8d52519f953b4996c" ],
+    [ "indexing", "dir_6ccff750f141a662431801bb918afa57.html", "dir_6ccff750f141a662431801bb918afa57" ],
+    [ "methods", "dir_31f2f6eace43a37300a2a3630018385c.html", "dir_31f2f6eace43a37300a2a3630018385c" ],
+    [ "__init__.py", "dd/d9b/pandas_2tests_2frame_2____init_____8py_source.html", null ],
+    [ "common.py", "da/d62/pandas_2tests_2frame_2common_8py_source.html", null ],
+    [ "conftest.py", "da/de7/pandas_2tests_2frame_2conftest_8py_source.html", null ],
+    [ "test_alter_axes.py", "dd/da4/test__alter__axes_8py_source.html", null ],
+    [ "test_api.py", "d7/dd6/pandas_2tests_2frame_2test__api_8py_source.html", null ],
+    [ "test_arithmetic.py", "dc/dcc/frame_2test__arithmetic_8py_source.html", null ],
+    [ "test_arrow_interface.py", "dc/dce/test__arrow__interface_8py_source.html", null ],
+    [ "test_block_internals.py", "d5/d0c/test__block__internals_8py_source.html", null ],
+    [ "test_constructors.py", "db/d9a/frame_2test__constructors_8py_source.html", null ],
+    [ "test_cumulative.py", "d2/db2/frame_2test__cumulative_8py_source.html", null ],
+    [ "test_iteration.py", "d9/d4e/frame_2test__iteration_8py_source.html", null ],
+    [ "test_logical_ops.py", "d0/d38/frame_2test__logical__ops_8py_source.html", null ],
+    [ "test_nonunique_indexes.py", "de/d1b/test__nonunique__indexes_8py_source.html", null ],
+    [ "test_npfuncs.py", "d7/d47/frame_2test__npfuncs_8py_source.html", null ],
+    [ "test_query_eval.py", "dd/d84/test__query__eval_8py_source.html", null ],
+    [ "test_reductions.py", "da/d72/frame_2test__reductions_8py_source.html", null ],
+    [ "test_repr.py", "dd/ddc/frame_2test__repr_8py_source.html", null ],
+    [ "test_stack_unstack.py", "db/dea/test__stack__unstack_8py_source.html", null ],
+    [ "test_subclass.py", "d0/d5d/frame_2test__subclass_8py_source.html", null ],
+    [ "test_ufunc.py", "d5/d31/pandas_2tests_2frame_2test__ufunc_8py_source.html", null ],
+    [ "test_unary.py", "d3/d18/frame_2test__unary_8py_source.html", null ],
+    [ "test_validate.py", "d2/dbf/frame_2test__validate_8py_source.html", null ]
+];

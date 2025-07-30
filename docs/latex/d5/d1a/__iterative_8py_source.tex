@@ -1,0 +1,1036 @@
+\doxysection{\+\_\+iterative.\+py}
+\hypertarget{__iterative_8py_source}{}\label{__iterative_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/sklearn/impute/\_iterative.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/sklearn/impute/\_iterative.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00001}\mbox{\hyperlink{namespacesklearn_1_1impute_1_1__iterative}{00001}}\ \textcolor{comment}{\#\ Authors:\ The\ scikit-\/learn\ developers}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00002}00002\ \textcolor{comment}{\#\ SPDX-\/License-\/Identifier:\ BSD-\/3-\/Clause}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00003}00003\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00004}00004\ \textcolor{keyword}{import}\ warnings}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00005}00005\ \textcolor{keyword}{from}\ collections\ \textcolor{keyword}{import}\ namedtuple}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00006}00006\ \textcolor{keyword}{from}\ numbers\ \textcolor{keyword}{import}\ Integral,\ Real}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00007}00007\ \textcolor{keyword}{from}\ time\ \textcolor{keyword}{import}\ time}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00008}00008\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00009}00009\ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00010}00010\ \textcolor{keyword}{from}\ scipy\ \textcolor{keyword}{import}\ stats}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00011}00011\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00012}00012\ \textcolor{keyword}{from}\ ..base\ \textcolor{keyword}{import}\ \_fit\_context,\ clone}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00013}00013\ \textcolor{keyword}{from}\ ..exceptions\ \textcolor{keyword}{import}\ ConvergenceWarning}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00014}00014\ \textcolor{keyword}{from}\ ..preprocessing\ \textcolor{keyword}{import}\ normalize}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00015}00015\ \textcolor{keyword}{from}\ ..utils\ \textcolor{keyword}{import}\ \_safe\_indexing,\ check\_array,\ check\_random\_state}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00016}00016\ \textcolor{keyword}{from}\ ..utils.\_indexing\ \textcolor{keyword}{import}\ \_safe\_assign}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00017}00017\ \textcolor{keyword}{from}\ ..utils.\_mask\ \textcolor{keyword}{import}\ \_get\_mask}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00018}00018\ \textcolor{keyword}{from}\ ..utils.\_missing\ \textcolor{keyword}{import}\ is\_scalar\_nan}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00019}00019\ \textcolor{keyword}{from}\ ..utils.\_param\_validation\ \textcolor{keyword}{import}\ HasMethods,\ Interval,\ StrOptions}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00020}00020\ \textcolor{keyword}{from}\ ..utils.metadata\_routing\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00021}00021\ \ \ \ \ MetadataRouter,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00022}00022\ \ \ \ \ MethodMapping,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00023}00023\ \ \ \ \ \_raise\_for\_params,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00024}00024\ \ \ \ \ process\_routing,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00025}00025\ )}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00026}00026\ \textcolor{keyword}{from}\ ..utils.validation\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00027}00027\ \ \ \ \ FLOAT\_DTYPES,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00028}00028\ \ \ \ \ \_check\_feature\_names\_in,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00029}00029\ \ \ \ \ \_num\_samples,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00030}00030\ \ \ \ \ check\_is\_fitted,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00031}00031\ \ \ \ \ validate\_data,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00032}00032\ )}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00033}00033\ \textcolor{keyword}{from}\ .\_base\ \textcolor{keyword}{import}\ SimpleImputer,\ \_BaseImputer,\ \_check\_inputs\_dtype}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00034}00034\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00035}00035\ \_ImputerTriplet\ =\ \mbox{\hyperlink{classnamedtuple}{namedtuple}}(}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00036}00036\ \ \ \ \ \textcolor{stringliteral}{"{}\_ImputerTriplet"{}},\ [\textcolor{stringliteral}{"{}feat\_idx"{}},\ \textcolor{stringliteral}{"{}neighbor\_feat\_idx"{}},\ \textcolor{stringliteral}{"{}estimator"{}}]}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00037}00037\ )}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00038}00038\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00039}00039\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00040}\mbox{\hyperlink{namespacesklearn_1_1impute_1_1__iterative_acda7408b5cb4795286ab4e331bfb342e}{00040}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1impute_1_1__iterative_acda7408b5cb4795286ab4e331bfb342e}{\_assign\_where}}(X1,\ X2,\ cond):}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00041}00041\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Assign\ X2\ to\ X1\ where\ cond\ is\ True.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00042}00042\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00043}00043\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00044}00044\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00045}00045\ \textcolor{stringliteral}{\ \ \ \ X1\ :\ ndarray\ or\ dataframe\ of\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00046}00046\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Data.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00047}00047\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00048}00048\ \textcolor{stringliteral}{\ \ \ \ X2\ :\ ndarray\ of\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00049}00049\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Data\ to\ be\ assigned.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00050}00050\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00051}00051\ \textcolor{stringliteral}{\ \ \ \ cond\ :\ ndarray\ of\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00052}00052\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Boolean\ mask\ to\ assign\ data.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00053}00053\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00054}00054\ \ \ \ \ \textcolor{keywordflow}{if}\ hasattr(X1,\ \textcolor{stringliteral}{"{}mask"{}}):\ \ \textcolor{comment}{\#\ pandas\ dataframes}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00055}00055\ \ \ \ \ \ \ \ \ X1.mask(cond=cond,\ other=X2,\ inplace=\textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00056}00056\ \ \ \ \ \textcolor{keywordflow}{else}:\ \ \textcolor{comment}{\#\ ndarrays}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00057}00057\ \ \ \ \ \ \ \ \ X1[cond]\ =\ X2[cond]}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00058}00058\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00059}00059\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00060}\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer}{00060}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer}{IterativeImputer}}(\mbox{\hyperlink{classsklearn_1_1impute_1_1__base_1_1__BaseImputer}{\_BaseImputer}}):}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00061}00061\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Multivariate\ imputer\ that\ estimates\ each\ feature\ from\ all\ the\ others.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00062}00062\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00063}00063\ \textcolor{stringliteral}{\ \ \ \ A\ strategy\ for\ imputing\ missing\ values\ by\ modeling\ each\ feature\ with}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00064}00064\ \textcolor{stringliteral}{\ \ \ \ missing\ values\ as\ a\ function\ of\ other\ features\ in\ a\ round-\/robin\ fashion.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00065}00065\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00066}00066\ \textcolor{stringliteral}{\ \ \ \ Read\ more\ in\ the\ :ref:\`{}User\ Guide\ <iterative\_imputer>\`{}.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00067}00067\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00068}00068\ \textcolor{stringliteral}{\ \ \ \ ..\ versionadded::\ 0.21}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00069}00069\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00070}00070\ \textcolor{stringliteral}{\ \ \ \ ..\ note::}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00071}00071\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00072}00072\ \textcolor{stringliteral}{\ \ \ \ \ \ This\ estimator\ is\ still\ **experimental**\ for\ now:\ the\ predictions}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00073}00073\ \textcolor{stringliteral}{\ \ \ \ \ \ and\ the\ API\ might\ change\ without\ any\ deprecation\ cycle.\ To\ use\ it,}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00074}00074\ \textcolor{stringliteral}{\ \ \ \ \ \ you\ need\ to\ explicitly\ import\ \`{}enable\_iterative\_imputer\`{}::}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00075}00075\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00076}00076\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ \#\ explicitly\ require\ this\ experimental\ feature}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00077}00077\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ from\ sklearn.experimental\ import\ enable\_iterative\_imputer\ \ \#\ noqa}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00078}00078\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ \#\ now\ you\ can\ import\ normally\ from\ sklearn.impute}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00079}00079\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ >>>\ from\ sklearn.impute\ import\ IterativeImputer}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00080}00080\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00081}00081\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00082}00082\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00083}00083\ \textcolor{stringliteral}{\ \ \ \ estimator\ :\ estimator\ object,\ default=BayesianRidge()}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00084}00084\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ estimator\ to\ use\ at\ each\ step\ of\ the\ round-\/robin\ imputation.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00085}00085\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ \`{}sample\_posterior=True\`{},\ the\ estimator\ must\ support}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00086}00086\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}return\_std\`{}\ in\ its\ \`{}predict\`{}\ method.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00087}00087\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00088}00088\ \textcolor{stringliteral}{\ \ \ \ missing\_values\ :\ int\ or\ np.nan,\ default=np.nan}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00089}00089\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ placeholder\ for\ the\ missing\ values.\ All\ occurrences\ of}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00090}00090\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}missing\_values\`{}\ will\ be\ imputed.\ For\ pandas'\ dataframes\ with}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00091}00091\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ nullable\ integer\ dtypes\ with\ missing\ values,\ \`{}missing\_values\`{}}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00092}00092\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ should\ be\ set\ to\ \`{}np.nan\`{},\ since\ \`{}pd.NA\`{}\ will\ be\ converted\ to\ \`{}np.nan\`{}.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00093}00093\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00094}00094\ \textcolor{stringliteral}{\ \ \ \ sample\_posterior\ :\ bool,\ default=False}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00095}00095\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Whether\ to\ sample\ from\ the\ (Gaussian)\ predictive\ posterior\ of\ the}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00096}00096\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ fitted\ estimator\ for\ each\ imputation.\ Estimator\ must\ support}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00097}00097\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}return\_std\`{}\ in\ its\ \`{}predict\`{}\ method\ if\ set\ to\ \`{}True\`{}.\ Set\ to}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00098}00098\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}True\`{}\ if\ using\ \`{}IterativeImputer\`{}\ for\ multiple\ imputations.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00099}00099\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00100}00100\ \textcolor{stringliteral}{\ \ \ \ max\_iter\ :\ int,\ default=10}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00101}00101\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Maximum\ number\ of\ imputation\ rounds\ to\ perform\ before\ returning\ the}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00102}00102\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ imputations\ computed\ during\ the\ final\ round.\ A\ round\ is\ a\ single}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00103}00103\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ imputation\ of\ each\ feature\ with\ missing\ values.\ The\ stopping\ criterion}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00104}00104\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ is\ met\ once\ \`{}max(abs(X\_t\ -\/\ X\_\{t-\/1\}))/max(abs(X[known\_vals]))\ <\ tol\`{},}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00105}00105\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ where\ \`{}X\_t\`{}\ is\ \`{}X\`{}\ at\ iteration\ \`{}t\`{}.\ Note\ that\ early\ stopping\ is\ only}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00106}00106\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ applied\ if\ \`{}sample\_posterior=False\`{}.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00107}00107\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00108}00108\ \textcolor{stringliteral}{\ \ \ \ tol\ :\ float,\ default=1e-\/3}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00109}00109\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Tolerance\ of\ the\ stopping\ condition.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00110}00110\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00111}00111\ \textcolor{stringliteral}{\ \ \ \ n\_nearest\_features\ :\ int,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00112}00112\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ other\ features\ to\ use\ to\ estimate\ the\ missing\ values\ of}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00113}00113\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ each\ feature\ column.\ Nearness\ between\ features\ is\ measured\ using}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00114}00114\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ absolute\ correlation\ coefficient\ between\ each\ feature\ pair\ (after}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00115}00115\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ initial\ imputation).\ To\ ensure\ coverage\ of\ features\ throughout\ the}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00116}00116\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ imputation\ process,\ the\ neighbor\ features\ are\ not\ necessarily\ nearest,}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00117}00117\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ but\ are\ drawn\ with\ probability\ proportional\ to\ correlation\ for\ each}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00118}00118\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ imputed\ target\ feature.\ Can\ provide\ significant\ speed-\/up\ when\ the}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00119}00119\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ number\ of\ features\ is\ huge.\ If\ \`{}None\`{},\ all\ features\ will\ be\ used.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00120}00120\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00121}00121\ \textcolor{stringliteral}{\ \ \ \ initial\_strategy\ :\ \{'mean',\ 'median',\ 'most\_frequent',\ 'constant'\},\ \(\backslash\)}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00122}00122\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ default='mean'}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00123}00123\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Which\ strategy\ to\ use\ to\ initialize\ the\ missing\ values.\ Same\ as\ the}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00124}00124\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}strategy\`{}\ parameter\ in\ :class:\`{}\string~sklearn.impute.SimpleImputer\`{}.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00125}00125\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00126}00126\ \textcolor{stringliteral}{\ \ \ \ fill\_value\ :\ str\ or\ numerical\ value,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00127}00127\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ When\ \`{}strategy="{}constant"{}\`{},\ \`{}fill\_value\`{}\ is\ used\ to\ replace\ all}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00128}00128\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ occurrences\ of\ missing\_values.\ For\ string\ or\ object\ data\ types,}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00129}00129\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}fill\_value\`{}\ must\ be\ a\ string.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00130}00130\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ \`{}None\`{},\ \`{}fill\_value\`{}\ will\ be\ 0\ when\ imputing\ numerical}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00131}00131\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ data\ and\ "{}missing\_value"{}\ for\ strings\ or\ object\ data\ types.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00132}00132\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00133}00133\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 1.3}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00134}00134\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00135}00135\ \textcolor{stringliteral}{\ \ \ \ imputation\_order\ :\ \{'ascending',\ 'descending',\ 'roman',\ 'arabic',\ \(\backslash\)}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00136}00136\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ 'random'\},\ default='ascending'}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00137}00137\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ order\ in\ which\ the\ features\ will\ be\ imputed.\ Possible\ values:}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00138}00138\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00139}00139\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ \`{}'ascending'\`{}:\ From\ features\ with\ fewest\ missing\ values\ to\ most.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00140}00140\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ \`{}'descending'\`{}:\ From\ features\ with\ most\ missing\ values\ to\ fewest.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00141}00141\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ \`{}'roman'\`{}:\ Left\ to\ right.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00142}00142\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ \`{}'arabic'\`{}:\ Right\ to\ left.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00143}00143\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ \`{}'random'\`{}:\ A\ random\ order\ for\ each\ round.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00144}00144\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00145}00145\ \textcolor{stringliteral}{\ \ \ \ skip\_complete\ :\ bool,\ default=False}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00146}00146\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ \`{}True\`{}\ then\ features\ with\ missing\ values\ during\ :meth:\`{}transform\`{}}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00147}00147\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ which\ did\ not\ have\ any\ missing\ values\ during\ :meth:\`{}fit\`{}\ will\ be}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00148}00148\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ imputed\ with\ the\ initial\ imputation\ method\ only.\ Set\ to\ \`{}True\`{}\ if\ you}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00149}00149\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ have\ many\ features\ with\ no\ missing\ values\ at\ both\ :meth:\`{}fit\`{}\ and}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00150}00150\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :meth:\`{}transform\`{}\ time\ to\ save\ compute.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00151}00151\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00152}00152\ \textcolor{stringliteral}{\ \ \ \ min\_value\ :\ float\ or\ array-\/like\ of\ shape\ (n\_features,),\ default=-\/np.inf}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00153}00153\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Minimum\ possible\ imputed\ value.\ Broadcast\ to\ shape\ \`{}(n\_features,)\`{}\ if}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00154}00154\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ scalar.\ If\ array-\/like,\ expects\ shape\ \`{}(n\_features,)\`{},\ one\ min\ value\ for}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00155}00155\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ each\ feature.\ The\ default\ is\ \`{}-\/np.inf\`{}.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00156}00156\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00157}00157\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionchanged::\ 0.23}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00158}00158\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ Added\ support\ for\ array-\/like.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00159}00159\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00160}00160\ \textcolor{stringliteral}{\ \ \ \ max\_value\ :\ float\ or\ array-\/like\ of\ shape\ (n\_features,),\ default=np.inf}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00161}00161\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Maximum\ possible\ imputed\ value.\ Broadcast\ to\ shape\ \`{}(n\_features,)\`{}\ if}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00162}00162\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ scalar.\ If\ array-\/like,\ expects\ shape\ \`{}(n\_features,)\`{},\ one\ max\ value\ for}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00163}00163\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ each\ feature.\ The\ default\ is\ \`{}np.inf\`{}.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00164}00164\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00165}00165\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionchanged::\ 0.23}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00166}00166\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ Added\ support\ for\ array-\/like.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00167}00167\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00168}00168\ \textcolor{stringliteral}{\ \ \ \ verbose\ :\ int,\ default=0}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00169}00169\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Verbosity\ flag,\ controls\ the\ debug\ messages\ that\ are\ issued}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00170}00170\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ as\ functions\ are\ evaluated.\ The\ higher,\ the\ more\ verbose.\ Can\ be\ 0,\ 1,}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00171}00171\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ or\ 2.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00172}00172\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00173}00173\ \textcolor{stringliteral}{\ \ \ \ random\_state\ :\ int,\ RandomState\ instance\ or\ None,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00174}00174\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ seed\ of\ the\ pseudo\ random\ number\ generator\ to\ use.\ Randomizes}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00175}00175\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ selection\ of\ estimator\ features\ if\ \`{}n\_nearest\_features\`{}\ is\ not\ \`{}None\`{},}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00176}00176\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ \`{}imputation\_order\`{}\ if\ \`{}random\`{},\ and\ the\ sampling\ from\ posterior\ if}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00177}00177\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}sample\_posterior=True\`{}.\ Use\ an\ integer\ for\ determinism.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00178}00178\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ See\ :term:\`{}the\ Glossary\ <random\_state>\`{}.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00179}00179\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00180}00180\ \textcolor{stringliteral}{\ \ \ \ add\_indicator\ :\ bool,\ default=False}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00181}00181\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ \`{}True\`{},\ a\ :class:\`{}MissingIndicator\`{}\ transform\ will\ stack\ onto\ output}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00182}00182\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ of\ the\ imputer's\ transform.\ This\ allows\ a\ predictive\ estimator}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00183}00183\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ to\ account\ for\ missingness\ despite\ imputation.\ If\ a\ feature\ has\ no}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00184}00184\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ missing\ values\ at\ fit/train\ time,\ the\ feature\ won't\ appear\ on}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00185}00185\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ missing\ indicator\ even\ if\ there\ are\ missing\ values\ at}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00186}00186\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ transform/test\ time.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00187}00187\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00188}00188\ \textcolor{stringliteral}{\ \ \ \ keep\_empty\_features\ :\ bool,\ default=False}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00189}00189\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ True,\ features\ that\ consist\ exclusively\ of\ missing\ values\ when}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00190}00190\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}fit\`{}\ is\ called\ are\ returned\ in\ results\ when\ \`{}transform\`{}\ is\ called.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00191}00191\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ imputed\ value\ is\ always\ \`{}0\`{}\ except\ when}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00192}00192\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}initial\_strategy="{}constant"{}\`{}\ in\ which\ case\ \`{}fill\_value\`{}\ will\ be}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00193}00193\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ used\ instead.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00194}00194\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00195}00195\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 1.2}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00196}00196\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00197}00197\ \textcolor{stringliteral}{\ \ \ \ Attributes}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00198}00198\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00199}00199\ \textcolor{stringliteral}{\ \ \ \ initial\_imputer\_\ :\ object\ of\ type\ :class:\`{}\string~sklearn.impute.SimpleImputer\`{}}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00200}00200\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Imputer\ used\ to\ initialize\ the\ missing\ values.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00201}00201\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00202}00202\ \textcolor{stringliteral}{\ \ \ \ imputation\_sequence\_\ :\ list\ of\ tuples}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00203}00203\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Each\ tuple\ has\ \`{}(feat\_idx,\ neighbor\_feat\_idx,\ estimator)\`{},\ where}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00204}00204\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}feat\_idx\`{}\ is\ the\ current\ feature\ to\ be\ imputed,}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00205}00205\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}neighbor\_feat\_idx\`{}\ is\ the\ array\ of\ other\ features\ used\ to\ impute\ the}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00206}00206\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ current\ feature,\ and\ \`{}estimator\`{}\ is\ the\ trained\ estimator\ used\ for}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00207}00207\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ imputation.\ Length\ is\ \`{}self.n\_features\_with\_missing\_\ *}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00208}00208\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ self.n\_iter\_\`{}.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00209}00209\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00210}00210\ \textcolor{stringliteral}{\ \ \ \ n\_iter\_\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00211}00211\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ iteration\ rounds\ that\ occurred.\ Will\ be\ less\ than}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00212}00212\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}self.max\_iter\`{}\ if\ early\ stopping\ criterion\ was\ reached.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00213}00213\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00214}00214\ \textcolor{stringliteral}{\ \ \ \ n\_features\_in\_\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00215}00215\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ features\ seen\ during\ :term:\`{}fit\`{}.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00216}00216\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00217}00217\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 0.24}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00218}00218\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00219}00219\ \textcolor{stringliteral}{\ \ \ \ feature\_names\_in\_\ :\ ndarray\ of\ shape\ (\`{}n\_features\_in\_\`{},)}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00220}00220\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Names\ of\ features\ seen\ during\ :term:\`{}fit\`{}.\ Defined\ only\ when\ \`{}X\`{}}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00221}00221\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ has\ feature\ names\ that\ are\ all\ strings.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00222}00222\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00223}00223\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 1.0}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00224}00224\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00225}00225\ \textcolor{stringliteral}{\ \ \ \ n\_features\_with\_missing\_\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00226}00226\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ features\ with\ missing\ values.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00227}00227\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00228}00228\ \textcolor{stringliteral}{\ \ \ \ indicator\_\ :\ :class:\`{}\string~sklearn.impute.MissingIndicator\`{}}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00229}00229\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Indicator\ used\ to\ add\ binary\ indicators\ for\ missing\ values.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00230}00230\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}None\`{}\ if\ \`{}add\_indicator=False\`{}.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00231}00231\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00232}00232\ \textcolor{stringliteral}{\ \ \ \ random\_state\_\ :\ RandomState\ instance}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00233}00233\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ RandomState\ instance\ that\ is\ generated\ either\ from\ a\ seed,\ the\ random}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00234}00234\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ number\ generator\ or\ by\ \`{}np.random\`{}.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00235}00235\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00236}00236\ \textcolor{stringliteral}{\ \ \ \ See\ Also}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00237}00237\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00238}00238\ \textcolor{stringliteral}{\ \ \ \ SimpleImputer\ :\ Univariate\ imputer\ for\ completing\ missing\ values}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00239}00239\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ with\ simple\ strategies.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00240}00240\ \textcolor{stringliteral}{\ \ \ \ KNNImputer\ :\ Multivariate\ imputer\ that\ estimates\ missing\ features\ using}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00241}00241\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ nearest\ samples.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00242}00242\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00243}00243\ \textcolor{stringliteral}{\ \ \ \ Notes}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00244}00244\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00245}00245\ \textcolor{stringliteral}{\ \ \ \ To\ support\ imputation\ in\ inductive\ mode\ we\ store\ each\ feature's\ estimator}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00246}00246\ \textcolor{stringliteral}{\ \ \ \ during\ the\ :meth:\`{}fit\`{}\ phase,\ and\ predict\ without\ refitting\ (in\ order)}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00247}00247\ \textcolor{stringliteral}{\ \ \ \ during\ the\ :meth:\`{}transform\`{}\ phase.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00248}00248\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00249}00249\ \textcolor{stringliteral}{\ \ \ \ Features\ which\ contain\ all\ missing\ values\ at\ :meth:\`{}fit\`{}\ are\ discarded\ upon}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00250}00250\ \textcolor{stringliteral}{\ \ \ \ :meth:\`{}transform\`{}.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00251}00251\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00252}00252\ \textcolor{stringliteral}{\ \ \ \ Using\ defaults,\ the\ imputer\ scales\ in\ :math:\`{}\(\backslash\)\(\backslash\)mathcal\{O\}(knp\string^3\(\backslash\)\(\backslash\)min(n,p))\`{}}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00253}00253\ \textcolor{stringliteral}{\ \ \ \ where\ :math:\`{}k\`{}\ =\ \`{}max\_iter\`{},\ :math:\`{}n\`{}\ the\ number\ of\ samples\ and}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00254}00254\ \textcolor{stringliteral}{\ \ \ \ :math:\`{}p\`{}\ the\ number\ of\ features.\ It\ thus\ becomes\ prohibitively\ costly\ when}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00255}00255\ \textcolor{stringliteral}{\ \ \ \ the\ number\ of\ features\ increases.\ Setting}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00256}00256\ \textcolor{stringliteral}{\ \ \ \ \`{}n\_nearest\_features\ <<\ n\_features\`{},\ \`{}skip\_complete=True\`{}\ or\ increasing\ \`{}tol\`{}}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00257}00257\ \textcolor{stringliteral}{\ \ \ \ can\ help\ to\ reduce\ its\ computational\ cost.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00258}00258\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00259}00259\ \textcolor{stringliteral}{\ \ \ \ Depending\ on\ the\ nature\ of\ missing\ values,\ simple\ imputers\ can\ be}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00260}00260\ \textcolor{stringliteral}{\ \ \ \ preferable\ in\ a\ prediction\ context.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00261}00261\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00262}00262\ \textcolor{stringliteral}{\ \ \ \ References}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00263}00263\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00264}00264\ \textcolor{stringliteral}{\ \ \ \ ..\ [1]\ \`{}Stef\ van\ Buuren,\ Karin\ Groothuis-\/Oudshoorn\ (2011).\ "{}mice:}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00265}00265\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Multivariate\ Imputation\ by\ Chained\ Equations\ in\ R"{}.\ Journal\ of}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00266}00266\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Statistical\ Software\ 45:\ 1-\/67.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00267}00267\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ <https://www.jstatsoft.org/article/view/v045i03>\`{}\_}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00268}00268\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00269}00269\ \textcolor{stringliteral}{\ \ \ \ ..\ [2]\ \`{}S.\ F.\ Buck,\ (1960).\ "{}A\ Method\ of\ Estimation\ of\ Missing\ Values\ in}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00270}00270\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Multivariate\ Data\ Suitable\ for\ use\ with\ an\ Electronic\ Computer"{}.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00271}00271\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Journal\ of\ the\ Royal\ Statistical\ Society\ 22(2):\ 302-\/306.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00272}00272\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ <https://www.jstor.org/stable/2984099>\`{}\_}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00273}00273\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00274}00274\ \textcolor{stringliteral}{\ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00275}00275\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00276}00276\ \textcolor{stringliteral}{\ \ \ \ >>>\ import\ numpy\ as\ np}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00277}00277\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.experimental\ import\ enable\_iterative\_imputer}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00278}00278\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.impute\ import\ IterativeImputer}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00279}00279\ \textcolor{stringliteral}{\ \ \ \ >>>\ imp\_mean\ =\ IterativeImputer(random\_state=0)}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00280}00280\ \textcolor{stringliteral}{\ \ \ \ >>>\ imp\_mean.fit([[7,\ 2,\ 3],\ [4,\ np.nan,\ 6],\ [10,\ 5,\ 9]])}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00281}00281\ \textcolor{stringliteral}{\ \ \ \ IterativeImputer(random\_state=0)}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00282}00282\ \textcolor{stringliteral}{\ \ \ \ >>>\ X\ =\ [[np.nan,\ 2,\ 3],\ [4,\ np.nan,\ 6],\ [10,\ np.nan,\ 9]]}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00283}00283\ \textcolor{stringliteral}{\ \ \ \ >>>\ imp\_mean.transform(X)}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00284}00284\ \textcolor{stringliteral}{\ \ \ \ array([[\ 6.9584,\ \ 2.\ \ \ \ \ \ \ ,\ \ 3.\ \ \ \ \ \ \ \ ],}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00285}00285\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ [\ 4.\ \ \ \ \ \ \ ,\ \ 2.6000,\ \ 6.\ \ \ \ \ \ \ \ ],}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00286}00286\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ [10.\ \ \ \ \ \ \ ,\ \ 4.9999,\ \ 9.\ \ \ \ \ \ \ \ ]])}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00287}00287\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00288}00288\ \textcolor{stringliteral}{\ \ \ \ For\ a\ more\ detailed\ example\ see}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00289}00289\ \textcolor{stringliteral}{\ \ \ \ :ref:\`{}sphx\_glr\_auto\_examples\_impute\_plot\_missing\_values.py\`{}\ or}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00290}00290\ \textcolor{stringliteral}{\ \ \ \ :ref:\`{}sphx\_glr\_auto\_examples\_impute\_plot\_iterative\_imputer\_variants\_comparison.py\`{}.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00291}00291\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00292}00292\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00293}00293\ \ \ \ \ \_parameter\_constraints:\ dict\ =\ \{}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00294}00294\ \ \ \ \ \ \ \ \ **\_BaseImputer.\_parameter\_constraints,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00295}00295\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}estimator"{}}:\ [\textcolor{keywordtype}{None},\ \mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1HasMethods}{HasMethods}}([\textcolor{stringliteral}{"{}fit"{}},\ \textcolor{stringliteral}{"{}predict"{}}])],}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00296}00296\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}sample\_posterior"{}}:\ [\textcolor{stringliteral}{"{}boolean"{}}],}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00297}00297\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}max\_iter"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Integral,\ 0,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}})],}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00298}00298\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}tol"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Real,\ 0,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}})],}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00299}00299\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}n\_nearest\_features"{}}:\ [\textcolor{keywordtype}{None},\ \mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Integral,\ 1,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}})],}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00300}00300\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}initial\_strategy"{}}:\ [}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00301}00301\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1StrOptions}{StrOptions}}(\{\textcolor{stringliteral}{"{}mean"{}},\ \textcolor{stringliteral}{"{}median"{}},\ \textcolor{stringliteral}{"{}most\_frequent"{}},\ \textcolor{stringliteral}{"{}constant"{}}\})}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00302}00302\ \ \ \ \ \ \ \ \ ],}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00303}00303\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}fill\_value"{}}:\ \textcolor{stringliteral}{"{}no\_validation"{}},\ \ \textcolor{comment}{\#\ any\ object\ is\ valid}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00304}00304\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}imputation\_order"{}}:\ [}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00305}00305\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1StrOptions}{StrOptions}}(\{\textcolor{stringliteral}{"{}ascending"{}},\ \textcolor{stringliteral}{"{}descending"{}},\ \textcolor{stringliteral}{"{}roman"{}},\ \textcolor{stringliteral}{"{}arabic"{}},\ \textcolor{stringliteral}{"{}random"{}}\})}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00306}00306\ \ \ \ \ \ \ \ \ ],}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00307}00307\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}skip\_complete"{}}:\ [\textcolor{stringliteral}{"{}boolean"{}}],}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00308}00308\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}min\_value"{}}:\ [\textcolor{keywordtype}{None},\ \mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Real,\ \textcolor{keywordtype}{None},\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}both"{}}),\ \textcolor{stringliteral}{"{}array-\/like"{}}],}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00309}00309\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}max\_value"{}}:\ [\textcolor{keywordtype}{None},\ \mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Real,\ \textcolor{keywordtype}{None},\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}both"{}}),\ \textcolor{stringliteral}{"{}array-\/like"{}}],}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00310}00310\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}verbose"{}}:\ [\textcolor{stringliteral}{"{}verbose"{}}],}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00311}00311\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}random\_state"{}}:\ [\textcolor{stringliteral}{"{}random\_state"{}}],}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00312}00312\ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00313}00313\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00314}00314\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00315}00315\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00316}00316\ \ \ \ \ \ \ \ \ estimator=None,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00317}00317\ \ \ \ \ \ \ \ \ *,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00318}00318\ \ \ \ \ \ \ \ \ missing\_values=np.nan,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00319}00319\ \ \ \ \ \ \ \ \ sample\_posterior=False,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00320}00320\ \ \ \ \ \ \ \ \ max\_iter=10,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00321}00321\ \ \ \ \ \ \ \ \ tol=1e-\/3,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00322}00322\ \ \ \ \ \ \ \ \ n\_nearest\_features=None,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00323}00323\ \ \ \ \ \ \ \ \ initial\_strategy="{}mean"{},}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00324}00324\ \ \ \ \ \ \ \ \ fill\_value=None,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00325}00325\ \ \ \ \ \ \ \ \ imputation\_order="{}ascending"{},}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00326}00326\ \ \ \ \ \ \ \ \ skip\_complete=False,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00327}00327\ \ \ \ \ \ \ \ \ min\_value=-\/np.inf,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00328}00328\ \ \ \ \ \ \ \ \ max\_value=np.inf,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00329}00329\ \ \ \ \ \ \ \ \ verbose=0,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00330}00330\ \ \ \ \ \ \ \ \ random\_state=None,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00331}00331\ \ \ \ \ \ \ \ \ add\_indicator=False,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00332}00332\ \ \ \ \ \ \ \ \ keep\_empty\_features=False,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00333}00333\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00334}00334\ \ \ \ \ \ \ \ \ super().\_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00335}00335\ \ \ \ \ \ \ \ \ \ \ \ \ missing\_values=missing\_values,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00336}00336\ \ \ \ \ \ \ \ \ \ \ \ \ add\_indicator=add\_indicator,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00337}00337\ \ \ \ \ \ \ \ \ \ \ \ \ keep\_empty\_features=keep\_empty\_features,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00338}00338\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00339}00339\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00340}00340\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_ae8eaa7966b9c6d98e5ed5ec364a59bdf}{estimator}}\ =\ estimator}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00341}00341\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_aa90be13149e9cd35d68ec079f37ee698}{sample\_posterior}}\ =\ sample\_posterior}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00342}00342\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_aa4a95d57b1bf61041fd02772eb3bd167}{max\_iter}}\ =\ max\_iter}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00343}00343\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_aafff4dcece73d4416c197245d6a33656}{tol}}\ =\ tol}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00344}00344\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a12de1af76216458c7276a173f03feb9a}{n\_nearest\_features}}\ =\ n\_nearest\_features}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00345}00345\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a76384bc4f522286af90af65fed2deee8}{initial\_strategy}}\ =\ initial\_strategy}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00346}00346\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a06198da23046b7b2813eaffb7f20b258}{fill\_value}}\ =\ fill\_value}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00347}00347\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_aeae043809c7589b4350724c49a8417b3}{imputation\_order}}\ =\ imputation\_order}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00348}00348\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_ac8ac75b192eeec0a2361bb383de43169}{skip\_complete}}\ =\ skip\_complete}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00349}00349\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a39542287f2f380aae33d70337094dfe3}{min\_value}}\ =\ min\_value}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00350}00350\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a8abff5da674b6079b8b842451ba55327}{max\_value}}\ =\ max\_value}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00351}00351\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_ae8ccc904c66208333da023af8f651c9a}{verbose}}\ =\ verbose}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00352}00352\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a05ce2bfa57205c7f044c7c9bd309f3c7}{random\_state}}\ =\ random\_state}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00353}00353\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00354}\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a5a6503999e132255ba1c6126e3720a89}{00354}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a5a6503999e132255ba1c6126e3720a89}{\_impute\_one\_feature}}(}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00355}00355\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00356}00356\ \ \ \ \ \ \ \ \ X\_filled,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00357}00357\ \ \ \ \ \ \ \ \ mask\_missing\_values,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00358}00358\ \ \ \ \ \ \ \ \ feat\_idx,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00359}00359\ \ \ \ \ \ \ \ \ neighbor\_feat\_idx,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00360}00360\ \ \ \ \ \ \ \ \ estimator=None,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00361}00361\ \ \ \ \ \ \ \ \ fit\_mode=True,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00362}00362\ \ \ \ \ \ \ \ \ params=None,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00363}00363\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00364}00364\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Impute\ a\ single\ feature\ from\ the\ others\ provided.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00365}00365\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00366}00366\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ This\ function\ predicts\ the\ missing\ values\ of\ one\ of\ the\ features\ using}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00367}00367\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ current\ estimates\ of\ all\ the\ other\ features.\ The\ \`{}estimator\`{}\ must}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00368}00368\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ support\ \`{}return\_std=True\`{}\ in\ its\ \`{}predict\`{}\ method\ for\ this\ function}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00369}00369\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ to\ work.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00370}00370\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00371}00371\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00372}00372\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00373}00373\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\_filled\ :\ ndarray}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00374}00374\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Input\ data\ with\ the\ most\ recent\ imputations.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00375}00375\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00376}00376\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ mask\_missing\_values\ :\ ndarray}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00377}00377\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Input\ data's\ missing\ indicator\ matrix.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00378}00378\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00379}00379\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ feat\_idx\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00380}00380\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Index\ of\ the\ feature\ currently\ being\ imputed.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00381}00381\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00382}00382\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ neighbor\_feat\_idx\ :\ ndarray}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00383}00383\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Indices\ of\ the\ features\ to\ be\ used\ in\ imputing\ \`{}feat\_idx\`{}.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00384}00384\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00385}00385\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ estimator\ :\ object}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00386}00386\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ estimator\ to\ use\ at\ this\ step\ of\ the\ round-\/robin\ imputation.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00387}00387\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ If\ \`{}sample\_posterior=True\`{},\ the\ estimator\ must\ support}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00388}00388\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \`{}return\_std\`{}\ in\ its\ \`{}predict\`{}\ method.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00389}00389\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ If\ None,\ it\ will\ be\ cloned\ from\ self.\_estimator.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00390}00390\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00391}00391\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ fit\_mode\ :\ boolean,\ default=True}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00392}00392\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Whether\ to\ fit\ and\ predict\ with\ the\ estimator\ or\ just\ predict.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00393}00393\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00394}00394\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ params\ :\ dict}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00395}00395\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Additional\ params\ routed\ to\ the\ individual\ estimator.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00396}00396\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00397}00397\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00398}00398\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00399}00399\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\_filled\ :\ ndarray}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00400}00400\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Input\ data\ with\ \`{}X\_filled[missing\_row\_mask,\ feat\_idx]\`{}\ updated.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00401}00401\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00402}00402\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ estimator\ :\ estimator\ with\ sklearn\ API}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00403}00403\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ fitted\ estimator\ used\ to\ impute}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00404}00404\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \`{}X\_filled[missing\_row\_mask,\ feat\_idx]\`{}.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00405}00405\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00406}00406\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ estimator\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{and}\ fit\_mode\ \textcolor{keywordflow}{is}\ \textcolor{keyword}{False}:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00407}00407\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00408}00408\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}If\ fit\_mode\ is\ False,\ then\ an\ already-\/fitted\ "{}}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00409}00409\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}estimator\ should\ be\ passed\ in."{}}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00410}00410\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00411}00411\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00412}00412\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ estimator\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00413}00413\ \ \ \ \ \ \ \ \ \ \ \ \ estimator\ =\ clone(self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a77e6c7092156377098d7db52b1e3f821}{\_estimator}})}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00414}00414\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00415}00415\ \ \ \ \ \ \ \ \ missing\_row\_mask\ =\ mask\_missing\_values[:,\ feat\_idx]}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00416}00416\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ fit\_mode:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00417}00417\ \ \ \ \ \ \ \ \ \ \ \ \ X\_train\ =\ \_safe\_indexing(}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00418}00418\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_safe\_indexing(X\_filled,\ neighbor\_feat\_idx,\ axis=1),}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00419}00419\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \string~missing\_row\_mask,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00420}00420\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ axis=0,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00421}00421\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00422}00422\ \ \ \ \ \ \ \ \ \ \ \ \ y\_train\ =\ \_safe\_indexing(}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00423}00423\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_safe\_indexing(X\_filled,\ feat\_idx,\ axis=1),}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00424}00424\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \string~missing\_row\_mask,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00425}00425\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ axis=0,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00426}00426\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00427}00427\ \ \ \ \ \ \ \ \ \ \ \ \ estimator.fit(X\_train,\ y\_train,\ **params)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00428}00428\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00429}00429\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ if\ no\ missing\ values,\ don't\ predict}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00430}00430\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ np.sum(missing\_row\_mask)\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00431}00431\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ X\_filled,\ estimator}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00432}00432\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00433}00433\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ get\ posterior\ samples\ if\ there\ is\ at\ least\ one\ missing\ value}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00434}00434\ \ \ \ \ \ \ \ \ X\_test\ =\ \_safe\_indexing(}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00435}00435\ \ \ \ \ \ \ \ \ \ \ \ \ \_safe\_indexing(X\_filled,\ neighbor\_feat\_idx,\ axis=1),}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00436}00436\ \ \ \ \ \ \ \ \ \ \ \ \ missing\_row\_mask,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00437}00437\ \ \ \ \ \ \ \ \ \ \ \ \ axis=0,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00438}00438\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00439}00439\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_aa90be13149e9cd35d68ec079f37ee698}{sample\_posterior}}:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00440}00440\ \ \ \ \ \ \ \ \ \ \ \ \ mus,\ sigmas\ =\ estimator.predict(X\_test,\ return\_std=\textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00441}00441\ \ \ \ \ \ \ \ \ \ \ \ \ imputed\_values\ =\ np.zeros(mus.shape,\ dtype=X\_filled.dtype)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00442}00442\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ two\ types\ of\ problems:\ (1)\ non-\/positive\ sigmas}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00443}00443\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ (2)\ mus\ outside\ legal\ range\ of\ min\_value\ and\ max\_value}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00444}00444\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ (results\ in\ inf\ sample)}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00445}00445\ \ \ \ \ \ \ \ \ \ \ \ \ positive\_sigmas\ =\ sigmas\ >\ 0}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00446}00446\ \ \ \ \ \ \ \ \ \ \ \ \ imputed\_values[\string~positive\_sigmas]\ =\ mus[\string~positive\_sigmas]}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00447}00447\ \ \ \ \ \ \ \ \ \ \ \ \ mus\_too\_low\ =\ mus\ <\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a53ee01f6165e7373d70d2d050145fe3e}{\_min\_value}}[feat\_idx]}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00448}00448\ \ \ \ \ \ \ \ \ \ \ \ \ imputed\_values[mus\_too\_low]\ =\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a53ee01f6165e7373d70d2d050145fe3e}{\_min\_value}}[feat\_idx]}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00449}00449\ \ \ \ \ \ \ \ \ \ \ \ \ mus\_too\_high\ =\ mus\ >\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_ad8f80c511bdcd4b5feffb5ba32dd27c3}{\_max\_value}}[feat\_idx]}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00450}00450\ \ \ \ \ \ \ \ \ \ \ \ \ imputed\_values[mus\_too\_high]\ =\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_ad8f80c511bdcd4b5feffb5ba32dd27c3}{\_max\_value}}[feat\_idx]}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00451}00451\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ the\ rest\ can\ be\ sampled\ without\ statistical\ issues}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00452}00452\ \ \ \ \ \ \ \ \ \ \ \ \ inrange\_mask\ =\ positive\_sigmas\ \&\ \string~mus\_too\_low\ \&\ \string~mus\_too\_high}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00453}00453\ \ \ \ \ \ \ \ \ \ \ \ \ mus\ =\ mus[inrange\_mask]}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00454}00454\ \ \ \ \ \ \ \ \ \ \ \ \ sigmas\ =\ sigmas[inrange\_mask]}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00455}00455\ \ \ \ \ \ \ \ \ \ \ \ \ a\ =\ (self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a53ee01f6165e7373d70d2d050145fe3e}{\_min\_value}}[feat\_idx]\ -\/\ mus)\ /\ sigmas}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00456}00456\ \ \ \ \ \ \ \ \ \ \ \ \ b\ =\ (self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_ad8f80c511bdcd4b5feffb5ba32dd27c3}{\_max\_value}}[feat\_idx]\ -\/\ mus)\ /\ sigmas}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00457}00457\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00458}00458\ \ \ \ \ \ \ \ \ \ \ \ \ truncated\_normal\ =\ stats.truncnorm(a=a,\ b=b,\ loc=mus,\ scale=sigmas)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00459}00459\ \ \ \ \ \ \ \ \ \ \ \ \ imputed\_values[inrange\_mask]\ =\ truncated\_normal.rvs(}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00460}00460\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ random\_state=self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a7adcd1eb4f85527c2134b1cc7cf70d01}{random\_state\_}}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00461}00461\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00462}00462\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00463}00463\ \ \ \ \ \ \ \ \ \ \ \ \ imputed\_values\ =\ estimator.predict(X\_test)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00464}00464\ \ \ \ \ \ \ \ \ \ \ \ \ imputed\_values\ =\ np.clip(}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00465}00465\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ imputed\_values,\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a53ee01f6165e7373d70d2d050145fe3e}{\_min\_value}}[feat\_idx],\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_ad8f80c511bdcd4b5feffb5ba32dd27c3}{\_max\_value}}[feat\_idx]}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00466}00466\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00467}00467\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00468}00468\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ update\ the\ feature}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00469}00469\ \ \ \ \ \ \ \ \ \_safe\_assign(}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00470}00470\ \ \ \ \ \ \ \ \ \ \ \ \ X\_filled,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00471}00471\ \ \ \ \ \ \ \ \ \ \ \ \ imputed\_values,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00472}00472\ \ \ \ \ \ \ \ \ \ \ \ \ row\_indexer=missing\_row\_mask,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00473}00473\ \ \ \ \ \ \ \ \ \ \ \ \ column\_indexer=feat\_idx,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00474}00474\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00475}00475\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ X\_filled,\ estimator}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00476}00476\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00477}\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_adf8eb2c6a4ac85e14e2e7b09f95648e0}{00477}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_adf8eb2c6a4ac85e14e2e7b09f95648e0}{\_get\_neighbor\_feat\_idx}}(self,\ n\_features,\ feat\_idx,\ abs\_corr\_mat):}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00478}00478\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Get\ a\ list\ of\ other\ features\ to\ predict\ \`{}feat\_idx\`{}.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00479}00479\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00480}00480\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ \`{}self.n\_nearest\_features\`{}\ is\ less\ than\ or\ equal\ to\ the\ total}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00481}00481\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ number\ of\ features,\ then\ use\ a\ probability\ proportional\ to\ the\ absolute}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00482}00482\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ correlation\ between\ \`{}feat\_idx\`{}\ and\ each\ other\ feature\ to\ randomly}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00483}00483\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ choose\ a\ subsample\ of\ the\ other\ features\ (without\ replacement).}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00484}00484\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00485}00485\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00486}00486\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00487}00487\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ n\_features\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00488}00488\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Number\ of\ features\ in\ \`{}X\`{}.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00489}00489\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00490}00490\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ feat\_idx\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00491}00491\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Index\ of\ the\ feature\ currently\ being\ imputed.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00492}00492\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00493}00493\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ abs\_corr\_mat\ :\ ndarray,\ shape\ (n\_features,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00494}00494\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Absolute\ correlation\ matrix\ of\ \`{}X\`{}.\ The\ diagonal\ has\ been\ zeroed}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00495}00495\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ out\ and\ each\ feature\ has\ been\ normalized\ to\ sum\ to\ 1.\ Can\ be\ None.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00496}00496\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00497}00497\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00498}00498\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00499}00499\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ neighbor\_feat\_idx\ :\ array-\/like}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00500}00500\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ features\ to\ use\ to\ impute\ \`{}feat\_idx\`{}.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00501}00501\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00502}00502\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a12de1af76216458c7276a173f03feb9a}{n\_nearest\_features}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{and}\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a12de1af76216458c7276a173f03feb9a}{n\_nearest\_features}}\ <\ n\_features:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00503}00503\ \ \ \ \ \ \ \ \ \ \ \ \ p\ =\ abs\_corr\_mat[:,\ feat\_idx]}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00504}00504\ \ \ \ \ \ \ \ \ \ \ \ \ neighbor\_feat\_idx\ =\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a7adcd1eb4f85527c2134b1cc7cf70d01}{random\_state\_}}.choice(}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00505}00505\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ np.arange(n\_features),\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a12de1af76216458c7276a173f03feb9a}{n\_nearest\_features}},\ replace=\textcolor{keyword}{False},\ p=p}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00506}00506\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00507}00507\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00508}00508\ \ \ \ \ \ \ \ \ \ \ \ \ inds\_left\ =\ np.arange(feat\_idx)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00509}00509\ \ \ \ \ \ \ \ \ \ \ \ \ inds\_right\ =\ np.arange(feat\_idx\ +\ 1,\ n\_features)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00510}00510\ \ \ \ \ \ \ \ \ \ \ \ \ neighbor\_feat\_idx\ =\ np.concatenate((inds\_left,\ inds\_right))}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00511}00511\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ neighbor\_feat\_idx}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00512}00512\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00513}\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_af5dc80e60146a4c5997512d56c9c52cd}{00513}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_af5dc80e60146a4c5997512d56c9c52cd}{\_get\_ordered\_idx}}(self,\ mask\_missing\_values):}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00514}00514\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Decide\ in\ what\ order\ we\ will\ update\ the\ features.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00515}00515\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00516}00516\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ As\ a\ homage\ to\ the\ MICE\ R\ package,\ we\ will\ have\ 4\ main\ options\ of}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00517}00517\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ how\ to\ order\ the\ updates,\ and\ use\ a\ random\ order\ if\ anything\ else}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00518}00518\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ is\ specified.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00519}00519\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00520}00520\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Also,\ this\ function\ skips\ features\ which\ have\ no\ missing\ values.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00521}00521\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00522}00522\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00523}00523\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00524}00524\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ mask\_missing\_values\ :\ array-\/like,\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00525}00525\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Input\ data's\ missing\ indicator\ matrix,\ where\ \`{}n\_samples\`{}\ is\ the}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00526}00526\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ number\ of\ samples\ and\ \`{}n\_features\`{}\ is\ the\ number\ of\ features.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00527}00527\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00528}00528\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00529}00529\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00530}00530\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ordered\_idx\ :\ ndarray,\ shape\ (n\_features,)}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00531}00531\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ order\ in\ which\ to\ impute\ the\ features.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00532}00532\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00533}00533\ \ \ \ \ \ \ \ \ frac\_of\_missing\_values\ =\ mask\_missing\_values.mean(axis=0)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00534}00534\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_ac8ac75b192eeec0a2361bb383de43169}{skip\_complete}}:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00535}00535\ \ \ \ \ \ \ \ \ \ \ \ \ missing\_values\_idx\ =\ np.flatnonzero(frac\_of\_missing\_values)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00536}00536\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00537}00537\ \ \ \ \ \ \ \ \ \ \ \ \ missing\_values\_idx\ =\ np.arange(np.shape(frac\_of\_missing\_values)[0])}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00538}00538\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_aeae043809c7589b4350724c49a8417b3}{imputation\_order}}\ ==\ \textcolor{stringliteral}{"{}roman"{}}:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00539}00539\ \ \ \ \ \ \ \ \ \ \ \ \ ordered\_idx\ =\ missing\_values\_idx}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00540}00540\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_aeae043809c7589b4350724c49a8417b3}{imputation\_order}}\ ==\ \textcolor{stringliteral}{"{}arabic"{}}:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00541}00541\ \ \ \ \ \ \ \ \ \ \ \ \ ordered\_idx\ =\ missing\_values\_idx[::-\/1]}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00542}00542\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_aeae043809c7589b4350724c49a8417b3}{imputation\_order}}\ ==\ \textcolor{stringliteral}{"{}ascending"{}}:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00543}00543\ \ \ \ \ \ \ \ \ \ \ \ \ n\ =\ len(frac\_of\_missing\_values)\ -\/\ len(missing\_values\_idx)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00544}00544\ \ \ \ \ \ \ \ \ \ \ \ \ ordered\_idx\ =\ np.argsort(frac\_of\_missing\_values,\ kind=\textcolor{stringliteral}{"{}mergesort"{}})[n:]}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00545}00545\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_aeae043809c7589b4350724c49a8417b3}{imputation\_order}}\ ==\ \textcolor{stringliteral}{"{}descending"{}}:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00546}00546\ \ \ \ \ \ \ \ \ \ \ \ \ n\ =\ len(frac\_of\_missing\_values)\ -\/\ len(missing\_values\_idx)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00547}00547\ \ \ \ \ \ \ \ \ \ \ \ \ ordered\_idx\ =\ np.argsort(frac\_of\_missing\_values,\ kind=\textcolor{stringliteral}{"{}mergesort"{}})[n:][::-\/1]}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00548}00548\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_aeae043809c7589b4350724c49a8417b3}{imputation\_order}}\ ==\ \textcolor{stringliteral}{"{}random"{}}:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00549}00549\ \ \ \ \ \ \ \ \ \ \ \ \ ordered\_idx\ =\ missing\_values\_idx}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00550}00550\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a7adcd1eb4f85527c2134b1cc7cf70d01}{random\_state\_}}.shuffle(ordered\_idx)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00551}00551\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ ordered\_idx}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00552}00552\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00553}\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a93459cdf1b3f620d8316f73d11170b95}{00553}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a93459cdf1b3f620d8316f73d11170b95}{\_get\_abs\_corr\_mat}}(self,\ X\_filled,\ tolerance=1e-\/6):}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00554}00554\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Get\ absolute\ correlation\ matrix\ between\ features.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00555}00555\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00556}00556\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00557}00557\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00558}00558\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\_filled\ :\ ndarray,\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00559}00559\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Input\ data\ with\ the\ most\ recent\ imputations.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00560}00560\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00561}00561\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ tolerance\ :\ float,\ default=1e-\/6}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00562}00562\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \`{}abs\_corr\_mat\`{}\ can\ have\ nans,\ which\ will\ be\ replaced}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00563}00563\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ with\ \`{}tolerance\`{}.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00564}00564\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00565}00565\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00566}00566\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00567}00567\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ abs\_corr\_mat\ :\ ndarray,\ shape\ (n\_features,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00568}00568\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Absolute\ correlation\ matrix\ of\ \`{}X\`{}\ at\ the\ beginning\ of\ the}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00569}00569\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ current\ round.\ The\ diagonal\ has\ been\ zeroed\ out\ and\ each\ feature's}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00570}00570\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ absolute\ correlations\ with\ all\ others\ have\ been\ normalized\ to\ sum}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00571}00571\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ to\ 1.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00572}00572\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00573}00573\ \ \ \ \ \ \ \ \ n\_features\ =\ X\_filled.shape[1]}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00574}00574\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a12de1af76216458c7276a173f03feb9a}{n\_nearest\_features}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{or}\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a12de1af76216458c7276a173f03feb9a}{n\_nearest\_features}}\ >=\ n\_features:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00575}00575\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00576}00576\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ np.errstate(invalid=\textcolor{stringliteral}{"{}ignore"{}}):}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00577}00577\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ if\ a\ feature\ in\ the\ neighborhood\ has\ only\ a\ single\ value}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00578}00578\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ (e.g.,\ categorical\ feature),\ the\ std.\ dev.\ will\ be\ null\ and}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00579}00579\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ np.corrcoef\ will\ raise\ a\ warning\ due\ to\ a\ division\ by\ zero}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00580}00580\ \ \ \ \ \ \ \ \ \ \ \ \ abs\_corr\_mat\ =\ np.abs(np.corrcoef(X\_filled.T))}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00581}00581\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ np.corrcoef\ is\ not\ defined\ for\ features\ with\ zero\ std}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00582}00582\ \ \ \ \ \ \ \ \ abs\_corr\_mat[np.isnan(abs\_corr\_mat)]\ =\ tolerance}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00583}00583\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ ensures\ exploration,\ i.e.\ at\ least\ some\ probability\ of\ sampling}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00584}00584\ \ \ \ \ \ \ \ \ np.clip(abs\_corr\_mat,\ tolerance,\ \textcolor{keywordtype}{None},\ out=abs\_corr\_mat)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00585}00585\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ features\ are\ not\ their\ own\ neighbors}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00586}00586\ \ \ \ \ \ \ \ \ np.fill\_diagonal(abs\_corr\_mat,\ 0)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00587}00587\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ needs\ to\ sum\ to\ 1\ for\ np.random.choice\ sampling}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00588}00588\ \ \ \ \ \ \ \ \ abs\_corr\_mat\ =\ normalize(abs\_corr\_mat,\ norm=\textcolor{stringliteral}{"{}l1"{}},\ axis=0,\ copy=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00589}00589\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ abs\_corr\_mat}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00590}00590\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00591}\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a7456a79e94e72faea0218527817b360d}{00591}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a7456a79e94e72faea0218527817b360d}{\_initial\_imputation}}(self,\ X,\ in\_fit=False):}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00592}00592\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Perform\ initial\ imputation\ for\ input\ \`{}X\`{}.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00593}00593\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00594}00594\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00595}00595\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00596}00596\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\ :\ ndarray\ of\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00597}00597\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Input\ data,\ where\ \`{}n\_samples\`{}\ is\ the\ number\ of\ samples\ and}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00598}00598\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \`{}n\_features\`{}\ is\ the\ number\ of\ features.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00599}00599\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00600}00600\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ in\_fit\ :\ bool,\ default=False}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00601}00601\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Whether\ function\ is\ called\ in\ :meth:\`{}fit\`{}.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00602}00602\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00603}00603\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00604}00604\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00605}00605\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Xt\ :\ ndarray\ of\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00606}00606\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Input\ data,\ where\ \`{}n\_samples\`{}\ is\ the\ number\ of\ samples\ and}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00607}00607\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \`{}n\_features\`{}\ is\ the\ number\ of\ features.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00608}00608\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00609}00609\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\_filled\ :\ ndarray\ of\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00610}00610\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Input\ data\ with\ the\ most\ recent\ imputations.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00611}00611\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00612}00612\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ mask\_missing\_values\ :\ ndarray\ of\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00613}00613\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Input\ data's\ missing\ indicator\ matrix,\ where\ \`{}n\_samples\`{}\ is\ the}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00614}00614\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ number\ of\ samples\ and\ \`{}n\_features\`{}\ is\ the\ number\ of\ features,}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00615}00615\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ masked\ by\ non-\/missing\ features.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00616}00616\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00617}00617\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\_missing\_mask\ :\ ndarray,\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00618}00618\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Input\ data's\ mask\ matrix\ indicating\ missing\ datapoints,\ where}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00619}00619\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \`{}n\_samples\`{}\ is\ the\ number\ of\ samples\ and\ \`{}n\_features\`{}\ is\ the}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00620}00620\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ number\ of\ features.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00621}00621\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00622}00622\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ is\_scalar\_nan(self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__base_1_1__BaseImputer_a8dd0d6a66c931e4f30eb5297d0254c73}{missing\_values}}):}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00623}00623\ \ \ \ \ \ \ \ \ \ \ \ \ ensure\_all\_finite\ =\ \textcolor{stringliteral}{"{}allow-\/nan"{}}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00624}00624\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00625}00625\ \ \ \ \ \ \ \ \ \ \ \ \ ensure\_all\_finite\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00626}00626\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00627}00627\ \ \ \ \ \ \ \ \ X\ =\ validate\_data(}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00628}00628\ \ \ \ \ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00629}00629\ \ \ \ \ \ \ \ \ \ \ \ \ X,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00630}00630\ \ \ \ \ \ \ \ \ \ \ \ \ dtype=FLOAT\_DTYPES,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00631}00631\ \ \ \ \ \ \ \ \ \ \ \ \ order=\textcolor{stringliteral}{"{}F"{}},}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00632}00632\ \ \ \ \ \ \ \ \ \ \ \ \ reset=in\_fit,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00633}00633\ \ \ \ \ \ \ \ \ \ \ \ \ ensure\_all\_finite=ensure\_all\_finite,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00634}00634\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00635}00635\ \ \ \ \ \ \ \ \ \_check\_inputs\_dtype(X,\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__base_1_1__BaseImputer_a8dd0d6a66c931e4f30eb5297d0254c73}{missing\_values}})}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00636}00636\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00637}00637\ \ \ \ \ \ \ \ \ X\_missing\_mask\ =\ \_get\_mask(X,\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__base_1_1__BaseImputer_a8dd0d6a66c931e4f30eb5297d0254c73}{missing\_values}})}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00638}00638\ \ \ \ \ \ \ \ \ mask\_missing\_values\ =\ X\_missing\_mask.copy()}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00639}00639\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00640}00640\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ TODO\ (1.8):\ remove\ this\ once\ the\ deprecation\ is\ removed.\ In\ the\ meantime,}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00641}00641\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ we\ need\ to\ catch\ the\ warning\ to\ avoid\ false\ positives.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00642}00642\ \ \ \ \ \ \ \ \ catch\_warning\ =\ (}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00643}00643\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a76384bc4f522286af90af65fed2deee8}{initial\_strategy}}\ ==\ \textcolor{stringliteral}{"{}constant"{}}\ \textcolor{keywordflow}{and}\ \textcolor{keywordflow}{not}\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__base_1_1__BaseImputer_a9a60c2cfd0beaf12ee5474a47ee2dd80}{keep\_empty\_features}}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00644}00644\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00645}00645\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00646}00646\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a8f59dc59e00032ad904134b22f5d2282}{initial\_imputer\_}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00647}00647\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a8f59dc59e00032ad904134b22f5d2282}{initial\_imputer\_}}\ =\ \mbox{\hyperlink{classsklearn_1_1impute_1_1__base_1_1SimpleImputer}{SimpleImputer}}(}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00648}00648\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ missing\_values=self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__base_1_1__BaseImputer_a8dd0d6a66c931e4f30eb5297d0254c73}{missing\_values}},}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00649}00649\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ strategy=self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a76384bc4f522286af90af65fed2deee8}{initial\_strategy}},}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00650}00650\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ fill\_value=self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a06198da23046b7b2813eaffb7f20b258}{fill\_value}},}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00651}00651\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ keep\_empty\_features=self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__base_1_1__BaseImputer_a9a60c2cfd0beaf12ee5474a47ee2dd80}{keep\_empty\_features}},}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00652}00652\ \ \ \ \ \ \ \ \ \ \ \ \ ).\mbox{\hyperlink{classsklearn_1_1utils_1_1__set__output_1_1__SetOutputMixin_a53cf91e19aaa2db430832bfd285d5d72}{set\_output}}(transform=\textcolor{stringliteral}{"{}default"{}})}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00653}00653\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00654}00654\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ TODO\ (1.8):\ remove\ this\ once\ the\ deprecation\ is\ removed\ to\ keep\ only}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00655}00655\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ the\ code\ in\ the\ else\ case.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00656}00656\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ catch\_warning:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00657}00657\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ warnings.catch\_warnings():}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00658}00658\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ warnings.simplefilter(\textcolor{stringliteral}{"{}ignore"{}},\ FutureWarning)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00659}00659\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ X\_filled\ =\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a8f59dc59e00032ad904134b22f5d2282}{initial\_imputer\_}}.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_acb41db20ebd9400398fbe4678bffff05}{fit\_transform}}(X)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00660}00660\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00661}00661\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ X\_filled\ =\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a8f59dc59e00032ad904134b22f5d2282}{initial\_imputer\_}}.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_acb41db20ebd9400398fbe4678bffff05}{fit\_transform}}(X)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00662}00662\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00663}00663\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ TODO\ (1.8):\ remove\ this\ once\ the\ deprecation\ is\ removed\ to\ keep\ only}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00664}00664\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ the\ code\ in\ the\ else\ case.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00665}00665\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ catch\_warning:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00666}00666\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ warnings.catch\_warnings():}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00667}00667\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ warnings.simplefilter(\textcolor{stringliteral}{"{}ignore"{}},\ FutureWarning)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00668}00668\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ X\_filled\ =\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a8f59dc59e00032ad904134b22f5d2282}{initial\_imputer\_}}.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_ab2f0a351667de4514060ec5430ff569f}{transform}}(X)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00669}00669\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00670}00670\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ X\_filled\ =\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a8f59dc59e00032ad904134b22f5d2282}{initial\_imputer\_}}.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_ab2f0a351667de4514060ec5430ff569f}{transform}}(X)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00671}00671\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00672}00672\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ in\_fit:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00673}00673\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_abcf1f8a04e02a4cd2fb0c5e4bdd20c6d}{\_is\_empty\_feature}}\ =\ np.all(mask\_missing\_values,\ axis=0)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00674}00674\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00675}00675\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__base_1_1__BaseImputer_a9a60c2cfd0beaf12ee5474a47ee2dd80}{keep\_empty\_features}}:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00676}00676\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ drop\ empty\ features}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00677}00677\ \ \ \ \ \ \ \ \ \ \ \ \ Xt\ =\ X[:,\ \string~self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_abcf1f8a04e02a4cd2fb0c5e4bdd20c6d}{\_is\_empty\_feature}}]}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00678}00678\ \ \ \ \ \ \ \ \ \ \ \ \ mask\_missing\_values\ =\ mask\_missing\_values[:,\ \string~self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_abcf1f8a04e02a4cd2fb0c5e4bdd20c6d}{\_is\_empty\_feature}}]}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00679}00679\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00680}00680\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a8f59dc59e00032ad904134b22f5d2282}{initial\_imputer\_}}.\mbox{\hyperlink{classsklearn_1_1base_1_1BaseEstimator_a5c3e0c802dfacfbaceafb925c411b211}{get\_params}}()[\textcolor{stringliteral}{"{}strategy"{}}]\ ==\ \textcolor{stringliteral}{"{}constant"{}}:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00681}00681\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ constant\ strategy\ has\ a\ specific\ behavior\ and\ preserve\ empty}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00682}00682\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ features\ even\ with\ \`{}\`{}keep\_empty\_features=False``.\ We\ need\ to\ drop}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00683}00683\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ the\ column\ for\ consistency.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00684}00684\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ TODO\ (1.8):\ remove\ this\ \`{}if`\ branch\ once\ the\ following\ issue\ is}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00685}00685\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ addressed:}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00686}00686\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ https://github.com/scikit-\/learn/scikit-\/learn/issues/29827}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00687}00687\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ X\_filled\ =\ X\_filled[:,\ \string~self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_abcf1f8a04e02a4cd2fb0c5e4bdd20c6d}{\_is\_empty\_feature}}]}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00688}00688\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00689}00689\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00690}00690\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ mark\ empty\ features\ as\ not\ missing\ and\ keep\ the\ original}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00691}00691\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ imputation}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00692}00692\ \ \ \ \ \ \ \ \ \ \ \ \ mask\_missing\_values[:,\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_abcf1f8a04e02a4cd2fb0c5e4bdd20c6d}{\_is\_empty\_feature}}]\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00693}00693\ \ \ \ \ \ \ \ \ \ \ \ \ Xt\ =\ X}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00694}00694\ \ \ \ \ \ \ \ \ \ \ \ \ Xt[:,\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_abcf1f8a04e02a4cd2fb0c5e4bdd20c6d}{\_is\_empty\_feature}}]\ =\ X\_filled[:,\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_abcf1f8a04e02a4cd2fb0c5e4bdd20c6d}{\_is\_empty\_feature}}]}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00695}00695\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00696}00696\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ Xt,\ X\_filled,\ mask\_missing\_values,\ X\_missing\_mask}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00697}00697\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00698}00698\ \ \ \ \ \textcolor{preprocessor}{@staticmethod}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00699}\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a83cab121fd952c87002169d856195b3b}{00699}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a83cab121fd952c87002169d856195b3b}{\_validate\_limit}}(}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00700}00700\ \ \ \ \ \ \ \ \ limit,\ limit\_type,\ n\_features,\ is\_empty\_feature,\ keep\_empty\_feature}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00701}00701\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00702}00702\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Validate\ the\ limits\ (min/max)\ of\ the\ feature\ values.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00703}00703\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00704}00704\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Converts\ scalar\ min/max\ limits\ to\ vectors\ of\ shape\ \`{}(n\_features,)\`{}.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00705}00705\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00706}00706\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00707}00707\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00708}00708\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ limit:\ scalar\ or\ array-\/like}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00709}00709\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ user-\/specified\ limit\ (i.e,\ min\_value\ or\ max\_value).}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00710}00710\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ limit\_type:\ \{'max',\ 'min'\}}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00711}00711\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Type\ of\ limit\ to\ validate.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00712}00712\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ n\_features:\ int}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00713}00713\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Number\ of\ features\ in\ the\ dataset.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00714}00714\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ is\_empty\_feature:\ ndarray,\ shape\ (n\_features,\ )}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00715}00715\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Mask\ array\ indicating\ empty\ feature\ imputer\ has\ seen\ during\ fit.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00716}00716\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ keep\_empty\_feature:\ bool}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00717}00717\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ If\ False,\ remove\ empty-\/feature\ indices\ from\ the\ limit.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00718}00718\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00719}00719\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00720}00720\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00721}00721\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ limit:\ ndarray,\ shape(n\_features,)}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00722}00722\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Array\ of\ limits,\ one\ for\ each\ feature.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00723}00723\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00724}00724\ \ \ \ \ \ \ \ \ n\_features\_in\ =\ \_num\_samples(is\_empty\_feature)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00725}00725\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00726}00726\ \ \ \ \ \ \ \ \ \ \ \ \ limit\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00727}00727\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}\ \textcolor{keywordflow}{not}\ np.isscalar(limit)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00728}00728\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}\ \_num\_samples(limit)\ !=\ n\_features\_in}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00729}00729\ \ \ \ \ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00730}00730\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00731}00731\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}'\{limit\_type\}\_value'\ should\ be\ of\ shape\ (\{n\_features\_in\},)\ when\ an"{}}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00732}00732\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\ array-\/like\ is\ provided.\ Got\ \{len(limit)\},\ instead."{}}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00733}00733\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00734}00734\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00735}00735\ \ \ \ \ \ \ \ \ limit\_bound\ =\ np.inf\ \textcolor{keywordflow}{if}\ limit\_type\ ==\ \textcolor{stringliteral}{"{}max"{}}\ \textcolor{keywordflow}{else}\ -\/np.inf}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00736}00736\ \ \ \ \ \ \ \ \ limit\ =\ limit\_bound\ \textcolor{keywordflow}{if}\ limit\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{else}\ limit}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00737}00737\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ np.isscalar(limit):}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00738}00738\ \ \ \ \ \ \ \ \ \ \ \ \ limit\ =\ np.full(n\_features,\ limit)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00739}00739\ \ \ \ \ \ \ \ \ limit\ =\ check\_array(limit,\ ensure\_all\_finite=\textcolor{keyword}{False},\ copy=\textcolor{keyword}{False},\ ensure\_2d=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00740}00740\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00741}00741\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Make\ sure\ to\ remove\ the\ empty\ feature\ elements\ from\ the\ bounds}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00742}00742\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ keep\_empty\_feature\ \textcolor{keywordflow}{and}\ len(limit)\ ==\ len(is\_empty\_feature):}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00743}00743\ \ \ \ \ \ \ \ \ \ \ \ \ limit\ =\ limit[\string~is\_empty\_feature]}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00744}00744\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00745}00745\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ limit}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00746}00746\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00747}00747\ \ \ \ \ \textcolor{preprocessor}{@\_fit\_context}(}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00748}00748\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ IterativeImputer.estimator\ is\ not\ validated\ yet}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00749}00749\ \ \ \ \ \ \ \ \ prefer\_skip\_nested\_validation=\textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00750}00750\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00751}\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_acb41db20ebd9400398fbe4678bffff05}{00751}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_acb41db20ebd9400398fbe4678bffff05}{fit\_transform}}(self,\ X,\ y=None,\ **params):}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00752}00752\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Fit\ the\ imputer\ on\ \`{}X\`{}\ and\ return\ the\ transformed\ \`{}X\`{}.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00753}00753\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00754}00754\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00755}00755\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00756}00756\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\ :\ array-\/like,\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00757}00757\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Input\ data,\ where\ \`{}n\_samples\`{}\ is\ the\ number\ of\ samples\ and}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00758}00758\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \`{}n\_features\`{}\ is\ the\ number\ of\ features.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00759}00759\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00760}00760\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ y\ :\ Ignored}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00761}00761\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Not\ used,\ present\ for\ API\ consistency\ by\ convention.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00762}00762\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00763}00763\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ **params\ :\ dict}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00764}00764\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Parameters\ routed\ to\ the\ \`{}fit\`{}\ method\ of\ the\ sub-\/estimator\ via\ the}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00765}00765\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ metadata\ routing\ API.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00766}00766\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00767}00767\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ ..\ versionadded::\ 1.5}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00768}00768\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ Only\ available\ if}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00769}00769\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \`{}sklearn.set\_config(enable\_metadata\_routing=True)\`{}\ is\ set.\ See}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00770}00770\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ :ref:\`{}Metadata\ Routing\ User\ Guide\ <metadata\_routing>\`{}\ for\ more}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00771}00771\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ details.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00772}00772\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00773}00773\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00774}00774\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00775}00775\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Xt\ :\ array-\/like,\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00776}00776\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ imputed\ input\ data.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00777}00777\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00778}00778\ \ \ \ \ \ \ \ \ \_raise\_for\_params(params,\ self,\ \textcolor{stringliteral}{"{}fit"{}})}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00779}00779\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00780}00780\ \ \ \ \ \ \ \ \ routed\_params\ =\ process\_routing(}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00781}00781\ \ \ \ \ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00782}00782\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}fit"{}},}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00783}00783\ \ \ \ \ \ \ \ \ \ \ \ \ **params,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00784}00784\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00785}00785\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00786}00786\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a7adcd1eb4f85527c2134b1cc7cf70d01}{random\_state\_}}\ =\ getattr(}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00787}00787\ \ \ \ \ \ \ \ \ \ \ \ \ self,\ \textcolor{stringliteral}{"{}random\_state\_"{}},\ check\_random\_state(self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a05ce2bfa57205c7f044c7c9bd309f3c7}{random\_state}})}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00788}00788\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00789}00789\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00790}00790\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_ae8eaa7966b9c6d98e5ed5ec364a59bdf}{estimator}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00791}00791\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{from}\ ..linear\_model\ \textcolor{keyword}{import}\ BayesianRidge}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00792}00792\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00793}00793\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a77e6c7092156377098d7db52b1e3f821}{\_estimator}}\ =\ BayesianRidge()}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00794}00794\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00795}00795\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a77e6c7092156377098d7db52b1e3f821}{\_estimator}}\ =\ clone(self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_ae8eaa7966b9c6d98e5ed5ec364a59bdf}{estimator}})}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00796}00796\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00797}00797\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a3c5efa7b22eb952494b9cea79e20af52}{imputation\_sequence\_}}\ =\ []}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00798}00798\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00799}00799\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a8f59dc59e00032ad904134b22f5d2282}{initial\_imputer\_}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00800}00800\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00801}00801\ \ \ \ \ \ \ \ \ X,\ Xt,\ mask\_missing\_values,\ complete\_mask\ =\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a7456a79e94e72faea0218527817b360d}{\_initial\_imputation}}(}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00802}00802\ \ \ \ \ \ \ \ \ \ \ \ \ X,\ in\_fit=\textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00803}00803\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00804}00804\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00805}00805\ \ \ \ \ \ \ \ \ super().\mbox{\hyperlink{classsklearn_1_1impute_1_1__base_1_1__BaseImputer_ac6d50f38bff5901af5f5336d7aecd2d7}{\_fit\_indicator}}(complete\_mask)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00806}00806\ \ \ \ \ \ \ \ \ X\_indicator\ =\ super().\mbox{\hyperlink{classsklearn_1_1impute_1_1__base_1_1__BaseImputer_a086a0f2f1a0215736686ce602ed86d4f}{\_transform\_indicator}}(complete\_mask)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00807}00807\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00808}00808\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_aa4a95d57b1bf61041fd02772eb3bd167}{max\_iter}}\ ==\ 0\ \textcolor{keywordflow}{or}\ np.all(mask\_missing\_values):}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00809}00809\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_abf37153dbc7030d0fa4220ed35372897}{n\_iter\_}}\ =\ 0}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00810}00810\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ super().\mbox{\hyperlink{classsklearn_1_1impute_1_1__base_1_1__BaseImputer_a877990f2e27e2a54b1f44c391b9d02f8}{\_concatenate\_indicator}}(Xt,\ X\_indicator)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00811}00811\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00812}00812\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Edge\ case:\ a\ single\ feature,\ we\ return\ the\ initial\ imputation.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00813}00813\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ Xt.shape[1]\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00814}00814\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_abf37153dbc7030d0fa4220ed35372897}{n\_iter\_}}\ =\ 0}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00815}00815\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ super().\mbox{\hyperlink{classsklearn_1_1impute_1_1__base_1_1__BaseImputer_a877990f2e27e2a54b1f44c391b9d02f8}{\_concatenate\_indicator}}(Xt,\ X\_indicator)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00816}00816\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00817}00817\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a53ee01f6165e7373d70d2d050145fe3e}{\_min\_value}}\ =\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a83cab121fd952c87002169d856195b3b}{\_validate\_limit}}(}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00818}00818\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a39542287f2f380aae33d70337094dfe3}{min\_value}},}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00819}00819\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}min"{}},}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00820}00820\ \ \ \ \ \ \ \ \ \ \ \ \ X.shape[1],}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00821}00821\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_abcf1f8a04e02a4cd2fb0c5e4bdd20c6d}{\_is\_empty\_feature}},}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00822}00822\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__base_1_1__BaseImputer_a9a60c2cfd0beaf12ee5474a47ee2dd80}{keep\_empty\_features}},}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00823}00823\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00824}00824\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_ad8f80c511bdcd4b5feffb5ba32dd27c3}{\_max\_value}}\ =\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a83cab121fd952c87002169d856195b3b}{\_validate\_limit}}(}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00825}00825\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a8abff5da674b6079b8b842451ba55327}{max\_value}},}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00826}00826\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}max"{}},}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00827}00827\ \ \ \ \ \ \ \ \ \ \ \ \ X.shape[1],}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00828}00828\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_abcf1f8a04e02a4cd2fb0c5e4bdd20c6d}{\_is\_empty\_feature}},}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00829}00829\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__base_1_1__BaseImputer_a9a60c2cfd0beaf12ee5474a47ee2dd80}{keep\_empty\_features}},}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00830}00830\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00831}00831\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00832}00832\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ np.all(np.greater(self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_ad8f80c511bdcd4b5feffb5ba32dd27c3}{\_max\_value}},\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a53ee01f6165e7373d70d2d050145fe3e}{\_min\_value}})):}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00833}00833\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}One\ (or\ more)\ features\ have\ min\_value\ >=\ max\_value."{}})}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00834}00834\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00835}00835\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ order\ in\ which\ to\ impute}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00836}00836\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ note\ this\ is\ probably\ too\ slow\ for\ large\ feature\ data\ (d\ >\ 100000)}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00837}00837\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ and\ a\ better\ way\ would\ be\ good.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00838}00838\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ see:\ https://goo.gl/KyCNwj\ and\ subsequent\ comments}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00839}00839\ \ \ \ \ \ \ \ \ ordered\_idx\ =\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_af5dc80e60146a4c5997512d56c9c52cd}{\_get\_ordered\_idx}}(mask\_missing\_values)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00840}00840\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a6a32d0f4e147858c1ec3f964838e53cc}{n\_features\_with\_missing\_}}\ =\ len(ordered\_idx)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00841}00841\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00842}00842\ \ \ \ \ \ \ \ \ abs\_corr\_mat\ =\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a93459cdf1b3f620d8316f73d11170b95}{\_get\_abs\_corr\_mat}}(Xt)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00843}00843\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00844}00844\ \ \ \ \ \ \ \ \ n\_samples,\ n\_features\ =\ Xt.shape}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00845}00845\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_ae8ccc904c66208333da023af8f651c9a}{verbose}}\ >\ 0:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00846}00846\ \ \ \ \ \ \ \ \ \ \ \ \ print(\textcolor{stringliteral}{"{}[IterativeImputer]\ Completing\ matrix\ with\ shape\ \%s"{}}\ \%\ (X.shape,))}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00847}00847\ \ \ \ \ \ \ \ \ start\_t\ =\ time()}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00848}00848\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_aa90be13149e9cd35d68ec079f37ee698}{sample\_posterior}}:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00849}00849\ \ \ \ \ \ \ \ \ \ \ \ \ Xt\_previous\ =\ Xt.copy()}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00850}00850\ \ \ \ \ \ \ \ \ \ \ \ \ normalized\_tol\ =\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_aafff4dcece73d4416c197245d6a33656}{tol}}\ *\ np.max(np.abs(X[\string~mask\_missing\_values]))}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00851}00851\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_abf37153dbc7030d0fa4220ed35372897}{n\_iter\_}}\ \textcolor{keywordflow}{in}\ range(1,\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_aa4a95d57b1bf61041fd02772eb3bd167}{max\_iter}}\ +\ 1):}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00852}00852\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_aeae043809c7589b4350724c49a8417b3}{imputation\_order}}\ ==\ \textcolor{stringliteral}{"{}random"{}}:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00853}00853\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ordered\_idx\ =\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_af5dc80e60146a4c5997512d56c9c52cd}{\_get\_ordered\_idx}}(mask\_missing\_values)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00854}00854\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00855}00855\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ feat\_idx\ \textcolor{keywordflow}{in}\ ordered\_idx:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00856}00856\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ neighbor\_feat\_idx\ =\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_adf8eb2c6a4ac85e14e2e7b09f95648e0}{\_get\_neighbor\_feat\_idx}}(}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00857}00857\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ n\_features,\ feat\_idx,\ abs\_corr\_mat}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00858}00858\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00859}00859\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ Xt,\ estimator\ =\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a5a6503999e132255ba1c6126e3720a89}{\_impute\_one\_feature}}(}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00860}00860\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ Xt,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00861}00861\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ mask\_missing\_values,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00862}00862\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ feat\_idx,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00863}00863\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ neighbor\_feat\_idx,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00864}00864\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ estimator=\textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00865}00865\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ fit\_mode=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00866}00866\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ params=routed\_params.estimator.fit,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00867}00867\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00868}00868\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ estimator\_triplet\ =\ \_ImputerTriplet(}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00869}00869\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ feat\_idx,\ neighbor\_feat\_idx,\ estimator}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00870}00870\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00871}00871\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a3c5efa7b22eb952494b9cea79e20af52}{imputation\_sequence\_}}.append(estimator\_triplet)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00872}00872\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00873}00873\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_ae8ccc904c66208333da023af8f651c9a}{verbose}}\ >\ 1:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00874}00874\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00875}00875\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}[IterativeImputer]\ Ending\ imputation\ round\ "{}}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00876}00876\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\%d/\%d,\ elapsed\ time\ \%0.2f"{}}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00877}00877\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \%\ (self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_abf37153dbc7030d0fa4220ed35372897}{n\_iter\_}},\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_aa4a95d57b1bf61041fd02772eb3bd167}{max\_iter}},\ time()\ -\/\ start\_t)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00878}00878\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00879}00879\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00880}00880\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_aa90be13149e9cd35d68ec079f37ee698}{sample\_posterior}}:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00881}00881\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ inf\_norm\ =\ np.linalg.norm(Xt\ -\/\ Xt\_previous,\ ord=np.inf,\ axis=\textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00882}00882\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_ae8ccc904c66208333da023af8f651c9a}{verbose}}\ >\ 0:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00883}00883\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00884}00884\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}[IterativeImputer]\ Change:\ \{\},\ scaled\ tolerance:\ \{\}\ "{}}.format(}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00885}00885\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ inf\_norm,\ normalized\_tol}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00886}00886\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00887}00887\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00888}00888\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ inf\_norm\ <\ normalized\_tol:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00889}00889\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_ae8ccc904c66208333da023af8f651c9a}{verbose}}\ >\ 0:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00890}00890\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(\textcolor{stringliteral}{"{}[IterativeImputer]\ Early\ stopping\ criterion\ reached."{}})}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00891}00891\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00892}00892\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ Xt\_previous\ =\ Xt.copy()}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00893}00893\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00894}00894\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_aa90be13149e9cd35d68ec079f37ee698}{sample\_posterior}}:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00895}00895\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00896}00896\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}[IterativeImputer]\ Early\ stopping\ criterion\ not\ reached."{}},}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00897}00897\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ConvergenceWarning,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00898}00898\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00899}00899\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{namespacesklearn_1_1impute_1_1__iterative_acda7408b5cb4795286ab4e331bfb342e}{\_assign\_where}}(Xt,\ X,\ cond=\string~mask\_missing\_values)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00900}00900\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00901}00901\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ super().\mbox{\hyperlink{classsklearn_1_1impute_1_1__base_1_1__BaseImputer_a877990f2e27e2a54b1f44c391b9d02f8}{\_concatenate\_indicator}}(Xt,\ X\_indicator)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00902}00902\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00903}\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_ab2f0a351667de4514060ec5430ff569f}{00903}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_ab2f0a351667de4514060ec5430ff569f}{transform}}(self,\ X):}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00904}00904\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Impute\ all\ missing\ values\ in\ \`{}X\`{}.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00905}00905\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00906}00906\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Note\ that\ this\ is\ stochastic,\ and\ that\ if\ \`{}random\_state\`{}\ is\ not\ fixed,}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00907}00907\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ repeated\ calls,\ or\ permuted\ input,\ results\ will\ differ.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00908}00908\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00909}00909\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00910}00910\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00911}00911\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\ :\ array-\/like\ of\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00912}00912\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ input\ data\ to\ complete.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00913}00913\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00914}00914\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00915}00915\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00916}00916\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Xt\ :\ array-\/like,\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00917}00917\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ The\ imputed\ input\ data.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00918}00918\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00919}00919\ \ \ \ \ \ \ \ \ check\_is\_fitted(self)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00920}00920\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00921}00921\ \ \ \ \ \ \ \ \ X,\ Xt,\ mask\_missing\_values,\ complete\_mask\ =\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a7456a79e94e72faea0218527817b360d}{\_initial\_imputation}}(}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00922}00922\ \ \ \ \ \ \ \ \ \ \ \ \ X,\ in\_fit=\textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00923}00923\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00924}00924\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00925}00925\ \ \ \ \ \ \ \ \ X\_indicator\ =\ super().\mbox{\hyperlink{classsklearn_1_1impute_1_1__base_1_1__BaseImputer_a086a0f2f1a0215736686ce602ed86d4f}{\_transform\_indicator}}(complete\_mask)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00926}00926\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00927}00927\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_abf37153dbc7030d0fa4220ed35372897}{n\_iter\_}}\ ==\ 0\ \textcolor{keywordflow}{or}\ np.all(mask\_missing\_values):}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00928}00928\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ super().\mbox{\hyperlink{classsklearn_1_1impute_1_1__base_1_1__BaseImputer_a877990f2e27e2a54b1f44c391b9d02f8}{\_concatenate\_indicator}}(Xt,\ X\_indicator)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00929}00929\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00930}00930\ \ \ \ \ \ \ \ \ imputations\_per\_round\ =\ len(self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a3c5efa7b22eb952494b9cea79e20af52}{imputation\_sequence\_}})\ //\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_abf37153dbc7030d0fa4220ed35372897}{n\_iter\_}}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00931}00931\ \ \ \ \ \ \ \ \ i\_rnd\ =\ 0}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00932}00932\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_ae8ccc904c66208333da023af8f651c9a}{verbose}}\ >\ 0:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00933}00933\ \ \ \ \ \ \ \ \ \ \ \ \ print(\textcolor{stringliteral}{"{}[IterativeImputer]\ Completing\ matrix\ with\ shape\ \%s"{}}\ \%\ (X.shape,))}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00934}00934\ \ \ \ \ \ \ \ \ start\_t\ =\ time()}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00935}00935\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ it,\ estimator\_triplet\ \textcolor{keywordflow}{in}\ enumerate(self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a3c5efa7b22eb952494b9cea79e20af52}{imputation\_sequence\_}}):}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00936}00936\ \ \ \ \ \ \ \ \ \ \ \ \ Xt,\ \_\ =\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a5a6503999e132255ba1c6126e3720a89}{\_impute\_one\_feature}}(}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00937}00937\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ Xt,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00938}00938\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ mask\_missing\_values,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00939}00939\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ estimator\_triplet.feat\_idx,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00940}00940\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ estimator\_triplet.neighbor\_feat\_idx,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00941}00941\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ estimator=estimator\_triplet.estimator,}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00942}00942\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ fit\_mode=\textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00943}00943\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00944}00944\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ (it\ +\ 1)\ \%\ imputations\_per\_round:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00945}00945\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_ae8ccc904c66208333da023af8f651c9a}{verbose}}\ >\ 1:}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00946}00946\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00947}00947\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}[IterativeImputer]\ Ending\ imputation\ round\ "{}}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00948}00948\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\%d/\%d,\ elapsed\ time\ \%0.2f"{}}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00949}00949\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \%\ (i\_rnd\ +\ 1,\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_abf37153dbc7030d0fa4220ed35372897}{n\_iter\_}},\ time()\ -\/\ start\_t)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00950}00950\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00951}00951\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ i\_rnd\ +=\ 1}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00952}00952\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00953}00953\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{namespacesklearn_1_1impute_1_1__iterative_acda7408b5cb4795286ab4e331bfb342e}{\_assign\_where}}(Xt,\ X,\ cond=\string~mask\_missing\_values)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00954}00954\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00955}00955\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ super().\mbox{\hyperlink{classsklearn_1_1impute_1_1__base_1_1__BaseImputer_a877990f2e27e2a54b1f44c391b9d02f8}{\_concatenate\_indicator}}(Xt,\ X\_indicator)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00956}00956\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00957}\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a5e9b4762df5ba0fb9818c175083b4959}{00957}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a5e9b4762df5ba0fb9818c175083b4959}{fit}}(self,\ X,\ y=None,\ **fit\_params):}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00958}00958\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Fit\ the\ imputer\ on\ \`{}X\`{}\ and\ return\ self.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00959}00959\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00960}00960\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00961}00961\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00962}00962\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\ :\ array-\/like,\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00963}00963\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Input\ data,\ where\ \`{}n\_samples\`{}\ is\ the\ number\ of\ samples\ and}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00964}00964\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \`{}n\_features\`{}\ is\ the\ number\ of\ features.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00965}00965\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00966}00966\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ y\ :\ Ignored}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00967}00967\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Not\ used,\ present\ for\ API\ consistency\ by\ convention.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00968}00968\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00969}00969\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ **fit\_params\ :\ dict}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00970}00970\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Parameters\ routed\ to\ the\ \`{}fit\`{}\ method\ of\ the\ sub-\/estimator\ via\ the}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00971}00971\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ metadata\ routing\ API.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00972}00972\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00973}00973\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ ..\ versionadded::\ 1.5}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00974}00974\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ Only\ available\ if}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00975}00975\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \`{}sklearn.set\_config(enable\_metadata\_routing=True)\`{}\ is\ set.\ See}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00976}00976\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ :ref:\`{}Metadata\ Routing\ User\ Guide\ <metadata\_routing>\`{}\ for\ more}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00977}00977\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ details.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00978}00978\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00979}00979\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00980}00980\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00981}00981\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ self\ :\ object}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00982}00982\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Fitted\ estimator.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00983}00983\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00984}00984\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1base_1_1TransformerMixin_a39681898f62e68ccdd2df4bbcdb61542}{fit\_transform}}(X,\ **fit\_params)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00985}00985\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00986}00986\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00987}\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a9c1f255a4da5dde2fca1be5a10799946}{00987}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a9c1f255a4da5dde2fca1be5a10799946}{get\_feature\_names\_out}}(self,\ input\_features=None):}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00988}00988\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Get\ output\ feature\ names\ for\ transformation.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00989}00989\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00990}00990\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00991}00991\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00992}00992\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ input\_features\ :\ array-\/like\ of\ str\ or\ None,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00993}00993\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Input\ features.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00994}00994\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00995}00995\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ -\/\ If\ \`{}input\_features\`{}\ is\ \`{}None\`{},\ then\ \`{}feature\_names\_in\_\`{}\ is}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00996}00996\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ used\ as\ feature\ names\ in.\ If\ \`{}feature\_names\_in\_\`{}\ is\ not\ defined,}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00997}00997\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ then\ the\ following\ input\ feature\ names\ are\ generated:}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00998}00998\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \`{}["{}x0"{},\ "{}x1"{},\ ...,\ "{}x(n\_features\_in\_\ -\/\ 1)"{}]\`{}.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l00999}00999\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ -\/\ If\ \`{}input\_features\`{}\ is\ an\ array-\/like,\ then\ \`{}input\_features\`{}\ must}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l01000}01000\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ match\ \`{}feature\_names\_in\_\`{}\ if\ \`{}feature\_names\_in\_\`{}\ is\ defined.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l01001}01001\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l01002}01002\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l01003}01003\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l01004}01004\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ feature\_names\_out\ :\ ndarray\ of\ str\ objects}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l01005}01005\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Transformed\ feature\ names.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l01006}01006\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l01007}01007\ \ \ \ \ \ \ \ \ check\_is\_fitted(self,\ \textcolor{stringliteral}{"{}n\_features\_in\_"{}})}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l01008}01008\ \ \ \ \ \ \ \ \ input\_features\ =\ \_check\_feature\_names\_in(self,\ input\_features)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l01009}01009\ \ \ \ \ \ \ \ \ names\ =\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a8f59dc59e00032ad904134b22f5d2282}{initial\_imputer\_}}.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a9c1f255a4da5dde2fca1be5a10799946}{get\_feature\_names\_out}}(input\_features)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l01010}01010\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__base_1_1__BaseImputer_a744111ef9e1be0c1ed4896a8b3472b0d}{\_concatenate\_indicator\_feature\_names\_out}}(names,\ input\_features)}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l01011}01011\ }
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l01012}\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a9b7fbb767726485a4bb72cdeba48f837}{01012}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_a9b7fbb767726485a4bb72cdeba48f837}{get\_metadata\_routing}}(self):}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l01013}01013\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Get\ metadata\ routing\ of\ this\ object.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l01014}01014\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l01015}01015\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Please\ check\ :ref:\`{}User\ Guide\ <metadata\_routing>\`{}\ on\ how\ the\ routing}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l01016}01016\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ mechanism\ works.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l01017}01017\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l01018}01018\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 1.5}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l01019}01019\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l01020}01020\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l01021}01021\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l01022}01022\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ routing\ :\ MetadataRouter}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l01023}01023\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ A\ :class:\`{}\string~sklearn.utils.metadata\_routing.MetadataRouter\`{}\ encapsulating}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l01024}01024\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ routing\ information.}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l01025}01025\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l01026}01026\ \ \ \ \ \ \ \ \ router\ =\ MetadataRouter(owner=self.\_\_class\_\_.\_\_name\_\_).add(}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l01027}01027\ \ \ \ \ \ \ \ \ \ \ \ \ estimator=self.\mbox{\hyperlink{classsklearn_1_1impute_1_1__iterative_1_1IterativeImputer_ae8eaa7966b9c6d98e5ed5ec364a59bdf}{estimator}},}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l01028}01028\ \ \ \ \ \ \ \ \ \ \ \ \ method\_mapping=MethodMapping().add(callee=\textcolor{stringliteral}{"{}fit"{}},\ caller=\textcolor{stringliteral}{"{}fit"{}}),}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l01029}01029\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__iterative_8py_source_l01030}01030\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ router}
+
+\end{DoxyCode}

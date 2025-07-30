@@ -1,0 +1,846 @@
+\doxysection{expr.\+py}
+\hypertarget{expr_8py_source}{}\label{expr_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/pandas/core/computation/expr.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/pandas/core/computation/expr.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00001}\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr}{00001}}\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00002}00002\ \textcolor{stringliteral}{:func:\`{}\string~pandas.eval\`{}\ parsers.}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00003}00003\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00004}00004\ \textcolor{keyword}{from}\ \_\_future\_\_\ \textcolor{keyword}{import}\ annotations}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00005}00005\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00006}00006\ \textcolor{keyword}{import}\ ast}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00007}00007\ \textcolor{keyword}{from}\ functools\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00008}00008\ \ \ \ \ partial,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00009}00009\ \ \ \ \ reduce,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00010}00010\ )}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00011}00011\ \textcolor{keyword}{from}\ keyword\ \textcolor{keyword}{import}\ iskeyword}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00012}00012\ \textcolor{keyword}{import}\ tokenize}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00013}00013\ \textcolor{keyword}{from}\ typing\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00014}00014\ \ \ \ \ Callable,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00015}00015\ \ \ \ \ ClassVar,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00016}00016\ \ \ \ \ TypeVar,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00017}00017\ )}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00018}00018\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00019}00019\ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00020}00020\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00021}00021\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1errors}{pandas.errors}}\ \textcolor{keyword}{import}\ UndefinedVariableError}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00022}00022\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00023}00023\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1dtypes_1_1common}{pandas.core.dtypes.common}}\ \textcolor{keyword}{import}\ is\_string\_dtype}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00024}00024\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00025}00025\ \textcolor{keyword}{import}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1common}{pandas.core.common}}\ \textcolor{keyword}{as}\ com}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00026}00026\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1ops}{pandas.core.computation.ops}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00027}00027\ \ \ \ \ ARITH\_OPS\_SYMS,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00028}00028\ \ \ \ \ BOOL\_OPS\_SYMS,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00029}00029\ \ \ \ \ CMP\_OPS\_SYMS,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00030}00030\ \ \ \ \ LOCAL\_TAG,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00031}00031\ \ \ \ \ MATHOPS,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00032}00032\ \ \ \ \ REDUCTIONS,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00033}00033\ \ \ \ \ UNARY\_OPS\_SYMS,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00034}00034\ \ \ \ \ BinOp,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00035}00035\ \ \ \ \ Constant,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00036}00036\ \ \ \ \ FuncNode,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00037}00037\ \ \ \ \ Op,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00038}00038\ \ \ \ \ Term,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00039}00039\ \ \ \ \ UnaryOp,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00040}00040\ \ \ \ \ is\_term,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00041}00041\ )}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00042}00042\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1parsing}{pandas.core.computation.parsing}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00043}00043\ \ \ \ \ clean\_backtick\_quoted\_toks,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00044}00044\ \ \ \ \ tokenize\_string,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00045}00045\ )}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00046}00046\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1scope}{pandas.core.computation.scope}}\ \textcolor{keyword}{import}\ Scope}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00047}00047\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00048}00048\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1io_1_1formats}{pandas.io.formats}}\ \textcolor{keyword}{import}\ printing}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00049}00049\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00050}00050\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00051}\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_a3eeceb7a7be249c534b1bd9565377b4f}{00051}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_a3eeceb7a7be249c534b1bd9565377b4f}{\_rewrite\_assign}}(tok:\ tuple[int,\ str])\ -\/>\ tuple[int,\ str]:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00052}00052\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00053}00053\ \textcolor{stringliteral}{\ \ \ \ Rewrite\ the\ assignment\ operator\ for\ PyTables\ expressions\ that\ use\ \`{}\`{}=\`{}\`{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00054}00054\ \textcolor{stringliteral}{\ \ \ \ as\ a\ substitute\ for\ \`{}\`{}==\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00055}00055\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00056}00056\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00057}00057\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00058}00058\ \textcolor{stringliteral}{\ \ \ \ tok\ :\ tuple\ of\ int,\ str}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00059}00059\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ints\ correspond\ to\ the\ all\ caps\ constants\ in\ the\ tokenize\ module}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00060}00060\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00061}00061\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00062}00062\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00063}00063\ \textcolor{stringliteral}{\ \ \ \ tuple\ of\ int,\ str}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00064}00064\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Either\ the\ input\ or\ token\ or\ the\ replacement\ values}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00065}00065\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00066}00066\ \ \ \ \ toknum,\ tokval\ =\ tok}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00067}00067\ \ \ \ \ \textcolor{keywordflow}{return}\ toknum,\ \textcolor{stringliteral}{"{}=="{}}\ \textcolor{keywordflow}{if}\ tokval\ ==\ \textcolor{stringliteral}{"{}="{}}\ \textcolor{keywordflow}{else}\ tokval}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00068}00068\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00069}00069\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00070}\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_a01f5dddd9eb8cf9ce309f9ffbdaaaca7}{00070}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_a01f5dddd9eb8cf9ce309f9ffbdaaaca7}{\_replace\_booleans}}(tok:\ tuple[int,\ str])\ -\/>\ tuple[int,\ str]:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00071}00071\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00072}00072\ \textcolor{stringliteral}{\ \ \ \ Replace\ \`{}\`{}\&\`{}\`{}\ with\ \`{}\`{}and\`{}\`{}\ and\ \`{}\`{}|\`{}\`{}\ with\ \`{}\`{}or\`{}\`{}\ so\ that\ bitwise}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00073}00073\ \textcolor{stringliteral}{\ \ \ \ precedence\ is\ changed\ to\ boolean\ precedence.}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00074}00074\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00075}00075\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00076}00076\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00077}00077\ \textcolor{stringliteral}{\ \ \ \ tok\ :\ tuple\ of\ int,\ str}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00078}00078\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ints\ correspond\ to\ the\ all\ caps\ constants\ in\ the\ tokenize\ module}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00079}00079\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00080}00080\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00081}00081\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00082}00082\ \textcolor{stringliteral}{\ \ \ \ tuple\ of\ int,\ str}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00083}00083\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Either\ the\ input\ or\ token\ or\ the\ replacement\ values}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00084}00084\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00085}00085\ \ \ \ \ toknum,\ tokval\ =\ tok}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00086}00086\ \ \ \ \ \textcolor{keywordflow}{if}\ toknum\ ==\ tokenize.OP:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00087}00087\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ tokval\ ==\ \textcolor{stringliteral}{"{}\&"{}}:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00088}00088\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ tokenize.NAME,\ \textcolor{stringliteral}{"{}and"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00089}00089\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ tokval\ ==\ \textcolor{stringliteral}{"{}|"{}}:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00090}00090\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ tokenize.NAME,\ \textcolor{stringliteral}{"{}or"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00091}00091\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ toknum,\ tokval}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00092}00092\ \ \ \ \ \textcolor{keywordflow}{return}\ toknum,\ tokval}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00093}00093\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00094}00094\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00095}\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_ae811437330bc558a133064b9cd6778a7}{00095}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_ae811437330bc558a133064b9cd6778a7}{\_replace\_locals}}(tok:\ tuple[int,\ str])\ -\/>\ tuple[int,\ str]:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00096}00096\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00097}00097\ \textcolor{stringliteral}{\ \ \ \ Replace\ local\ variables\ with\ a\ syntactically\ valid\ name.}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00098}00098\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00099}00099\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00100}00100\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00101}00101\ \textcolor{stringliteral}{\ \ \ \ tok\ :\ tuple\ of\ int,\ str}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00102}00102\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ints\ correspond\ to\ the\ all\ caps\ constants\ in\ the\ tokenize\ module}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00103}00103\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00104}00104\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00105}00105\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00106}00106\ \textcolor{stringliteral}{\ \ \ \ tuple\ of\ int,\ str}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00107}00107\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Either\ the\ input\ or\ token\ or\ the\ replacement\ values}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00108}00108\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00109}00109\ \textcolor{stringliteral}{\ \ \ \ Notes}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00110}00110\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00111}00111\ \textcolor{stringliteral}{\ \ \ \ This\ is\ somewhat\ of\ a\ hack\ in\ that\ we\ rewrite\ a\ string\ such\ as\ \`{}\`{}'@a'\`{}\`{}\ as}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00112}00112\ \textcolor{stringliteral}{\ \ \ \ \`{}\`{}'\_\_pd\_eval\_local\_a'\`{}\`{}\ by\ telling\ the\ tokenizer\ that\ \`{}\`{}\_\_pd\_eval\_local\_\`{}\`{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00113}00113\ \textcolor{stringliteral}{\ \ \ \ is\ a\ \`{}\`{}tokenize.OP\`{}\`{}\ and\ to\ replace\ the\ \`{}\`{}'@'\`{}\`{}\ symbol\ with\ it.}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00114}00114\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00115}00115\ \ \ \ \ toknum,\ tokval\ =\ tok}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00116}00116\ \ \ \ \ \textcolor{keywordflow}{if}\ toknum\ ==\ tokenize.OP\ \textcolor{keywordflow}{and}\ tokval\ ==\ \textcolor{stringliteral}{"{}@"{}}:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00117}00117\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ tokenize.OP,\ LOCAL\_TAG}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00118}00118\ \ \ \ \ \textcolor{keywordflow}{return}\ toknum,\ tokval}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00119}00119\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00120}00120\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00121}\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_a1737ed096d32b0f2681c34084935aed9}{00121}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_a1737ed096d32b0f2681c34084935aed9}{\_compose2}}(f,\ g):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00122}00122\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00123}00123\ \textcolor{stringliteral}{\ \ \ \ Compose\ 2\ callables.}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00124}00124\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00125}00125\ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{lambda}\ *args,\ **kwargs:\ f(g(*args,\ **kwargs))}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00126}00126\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00127}00127\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00128}\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_a430ba6330a292ffcdb1f55c5ba713e62}{00128}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_a430ba6330a292ffcdb1f55c5ba713e62}{\_compose}}(*funcs):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00129}00129\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00130}00130\ \textcolor{stringliteral}{\ \ \ \ Compose\ 2\ or\ more\ callables.}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00131}00131\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00132}00132\ \ \ \ \ \textcolor{keyword}{assert}\ len(funcs)\ >\ 1,\ \textcolor{stringliteral}{"{}At\ least\ 2\ callables\ must\ be\ passed\ to\ compose"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00133}00133\ \ \ \ \ \textcolor{keywordflow}{return}\ reduce(\_compose2,\ funcs)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00134}00134\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00135}00135\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00136}\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_a43413a19e902ec156ece14e2fe02bd1f}{00136}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_a43413a19e902ec156ece14e2fe02bd1f}{\_preparse}}(}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00137}00137\ \ \ \ \ source:\ str,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00138}00138\ \ \ \ \ f=\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_a430ba6330a292ffcdb1f55c5ba713e62}{\_compose}}(}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00139}00139\ \ \ \ \ \ \ \ \ \_replace\_locals,\ \_replace\_booleans,\ \_rewrite\_assign,\ clean\_backtick\_quoted\_toks}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00140}00140\ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00141}00141\ )\ -\/>\ str:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00142}00142\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00143}00143\ \textcolor{stringliteral}{\ \ \ \ Compose\ a\ collection\ of\ tokenization\ functions.}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00144}00144\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00145}00145\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00146}00146\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00147}00147\ \textcolor{stringliteral}{\ \ \ \ source\ :\ str}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00148}00148\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ A\ Python\ source\ code\ string}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00149}00149\ \textcolor{stringliteral}{\ \ \ \ f\ :\ callable}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00150}00150\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ This\ takes\ a\ tuple\ of\ (toknum,\ tokval)\ as\ its\ argument\ and\ returns\ a}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00151}00151\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ tuple\ with\ the\ same\ structure\ but\ possibly\ different\ elements.\ Defaults}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00152}00152\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ to\ the\ composition\ of\ \`{}\`{}\_rewrite\_assign\`{}\`{},\ \`{}\`{}\_replace\_booleans\`{}\`{},\ and}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00153}00153\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}\_replace\_locals\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00154}00154\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00155}00155\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00156}00156\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00157}00157\ \textcolor{stringliteral}{\ \ \ \ str}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00158}00158\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Valid\ Python\ source\ code}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00159}00159\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00160}00160\ \textcolor{stringliteral}{\ \ \ \ Notes}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00161}00161\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00162}00162\ \textcolor{stringliteral}{\ \ \ \ The\ \`{}f\`{}\ parameter\ can\ be\ any\ callable\ that\ takes\ *and*\ returns\ input\ of\ the}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00163}00163\ \textcolor{stringliteral}{\ \ \ \ form\ \`{}\`{}(toknum,\ tokval)\`{}\`{},\ where\ \`{}\`{}toknum\`{}\`{}\ is\ one\ of\ the\ constants\ from}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00164}00164\ \textcolor{stringliteral}{\ \ \ \ the\ \`{}\`{}tokenize\`{}\`{}\ module\ and\ \`{}\`{}tokval\`{}\`{}\ is\ a\ string.}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00165}00165\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00166}00166\ \ \ \ \ \textcolor{keyword}{assert}\ callable(f),\ \textcolor{stringliteral}{"{}f\ must\ be\ callable"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00167}00167\ \ \ \ \ \textcolor{keywordflow}{return}\ tokenize.untokenize(f(x)\ \textcolor{keywordflow}{for}\ x\ \textcolor{keywordflow}{in}\ tokenize\_string(source))}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00168}00168\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00169}00169\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00170}\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_a26416ec9258849f0287ba420503a03ac}{00170}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_a26416ec9258849f0287ba420503a03ac}{\_is\_type}}(t):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00171}00171\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00172}00172\ \textcolor{stringliteral}{\ \ \ \ Factory\ for\ a\ type\ checking\ function\ of\ type\ \`{}\`{}t\`{}\`{}\ or\ tuple\ of\ types.}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00173}00173\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00174}00174\ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{lambda}\ x:\ isinstance(x.value,\ t)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00175}00175\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00176}00176\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00177}00177\ \_is\_list\ =\ \mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_a26416ec9258849f0287ba420503a03ac}{\_is\_type}}(list)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00178}00178\ \_is\_str\ =\ \mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_a26416ec9258849f0287ba420503a03ac}{\_is\_type}}(str)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00179}00179\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00180}00180\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00181}00181\ \textcolor{comment}{\#\ partition\ all\ AST\ nodes}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00182}00182\ \_all\_nodes\ =\ frozenset(}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00183}00183\ \ \ \ \ node}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00184}00184\ \ \ \ \ \textcolor{keywordflow}{for}\ node\ \textcolor{keywordflow}{in}\ (getattr(ast,\ name)\ \textcolor{keywordflow}{for}\ name\ \textcolor{keywordflow}{in}\ dir(ast))}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00185}00185\ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(node,\ type)\ \textcolor{keywordflow}{and}\ issubclass(node,\ ast.AST)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00186}00186\ )}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00187}00187\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00188}00188\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00189}\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_acc814c53cd56b459546cdd43b9a02777}{00189}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_acc814c53cd56b459546cdd43b9a02777}{\_filter\_nodes}}(superclass,\ all\_nodes=\_all\_nodes):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00190}00190\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00191}00191\ \textcolor{stringliteral}{\ \ \ \ Filter\ out\ AST\ nodes\ that\ are\ subclasses\ of\ \`{}\`{}superclass\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00192}00192\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00193}00193\ \ \ \ \ node\_names\ =\ (node.\_\_name\_\_\ \textcolor{keywordflow}{for}\ node\ \textcolor{keywordflow}{in}\ all\_nodes\ \textcolor{keywordflow}{if}\ issubclass(node,\ superclass))}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00194}00194\ \ \ \ \ \textcolor{keywordflow}{return}\ frozenset(node\_names)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00195}00195\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00196}00196\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00197}00197\ \_all\_node\_names\ =\ frozenset(x.\_\_name\_\_\ \textcolor{keywordflow}{for}\ x\ \textcolor{keywordflow}{in}\ \_all\_nodes)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00198}00198\ \_mod\_nodes\ =\ \mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_acc814c53cd56b459546cdd43b9a02777}{\_filter\_nodes}}(ast.mod)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00199}00199\ \_stmt\_nodes\ =\ \mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_acc814c53cd56b459546cdd43b9a02777}{\_filter\_nodes}}(ast.stmt)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00200}00200\ \_expr\_nodes\ =\ \mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_acc814c53cd56b459546cdd43b9a02777}{\_filter\_nodes}}(ast.expr)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00201}00201\ \_expr\_context\_nodes\ =\ \mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_acc814c53cd56b459546cdd43b9a02777}{\_filter\_nodes}}(ast.expr\_context)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00202}00202\ \_boolop\_nodes\ =\ \mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_acc814c53cd56b459546cdd43b9a02777}{\_filter\_nodes}}(ast.boolop)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00203}00203\ \_operator\_nodes\ =\ \mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_acc814c53cd56b459546cdd43b9a02777}{\_filter\_nodes}}(ast.operator)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00204}00204\ \_unary\_op\_nodes\ =\ \mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_acc814c53cd56b459546cdd43b9a02777}{\_filter\_nodes}}(ast.unaryop)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00205}00205\ \_cmp\_op\_nodes\ =\ \mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_acc814c53cd56b459546cdd43b9a02777}{\_filter\_nodes}}(ast.cmpop)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00206}00206\ \_comprehension\_nodes\ =\ \mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_acc814c53cd56b459546cdd43b9a02777}{\_filter\_nodes}}(ast.comprehension)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00207}00207\ \_handler\_nodes\ =\ \mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_acc814c53cd56b459546cdd43b9a02777}{\_filter\_nodes}}(ast.excepthandler)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00208}00208\ \_arguments\_nodes\ =\ \mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_acc814c53cd56b459546cdd43b9a02777}{\_filter\_nodes}}(ast.arguments)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00209}00209\ \_keyword\_nodes\ =\ \mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_acc814c53cd56b459546cdd43b9a02777}{\_filter\_nodes}}(ast.keyword)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00210}00210\ \_alias\_nodes\ =\ \mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_acc814c53cd56b459546cdd43b9a02777}{\_filter\_nodes}}(ast.alias)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00211}00211\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00212}00212\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00213}00213\ \textcolor{comment}{\#\ nodes\ that\ we\ don't\ support\ directly\ but\ are\ needed\ for\ parsing}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00214}00214\ \_hacked\_nodes\ =\ frozenset([\textcolor{stringliteral}{"{}Assign"{}},\ \textcolor{stringliteral}{"{}Module"{}},\ \textcolor{stringliteral}{"{}Expr"{}}])}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00215}00215\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00216}00216\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00217}00217\ \_unsupported\_expr\_nodes\ =\ frozenset(}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00218}00218\ \ \ \ \ [}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00219}00219\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Yield"{}},}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00220}00220\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}GeneratorExp"{}},}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00221}00221\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}IfExp"{}},}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00222}00222\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}DictComp"{}},}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00223}00223\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}SetComp"{}},}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00224}00224\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Repr"{}},}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00225}00225\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Lambda"{}},}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00226}00226\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Set"{}},}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00227}00227\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}AST"{}},}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00228}00228\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Is"{}},}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00229}00229\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}IsNot"{}},}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00230}00230\ \ \ \ \ ]}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00231}00231\ )}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00232}00232\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00233}00233\ \textcolor{comment}{\#\ these\ nodes\ are\ low\ priority\ or\ won't\ ever\ be\ supported\ (e.g.,\ AST)}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00234}00234\ \_unsupported\_nodes\ =\ (}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00235}00235\ \ \ \ \ \_stmt\_nodes}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00236}00236\ \ \ \ \ |\ \_mod\_nodes}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00237}00237\ \ \ \ \ |\ \_handler\_nodes}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00238}00238\ \ \ \ \ |\ \_arguments\_nodes}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00239}00239\ \ \ \ \ |\ \_keyword\_nodes}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00240}00240\ \ \ \ \ |\ \_alias\_nodes}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00241}00241\ \ \ \ \ |\ \_expr\_context\_nodes}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00242}00242\ \ \ \ \ |\ \_unsupported\_expr\_nodes}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00243}00243\ )\ -\/\ \_hacked\_nodes}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00244}00244\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00245}00245\ \textcolor{comment}{\#\ we're\ adding\ a\ different\ assignment\ in\ some\ cases\ to\ be\ equality\ comparison}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00246}00246\ \textcolor{comment}{\#\ and\ we\ don't\ want\ \`{}stmt`\ and\ friends\ in\ their\ so\ get\ only\ the\ class\ whose}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00247}00247\ \textcolor{comment}{\#\ names\ are\ capitalized}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00248}00248\ \_base\_supported\_nodes\ =\ (\_all\_node\_names\ -\/\ \_unsupported\_nodes)\ |\ \_hacked\_nodes}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00249}00249\ intersection\ =\ \_unsupported\_nodes\ \&\ \_base\_supported\_nodes}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00250}00250\ \_msg\ =\ f\textcolor{stringliteral}{"{}cannot\ both\ support\ and\ not\ support\ \{intersection\}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00251}00251\ \textcolor{keyword}{assert}\ \textcolor{keywordflow}{not}\ intersection,\ \_msg}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00252}00252\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00253}00253\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00254}\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_a13c413286c088b37d83d765b450c8899}{00254}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_a13c413286c088b37d83d765b450c8899}{\_node\_not\_implemented}}(node\_name:\ str)\ -\/>\ Callable[...,\ \textcolor{keywordtype}{None}]:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00255}00255\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00256}00256\ \textcolor{stringliteral}{\ \ \ \ Return\ a\ function\ that\ raises\ a\ NotImplementedError\ with\ a\ passed\ node\ name.}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00257}00257\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00258}00258\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00259}00259\ \ \ \ \ \textcolor{keyword}{def\ }f(self,\ *args,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00260}00260\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classNotImplementedError}{NotImplementedError}}(f\textcolor{stringliteral}{"{}'\{node\_name\}'\ nodes\ are\ not\ implemented"{}})}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00261}00261\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00262}00262\ \ \ \ \ \textcolor{keywordflow}{return}\ f}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00263}00263\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00264}00264\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00265}00265\ \textcolor{comment}{\#\ should\ be\ bound\ by\ BaseExprVisitor\ but\ that\ creates\ a\ circular\ dependency:}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00266}00266\ \textcolor{comment}{\#\ \_T\ is\ used\ in\ disallow,\ but\ disallow\ is\ used\ to\ define\ BaseExprVisitor}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00267}00267\ \textcolor{comment}{\#\ https://github.com/microsoft/pyright/issues/2315}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00268}00268\ \_T\ =\ TypeVar(\textcolor{stringliteral}{"{}\_T"{}})}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00269}00269\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00270}00270\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00271}\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_a9af99583a0c0d9484d5af7c3a1ee15e8}{00271}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_a9af99583a0c0d9484d5af7c3a1ee15e8}{disallow}}(nodes:\ set[str])\ -\/>\ Callable[[type[\_T]],\ type[\_T]]:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00272}00272\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00273}00273\ \textcolor{stringliteral}{\ \ \ \ Decorator\ to\ disallow\ certain\ nodes\ from\ parsing.\ Raises\ a}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00274}00274\ \textcolor{stringliteral}{\ \ \ \ NotImplementedError\ instead.}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00275}00275\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00276}00276\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00277}00277\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00278}00278\ \textcolor{stringliteral}{\ \ \ \ callable}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00279}00279\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00280}00280\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00281}00281\ \ \ \ \ \textcolor{keyword}{def\ }disallowed(cls:\ type[\_T])\ -\/>\ type[\_T]:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00282}00282\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ error:\ "{}Type[\_T]"{}\ has\ no\ attribute\ "{}unsupported\_nodes"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00283}00283\ \ \ \ \ \ \ \ \ cls.unsupported\_nodes\ =\ ()\ \ \textcolor{comment}{\#\ type:\ ignore[attr-\/defined]}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00284}00284\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ node\ \textcolor{keywordflow}{in}\ nodes:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00285}00285\ \ \ \ \ \ \ \ \ \ \ \ \ new\_method\ =\ \mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_a13c413286c088b37d83d765b450c8899}{\_node\_not\_implemented}}(node)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00286}00286\ \ \ \ \ \ \ \ \ \ \ \ \ name\ =\ f\textcolor{stringliteral}{"{}visit\_\{node\}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00287}00287\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ error:\ "{}Type[\_T]"{}\ has\ no\ attribute\ "{}unsupported\_nodes"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00288}00288\ \ \ \ \ \ \ \ \ \ \ \ \ cls.unsupported\_nodes\ +=\ (name,)\ \ \textcolor{comment}{\#\ type:\ ignore[attr-\/defined]}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00289}00289\ \ \ \ \ \ \ \ \ \ \ \ \ setattr(cls,\ name,\ new\_method)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00290}00290\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ cls}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00291}00291\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00292}00292\ \ \ \ \ \textcolor{keywordflow}{return}\ disallowed}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00293}00293\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00294}00294\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00295}\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_aae144070474e9b9c3be3b3ad55623bbc}{00295}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_aae144070474e9b9c3be3b3ad55623bbc}{\_op\_maker}}(op\_class,\ op\_symbol):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00296}00296\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00297}00297\ \textcolor{stringliteral}{\ \ \ \ Return\ a\ function\ to\ create\ an\ op\ class\ with\ its\ symbol\ already\ passed.}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00298}00298\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00299}00299\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00300}00300\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00301}00301\ \textcolor{stringliteral}{\ \ \ \ callable}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00302}00302\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00303}00303\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00304}00304\ \ \ \ \ \textcolor{keyword}{def\ }f(self,\ node,\ *args,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00305}00305\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00306}00306\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Return\ a\ partial\ function\ with\ an\ Op\ subclass\ with\ an\ operator\ already\ passed.}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00307}00307\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00308}00308\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00309}00309\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00310}00310\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ callable}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00311}00311\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00312}00312\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ partial(op\_class,\ op\_symbol,\ *args,\ **kwargs)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00313}00313\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00314}00314\ \ \ \ \ \textcolor{keywordflow}{return}\ f}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00315}00315\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00316}00316\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00317}00317\ \_op\_classes\ =\ \{\textcolor{stringliteral}{"{}binary"{}}:\ BinOp,\ \textcolor{stringliteral}{"{}unary"{}}:\ UnaryOp\}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00318}00318\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00319}00319\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00320}\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_af786a6962d12e53131e2e019d23f9215}{00320}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_af786a6962d12e53131e2e019d23f9215}{add\_ops}}(op\_classes):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00321}00321\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00322}00322\ \textcolor{stringliteral}{\ \ \ \ Decorator\ to\ add\ default\ implementation\ of\ ops.}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00323}00323\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00324}00324\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00325}00325\ \ \ \ \ \textcolor{keyword}{def\ }f(cls):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00326}00326\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ op\_attr\_name,\ op\_class\ \textcolor{keywordflow}{in}\ op\_classes.items():}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00327}00327\ \ \ \ \ \ \ \ \ \ \ \ \ ops\ =\ getattr(cls,\ f\textcolor{stringliteral}{"{}\{op\_attr\_name\}\_ops"{}})}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00328}00328\ \ \ \ \ \ \ \ \ \ \ \ \ ops\_map\ =\ getattr(cls,\ f\textcolor{stringliteral}{"{}\{op\_attr\_name\}\_op\_nodes\_map"{}})}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00329}00329\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ op\ \textcolor{keywordflow}{in}\ ops:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00330}00330\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ op\_node\ =\ ops\_map[op]}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00331}00331\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ op\_node\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00332}00332\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ made\_op\ =\ \mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_aae144070474e9b9c3be3b3ad55623bbc}{\_op\_maker}}(op\_class,\ op)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00333}00333\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ setattr(cls,\ f\textcolor{stringliteral}{"{}visit\_\{op\_node\}"{}},\ made\_op)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00334}00334\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ cls}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00335}00335\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00336}00336\ \ \ \ \ \textcolor{keywordflow}{return}\ f}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00337}00337\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00338}00338\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00339}00339\ \textcolor{preprocessor}{@disallow(\_unsupported\_nodes)}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00340}00340\ \textcolor{preprocessor}{@add\_ops(\_op\_classes)}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00341}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor}{00341}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor}{BaseExprVisitor}}(ast.NodeVisitor):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00342}00342\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00343}00343\ \textcolor{stringliteral}{\ \ \ \ Custom\ ast\ walker.\ Parsers\ of\ other\ engines\ should\ subclass\ this\ class}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00344}00344\ \textcolor{stringliteral}{\ \ \ \ if\ necessary.}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00345}00345\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00346}00346\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00347}00347\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00348}00348\ \textcolor{stringliteral}{\ \ \ \ env\ :\ Scope}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00349}00349\ \textcolor{stringliteral}{\ \ \ \ engine\ :\ str}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00350}00350\ \textcolor{stringliteral}{\ \ \ \ parser\ :\ str}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00351}00351\ \textcolor{stringliteral}{\ \ \ \ preparser\ :\ callable}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00352}00352\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00353}00353\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00354}00354\ \ \ \ \ const\_type:\ ClassVar[type[Term]]\ =\ Constant}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00355}00355\ \ \ \ \ term\_type:\ ClassVar[type[Term]]\ =\ Term}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00356}00356\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00357}00357\ \ \ \ \ binary\_ops\ =\ CMP\_OPS\_SYMS\ +\ BOOL\_OPS\_SYMS\ +\ ARITH\_OPS\_SYMS}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00358}00358\ \ \ \ \ binary\_op\_nodes\ =\ (}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00359}00359\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Gt"{}},}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00360}00360\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Lt"{}},}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00361}00361\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}GtE"{}},}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00362}00362\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}LtE"{}},}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00363}00363\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Eq"{}},}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00364}00364\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}NotEq"{}},}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00365}00365\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}In"{}},}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00366}00366\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}NotIn"{}},}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00367}00367\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}BitAnd"{}},}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00368}00368\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}BitOr"{}},}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00369}00369\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}And"{}},}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00370}00370\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Or"{}},}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00371}00371\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Add"{}},}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00372}00372\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Sub"{}},}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00373}00373\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Mult"{}},}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00374}00374\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Div"{}},}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00375}00375\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Pow"{}},}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00376}00376\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}FloorDiv"{}},}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00377}00377\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Mod"{}},}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00378}00378\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00379}00379\ \ \ \ \ binary\_op\_nodes\_map\ =\ dict(zip(binary\_ops,\ binary\_op\_nodes))}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00380}00380\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00381}00381\ \ \ \ \ unary\_ops\ =\ UNARY\_OPS\_SYMS}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00382}00382\ \ \ \ \ unary\_op\_nodes\ =\ \textcolor{stringliteral}{"{}UAdd"{}},\ \textcolor{stringliteral}{"{}USub"{}},\ \textcolor{stringliteral}{"{}Invert"{}},\ \textcolor{stringliteral}{"{}Not"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00383}00383\ \ \ \ \ unary\_op\_nodes\_map\ =\ dict(zip(unary\_ops,\ unary\_op\_nodes))}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00384}00384\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00385}00385\ \ \ \ \ rewrite\_map\ =\ \{}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00386}00386\ \ \ \ \ \ \ \ \ ast.Eq:\ ast.In,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00387}00387\ \ \ \ \ \ \ \ \ ast.NotEq:\ ast.NotIn,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00388}00388\ \ \ \ \ \ \ \ \ ast.In:\ ast.In,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00389}00389\ \ \ \ \ \ \ \ \ ast.NotIn:\ ast.NotIn,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00390}00390\ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00391}00391\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00392}00392\ \ \ \ \ unsupported\_nodes:\ tuple[str,\ ...]}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00393}00393\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00394}00394\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ env,\ engine,\ parser,\ preparser=\_preparse)\ -\/>\ None:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00395}00395\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a1a5deb54de0be2b1be884c999c742e39}{env}}\ =\ env}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00396}00396\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a15fef7936defa55020cdd38b24159867}{engine}}\ =\ engine}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00397}00397\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a5331b3afb947d42766d441071dd14f7d}{parser}}\ =\ parser}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00398}00398\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a593f458d45c8246283ed7f4c0f822750}{preparser}}\ =\ preparser}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00399}00399\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a52190d801d822c42b0c79f117012d146}{assigner}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00400}00400\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00401}00401\ \ \ \ \ \textcolor{keyword}{def\ }visit(self,\ node,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00402}00402\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(node,\ str):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00403}00403\ \ \ \ \ \ \ \ \ \ \ \ \ clean\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a593f458d45c8246283ed7f4c0f822750}{preparser}}(node)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00404}00404\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00405}00405\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ node\ =\ ast.fix\_missing\_locations(ast.parse(clean))}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00406}00406\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ SyntaxError\ \textcolor{keyword}{as}\ e:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00407}00407\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ any(iskeyword(x)\ \textcolor{keywordflow}{for}\ x\ \textcolor{keywordflow}{in}\ clean.split()):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00408}00408\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ e.msg\ =\ \textcolor{stringliteral}{"{}Python\ keyword\ not\ valid\ identifier\ in\ numexpr\ query"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00409}00409\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ e}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00410}00410\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00411}00411\ \ \ \ \ \ \ \ \ method\ =\ f\textcolor{stringliteral}{"{}visit\_\{type(node).\_\_name\_\_\}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00412}00412\ \ \ \ \ \ \ \ \ visitor\ =\ getattr(self,\ method)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00413}00413\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ visitor(node,\ **kwargs)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00414}00414\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00415}00415\ \ \ \ \ \textcolor{keyword}{def\ }visit\_Module(self,\ node,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00416}00416\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(node.body)\ !=\ 1:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00417}00417\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classSyntaxError}{SyntaxError}}(\textcolor{stringliteral}{"{}only\ a\ single\ expression\ is\ allowed"{}})}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00418}00418\ \ \ \ \ \ \ \ \ expr\ =\ node.body[0]}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00419}00419\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a94da8e2c2cd3b6dfc0f814b5ee128a4f}{visit}}(expr,\ **kwargs)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00420}00420\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00421}00421\ \ \ \ \ \textcolor{keyword}{def\ }visit\_Expr(self,\ node,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00422}00422\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a94da8e2c2cd3b6dfc0f814b5ee128a4f}{visit}}(node.value,\ **kwargs)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00423}00423\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00424}00424\ \ \ \ \ \textcolor{keyword}{def\ }\_rewrite\_membership\_op(self,\ node,\ left,\ right):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00425}00425\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ the\ kind\ of\ the\ operator\ (is\ actually\ an\ instance)}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00426}00426\ \ \ \ \ \ \ \ \ op\_instance\ =\ node.op}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00427}00427\ \ \ \ \ \ \ \ \ op\_type\ =\ type(op\_instance)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00428}00428\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00429}00429\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ must\ be\ two\ terms\ and\ the\ comparison\ operator\ must\ be\ ==/!=/in/not\ in}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00430}00430\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ is\_term(left)\ \textcolor{keywordflow}{and}\ is\_term(right)\ \textcolor{keywordflow}{and}\ op\_type\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a413fc80d337d5c632621af88c7596001}{rewrite\_map}}:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00431}00431\ \ \ \ \ \ \ \ \ \ \ \ \ left\_list,\ right\_list\ =\ map(\_is\_list,\ (left,\ right))}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00432}00432\ \ \ \ \ \ \ \ \ \ \ \ \ left\_str,\ right\_str\ =\ map(\_is\_str,\ (left,\ right))}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00433}00433\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00434}00434\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ if\ there\ are\ any\ strings\ or\ lists\ in\ the\ expression}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00435}00435\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ left\_list\ \textcolor{keywordflow}{or}\ right\_list\ \textcolor{keywordflow}{or}\ left\_str\ \textcolor{keywordflow}{or}\ right\_str:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00436}00436\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ op\_instance\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a413fc80d337d5c632621af88c7596001}{rewrite\_map}}[op\_type]()}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00437}00437\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00438}00438\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ pop\ the\ string\ variable\ out\ of\ locals\ and\ replace\ it\ with\ a\ list}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00439}00439\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ of\ one\ string,\ kind\ of\ a\ hack}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00440}00440\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ right\_str:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00441}00441\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ name\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a1a5deb54de0be2b1be884c999c742e39}{env}}.add\_tmp([right.value])}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00442}00442\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ right\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a9da29f71b7ba37a8fdc39b461d37038d}{term\_type}}(name,\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a1a5deb54de0be2b1be884c999c742e39}{env}})}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00443}00443\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00444}00444\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ left\_str:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00445}00445\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ name\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a1a5deb54de0be2b1be884c999c742e39}{env}}.add\_tmp([left.value])}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00446}00446\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ left\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a9da29f71b7ba37a8fdc39b461d37038d}{term\_type}}(name,\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a1a5deb54de0be2b1be884c999c742e39}{env}})}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00447}00447\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00448}00448\ \ \ \ \ \ \ \ \ op\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a94da8e2c2cd3b6dfc0f814b5ee128a4f}{visit}}(op\_instance)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00449}00449\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ op,\ op\_instance,\ left,\ right}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00450}00450\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00451}00451\ \ \ \ \ \textcolor{keyword}{def\ }\_maybe\_transform\_eq\_ne(self,\ node,\ left=None,\ right=None):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00452}00452\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ left\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00453}00453\ \ \ \ \ \ \ \ \ \ \ \ \ left\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a94da8e2c2cd3b6dfc0f814b5ee128a4f}{visit}}(node.left,\ side=\textcolor{stringliteral}{"{}left"{}})}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00454}00454\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ right\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00455}00455\ \ \ \ \ \ \ \ \ \ \ \ \ right\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a94da8e2c2cd3b6dfc0f814b5ee128a4f}{visit}}(node.right,\ side=\textcolor{stringliteral}{"{}right"{}})}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00456}00456\ \ \ \ \ \ \ \ \ op,\ op\_class,\ left,\ right\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a731a8cf2f20868ab8f9512d07419d761}{\_rewrite\_membership\_op}}(node,\ left,\ right)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00457}00457\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ op,\ op\_class,\ left,\ right}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00458}00458\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00459}00459\ \ \ \ \ \textcolor{keyword}{def\ }\_maybe\_downcast\_constants(self,\ left,\ right):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00460}00460\ \ \ \ \ \ \ \ \ f32\ =\ np.dtype(np.float32)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00461}00461\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00462}00462\ \ \ \ \ \ \ \ \ \ \ \ \ left.is\_scalar}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00463}00463\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}\ hasattr(left,\ \textcolor{stringliteral}{"{}value"{}})}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00464}00464\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}\ \textcolor{keywordflow}{not}\ right.is\_scalar}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00465}00465\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}\ right.return\_type\ ==\ f32}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00466}00466\ \ \ \ \ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00467}00467\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ right\ is\ a\ float32\ array,\ left\ is\ a\ scalar}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00468}00468\ \ \ \ \ \ \ \ \ \ \ \ \ name\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a1a5deb54de0be2b1be884c999c742e39}{env}}.add\_tmp(np.float32(left.value))}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00469}00469\ \ \ \ \ \ \ \ \ \ \ \ \ left\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a9da29f71b7ba37a8fdc39b461d37038d}{term\_type}}(name,\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a1a5deb54de0be2b1be884c999c742e39}{env}})}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00470}00470\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00471}00471\ \ \ \ \ \ \ \ \ \ \ \ \ right.is\_scalar}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00472}00472\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}\ hasattr(right,\ \textcolor{stringliteral}{"{}value"{}})}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00473}00473\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}\ \textcolor{keywordflow}{not}\ left.is\_scalar}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00474}00474\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}\ left.return\_type\ ==\ f32}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00475}00475\ \ \ \ \ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00476}00476\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ left\ is\ a\ float32\ array,\ right\ is\ a\ scalar}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00477}00477\ \ \ \ \ \ \ \ \ \ \ \ \ name\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a1a5deb54de0be2b1be884c999c742e39}{env}}.add\_tmp(np.float32(right.value))}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00478}00478\ \ \ \ \ \ \ \ \ \ \ \ \ right\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a9da29f71b7ba37a8fdc39b461d37038d}{term\_type}}(name,\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a1a5deb54de0be2b1be884c999c742e39}{env}})}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00479}00479\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00480}00480\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ left,\ right}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00481}00481\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00482}00482\ \ \ \ \ \textcolor{keyword}{def\ }\_maybe\_eval(self,\ binop,\ eval\_in\_python):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00483}00483\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ eval\ \`{}in`\ and\ \`{}not\ in`\ (for\ now)\ in\ "{}partial"{}\ python\ space}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00484}00484\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ things\ that\ can\ be\ evaluated\ in\ "{}eval"{}\ space\ will\ be\ turned\ into}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00485}00485\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ temporary\ variables.\ for\ example,}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00486}00486\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ [1,2]\ in\ a\ +\ 2\ *\ b}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00487}00487\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ in\ that\ case\ a\ +\ 2\ *\ b\ will\ be\ evaluated\ using\ numexpr,\ and\ the\ "{}in"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00488}00488\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ call\ will\ be\ evaluated\ using\ isin\ (in\ python\ space)}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00489}00489\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ binop.evaluate(}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00490}00490\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a1a5deb54de0be2b1be884c999c742e39}{env}},\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a15fef7936defa55020cdd38b24159867}{engine}},\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a5331b3afb947d42766d441071dd14f7d}{parser}},\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a9da29f71b7ba37a8fdc39b461d37038d}{term\_type}},\ eval\_in\_python}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00491}00491\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00492}00492\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00493}00493\ \ \ \ \ \textcolor{keyword}{def\ }\_maybe\_evaluate\_binop(}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00494}00494\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00495}00495\ \ \ \ \ \ \ \ \ op,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00496}00496\ \ \ \ \ \ \ \ \ op\_class,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00497}00497\ \ \ \ \ \ \ \ \ lhs,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00498}00498\ \ \ \ \ \ \ \ \ rhs,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00499}00499\ \ \ \ \ \ \ \ \ eval\_in\_python=(\textcolor{stringliteral}{"{}in"{}},\ \textcolor{stringliteral}{"{}not\ in"{}}),}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00500}00500\ \ \ \ \ \ \ \ \ maybe\_eval\_in\_python=(\textcolor{stringliteral}{"{}=="{}},\ \textcolor{stringliteral}{"{}!="{}},\ \textcolor{stringliteral}{"{}<"{}},\ \textcolor{stringliteral}{"{}>"{}},\ \textcolor{stringliteral}{"{}<="{}},\ \textcolor{stringliteral}{"{}>="{}}),}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00501}00501\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00502}00502\ \ \ \ \ \ \ \ \ res\ =\ op(lhs,\ rhs)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00503}00503\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00504}00504\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ res.has\_invalid\_return\_type:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00505}00505\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classTypeError}{TypeError}}(}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00506}00506\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}unsupported\ operand\ type(s)\ for\ \{res.op\}:\ "{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00507}00507\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}'\{lhs.type\}'\ and\ '\{rhs.type\}'"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00508}00508\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00509}00509\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00510}00510\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a15fef7936defa55020cdd38b24159867}{engine}}\ !=\ \textcolor{stringliteral}{"{}pytables"{}}\ \textcolor{keywordflow}{and}\ (}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00511}00511\ \ \ \ \ \ \ \ \ \ \ \ \ res.op\ \textcolor{keywordflow}{in}\ CMP\_OPS\_SYMS}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00512}00512\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}\ getattr(lhs,\ \textcolor{stringliteral}{"{}is\_datetime"{}},\ \textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00513}00513\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{or}\ getattr(rhs,\ \textcolor{stringliteral}{"{}is\_datetime"{}},\ \textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00514}00514\ \ \ \ \ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00515}00515\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ all\ date\ ops\ must\ be\ done\ in\ python\ bc\ numexpr\ doesn't\ work}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00516}00516\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ well\ with\ NaT}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00517}00517\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_aa2ee1eefc85db89d91ce44dd7aec1ff5}{\_maybe\_eval}}(res,\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a8c2500b2f1e882d6a626e3fe1e0c5910}{binary\_ops}})}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00518}00518\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00519}00519\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ res.op\ \textcolor{keywordflow}{in}\ eval\_in\_python:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00520}00520\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ "{}in"{}/"{}not\ in"{}\ ops\ are\ always\ evaluated\ in\ python}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00521}00521\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_aa2ee1eefc85db89d91ce44dd7aec1ff5}{\_maybe\_eval}}(res,\ eval\_in\_python)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00522}00522\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a15fef7936defa55020cdd38b24159867}{engine}}\ !=\ \textcolor{stringliteral}{"{}pytables"{}}:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00523}00523\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00524}00524\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ getattr(lhs,\ \textcolor{stringliteral}{"{}return\_type"{}},\ \textcolor{keywordtype}{None})\ ==\ object}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00525}00525\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{or}\ is\_string\_dtype(getattr(lhs,\ \textcolor{stringliteral}{"{}return\_type"{}},\ \textcolor{keywordtype}{None}))}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00526}00526\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{or}\ getattr(rhs,\ \textcolor{stringliteral}{"{}return\_type"{}},\ \textcolor{keywordtype}{None})\ ==\ object}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00527}00527\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{or}\ is\_string\_dtype(getattr(rhs,\ \textcolor{stringliteral}{"{}return\_type"{}},\ \textcolor{keywordtype}{None}))}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00528}00528\ \ \ \ \ \ \ \ \ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00529}00529\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ evaluate\ "{}=="{}\ and\ "{}!="{}\ in\ python\ if\ either\ of\ our\ operands}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00530}00530\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ has\ an\ object\ or\ string\ return\ type}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00531}00531\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_aa2ee1eefc85db89d91ce44dd7aec1ff5}{\_maybe\_eval}}(res,\ eval\_in\_python\ +\ maybe\_eval\_in\_python)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00532}00532\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ res}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00533}00533\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00534}00534\ \ \ \ \ \textcolor{keyword}{def\ }visit\_BinOp(self,\ node,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00535}00535\ \ \ \ \ \ \ \ \ op,\ op\_class,\ left,\ right\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_add00ef8cea955164971d208c660eea56}{\_maybe\_transform\_eq\_ne}}(node)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00536}00536\ \ \ \ \ \ \ \ \ left,\ right\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_aaf023c89c9d7ad45b8cb4c06f5b7a391}{\_maybe\_downcast\_constants}}(left,\ right)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00537}00537\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_aed97dbea88b992508d5253c0ea932e47}{\_maybe\_evaluate\_binop}}(op,\ op\_class,\ left,\ right)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00538}00538\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00539}00539\ \ \ \ \ \textcolor{keyword}{def\ }visit\_UnaryOp(self,\ node,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00540}00540\ \ \ \ \ \ \ \ \ op\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a94da8e2c2cd3b6dfc0f814b5ee128a4f}{visit}}(node.op)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00541}00541\ \ \ \ \ \ \ \ \ operand\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a94da8e2c2cd3b6dfc0f814b5ee128a4f}{visit}}(node.operand)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00542}00542\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ op(operand)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00543}00543\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00544}00544\ \ \ \ \ \textcolor{keyword}{def\ }visit\_Name(self,\ node,\ **kwargs)\ -\/>\ Term:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00545}00545\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a9da29f71b7ba37a8fdc39b461d37038d}{term\_type}}(node.id,\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a1a5deb54de0be2b1be884c999c742e39}{env}},\ **kwargs)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00546}00546\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00547}00547\ \ \ \ \ \textcolor{comment}{\#\ TODO(py314):\ deprecated\ since\ Python\ 3.8.\ Remove\ after\ Python\ 3.14\ is\ min}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00548}00548\ \ \ \ \ \textcolor{keyword}{def\ }visit\_NameConstant(self,\ node,\ **kwargs)\ -\/>\ Term:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00549}00549\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a3faac85b315b8f296aacddfe25e41ecf}{const\_type}}(node.value,\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a1a5deb54de0be2b1be884c999c742e39}{env}})}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00550}00550\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00551}00551\ \ \ \ \ \textcolor{comment}{\#\ TODO(py314):\ deprecated\ since\ Python\ 3.8.\ Remove\ after\ Python\ 3.14\ is\ min}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00552}00552\ \ \ \ \ \textcolor{keyword}{def\ }visit\_Num(self,\ node,\ **kwargs)\ -\/>\ Term:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00553}00553\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a3faac85b315b8f296aacddfe25e41ecf}{const\_type}}(node.value,\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a1a5deb54de0be2b1be884c999c742e39}{env}})}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00554}00554\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00555}00555\ \ \ \ \ \textcolor{keyword}{def\ }visit\_Constant(self,\ node,\ **kwargs)\ -\/>\ Term:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00556}00556\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a3faac85b315b8f296aacddfe25e41ecf}{const\_type}}(node.value,\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a1a5deb54de0be2b1be884c999c742e39}{env}})}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00557}00557\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00558}00558\ \ \ \ \ \textcolor{comment}{\#\ TODO(py314):\ deprecated\ since\ Python\ 3.8.\ Remove\ after\ Python\ 3.14\ is\ min}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00559}00559\ \ \ \ \ \textcolor{keyword}{def\ }visit\_Str(self,\ node,\ **kwargs)\ -\/>\ Term:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00560}00560\ \ \ \ \ \ \ \ \ name\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a1a5deb54de0be2b1be884c999c742e39}{env}}.add\_tmp(node.s)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00561}00561\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a9da29f71b7ba37a8fdc39b461d37038d}{term\_type}}(name,\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a1a5deb54de0be2b1be884c999c742e39}{env}})}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00562}00562\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00563}00563\ \ \ \ \ \textcolor{keyword}{def\ }visit\_List(self,\ node,\ **kwargs)\ -\/>\ Term:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00564}00564\ \ \ \ \ \ \ \ \ name\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a1a5deb54de0be2b1be884c999c742e39}{env}}.add\_tmp([self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a94da8e2c2cd3b6dfc0f814b5ee128a4f}{visit}}(e)(self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a1a5deb54de0be2b1be884c999c742e39}{env}})\ \textcolor{keywordflow}{for}\ e\ \textcolor{keywordflow}{in}\ node.elts])}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00565}00565\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a9da29f71b7ba37a8fdc39b461d37038d}{term\_type}}(name,\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a1a5deb54de0be2b1be884c999c742e39}{env}})}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00566}00566\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00567}00567\ \ \ \ \ visit\_Tuple\ =\ visit\_List}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00568}00568\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00569}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_acb52fb4a87b08a66c3bffadcf2b810e6}{00569}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_acb52fb4a87b08a66c3bffadcf2b810e6}{visit\_Index}}(self,\ node,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00570}00570\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}df.index[4]"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00571}00571\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a94da8e2c2cd3b6dfc0f814b5ee128a4f}{visit}}(node.value)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00572}00572\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00573}00573\ \ \ \ \ \textcolor{keyword}{def\ }visit\_Subscript(self,\ node,\ **kwargs)\ -\/>\ Term:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00574}00574\ \ \ \ \ \ \ \ \ \textcolor{keyword}{from}\ pandas\ \textcolor{keyword}{import}\ eval\ \textcolor{keyword}{as}\ pd\_eval}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00575}00575\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00576}00576\ \ \ \ \ \ \ \ \ value\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a94da8e2c2cd3b6dfc0f814b5ee128a4f}{visit}}(node.value)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00577}00577\ \ \ \ \ \ \ \ \ slobj\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a94da8e2c2cd3b6dfc0f814b5ee128a4f}{visit}}(node.slice)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00578}00578\ \ \ \ \ \ \ \ \ result\ =\ pd\_eval(}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00579}00579\ \ \ \ \ \ \ \ \ \ \ \ \ slobj,\ local\_dict=self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a1a5deb54de0be2b1be884c999c742e39}{env}},\ engine=self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a15fef7936defa55020cdd38b24159867}{engine}},\ parser=self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a5331b3afb947d42766d441071dd14f7d}{parser}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00580}00580\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00581}00581\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00582}00582\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ a\ Term\ instance}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00583}00583\ \ \ \ \ \ \ \ \ \ \ \ \ v\ =\ value.value[result]}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00584}00584\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ AttributeError:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00585}00585\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ an\ Op\ instance}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00586}00586\ \ \ \ \ \ \ \ \ \ \ \ \ lhs\ =\ pd\_eval(}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00587}00587\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ value,\ local\_dict=self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a1a5deb54de0be2b1be884c999c742e39}{env}},\ engine=self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a15fef7936defa55020cdd38b24159867}{engine}},\ parser=self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a5331b3afb947d42766d441071dd14f7d}{parser}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00588}00588\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00589}00589\ \ \ \ \ \ \ \ \ \ \ \ \ v\ =\ lhs[result]}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00590}00590\ \ \ \ \ \ \ \ \ name\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a1a5deb54de0be2b1be884c999c742e39}{env}}.add\_tmp(v)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00591}00591\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a9da29f71b7ba37a8fdc39b461d37038d}{term\_type}}(name,\ env=self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a1a5deb54de0be2b1be884c999c742e39}{env}})}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00592}00592\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00593}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a9bbdaac4b9522a0ea9dc88732bed8215}{00593}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a9bbdaac4b9522a0ea9dc88732bed8215}{visit\_Slice}}(self,\ node,\ **kwargs)\ -\/>\ slice:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00594}00594\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}df.index[slice(4,6)]"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00595}00595\ \ \ \ \ \ \ \ \ lower\ =\ node.lower}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00596}00596\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ lower\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00597}00597\ \ \ \ \ \ \ \ \ \ \ \ \ lower\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a94da8e2c2cd3b6dfc0f814b5ee128a4f}{visit}}(lower).value}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00598}00598\ \ \ \ \ \ \ \ \ upper\ =\ node.upper}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00599}00599\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ upper\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00600}00600\ \ \ \ \ \ \ \ \ \ \ \ \ upper\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a94da8e2c2cd3b6dfc0f814b5ee128a4f}{visit}}(upper).value}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00601}00601\ \ \ \ \ \ \ \ \ step\ =\ node.step}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00602}00602\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ step\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00603}00603\ \ \ \ \ \ \ \ \ \ \ \ \ step\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a94da8e2c2cd3b6dfc0f814b5ee128a4f}{visit}}(step).value}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00604}00604\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00605}00605\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ slice(lower,\ upper,\ step)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00606}00606\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00607}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a874e249afd15463b98f90ef5f8bace06}{00607}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a874e249afd15463b98f90ef5f8bace06}{visit\_Assign}}(self,\ node,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00608}00608\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00609}00609\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ support\ a\ single\ assignment\ node,\ like}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00610}00610\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00611}00611\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ c\ =\ a\ +\ b}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00612}00612\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00613}00613\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ set\ the\ assigner\ at\ the\ top\ level,\ must\ be\ a\ Name\ node\ which}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00614}00614\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ might\ or\ might\ not\ exist\ in\ the\ resolvers}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00615}00615\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00616}00616\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00617}00617\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(node.targets)\ !=\ 1:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00618}00618\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classSyntaxError}{SyntaxError}}(\textcolor{stringliteral}{"{}can\ only\ assign\ a\ single\ expression"{}})}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00619}00619\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ isinstance(node.targets[0],\ ast.Name):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00620}00620\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classSyntaxError}{SyntaxError}}(\textcolor{stringliteral}{"{}left\ hand\ side\ of\ an\ assignment\ must\ be\ a\ single\ name"{}})}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00621}00621\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a1a5deb54de0be2b1be884c999c742e39}{env}}.target\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00622}00622\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}cannot\ assign\ without\ a\ target\ object"{}})}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00623}00623\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00624}00624\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00625}00625\ \ \ \ \ \ \ \ \ \ \ \ \ assigner\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a94da8e2c2cd3b6dfc0f814b5ee128a4f}{visit}}(node.targets[0],\ **kwargs)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00626}00626\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ UndefinedVariableError:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00627}00627\ \ \ \ \ \ \ \ \ \ \ \ \ assigner\ =\ node.targets[0].id}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00628}00628\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00629}00629\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a52190d801d822c42b0c79f117012d146}{assigner}}\ =\ getattr(assigner,\ \textcolor{stringliteral}{"{}name"{}},\ assigner)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00630}00630\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a52190d801d822c42b0c79f117012d146}{assigner}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00631}00631\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classSyntaxError}{SyntaxError}}(}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00632}00632\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}left\ hand\ side\ of\ an\ assignment\ must\ be\ a\ single\ resolvable\ name"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00633}00633\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00634}00634\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00635}00635\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a94da8e2c2cd3b6dfc0f814b5ee128a4f}{visit}}(node.value,\ **kwargs)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00636}00636\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00637}00637\ \ \ \ \ \textcolor{keyword}{def\ }visit\_Attribute(self,\ node,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00638}00638\ \ \ \ \ \ \ \ \ attr\ =\ node.attr}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00639}00639\ \ \ \ \ \ \ \ \ value\ =\ node.value}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00640}00640\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00641}00641\ \ \ \ \ \ \ \ \ ctx\ =\ node.ctx}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00642}00642\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(ctx,\ ast.Load):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00643}00643\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ resolve\ the\ value}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00644}00644\ \ \ \ \ \ \ \ \ \ \ \ \ resolved\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a94da8e2c2cd3b6dfc0f814b5ee128a4f}{visit}}(value).value}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00645}00645\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00646}00646\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ v\ =\ getattr(resolved,\ attr)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00647}00647\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ name\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a1a5deb54de0be2b1be884c999c742e39}{env}}.add\_tmp(v)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00648}00648\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a9da29f71b7ba37a8fdc39b461d37038d}{term\_type}}(name,\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a1a5deb54de0be2b1be884c999c742e39}{env}})}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00649}00649\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ AttributeError:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00650}00650\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ something\ like\ datetime.datetime\ where\ scope\ is\ overridden}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00651}00651\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(value,\ ast.Name)\ \textcolor{keywordflow}{and}\ value.id\ ==\ attr:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00652}00652\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ resolved}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00653}00653\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00654}00654\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00655}00655\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(f\textcolor{stringliteral}{"{}Invalid\ Attribute\ context\ \{type(ctx).\_\_name\_\_\}"{}})}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00656}00656\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00657}00657\ \ \ \ \ \textcolor{keyword}{def\ }visit\_Call(self,\ node,\ side=None,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00658}00658\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(node.func,\ ast.Attribute)\ \textcolor{keywordflow}{and}\ node.func.attr\ !=\ \textcolor{stringliteral}{"{}\_\_call\_\_"{}}:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00659}00659\ \ \ \ \ \ \ \ \ \ \ \ \ res\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a83c5ef572471f6ae9b8d3df2f861e2a5}{visit\_Attribute}}(node.func)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00660}00660\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ \textcolor{keywordflow}{not}\ isinstance(node.func,\ ast.Name):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00661}00661\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classTypeError}{TypeError}}(\textcolor{stringliteral}{"{}Only\ named\ functions\ are\ supported"{}})}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00662}00662\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00663}00663\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00664}00664\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ res\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a94da8e2c2cd3b6dfc0f814b5ee128a4f}{visit}}(node.func)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00665}00665\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ UndefinedVariableError:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00666}00666\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Check\ if\ this\ is\ a\ supported\ function\ name}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00667}00667\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00668}00668\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ res\ =\ \mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1ops_1_1FuncNode}{FuncNode}}(node.func.id)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00669}00669\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ ValueError:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00670}00670\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Raise\ original\ error}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00671}00671\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00672}00672\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00673}00673\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ res\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00674}00674\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ error:\ "{}expr"{}\ has\ no\ attribute\ "{}id"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00675}00675\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00676}00676\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}Invalid\ function\ call\ \{node.func.id\}"{}}\ \ \textcolor{comment}{\#\ type:\ ignore[attr-\/defined]}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00677}00677\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00678}00678\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ hasattr(res,\ \textcolor{stringliteral}{"{}value"{}}):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00679}00679\ \ \ \ \ \ \ \ \ \ \ \ \ res\ =\ res.value}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00680}00680\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00681}00681\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(res,\ FuncNode):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00682}00682\ \ \ \ \ \ \ \ \ \ \ \ \ new\_args\ =\ [self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a94da8e2c2cd3b6dfc0f814b5ee128a4f}{visit}}(arg)\ \textcolor{keywordflow}{for}\ arg\ \textcolor{keywordflow}{in}\ node.args]}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00683}00683\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00684}00684\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ node.keywords:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00685}00685\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classTypeError}{TypeError}}(}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00686}00686\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{'Function\ "{}\{res.name\}"{}\ does\ not\ support\ keyword\ arguments'}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00687}00687\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00688}00688\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00689}00689\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ res(*new\_args)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00690}00690\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00691}00691\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00692}00692\ \ \ \ \ \ \ \ \ \ \ \ \ new\_args\ =\ [self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a94da8e2c2cd3b6dfc0f814b5ee128a4f}{visit}}(arg)(self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a1a5deb54de0be2b1be884c999c742e39}{env}})\ \textcolor{keywordflow}{for}\ arg\ \textcolor{keywordflow}{in}\ node.args]}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00693}00693\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00694}00694\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ key\ \textcolor{keywordflow}{in}\ node.keywords:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00695}00695\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ isinstance(key,\ ast.keyword):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00696}00696\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ error:\ "{}expr"{}\ has\ no\ attribute\ "{}id"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00697}00697\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00698}00698\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}keyword\ error\ in\ function\ call\ "{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00699}00699\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}'\{node.func.id\}'"{}}\ \ \textcolor{comment}{\#\ type:\ ignore[attr-\/defined]}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00700}00700\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00701}00701\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00702}00702\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ key.arg:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00703}00703\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ kwargs[key.arg]\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a94da8e2c2cd3b6dfc0f814b5ee128a4f}{visit}}(key.value)(self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a1a5deb54de0be2b1be884c999c742e39}{env}})}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00704}00704\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00705}00705\ \ \ \ \ \ \ \ \ \ \ \ \ name\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a1a5deb54de0be2b1be884c999c742e39}{env}}.add\_tmp(res(*new\_args,\ **kwargs))}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00706}00706\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a9da29f71b7ba37a8fdc39b461d37038d}{term\_type}}(name=name,\ env=self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a1a5deb54de0be2b1be884c999c742e39}{env}})}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00707}00707\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00708}00708\ \ \ \ \ \textcolor{keyword}{def\ }translate\_In(self,\ op):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00709}00709\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ op}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00710}00710\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00711}00711\ \ \ \ \ \textcolor{keyword}{def\ }visit\_Compare(self,\ node,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00712}00712\ \ \ \ \ \ \ \ \ ops\ =\ node.ops}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00713}00713\ \ \ \ \ \ \ \ \ comps\ =\ node.comparators}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00714}00714\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00715}00715\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ base\ case:\ we\ have\ something\ like\ a\ CMP\ b}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00716}00716\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(comps)\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00717}00717\ \ \ \ \ \ \ \ \ \ \ \ \ op\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_af9d3772a265f5d265786035914696ed6}{translate\_In}}(ops[0])}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00718}00718\ \ \ \ \ \ \ \ \ \ \ \ \ binop\ =\ ast.BinOp(op=op,\ left=node.left,\ right=comps[0])}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00719}00719\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a94da8e2c2cd3b6dfc0f814b5ee128a4f}{visit}}(binop)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00720}00720\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00721}00721\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ recursive\ case:\ we\ have\ a\ chained\ comparison,\ a\ CMP\ b\ CMP\ c,\ etc.}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00722}00722\ \ \ \ \ \ \ \ \ left\ =\ node.left}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00723}00723\ \ \ \ \ \ \ \ \ values\ =\ []}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00724}00724\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ op,\ comp\ \textcolor{keywordflow}{in}\ zip(ops,\ comps):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00725}00725\ \ \ \ \ \ \ \ \ \ \ \ \ new\_node\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a94da8e2c2cd3b6dfc0f814b5ee128a4f}{visit}}(}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00726}00726\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ast.Compare(comparators=[comp],\ left=left,\ ops=[self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_af9d3772a265f5d265786035914696ed6}{translate\_In}}(op)])}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00727}00727\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00728}00728\ \ \ \ \ \ \ \ \ \ \ \ \ left\ =\ comp}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00729}00729\ \ \ \ \ \ \ \ \ \ \ \ \ values.append(new\_node)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00730}00730\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a94da8e2c2cd3b6dfc0f814b5ee128a4f}{visit}}(ast.BoolOp(op=ast.And(),\ values=values))}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00731}00731\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00732}00732\ \ \ \ \ \textcolor{keyword}{def\ }\_try\_visit\_binop(self,\ bop):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00733}00733\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(bop,\ (Op,\ Term)):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00734}00734\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ bop}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00735}00735\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_a94da8e2c2cd3b6dfc0f814b5ee128a4f}{visit}}(bop)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00736}00736\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00737}00737\ \ \ \ \ \textcolor{keyword}{def\ }visit\_BoolOp(self,\ node,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00738}00738\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }visitor(x,\ y):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00739}00739\ \ \ \ \ \ \ \ \ \ \ \ \ lhs\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_ab1d94516cfae33e54efcba83bcdac58c}{\_try\_visit\_binop}}(x)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00740}00740\ \ \ \ \ \ \ \ \ \ \ \ \ rhs\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_ab1d94516cfae33e54efcba83bcdac58c}{\_try\_visit\_binop}}(y)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00741}00741\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00742}00742\ \ \ \ \ \ \ \ \ \ \ \ \ op,\ op\_class,\ lhs,\ rhs\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_add00ef8cea955164971d208c660eea56}{\_maybe\_transform\_eq\_ne}}(node,\ lhs,\ rhs)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00743}00743\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor_aed97dbea88b992508d5253c0ea932e47}{\_maybe\_evaluate\_binop}}(op,\ node.op,\ lhs,\ rhs)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00744}00744\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00745}00745\ \ \ \ \ \ \ \ \ operands\ =\ node.values}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00746}00746\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ reduce(visitor,\ operands)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00747}00747\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00748}00748\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00749}00749\ \_python\_not\_supported\ =\ frozenset([\textcolor{stringliteral}{"{}Dict"{}},\ \textcolor{stringliteral}{"{}BoolOp"{}},\ \textcolor{stringliteral}{"{}In"{}},\ \textcolor{stringliteral}{"{}NotIn"{}}])}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00750}00750\ \_numexpr\_supported\_calls\ =\ frozenset(REDUCTIONS\ +\ MATHOPS)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00751}00751\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00752}00752\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00753}00753\ \textcolor{preprocessor}{@disallow}(}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00754}00754\ \ \ \ \ (\_unsupported\_nodes\ |\ \_python\_not\_supported)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00755}00755\ \ \ \ \ -\/\ (\_boolop\_nodes\ |\ frozenset([\textcolor{stringliteral}{"{}BoolOp"{}},\ \textcolor{stringliteral}{"{}Attribute"{}},\ \textcolor{stringliteral}{"{}In"{}},\ \textcolor{stringliteral}{"{}NotIn"{}},\ \textcolor{stringliteral}{"{}Tuple"{}}]))}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00756}00756\ )}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00757}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1PandasExprVisitor}{00757}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1PandasExprVisitor}{PandasExprVisitor}}(\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor}{BaseExprVisitor}}):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00758}00758\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00759}00759\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00760}00760\ \ \ \ \ \ \ \ \ env,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00761}00761\ \ \ \ \ \ \ \ \ engine,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00762}00762\ \ \ \ \ \ \ \ \ parser,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00763}00763\ \ \ \ \ \ \ \ \ preparser=partial(}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00764}00764\ \ \ \ \ \ \ \ \ \ \ \ \ \_preparse,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00765}00765\ \ \ \ \ \ \ \ \ \ \ \ \ f=\mbox{\hyperlink{namespacepandas_1_1core_1_1computation_1_1expr_a430ba6330a292ffcdb1f55c5ba713e62}{\_compose}}(\_replace\_locals,\ \_replace\_booleans,\ clean\_backtick\_quoted\_toks),}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00766}00766\ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00767}00767\ \ \ \ \ )\ -\/>\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00768}00768\ \ \ \ \ \ \ \ \ super().\_\_init\_\_(env,\ engine,\ parser,\ preparser)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00769}00769\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00770}00770\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00771}00771\ \textcolor{preprocessor}{@disallow(\_unsupported\_nodes\ |\ \_python\_not\_supported\ |\ frozenset(["{}Not"{}])})}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00772}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1PythonExprVisitor}{00772}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1PythonExprVisitor}{PythonExprVisitor}}(\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1BaseExprVisitor}{BaseExprVisitor}}):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00773}00773\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00774}00774\ \ \ \ \ \ \ \ \ self,\ env,\ engine,\ parser,\ preparser=lambda\ source,\ f=None:\ source}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00775}00775\ \ \ \ \ )\ -\/>\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00776}00776\ \ \ \ \ \ \ \ \ super().\_\_init\_\_(env,\ engine,\ parser,\ preparser=preparser)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00777}00777\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00778}00778\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00779}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1Expr}{00779}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1Expr}{Expr}}:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00780}00780\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00781}00781\ \textcolor{stringliteral}{\ \ \ \ Object\ encapsulating\ an\ expression.}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00782}00782\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00783}00783\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00784}00784\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00785}00785\ \textcolor{stringliteral}{\ \ \ \ expr\ :\ str}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00786}00786\ \textcolor{stringliteral}{\ \ \ \ engine\ :\ str,\ optional,\ default\ 'numexpr'}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00787}00787\ \textcolor{stringliteral}{\ \ \ \ parser\ :\ str,\ optional,\ default\ 'pandas'}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00788}00788\ \textcolor{stringliteral}{\ \ \ \ env\ :\ Scope,\ optional,\ default\ None}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00789}00789\ \textcolor{stringliteral}{\ \ \ \ level\ :\ int,\ optional,\ default\ 2}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00790}00790\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00791}00791\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00792}00792\ \ \ \ \ env:\ Scope}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00793}00793\ \ \ \ \ engine:\ str}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00794}00794\ \ \ \ \ parser:\ str}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00795}00795\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00796}00796\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00797}00797\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00798}00798\ \ \ \ \ \ \ \ \ expr,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00799}00799\ \ \ \ \ \ \ \ \ engine:\ str\ =\ \textcolor{stringliteral}{"{}numexpr"{}},}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00800}00800\ \ \ \ \ \ \ \ \ parser:\ str\ =\ \textcolor{stringliteral}{"{}pandas"{}},}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00801}00801\ \ \ \ \ \ \ \ \ env:\ Scope\ |\ \textcolor{keywordtype}{None}\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00802}00802\ \ \ \ \ \ \ \ \ level:\ int\ =\ 0,}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00803}00803\ \ \ \ \ )\ -\/>\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00804}00804\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1Expr_a403a38d2884e2001803fec78fb4e8778}{expr}}\ =\ expr}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00805}00805\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1Expr_a248749b61ba68d267e1a45dde4911edc}{env}}\ =\ env\ \textcolor{keywordflow}{or}\ \mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1scope_1_1Scope}{Scope}}(level=level\ +\ 1)}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00806}00806\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1Expr_a624435394866d50f51a71989b7eed864}{engine}}\ =\ engine}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00807}00807\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1Expr_a1ec8cacce4f4c60615a87099a92a7977}{parser}}\ =\ parser}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00808}00808\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1Expr_aedd6a77aa774d0f0c36056cc3bbd8e98}{\_visitor}}\ =\ PARSERS[parser](self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1Expr_a248749b61ba68d267e1a45dde4911edc}{env}},\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1Expr_a624435394866d50f51a71989b7eed864}{engine}},\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1Expr_a1ec8cacce4f4c60615a87099a92a7977}{parser}})}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00809}00809\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1Expr_aa1f2391c38a4fd6a8a914cb1a68ad864}{terms}}\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1Expr_ad2303595e1d7066d56f74679b5b25501}{parse}}()}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00810}00810\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00811}00811\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00812}00812\ \ \ \ \ \textcolor{keyword}{def\ }assigner(self):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00813}00813\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ getattr(self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1Expr_aedd6a77aa774d0f0c36056cc3bbd8e98}{\_visitor}},\ \textcolor{stringliteral}{"{}assigner"{}},\ \textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00814}00814\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00815}00815\ \ \ \ \ \textcolor{keyword}{def\ }\_\_call\_\_(self):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00816}00816\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1Expr_aa1f2391c38a4fd6a8a914cb1a68ad864}{terms}}(self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1Expr_a248749b61ba68d267e1a45dde4911edc}{env}})}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00817}00817\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00818}00818\ \ \ \ \ \textcolor{keyword}{def\ }\_\_repr\_\_(self)\ -\/>\ str:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00819}00819\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ printing.pprint\_thing(self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1Expr_aa1f2391c38a4fd6a8a914cb1a68ad864}{terms}})}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00820}00820\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00821}00821\ \ \ \ \ \textcolor{keyword}{def\ }\_\_len\_\_(self)\ -\/>\ int:}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00822}00822\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ len(self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1Expr_a403a38d2884e2001803fec78fb4e8778}{expr}})}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00823}00823\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00824}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1Expr_ad2303595e1d7066d56f74679b5b25501}{00824}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespaceparse}{parse}}(self):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00825}00825\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00826}00826\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parse\ an\ expression.}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00827}00827\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00828}00828\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1Expr_aedd6a77aa774d0f0c36056cc3bbd8e98}{\_visitor}}.visit(self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1Expr_a403a38d2884e2001803fec78fb4e8778}{expr}})}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00829}00829\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00830}00830\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00831}\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1Expr_af160126d667541011a31082ea225cd18}{00831}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1Expr_af160126d667541011a31082ea225cd18}{names}}(self):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00832}00832\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00833}00833\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Get\ the\ names\ in\ an\ expression.}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00834}00834\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00835}00835\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ is\_term(self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1Expr_aa1f2391c38a4fd6a8a914cb1a68ad864}{terms}}):}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00836}00836\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ frozenset([self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1Expr_aa1f2391c38a4fd6a8a914cb1a68ad864}{terms}}.name])}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00837}00837\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ frozenset(term.name\ \textcolor{keywordflow}{for}\ term\ \textcolor{keywordflow}{in}\ com.flatten(self.\mbox{\hyperlink{classpandas_1_1core_1_1computation_1_1expr_1_1Expr_aa1f2391c38a4fd6a8a914cb1a68ad864}{terms}}))}
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00838}00838\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00839}00839\ }
+\DoxyCodeLine{\Hypertarget{expr_8py_source_l00840}00840\ PARSERS\ =\ \{\textcolor{stringliteral}{"{}python"{}}:\ PythonExprVisitor,\ \textcolor{stringliteral}{"{}pandas"{}}:\ PandasExprVisitor\}}
+
+\end{DoxyCode}

@@ -1,0 +1,1165 @@
+\doxysection{\+\_\+bvp.\+py}
+\hypertarget{__bvp_8py_source}{}\label{__bvp_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/scipy/integrate/\_bvp.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/scipy/integrate/\_bvp.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00001}\mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp}{00001}}\ \textcolor{stringliteral}{"{}"{}"{}Boundary\ value\ problem\ solver."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00002}00002\ \textcolor{keyword}{from}\ warnings\ \textcolor{keyword}{import}\ warn}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00003}00003\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00004}00004\ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00005}00005\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacenumpy_1_1linalg}{numpy.linalg}}\ \textcolor{keyword}{import}\ pinv}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00006}00006\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00007}00007\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacescipy_1_1sparse}{scipy.sparse}}\ \textcolor{keyword}{import}\ coo\_matrix,\ csc\_matrix}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00008}00008\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacescipy_1_1sparse_1_1linalg}{scipy.sparse.linalg}}\ \textcolor{keyword}{import}\ splu}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00009}00009\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacescipy_1_1optimize}{scipy.optimize}}\ \textcolor{keyword}{import}\ OptimizeResult}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00010}00010\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00011}00011\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00012}00012\ EPS\ =\ np.finfo(float).eps}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00013}00013\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00014}00014\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00015}\mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_a7e1d215a615a92553cf69d99c957daf1}{00015}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_a7e1d215a615a92553cf69d99c957daf1}{estimate\_fun\_jac}}(fun,\ x,\ y,\ p,\ f0=None):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00016}00016\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Estimate\ derivatives\ of\ an\ ODE\ system\ rhs\ with\ forward\ differences.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00017}00017\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00018}00018\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00019}00019\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00020}00020\ \textcolor{stringliteral}{\ \ \ \ df\_dy\ :\ ndarray,\ shape\ (n,\ n,\ m)}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00021}00021\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Derivatives\ with\ respect\ to\ y.\ An\ element\ (i,\ j,\ q)\ corresponds\ to}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00022}00022\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ d\ f\_i(x\_q,\ y\_q)\ /\ d\ (y\_q)\_j.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00023}00023\ \textcolor{stringliteral}{\ \ \ \ df\_dp\ :\ ndarray\ with\ shape\ (n,\ k,\ m)\ or\ None}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00024}00024\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Derivatives\ with\ respect\ to\ p.\ An\ element\ (i,\ j,\ q)\ corresponds\ to}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00025}00025\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ d\ f\_i(x\_q,\ y\_q,\ p)\ /\ d\ p\_j.\ If\ \`{}p\`{}\ is\ empty,\ None\ is\ returned.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00026}00026\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00027}00027\ \ \ \ \ n,\ m\ =\ y.shape}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00028}00028\ \ \ \ \ \textcolor{keywordflow}{if}\ f0\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00029}00029\ \ \ \ \ \ \ \ \ f0\ =\ fun(x,\ y,\ p)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00030}00030\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00031}00031\ \ \ \ \ dtype\ =\ y.dtype}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00032}00032\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00033}00033\ \ \ \ \ df\_dy\ =\ np.empty((n,\ n,\ m),\ dtype=dtype)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00034}00034\ \ \ \ \ h\ =\ EPS**0.5\ *\ (1\ +\ np.abs(y))}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00035}00035\ \ \ \ \ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(n):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00036}00036\ \ \ \ \ \ \ \ \ y\_new\ =\ y.copy()}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00037}00037\ \ \ \ \ \ \ \ \ y\_new[i]\ +=\ h[i]}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00038}00038\ \ \ \ \ \ \ \ \ hi\ =\ y\_new[i]\ -\/\ y[i]}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00039}00039\ \ \ \ \ \ \ \ \ f\_new\ =\ fun(x,\ y\_new,\ p)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00040}00040\ \ \ \ \ \ \ \ \ df\_dy[:,\ i,\ :]\ =\ (f\_new\ -\/\ f0)\ /\ hi}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00041}00041\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00042}00042\ \ \ \ \ k\ =\ p.shape[0]}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00043}00043\ \ \ \ \ \textcolor{keywordflow}{if}\ k\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00044}00044\ \ \ \ \ \ \ \ \ df\_dp\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00045}00045\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00046}00046\ \ \ \ \ \ \ \ \ df\_dp\ =\ np.empty((n,\ k,\ m),\ dtype=dtype)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00047}00047\ \ \ \ \ \ \ \ \ h\ =\ EPS**0.5\ *\ (1\ +\ np.abs(p))}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00048}00048\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(k):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00049}00049\ \ \ \ \ \ \ \ \ \ \ \ \ p\_new\ =\ p.copy()}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00050}00050\ \ \ \ \ \ \ \ \ \ \ \ \ p\_new[i]\ +=\ h[i]}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00051}00051\ \ \ \ \ \ \ \ \ \ \ \ \ hi\ =\ p\_new[i]\ -\/\ p[i]}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00052}00052\ \ \ \ \ \ \ \ \ \ \ \ \ f\_new\ =\ fun(x,\ y,\ p\_new)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00053}00053\ \ \ \ \ \ \ \ \ \ \ \ \ df\_dp[:,\ i,\ :]\ =\ (f\_new\ -\/\ f0)\ /\ hi}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00054}00054\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00055}00055\ \ \ \ \ \textcolor{keywordflow}{return}\ df\_dy,\ df\_dp}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00056}00056\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00057}00057\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00058}\mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_a45c9bd5fbc41d0665e0326c9bd5fccfb}{00058}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_a45c9bd5fbc41d0665e0326c9bd5fccfb}{estimate\_bc\_jac}}(bc,\ ya,\ yb,\ p,\ bc0=None):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00059}00059\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Estimate\ derivatives\ of\ boundary\ conditions\ with\ forward\ differences.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00060}00060\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00061}00061\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00062}00062\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00063}00063\ \textcolor{stringliteral}{\ \ \ \ dbc\_dya\ :\ ndarray,\ shape\ (n\ +\ k,\ n)}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00064}00064\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Derivatives\ with\ respect\ to\ ya.\ An\ element\ (i,\ j)\ corresponds\ to}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00065}00065\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ d\ bc\_i\ /\ d\ ya\_j.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00066}00066\ \textcolor{stringliteral}{\ \ \ \ dbc\_dyb\ :\ ndarray,\ shape\ (n\ +\ k,\ n)}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00067}00067\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Derivatives\ with\ respect\ to\ yb.\ An\ element\ (i,\ j)\ corresponds\ to}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00068}00068\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ d\ bc\_i\ /\ d\ ya\_j.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00069}00069\ \textcolor{stringliteral}{\ \ \ \ dbc\_dp\ :\ ndarray\ with\ shape\ (n\ +\ k,\ k)\ or\ None}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00070}00070\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Derivatives\ with\ respect\ to\ p.\ An\ element\ (i,\ j)\ corresponds\ to}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00071}00071\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ d\ bc\_i\ /\ d\ p\_j.\ If\ \`{}p\`{}\ is\ empty,\ None\ is\ returned.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00072}00072\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00073}00073\ \ \ \ \ n\ =\ ya.shape[0]}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00074}00074\ \ \ \ \ k\ =\ p.shape[0]}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00075}00075\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00076}00076\ \ \ \ \ \textcolor{keywordflow}{if}\ bc0\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00077}00077\ \ \ \ \ \ \ \ \ bc0\ =\ bc(ya,\ yb,\ p)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00078}00078\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00079}00079\ \ \ \ \ dtype\ =\ ya.dtype}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00080}00080\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00081}00081\ \ \ \ \ dbc\_dya\ =\ np.empty((n,\ n\ +\ k),\ dtype=dtype)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00082}00082\ \ \ \ \ h\ =\ EPS**0.5\ *\ (1\ +\ np.abs(ya))}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00083}00083\ \ \ \ \ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(n):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00084}00084\ \ \ \ \ \ \ \ \ ya\_new\ =\ ya.copy()}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00085}00085\ \ \ \ \ \ \ \ \ ya\_new[i]\ +=\ h[i]}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00086}00086\ \ \ \ \ \ \ \ \ hi\ =\ ya\_new[i]\ -\/\ ya[i]}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00087}00087\ \ \ \ \ \ \ \ \ bc\_new\ =\ bc(ya\_new,\ yb,\ p)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00088}00088\ \ \ \ \ \ \ \ \ dbc\_dya[i]\ =\ (bc\_new\ -\/\ bc0)\ /\ hi}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00089}00089\ \ \ \ \ dbc\_dya\ =\ dbc\_dya.T}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00090}00090\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00091}00091\ \ \ \ \ h\ =\ EPS**0.5\ *\ (1\ +\ np.abs(yb))}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00092}00092\ \ \ \ \ dbc\_dyb\ =\ np.empty((n,\ n\ +\ k),\ dtype=dtype)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00093}00093\ \ \ \ \ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(n):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00094}00094\ \ \ \ \ \ \ \ \ yb\_new\ =\ yb.copy()}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00095}00095\ \ \ \ \ \ \ \ \ yb\_new[i]\ +=\ h[i]}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00096}00096\ \ \ \ \ \ \ \ \ hi\ =\ yb\_new[i]\ -\/\ yb[i]}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00097}00097\ \ \ \ \ \ \ \ \ bc\_new\ =\ bc(ya,\ yb\_new,\ p)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00098}00098\ \ \ \ \ \ \ \ \ dbc\_dyb[i]\ =\ (bc\_new\ -\/\ bc0)\ /\ hi}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00099}00099\ \ \ \ \ dbc\_dyb\ =\ dbc\_dyb.T}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00100}00100\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00101}00101\ \ \ \ \ \textcolor{keywordflow}{if}\ k\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00102}00102\ \ \ \ \ \ \ \ \ dbc\_dp\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00103}00103\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00104}00104\ \ \ \ \ \ \ \ \ h\ =\ EPS**0.5\ *\ (1\ +\ np.abs(p))}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00105}00105\ \ \ \ \ \ \ \ \ dbc\_dp\ =\ np.empty((k,\ n\ +\ k),\ dtype=dtype)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00106}00106\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(k):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00107}00107\ \ \ \ \ \ \ \ \ \ \ \ \ p\_new\ =\ p.copy()}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00108}00108\ \ \ \ \ \ \ \ \ \ \ \ \ p\_new[i]\ +=\ h[i]}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00109}00109\ \ \ \ \ \ \ \ \ \ \ \ \ hi\ =\ p\_new[i]\ -\/\ p[i]}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00110}00110\ \ \ \ \ \ \ \ \ \ \ \ \ bc\_new\ =\ bc(ya,\ yb,\ p\_new)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00111}00111\ \ \ \ \ \ \ \ \ \ \ \ \ dbc\_dp[i]\ =\ (bc\_new\ -\/\ bc0)\ /\ hi}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00112}00112\ \ \ \ \ \ \ \ \ dbc\_dp\ =\ dbc\_dp.T}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00113}00113\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00114}00114\ \ \ \ \ \textcolor{keywordflow}{return}\ dbc\_dya,\ dbc\_dyb,\ dbc\_dp}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00115}00115\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00116}00116\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00117}\mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_af6bbeda8eaef8fdac0da58fa78f6f198}{00117}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_af6bbeda8eaef8fdac0da58fa78f6f198}{compute\_jac\_indices}}(n,\ m,\ k):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00118}00118\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Compute\ indices\ for\ the\ collocation\ system\ Jacobian\ construction.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00119}00119\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00120}00120\ \textcolor{stringliteral}{\ \ \ \ See\ \`{}construct\_global\_jac\`{}\ for\ the\ explanation.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00121}00121\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00122}00122\ \ \ \ \ i\_col\ =\ np.repeat(np.arange((m\ -\/\ 1)\ *\ n),\ n)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00123}00123\ \ \ \ \ j\_col\ =\ (np.tile(np.arange(n),\ n\ *\ (m\ -\/\ 1))\ +}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00124}00124\ \ \ \ \ \ \ \ \ \ \ \ \ \ np.repeat(np.arange(m\ -\/\ 1)\ *\ n,\ n**2))}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00125}00125\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00126}00126\ \ \ \ \ i\_bc\ =\ np.repeat(np.arange((m\ -\/\ 1)\ *\ n,\ m\ *\ n\ +\ k),\ n)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00127}00127\ \ \ \ \ j\_bc\ =\ np.tile(np.arange(n),\ n\ +\ k)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00128}00128\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00129}00129\ \ \ \ \ i\_p\_col\ =\ np.repeat(np.arange((m\ -\/\ 1)\ *\ n),\ k)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00130}00130\ \ \ \ \ j\_p\_col\ =\ np.tile(np.arange(m\ *\ n,\ m\ *\ n\ +\ k),\ (m\ -\/\ 1)\ *\ n)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00131}00131\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00132}00132\ \ \ \ \ i\_p\_bc\ =\ np.repeat(np.arange((m\ -\/\ 1)\ *\ n,\ m\ *\ n\ +\ k),\ k)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00133}00133\ \ \ \ \ j\_p\_bc\ =\ np.tile(np.arange(m\ *\ n,\ m\ *\ n\ +\ k),\ n\ +\ k)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00134}00134\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00135}00135\ \ \ \ \ i\ =\ np.hstack((i\_col,\ i\_col,\ i\_bc,\ i\_bc,\ i\_p\_col,\ i\_p\_bc))}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00136}00136\ \ \ \ \ j\ =\ np.hstack((j\_col,\ j\_col\ +\ n,}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00137}00137\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ j\_bc,\ j\_bc\ +\ (m\ -\/\ 1)\ *\ n,}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00138}00138\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ j\_p\_col,\ j\_p\_bc))}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00139}00139\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00140}00140\ \ \ \ \ \textcolor{keywordflow}{return}\ i,\ j}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00141}00141\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00142}00142\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00143}\mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_a1d2ee109a1b89b59380bc4d9aa0b57ba}{00143}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_a1d2ee109a1b89b59380bc4d9aa0b57ba}{stacked\_matmul}}(a,\ b):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00144}00144\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Stacked\ matrix\ multiply:\ out[i,:,:]\ =\ np.dot(a[i,:,:],\ b[i,:,:]).}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00145}00145\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00146}00146\ \textcolor{stringliteral}{\ \ \ \ Empirical\ optimization.\ Use\ outer\ Python\ loop\ and\ BLAS\ for\ large}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00147}00147\ \textcolor{stringliteral}{\ \ \ \ matrices,\ otherwise\ use\ a\ single\ einsum\ call.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00148}00148\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00149}00149\ \ \ \ \ \textcolor{keywordflow}{if}\ a.shape[1]\ >\ 50:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00150}00150\ \ \ \ \ \ \ \ \ out\ =\ np.empty((a.shape[0],\ a.shape[1],\ b.shape[2]))}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00151}00151\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(a.shape[0]):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00152}00152\ \ \ \ \ \ \ \ \ \ \ \ \ out[i]\ =\ np.dot(a[i],\ b[i])}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00153}00153\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ out}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00154}00154\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00155}00155\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ np.einsum(\textcolor{stringliteral}{'...ij,...jk-\/>...ik'},\ a,\ b)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00156}00156\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00157}00157\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00158}\mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_a1154189ea728f879fa1a50bf962f5628}{00158}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_a1154189ea728f879fa1a50bf962f5628}{construct\_global\_jac}}(n,\ m,\ k,\ i\_jac,\ j\_jac,\ h,\ df\_dy,\ df\_dy\_middle,\ df\_dp,}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00159}00159\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ df\_dp\_middle,\ dbc\_dya,\ dbc\_dyb,\ dbc\_dp):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00160}00160\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Construct\ the\ Jacobian\ of\ the\ collocation\ system.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00161}00161\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00162}00162\ \textcolor{stringliteral}{\ \ \ \ There\ are\ n\ *\ m\ +\ k\ functions:\ m\ -\/\ 1\ collocations\ residuals,\ each}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00163}00163\ \textcolor{stringliteral}{\ \ \ \ containing\ n\ components,\ followed\ by\ n\ +\ k\ boundary\ condition\ residuals.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00164}00164\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00165}00165\ \textcolor{stringliteral}{\ \ \ \ There\ are\ n\ *\ m\ +\ k\ variables:\ m\ vectors\ of\ y,\ each\ containing\ n}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00166}00166\ \textcolor{stringliteral}{\ \ \ \ components,\ followed\ by\ k\ values\ of\ vector\ p.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00167}00167\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00168}00168\ \textcolor{stringliteral}{\ \ \ \ For\ example,\ let\ m\ =\ 4,\ n\ =\ 2\ and\ k\ =\ 1,\ then\ the\ Jacobian\ will\ have}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00169}00169\ \textcolor{stringliteral}{\ \ \ \ the\ following\ sparsity\ structure:}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00170}00170\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00171}00171\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 1\ 1\ 2\ 2\ 0\ 0\ 0\ 0\ \ 5}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00172}00172\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 1\ 1\ 2\ 2\ 0\ 0\ 0\ 0\ \ 5}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00173}00173\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 0\ 0\ 1\ 1\ 2\ 2\ 0\ 0\ \ 5}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00174}00174\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 0\ 0\ 1\ 1\ 2\ 2\ 0\ 0\ \ 5}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00175}00175\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 0\ 0\ 0\ 0\ 1\ 1\ 2\ 2\ \ 5}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00176}00176\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 0\ 0\ 0\ 0\ 1\ 1\ 2\ 2\ \ 5}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00177}00177\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00178}00178\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 3\ 3\ 0\ 0\ 0\ 0\ 4\ 4\ \ 6}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00179}00179\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 3\ 3\ 0\ 0\ 0\ 0\ 4\ 4\ \ 6}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00180}00180\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 3\ 3\ 0\ 0\ 0\ 0\ 4\ 4\ \ 6}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00181}00181\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00182}00182\ \textcolor{stringliteral}{\ \ \ \ Zeros\ denote\ identically\ zero\ values,\ other\ values\ denote\ different\ kinds}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00183}00183\ \textcolor{stringliteral}{\ \ \ \ of\ blocks\ in\ the\ matrix\ (see\ below).\ The\ blank\ row\ indicates\ the\ separation}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00184}00184\ \textcolor{stringliteral}{\ \ \ \ of\ collocation\ residuals\ from\ boundary\ conditions.\ And\ the\ blank\ column}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00185}00185\ \textcolor{stringliteral}{\ \ \ \ indicates\ the\ separation\ of\ y\ values\ from\ p\ values.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00186}00186\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00187}00187\ \textcolor{stringliteral}{\ \ \ \ Refer\ to\ [1]\_\ \ (p.\ 306)\ for\ the\ formula\ of\ n\ x\ n\ blocks\ for\ derivatives}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00188}00188\ \textcolor{stringliteral}{\ \ \ \ of\ collocation\ residuals\ with\ respect\ to\ y.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00189}00189\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00190}00190\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00191}00191\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00192}00192\ \textcolor{stringliteral}{\ \ \ \ n\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00193}00193\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ equations\ in\ the\ ODE\ system.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00194}00194\ \textcolor{stringliteral}{\ \ \ \ m\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00195}00195\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ nodes\ in\ the\ mesh.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00196}00196\ \textcolor{stringliteral}{\ \ \ \ k\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00197}00197\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ the\ unknown\ parameters.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00198}00198\ \textcolor{stringliteral}{\ \ \ \ i\_jac,\ j\_jac\ :\ ndarray}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00199}00199\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Row\ and\ column\ indices\ returned\ by\ \`{}compute\_jac\_indices\`{}.\ They}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00200}00200\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ represent\ different\ blocks\ in\ the\ Jacobian\ matrix\ in\ the\ following}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00201}00201\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ order\ (see\ the\ scheme\ above):}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00202}00202\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00203}00203\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ *\ 1:\ m\ -\/\ 1\ diagonal\ n\ x\ n\ blocks\ for\ the\ collocation\ residuals.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00204}00204\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ *\ 2:\ m\ -\/\ 1\ off-\/diagonal\ n\ x\ n\ blocks\ for\ the\ collocation\ residuals.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00205}00205\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ *\ 3\ :\ (n\ +\ k)\ x\ n\ block\ for\ the\ dependency\ of\ the\ boundary}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00206}00206\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ conditions\ on\ ya.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00207}00207\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ *\ 4:\ (n\ +\ k)\ x\ n\ block\ for\ the\ dependency\ of\ the\ boundary}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00208}00208\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ conditions\ on\ yb.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00209}00209\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ *\ 5:\ (m\ -\/\ 1)\ *\ n\ x\ k\ block\ for\ the\ dependency\ of\ the\ collocation}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00210}00210\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ residuals\ on\ p.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00211}00211\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ *\ 6:\ (n\ +\ k)\ x\ k\ block\ for\ the\ dependency\ of\ the\ boundary}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00212}00212\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ conditions\ on\ p.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00213}00213\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00214}00214\ \textcolor{stringliteral}{\ \ \ \ df\_dy\ :\ ndarray,\ shape\ (n,\ n,\ m)}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00215}00215\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Jacobian\ of\ f\ with\ respect\ to\ y\ computed\ at\ the\ mesh\ nodes.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00216}00216\ \textcolor{stringliteral}{\ \ \ \ df\_dy\_middle\ :\ ndarray,\ shape\ (n,\ n,\ m\ -\/\ 1)}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00217}00217\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Jacobian\ of\ f\ with\ respect\ to\ y\ computed\ at\ the\ middle\ between\ the}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00218}00218\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ mesh\ nodes.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00219}00219\ \textcolor{stringliteral}{\ \ \ \ df\_dp\ :\ ndarray\ with\ shape\ (n,\ k,\ m)\ or\ None}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00220}00220\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Jacobian\ of\ f\ with\ respect\ to\ p\ computed\ at\ the\ mesh\ nodes.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00221}00221\ \textcolor{stringliteral}{\ \ \ \ df\_dp\_middle\ :\ ndarray\ with\ shape\ (n,\ k,\ m\ -\/\ 1)\ or\ None}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00222}00222\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Jacobian\ of\ f\ with\ respect\ to\ p\ computed\ at\ the\ middle\ between\ the}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00223}00223\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ mesh\ nodes.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00224}00224\ \textcolor{stringliteral}{\ \ \ \ dbc\_dya,\ dbc\_dyb\ :\ ndarray,\ shape\ (n,\ n)}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00225}00225\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Jacobian\ of\ bc\ with\ respect\ to\ ya\ and\ yb.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00226}00226\ \textcolor{stringliteral}{\ \ \ \ dbc\_dp\ :\ ndarray\ with\ shape\ (n,\ k)\ or\ None}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00227}00227\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Jacobian\ of\ bc\ with\ respect\ to\ p.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00228}00228\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00229}00229\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00230}00230\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00231}00231\ \textcolor{stringliteral}{\ \ \ \ J\ :\ csc\_matrix,\ shape\ (n\ *\ m\ +\ k,\ n\ *\ m\ +\ k)}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00232}00232\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Jacobian\ of\ the\ collocation\ system\ in\ a\ sparse\ form.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00233}00233\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00234}00234\ \textcolor{stringliteral}{\ \ \ \ References}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00235}00235\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00236}00236\ \textcolor{stringliteral}{\ \ \ \ ..\ [1]\ J.\ Kierzenka,\ L.\ F.\ Shampine,\ "{}A\ BVP\ Solver\ Based\ on\ Residual}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00237}00237\ \textcolor{stringliteral}{\ \ \ \ \ \ \ Control\ and\ the\ Maltab\ PSE"{},\ ACM\ Trans.\ Math.\ Softw.,\ Vol.\ 27,}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00238}00238\ \textcolor{stringliteral}{\ \ \ \ \ \ \ Number\ 3,\ pp.\ 299-\/316,\ 2001.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00239}00239\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00240}00240\ \ \ \ \ df\_dy\ =\ np.transpose(df\_dy,\ (2,\ 0,\ 1))}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00241}00241\ \ \ \ \ df\_dy\_middle\ =\ np.transpose(df\_dy\_middle,\ (2,\ 0,\ 1))}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00242}00242\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00243}00243\ \ \ \ \ h\ =\ h[:,\ np.newaxis,\ np.newaxis]}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00244}00244\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00245}00245\ \ \ \ \ dtype\ =\ df\_dy.dtype}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00246}00246\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00247}00247\ \ \ \ \ \textcolor{comment}{\#\ Computing\ diagonal\ n\ x\ n\ blocks.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00248}00248\ \ \ \ \ dPhi\_dy\_0\ =\ np.empty((m\ -\/\ 1,\ n,\ n),\ dtype=dtype)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00249}00249\ \ \ \ \ dPhi\_dy\_0[:]\ =\ -\/np.identity(n)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00250}00250\ \ \ \ \ dPhi\_dy\_0\ -\/=\ h\ /\ 6\ *\ (df\_dy[:-\/1]\ +\ 2\ *\ df\_dy\_middle)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00251}00251\ \ \ \ \ T\ =\ \mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_a1d2ee109a1b89b59380bc4d9aa0b57ba}{stacked\_matmul}}(df\_dy\_middle,\ df\_dy[:-\/1])}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00252}00252\ \ \ \ \ dPhi\_dy\_0\ -\/=\ h**2\ /\ 12\ *\ T}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00253}00253\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00254}00254\ \ \ \ \ \textcolor{comment}{\#\ Computing\ off-\/diagonal\ n\ x\ n\ blocks.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00255}00255\ \ \ \ \ dPhi\_dy\_1\ =\ np.empty((m\ -\/\ 1,\ n,\ n),\ dtype=dtype)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00256}00256\ \ \ \ \ dPhi\_dy\_1[:]\ =\ np.identity(n)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00257}00257\ \ \ \ \ dPhi\_dy\_1\ -\/=\ h\ /\ 6\ *\ (df\_dy[1:]\ +\ 2\ *\ df\_dy\_middle)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00258}00258\ \ \ \ \ T\ =\ \mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_a1d2ee109a1b89b59380bc4d9aa0b57ba}{stacked\_matmul}}(df\_dy\_middle,\ df\_dy[1:])}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00259}00259\ \ \ \ \ dPhi\_dy\_1\ +=\ h**2\ /\ 12\ *\ T}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00260}00260\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00261}00261\ \ \ \ \ values\ =\ np.hstack((dPhi\_dy\_0.ravel(),\ dPhi\_dy\_1.ravel(),\ dbc\_dya.ravel(),}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00262}00262\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ dbc\_dyb.ravel()))}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00263}00263\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00264}00264\ \ \ \ \ \textcolor{keywordflow}{if}\ k\ >\ 0:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00265}00265\ \ \ \ \ \ \ \ \ df\_dp\ =\ np.transpose(df\_dp,\ (2,\ 0,\ 1))}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00266}00266\ \ \ \ \ \ \ \ \ df\_dp\_middle\ =\ np.transpose(df\_dp\_middle,\ (2,\ 0,\ 1))}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00267}00267\ \ \ \ \ \ \ \ \ T\ =\ \mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_a1d2ee109a1b89b59380bc4d9aa0b57ba}{stacked\_matmul}}(df\_dy\_middle,\ df\_dp[:-\/1]\ -\/\ df\_dp[1:])}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00268}00268\ \ \ \ \ \ \ \ \ df\_dp\_middle\ +=\ 0.125\ *\ h\ *\ T}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00269}00269\ \ \ \ \ \ \ \ \ dPhi\_dp\ =\ -\/h/6\ *\ (df\_dp[:-\/1]\ +\ df\_dp[1:]\ +\ 4\ *\ df\_dp\_middle)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00270}00270\ \ \ \ \ \ \ \ \ values\ =\ np.hstack((values,\ dPhi\_dp.ravel(),\ dbc\_dp.ravel()))}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00271}00271\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00272}00272\ \ \ \ \ J\ =\ \mbox{\hyperlink{classscipy_1_1sparse_1_1__coo_1_1coo__matrix}{coo\_matrix}}((values,\ (i\_jac,\ j\_jac)))}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00273}00273\ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classscipy_1_1sparse_1_1__csc_1_1csc__matrix}{csc\_matrix}}(J)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00274}00274\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00275}00275\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00276}\mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_a10253dea50687b4fa2f6c452de6f749a}{00276}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_a10253dea50687b4fa2f6c452de6f749a}{collocation\_fun}}(fun,\ y,\ p,\ x,\ h):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00277}00277\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Evaluate\ collocation\ residuals.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00278}00278\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00279}00279\ \textcolor{stringliteral}{\ \ \ \ This\ function\ lies\ in\ the\ core\ of\ the\ method.\ The\ solution\ is\ sought}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00280}00280\ \textcolor{stringliteral}{\ \ \ \ as\ a\ cubic\ C1\ continuous\ spline\ with\ derivatives\ matching\ the\ ODE\ rhs}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00281}00281\ \textcolor{stringliteral}{\ \ \ \ at\ given\ nodes\ \`{}x\`{}.\ Collocation\ conditions\ are\ formed\ from\ the\ equality}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00282}00282\ \textcolor{stringliteral}{\ \ \ \ of\ the\ spline\ derivatives\ and\ rhs\ of\ the\ ODE\ system\ in\ the\ middle\ points}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00283}00283\ \textcolor{stringliteral}{\ \ \ \ between\ nodes.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00284}00284\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00285}00285\ \textcolor{stringliteral}{\ \ \ \ Such\ method\ is\ classified\ to\ Lobbato\ IIIA\ family\ in\ ODE\ literature.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00286}00286\ \textcolor{stringliteral}{\ \ \ \ Refer\ to\ [1]\_\ for\ the\ formula\ and\ some\ discussion.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00287}00287\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00288}00288\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00289}00289\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00290}00290\ \textcolor{stringliteral}{\ \ \ \ col\_res\ :\ ndarray,\ shape\ (n,\ m\ -\/\ 1)}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00291}00291\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Collocation\ residuals\ at\ the\ middle\ points\ of\ the\ mesh\ intervals.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00292}00292\ \textcolor{stringliteral}{\ \ \ \ y\_middle\ :\ ndarray,\ shape\ (n,\ m\ -\/\ 1)}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00293}00293\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Values\ of\ the\ cubic\ spline\ evaluated\ at\ the\ middle\ points\ of\ the\ mesh}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00294}00294\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ intervals.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00295}00295\ \textcolor{stringliteral}{\ \ \ \ f\ :\ ndarray,\ shape\ (n,\ m)}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00296}00296\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ RHS\ of\ the\ ODE\ system\ evaluated\ at\ the\ mesh\ nodes.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00297}00297\ \textcolor{stringliteral}{\ \ \ \ f\_middle\ :\ ndarray,\ shape\ (n,\ m\ -\/\ 1)}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00298}00298\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ RHS\ of\ the\ ODE\ system\ evaluated\ at\ the\ middle\ points\ of\ the\ mesh}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00299}00299\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ intervals\ (and\ using\ \`{}y\_middle\`{}).}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00300}00300\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00301}00301\ \textcolor{stringliteral}{\ \ \ \ References}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00302}00302\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00303}00303\ \textcolor{stringliteral}{\ \ \ \ ..\ [1]\ J.\ Kierzenka,\ L.\ F.\ Shampine,\ "{}A\ BVP\ Solver\ Based\ on\ Residual}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00304}00304\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ Control\ and\ the\ Maltab\ PSE"{},\ ACM\ Trans.\ Math.\ Softw.,\ Vol.\ 27,}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00305}00305\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ Number\ 3,\ pp.\ 299-\/316,\ 2001.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00306}00306\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00307}00307\ \ \ \ \ f\ =\ fun(x,\ y,\ p)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00308}00308\ \ \ \ \ y\_middle\ =\ (0.5\ *\ (y[:,\ 1:]\ +\ y[:,\ :-\/1])\ -\/}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00309}00309\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ 0.125\ *\ h\ *\ (f[:,\ 1:]\ -\/\ f[:,\ :-\/1]))}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00310}00310\ \ \ \ \ f\_middle\ =\ fun(x[:-\/1]\ +\ 0.5\ *\ h,\ y\_middle,\ p)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00311}00311\ \ \ \ \ col\_res\ =\ y[:,\ 1:]\ -\/\ y[:,\ :-\/1]\ -\/\ h\ /\ 6\ *\ (f[:,\ :-\/1]\ +\ f[:,\ 1:]\ +}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00312}00312\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ 4\ *\ f\_middle)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00313}00313\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00314}00314\ \ \ \ \ \textcolor{keywordflow}{return}\ col\_res,\ y\_middle,\ f,\ f\_middle}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00315}00315\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00316}00316\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00317}\mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_a3e5192bec9ee862fea0740740b0b180a}{00317}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_a3e5192bec9ee862fea0740740b0b180a}{prepare\_sys}}(n,\ m,\ k,\ fun,\ bc,\ fun\_jac,\ bc\_jac,\ x,\ h):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00318}00318\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Create\ the\ function\ and\ the\ Jacobian\ for\ the\ collocation\ system."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00319}00319\ \ \ \ \ x\_middle\ =\ x[:-\/1]\ +\ 0.5\ *\ h}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00320}00320\ \ \ \ \ i\_jac,\ j\_jac\ =\ \mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_af6bbeda8eaef8fdac0da58fa78f6f198}{compute\_jac\_indices}}(n,\ m,\ k)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00321}00321\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00322}00322\ \ \ \ \ \textcolor{keyword}{def\ }col\_fun(y,\ p):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00323}00323\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_a10253dea50687b4fa2f6c452de6f749a}{collocation\_fun}}(fun,\ y,\ p,\ x,\ h)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00324}00324\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00325}00325\ \ \ \ \ \textcolor{keyword}{def\ }sys\_jac(y,\ p,\ y\_middle,\ f,\ f\_middle,\ bc0):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00326}00326\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ fun\_jac\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00327}00327\ \ \ \ \ \ \ \ \ \ \ \ \ df\_dy,\ df\_dp\ =\ \mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_a7e1d215a615a92553cf69d99c957daf1}{estimate\_fun\_jac}}(fun,\ x,\ y,\ p,\ f)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00328}00328\ \ \ \ \ \ \ \ \ \ \ \ \ df\_dy\_middle,\ df\_dp\_middle\ =\ \mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_a7e1d215a615a92553cf69d99c957daf1}{estimate\_fun\_jac}}(}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00329}00329\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ fun,\ x\_middle,\ y\_middle,\ p,\ f\_middle)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00330}00330\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00331}00331\ \ \ \ \ \ \ \ \ \ \ \ \ df\_dy,\ df\_dp\ =\ fun\_jac(x,\ y,\ p)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00332}00332\ \ \ \ \ \ \ \ \ \ \ \ \ df\_dy\_middle,\ df\_dp\_middle\ =\ fun\_jac(x\_middle,\ y\_middle,\ p)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00333}00333\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00334}00334\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ bc\_jac\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00335}00335\ \ \ \ \ \ \ \ \ \ \ \ \ dbc\_dya,\ dbc\_dyb,\ dbc\_dp\ =\ \mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_a45c9bd5fbc41d0665e0326c9bd5fccfb}{estimate\_bc\_jac}}(bc,\ y[:,\ 0],\ y[:,\ -\/1],}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00336}00336\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p,\ bc0)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00337}00337\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00338}00338\ \ \ \ \ \ \ \ \ \ \ \ \ dbc\_dya,\ dbc\_dyb,\ dbc\_dp\ =\ bc\_jac(y[:,\ 0],\ y[:,\ -\/1],\ p)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00339}00339\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00340}00340\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_a1154189ea728f879fa1a50bf962f5628}{construct\_global\_jac}}(n,\ m,\ k,\ i\_jac,\ j\_jac,\ h,\ df\_dy,}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00341}00341\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ df\_dy\_middle,\ df\_dp,\ df\_dp\_middle,\ dbc\_dya,}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00342}00342\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ dbc\_dyb,\ dbc\_dp)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00343}00343\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00344}00344\ \ \ \ \ \textcolor{keywordflow}{return}\ col\_fun,\ sys\_jac}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00345}00345\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00346}00346\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00347}\mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_a9b44b4b962bed36f279bfe9307fe6eb3}{00347}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_a9b44b4b962bed36f279bfe9307fe6eb3}{solve\_newton}}(n,\ m,\ h,\ col\_fun,\ bc,\ jac,\ y,\ p,\ B,\ bvp\_tol,\ bc\_tol):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00348}00348\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Solve\ the\ nonlinear\ collocation\ system\ by\ a\ Newton\ method.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00349}00349\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00350}00350\ \textcolor{stringliteral}{\ \ \ \ This\ is\ a\ simple\ Newton\ method\ with\ a\ backtracking\ line\ search.\ As}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00351}00351\ \textcolor{stringliteral}{\ \ \ \ advised\ in\ [1]\_,\ an\ affine-\/invariant\ criterion\ function\ F\ =\ ||J\string^-\/1\ r||\string^2}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00352}00352\ \textcolor{stringliteral}{\ \ \ \ is\ used,\ where\ J\ is\ the\ Jacobian\ matrix\ at\ the\ current\ iteration\ and\ r\ is}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00353}00353\ \textcolor{stringliteral}{\ \ \ \ the\ vector\ or\ collocation\ residuals\ (values\ of\ the\ system\ lhs).}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00354}00354\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00355}00355\ \textcolor{stringliteral}{\ \ \ \ The\ method\ alters\ between\ full\ Newton\ iterations\ and\ the\ fixed-\/Jacobian}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00356}00356\ \textcolor{stringliteral}{\ \ \ \ iterations\ based}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00357}00357\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00358}00358\ \textcolor{stringliteral}{\ \ \ \ There\ are\ other\ tricks\ proposed\ in\ [1]\_,\ but\ they\ are\ not\ used\ as\ they}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00359}00359\ \textcolor{stringliteral}{\ \ \ \ don't\ seem\ to\ improve\ anything\ significantly,\ and\ even\ break\ the}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00360}00360\ \textcolor{stringliteral}{\ \ \ \ convergence\ on\ some\ test\ problems\ I\ tried.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00361}00361\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00362}00362\ \textcolor{stringliteral}{\ \ \ \ All\ important\ parameters\ of\ the\ algorithm\ are\ defined\ inside\ the\ function.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00363}00363\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00364}00364\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00365}00365\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00366}00366\ \textcolor{stringliteral}{\ \ \ \ n\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00367}00367\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ equations\ in\ the\ ODE\ system.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00368}00368\ \textcolor{stringliteral}{\ \ \ \ m\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00369}00369\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ nodes\ in\ the\ mesh.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00370}00370\ \textcolor{stringliteral}{\ \ \ \ h\ :\ ndarray,\ shape\ (m-\/1,)}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00371}00371\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Mesh\ intervals.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00372}00372\ \textcolor{stringliteral}{\ \ \ \ col\_fun\ :\ callable}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00373}00373\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Function\ computing\ collocation\ residuals.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00374}00374\ \textcolor{stringliteral}{\ \ \ \ bc\ :\ callable}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00375}00375\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Function\ computing\ boundary\ condition\ residuals.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00376}00376\ \textcolor{stringliteral}{\ \ \ \ jac\ :\ callable}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00377}00377\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Function\ computing\ the\ Jacobian\ of\ the\ whole\ system\ (including}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00378}00378\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ collocation\ and\ boundary\ condition\ residuals).\ It\ is\ supposed\ to}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00379}00379\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ return\ csc\_matrix.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00380}00380\ \textcolor{stringliteral}{\ \ \ \ y\ :\ ndarray,\ shape\ (n,\ m)}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00381}00381\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Initial\ guess\ for\ the\ function\ values\ at\ the\ mesh\ nodes.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00382}00382\ \textcolor{stringliteral}{\ \ \ \ p\ :\ ndarray,\ shape\ (k,)}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00383}00383\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Initial\ guess\ for\ the\ unknown\ parameters.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00384}00384\ \textcolor{stringliteral}{\ \ \ \ B\ :\ ndarray\ with\ shape\ (n,\ n)\ or\ None}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00385}00385\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Matrix\ to\ force\ the\ S\ y(a)\ =\ 0\ condition\ for\ a\ problems\ with\ the}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00386}00386\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ singular\ term.\ If\ None,\ the\ singular\ term\ is\ assumed\ to\ be\ absent.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00387}00387\ \textcolor{stringliteral}{\ \ \ \ bvp\_tol\ :\ float}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00388}00388\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Tolerance\ to\ which\ we\ want\ to\ solve\ a\ BVP.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00389}00389\ \textcolor{stringliteral}{\ \ \ \ bc\_tol\ :\ float}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00390}00390\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Tolerance\ to\ which\ we\ want\ to\ satisfy\ the\ boundary\ conditions.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00391}00391\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00392}00392\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00393}00393\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00394}00394\ \textcolor{stringliteral}{\ \ \ \ y\ :\ ndarray,\ shape\ (n,\ m)}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00395}00395\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Final\ iterate\ for\ the\ function\ values\ at\ the\ mesh\ nodes.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00396}00396\ \textcolor{stringliteral}{\ \ \ \ p\ :\ ndarray,\ shape\ (k,)}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00397}00397\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Final\ iterate\ for\ the\ unknown\ parameters.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00398}00398\ \textcolor{stringliteral}{\ \ \ \ singular\ :\ bool}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00399}00399\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ True,\ if\ the\ LU\ decomposition\ failed\ because\ Jacobian\ turned\ out}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00400}00400\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ to\ be\ singular.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00401}00401\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00402}00402\ \textcolor{stringliteral}{\ \ \ \ References}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00403}00403\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00404}00404\ \textcolor{stringliteral}{\ \ \ \ ..\ [1]\ \ U.\ Ascher,\ R.\ Mattheij\ and\ R.\ Russell\ "{}Numerical\ Solution\ of}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00405}00405\ \textcolor{stringliteral}{\ \ \ \ \ \ \ Boundary\ Value\ Problems\ for\ Ordinary\ Differential\ Equations"{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00406}00406\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00407}00407\ \ \ \ \ \textcolor{comment}{\#\ We\ know\ that\ the\ solution\ residuals\ at\ the\ middle\ points\ of\ the\ mesh}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00408}00408\ \ \ \ \ \textcolor{comment}{\#\ are\ connected\ with\ collocation\ residuals\ \ r\_middle\ =\ 1.5\ *\ col\_res\ /\ h.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00409}00409\ \ \ \ \ \textcolor{comment}{\#\ As\ our\ BVP\ solver\ tries\ to\ decrease\ relative\ residuals\ below\ a\ certain}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00410}00410\ \ \ \ \ \textcolor{comment}{\#\ tolerance,\ it\ seems\ reasonable\ to\ terminated\ Newton\ iterations\ by}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00411}00411\ \ \ \ \ \textcolor{comment}{\#\ comparison\ of\ r\_middle\ /\ (1\ +\ np.abs(f\_middle))\ with\ a\ certain\ threshold,}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00412}00412\ \ \ \ \ \textcolor{comment}{\#\ which\ we\ choose\ to\ be\ 1.5\ orders\ lower\ than\ the\ BVP\ tolerance.\ We\ rewrite}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00413}00413\ \ \ \ \ \textcolor{comment}{\#\ the\ condition\ as\ col\_res\ <\ tol\_r\ *\ (1\ +\ np.abs(f\_middle)),\ then\ tol\_r}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00414}00414\ \ \ \ \ \textcolor{comment}{\#\ should\ be\ computed\ as\ follows:}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00415}00415\ \ \ \ \ tol\_r\ =\ 2/3\ *\ h\ *\ 5e-\/2\ *\ bvp\_tol}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00416}00416\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00417}00417\ \ \ \ \ \textcolor{comment}{\#\ Maximum\ allowed\ number\ of\ Jacobian\ evaluation\ and\ factorization,\ in}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00418}00418\ \ \ \ \ \textcolor{comment}{\#\ other\ words,\ the\ maximum\ number\ of\ full\ Newton\ iterations.\ A\ small\ value}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00419}00419\ \ \ \ \ \textcolor{comment}{\#\ is\ recommended\ in\ the\ literature.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00420}00420\ \ \ \ \ max\_njev\ =\ 4}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00421}00421\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00422}00422\ \ \ \ \ \textcolor{comment}{\#\ Maximum\ number\ of\ iterations,\ considering\ that\ some\ of\ them\ can\ be}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00423}00423\ \ \ \ \ \textcolor{comment}{\#\ performed\ with\ the\ fixed\ Jacobian.\ In\ theory,\ such\ iterations\ are\ cheap,}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00424}00424\ \ \ \ \ \textcolor{comment}{\#\ but\ it's\ not\ that\ simple\ in\ Python.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00425}00425\ \ \ \ \ max\_iter\ =\ 8}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00426}00426\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00427}00427\ \ \ \ \ \textcolor{comment}{\#\ Minimum\ relative\ improvement\ of\ the\ criterion\ function\ to\ accept\ the}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00428}00428\ \ \ \ \ \textcolor{comment}{\#\ step\ (Armijo\ constant).}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00429}00429\ \ \ \ \ sigma\ =\ 0.2}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00430}00430\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00431}00431\ \ \ \ \ \textcolor{comment}{\#\ Step\ size\ decrease\ factor\ for\ backtracking.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00432}00432\ \ \ \ \ tau\ =\ 0.5}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00433}00433\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00434}00434\ \ \ \ \ \textcolor{comment}{\#\ Maximum\ number\ of\ backtracking\ steps,\ the\ minimum\ step\ is\ then}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00435}00435\ \ \ \ \ \textcolor{comment}{\#\ tau\ **\ n\_trial.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00436}00436\ \ \ \ \ n\_trial\ =\ 4}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00437}00437\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00438}00438\ \ \ \ \ col\_res,\ y\_middle,\ f,\ f\_middle\ =\ col\_fun(y,\ p)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00439}00439\ \ \ \ \ bc\_res\ =\ bc(y[:,\ 0],\ y[:,\ -\/1],\ p)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00440}00440\ \ \ \ \ res\ =\ np.hstack((col\_res.ravel(order=\textcolor{stringliteral}{'F'}),\ bc\_res))}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00441}00441\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00442}00442\ \ \ \ \ njev\ =\ 0}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00443}00443\ \ \ \ \ singular\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00444}00444\ \ \ \ \ recompute\_jac\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00445}00445\ \ \ \ \ \textcolor{keywordflow}{for}\ iteration\ \textcolor{keywordflow}{in}\ range(max\_iter):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00446}00446\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ recompute\_jac:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00447}00447\ \ \ \ \ \ \ \ \ \ \ \ \ J\ =\ jac(y,\ p,\ y\_middle,\ f,\ f\_middle,\ bc\_res)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00448}00448\ \ \ \ \ \ \ \ \ \ \ \ \ njev\ +=\ 1}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00449}00449\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00450}00450\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ LU\ =\ splu(J)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00451}00451\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ RuntimeError:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00452}00452\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ singular\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00453}00453\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00454}00454\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00455}00455\ \ \ \ \ \ \ \ \ \ \ \ \ step\ =\ LU.solve(res)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00456}00456\ \ \ \ \ \ \ \ \ \ \ \ \ cost\ =\ np.dot(step,\ step)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00457}00457\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00458}00458\ \ \ \ \ \ \ \ \ y\_step\ =\ step[:m\ *\ n].reshape((n,\ m),\ order=\textcolor{stringliteral}{'F'})}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00459}00459\ \ \ \ \ \ \ \ \ p\_step\ =\ step[m\ *\ n:]}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00460}00460\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00461}00461\ \ \ \ \ \ \ \ \ alpha\ =\ 1}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00462}00462\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ trial\ \textcolor{keywordflow}{in}\ range(n\_trial\ +\ 1):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00463}00463\ \ \ \ \ \ \ \ \ \ \ \ \ y\_new\ =\ y\ -\/\ alpha\ *\ y\_step}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00464}00464\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ B\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00465}00465\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ y\_new[:,\ 0]\ =\ np.dot(B,\ y\_new[:,\ 0])}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00466}00466\ \ \ \ \ \ \ \ \ \ \ \ \ p\_new\ =\ p\ -\/\ alpha\ *\ p\_step}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00467}00467\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00468}00468\ \ \ \ \ \ \ \ \ \ \ \ \ col\_res,\ y\_middle,\ f,\ f\_middle\ =\ col\_fun(y\_new,\ p\_new)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00469}00469\ \ \ \ \ \ \ \ \ \ \ \ \ bc\_res\ =\ bc(y\_new[:,\ 0],\ y\_new[:,\ -\/1],\ p\_new)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00470}00470\ \ \ \ \ \ \ \ \ \ \ \ \ res\ =\ np.hstack((col\_res.ravel(order=\textcolor{stringliteral}{'F'}),\ bc\_res))}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00471}00471\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00472}00472\ \ \ \ \ \ \ \ \ \ \ \ \ step\_new\ =\ LU.solve(res)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00473}00473\ \ \ \ \ \ \ \ \ \ \ \ \ cost\_new\ =\ np.dot(step\_new,\ step\_new)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00474}00474\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ cost\_new\ <\ (1\ -\/\ 2\ *\ alpha\ *\ sigma)\ *\ cost:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00475}00475\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00476}00476\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00477}00477\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ trial\ <\ n\_trial:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00478}00478\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ alpha\ *=\ tau}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00479}00479\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00480}00480\ \ \ \ \ \ \ \ \ y\ =\ y\_new}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00481}00481\ \ \ \ \ \ \ \ \ p\ =\ p\_new}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00482}00482\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00483}00483\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ njev\ ==\ max\_njev:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00484}00484\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00485}00485\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00486}00486\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (np.all(np.abs(col\_res)\ <\ tol\_r\ *\ (1\ +\ np.abs(f\_middle)))\ \textcolor{keywordflow}{and}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00487}00487\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ np.all(np.abs(bc\_res)\ <\ bc\_tol)):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00488}00488\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00489}00489\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00490}00490\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ If\ the\ full\ step\ was\ taken,\ then\ we\ are\ going\ to\ continue\ with}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00491}00491\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ the\ same\ Jacobian.\ This\ is\ the\ approach\ of\ BVP\_SOLVER.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00492}00492\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ alpha\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00493}00493\ \ \ \ \ \ \ \ \ \ \ \ \ step\ =\ step\_new}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00494}00494\ \ \ \ \ \ \ \ \ \ \ \ \ cost\ =\ cost\_new}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00495}00495\ \ \ \ \ \ \ \ \ \ \ \ \ recompute\_jac\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00496}00496\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00497}00497\ \ \ \ \ \ \ \ \ \ \ \ \ recompute\_jac\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00498}00498\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00499}00499\ \ \ \ \ \textcolor{keywordflow}{return}\ y,\ p,\ singular}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00500}00500\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00501}00501\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00502}00502\ \textcolor{keyword}{def\ }print\_iteration\_header():}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00503}00503\ \ \ \ \ print(\textcolor{stringliteral}{"{}\{:\string^15\}\{:\string^15\}\{:\string^15\}\{:\string^15\}\{:\string^15\}"{}}.format(}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00504}00504\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Iteration"{}},\ \textcolor{stringliteral}{"{}Max\ residual"{}},\ \textcolor{stringliteral}{"{}Max\ BC\ residual"{}},\ \textcolor{stringliteral}{"{}Total\ nodes"{}},}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00505}00505\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Nodes\ added"{}}))}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00506}00506\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00507}00507\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00508}00508\ \textcolor{keyword}{def\ }print\_iteration\_progress(iteration,\ residual,\ bc\_residual,\ total\_nodes,}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00509}00509\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ nodes\_added):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00510}00510\ \ \ \ \ print(\textcolor{stringliteral}{"{}\{:\string^15\}\{:\string^15.2e\}\{:\string^15.2e\}\{:\string^15\}\{:\string^15\}"{}}.format(}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00511}00511\ \ \ \ \ \ \ \ \ iteration,\ residual,\ bc\_residual,\ total\_nodes,\ nodes\_added))}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00512}00512\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00513}00513\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00514}\mbox{\hyperlink{classscipy_1_1integrate_1_1__bvp_1_1BVPResult}{00514}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classscipy_1_1integrate_1_1__bvp_1_1BVPResult}{BVPResult}}(\mbox{\hyperlink{classscipy_1_1optimize_1_1__optimize_1_1OptimizeResult}{OptimizeResult}}):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00515}00515\ \ \ \ \ \textcolor{keywordflow}{pass}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00516}00516\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00517}00517\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00518}00518\ TERMINATION\_MESSAGES\ =\ \{}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00519}00519\ \ \ \ \ 0:\ \textcolor{stringliteral}{"{}The\ algorithm\ converged\ to\ the\ desired\ accuracy."{}},}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00520}00520\ \ \ \ \ 1:\ \textcolor{stringliteral}{"{}The\ maximum\ number\ of\ mesh\ nodes\ is\ exceeded."{}},}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00521}00521\ \ \ \ \ 2:\ \textcolor{stringliteral}{"{}A\ singular\ Jacobian\ encountered\ when\ solving\ the\ collocation\ system."{}},}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00522}00522\ \ \ \ \ 3:\ \textcolor{stringliteral}{"{}The\ solver\ was\ unable\ to\ satisfy\ boundary\ conditions\ tolerance\ on\ iteration\ 10."{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00523}00523\ \}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00524}00524\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00525}00525\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00526}\mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_af426b824c4dbc0de39b9942652a8904e}{00526}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_af426b824c4dbc0de39b9942652a8904e}{estimate\_rms\_residuals}}(fun,\ sol,\ x,\ h,\ p,\ r\_middle,\ f\_middle):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00527}00527\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Estimate\ rms\ values\ of\ collocation\ residuals\ using\ Lobatto\ quadrature.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00528}00528\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00529}00529\ \textcolor{stringliteral}{\ \ \ \ The\ residuals\ are\ defined\ as\ the\ difference\ between\ the\ derivatives\ of}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00530}00530\ \textcolor{stringliteral}{\ \ \ \ our\ solution\ and\ rhs\ of\ the\ ODE\ system.\ We\ use\ relative\ residuals,\ i.e.,}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00531}00531\ \textcolor{stringliteral}{\ \ \ \ normalized\ by\ 1\ +\ np.abs(f).\ RMS\ values\ are\ computed\ as\ sqrt\ from\ the}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00532}00532\ \textcolor{stringliteral}{\ \ \ \ normalized\ integrals\ of\ the\ squared\ relative\ residuals\ over\ each\ interval.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00533}00533\ \textcolor{stringliteral}{\ \ \ \ Integrals\ are\ estimated\ using\ 5-\/point\ Lobatto\ quadrature\ [1]\_,\ we\ use\ the}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00534}00534\ \textcolor{stringliteral}{\ \ \ \ fact\ that\ residuals\ at\ the\ mesh\ nodes\ are\ identically\ zero.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00535}00535\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00536}00536\ \textcolor{stringliteral}{\ \ \ \ In\ [2]\ they\ don't\ normalize\ integrals\ by\ interval\ lengths,\ which\ gives}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00537}00537\ \textcolor{stringliteral}{\ \ \ \ a\ higher\ rate\ of\ convergence\ of\ the\ residuals\ by\ the\ factor\ of\ h**0.5.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00538}00538\ \textcolor{stringliteral}{\ \ \ \ I\ chose\ to\ do\ such\ normalization\ for\ an\ ease\ of\ interpretation\ of\ return}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00539}00539\ \textcolor{stringliteral}{\ \ \ \ values\ as\ RMS\ estimates.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00540}00540\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00541}00541\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00542}00542\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00543}00543\ \textcolor{stringliteral}{\ \ \ \ rms\_res\ :\ ndarray,\ shape\ (m\ -\/\ 1,)}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00544}00544\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Estimated\ rms\ values\ of\ the\ relative\ residuals\ over\ each\ interval.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00545}00545\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00546}00546\ \textcolor{stringliteral}{\ \ \ \ References}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00547}00547\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00548}00548\ \textcolor{stringliteral}{\ \ \ \ ..\ [1]\ http://mathworld.wolfram.com/LobattoQuadrature.html}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00549}00549\ \textcolor{stringliteral}{\ \ \ \ ..\ [2]\ J.\ Kierzenka,\ L.\ F.\ Shampine,\ "{}A\ BVP\ Solver\ Based\ on\ Residual}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00550}00550\ \textcolor{stringliteral}{\ \ \ \ \ \ \ Control\ and\ the\ Maltab\ PSE"{},\ ACM\ Trans.\ Math.\ Softw.,\ Vol.\ 27,}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00551}00551\ \textcolor{stringliteral}{\ \ \ \ \ \ \ Number\ 3,\ pp.\ 299-\/316,\ 2001.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00552}00552\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00553}00553\ \ \ \ \ x\_middle\ =\ x[:-\/1]\ +\ 0.5\ *\ h}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00554}00554\ \ \ \ \ s\ =\ 0.5\ *\ h\ *\ (3/7)**0.5}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00555}00555\ \ \ \ \ x1\ =\ x\_middle\ +\ s}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00556}00556\ \ \ \ \ x2\ =\ x\_middle\ -\/\ s}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00557}00557\ \ \ \ \ y1\ =\ sol(x1)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00558}00558\ \ \ \ \ y2\ =\ sol(x2)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00559}00559\ \ \ \ \ y1\_prime\ =\ sol(x1,\ 1)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00560}00560\ \ \ \ \ y2\_prime\ =\ sol(x2,\ 1)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00561}00561\ \ \ \ \ f1\ =\ fun(x1,\ y1,\ p)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00562}00562\ \ \ \ \ f2\ =\ fun(x2,\ y2,\ p)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00563}00563\ \ \ \ \ r1\ =\ y1\_prime\ -\/\ f1}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00564}00564\ \ \ \ \ r2\ =\ y2\_prime\ -\/\ f2}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00565}00565\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00566}00566\ \ \ \ \ r\_middle\ /=\ 1\ +\ np.abs(f\_middle)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00567}00567\ \ \ \ \ r1\ /=\ 1\ +\ np.abs(f1)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00568}00568\ \ \ \ \ r2\ /=\ 1\ +\ np.abs(f2)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00569}00569\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00570}00570\ \ \ \ \ r1\ =\ np.sum(np.real(r1\ *\ np.conj(r1)),\ axis=0)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00571}00571\ \ \ \ \ r2\ =\ np.sum(np.real(r2\ *\ np.conj(r2)),\ axis=0)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00572}00572\ \ \ \ \ r\_middle\ =\ np.sum(np.real(r\_middle\ *\ np.conj(r\_middle)),\ axis=0)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00573}00573\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00574}00574\ \ \ \ \ \textcolor{keywordflow}{return}\ (0.5\ *\ (32\ /\ 45\ *\ r\_middle\ +\ 49\ /\ 90\ *\ (r1\ +\ r2)))\ **\ 0.5}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00575}00575\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00576}00576\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00577}\mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_a52008364a7339728115c99023d524c26}{00577}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_a52008364a7339728115c99023d524c26}{create\_spline}}(y,\ yp,\ x,\ h):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00578}00578\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Create\ a\ cubic\ spline\ given\ values\ and\ derivatives.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00579}00579\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00580}00580\ \textcolor{stringliteral}{\ \ \ \ Formulas\ for\ the\ coefficients\ are\ taken\ from\ interpolate.CubicSpline.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00581}00581\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00582}00582\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00583}00583\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00584}00584\ \textcolor{stringliteral}{\ \ \ \ sol\ :\ PPoly}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00585}00585\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Constructed\ spline\ as\ a\ PPoly\ instance.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00586}00586\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00587}00587\ \ \ \ \ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacescipy_1_1interpolate}{scipy.interpolate}}\ \textcolor{keyword}{import}\ PPoly}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00588}00588\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00589}00589\ \ \ \ \ n,\ m\ =\ y.shape}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00590}00590\ \ \ \ \ c\ =\ np.empty((4,\ n,\ m\ -\/\ 1),\ dtype=y.dtype)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00591}00591\ \ \ \ \ slope\ =\ (y[:,\ 1:]\ -\/\ y[:,\ :-\/1])\ /\ h}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00592}00592\ \ \ \ \ t\ =\ (yp[:,\ :-\/1]\ +\ yp[:,\ 1:]\ -\/\ 2\ *\ slope)\ /\ h}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00593}00593\ \ \ \ \ c[0]\ =\ t\ /\ h}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00594}00594\ \ \ \ \ c[1]\ =\ (slope\ -\/\ yp[:,\ :-\/1])\ /\ h\ -\/\ t}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00595}00595\ \ \ \ \ c[2]\ =\ yp[:,\ :-\/1]}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00596}00596\ \ \ \ \ c[3]\ =\ y[:,\ :-\/1]}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00597}00597\ \ \ \ \ c\ =\ np.moveaxis(c,\ 1,\ 0)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00598}00598\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00599}00599\ \ \ \ \ \textcolor{keywordflow}{return}\ PPoly(c,\ x,\ extrapolate=\textcolor{keyword}{True},\ axis=1)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00600}00600\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00601}00601\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00602}\mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_a9b2734b62ef488e502e42e0aa66a9946}{00602}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_a9b2734b62ef488e502e42e0aa66a9946}{modify\_mesh}}(x,\ insert\_1,\ insert\_2):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00603}00603\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Insert\ nodes\ into\ a\ mesh.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00604}00604\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00605}00605\ \textcolor{stringliteral}{\ \ \ \ Nodes\ removal\ logic\ is\ not\ established,\ its\ impact\ on\ the\ solver\ is}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00606}00606\ \textcolor{stringliteral}{\ \ \ \ presumably\ negligible.\ So,\ only\ insertion\ is\ done\ in\ this\ function.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00607}00607\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00608}00608\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00609}00609\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00610}00610\ \textcolor{stringliteral}{\ \ \ \ x\ :\ ndarray,\ shape\ (m,)}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00611}00611\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Mesh\ nodes.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00612}00612\ \textcolor{stringliteral}{\ \ \ \ insert\_1\ :\ ndarray}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00613}00613\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Intervals\ to\ each\ insert\ 1\ new\ node\ in\ the\ middle.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00614}00614\ \textcolor{stringliteral}{\ \ \ \ insert\_2\ :\ ndarray}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00615}00615\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Intervals\ to\ each\ insert\ 2\ new\ nodes,\ such\ that\ divide\ an\ interval}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00616}00616\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ into\ 3\ equal\ parts.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00617}00617\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00618}00618\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00619}00619\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00620}00620\ \textcolor{stringliteral}{\ \ \ \ x\_new\ :\ ndarray}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00621}00621\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ New\ mesh\ nodes.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00622}00622\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00623}00623\ \textcolor{stringliteral}{\ \ \ \ Notes}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00624}00624\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00625}00625\ \textcolor{stringliteral}{\ \ \ \ \`{}insert\_1\`{}\ and\ \`{}insert\_2\`{}\ should\ not\ have\ common\ values.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00626}00626\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00627}00627\ \ \ \ \ \textcolor{comment}{\#\ Because\ np.insert\ implementation\ apparently\ varies\ with\ a\ version\ of}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00628}00628\ \ \ \ \ \textcolor{comment}{\#\ NumPy,\ we\ use\ a\ simple\ and\ reliable\ approach\ with\ sorting.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00629}00629\ \ \ \ \ \textcolor{keywordflow}{return}\ np.sort(np.hstack((}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00630}00630\ \ \ \ \ \ \ \ \ x,}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00631}00631\ \ \ \ \ \ \ \ \ 0.5\ *\ (x[insert\_1]\ +\ x[insert\_1\ +\ 1]),}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00632}00632\ \ \ \ \ \ \ \ \ (2\ *\ x[insert\_2]\ +\ x[insert\_2\ +\ 1])\ /\ 3,}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00633}00633\ \ \ \ \ \ \ \ \ (x[insert\_2]\ +\ 2\ *\ x[insert\_2\ +\ 1])\ /\ 3}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00634}00634\ \ \ \ \ )))}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00635}00635\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00636}00636\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00637}\mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_ab326bbe47e4328938c2cf9b65c6d5dc3}{00637}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_ab326bbe47e4328938c2cf9b65c6d5dc3}{wrap\_functions}}(fun,\ bc,\ fun\_jac,\ bc\_jac,\ k,\ a,\ S,\ D,\ dtype):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00638}00638\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Wrap\ functions\ for\ unified\ usage\ in\ the\ solver."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00639}00639\ \ \ \ \ \textcolor{keywordflow}{if}\ fun\_jac\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00640}00640\ \ \ \ \ \ \ \ \ fun\_jac\_wrapped\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00641}00641\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00642}00642\ \ \ \ \ \textcolor{keywordflow}{if}\ bc\_jac\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00643}00643\ \ \ \ \ \ \ \ \ bc\_jac\_wrapped\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00644}00644\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00645}00645\ \ \ \ \ \textcolor{keywordflow}{if}\ k\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00646}00646\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }fun\_p(x,\ y,\ \_):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00647}00647\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ np.asarray(fun(x,\ y),\ dtype)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00648}00648\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00649}00649\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }bc\_wrapped(ya,\ yb,\ \_):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00650}00650\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ np.asarray(bc(ya,\ yb),\ dtype)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00651}00651\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00652}00652\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ fun\_jac\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00653}00653\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }fun\_jac\_p(x,\ y,\ \_):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00654}00654\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ np.asarray(fun\_jac(x,\ y),\ dtype),\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00655}00655\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00656}00656\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ bc\_jac\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00657}00657\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }bc\_jac\_wrapped(ya,\ yb,\ \_):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00658}00658\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ dbc\_dya,\ dbc\_dyb\ =\ bc\_jac(ya,\ yb)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00659}00659\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ (np.asarray(dbc\_dya,\ dtype),}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00660}00660\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ np.asarray(dbc\_dyb,\ dtype),\ \textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00661}00661\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00662}00662\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }fun\_p(x,\ y,\ p):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00663}00663\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ np.asarray(fun(x,\ y,\ p),\ dtype)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00664}00664\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00665}00665\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }bc\_wrapped(x,\ y,\ p):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00666}00666\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ np.asarray(bc(x,\ y,\ p),\ dtype)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00667}00667\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00668}00668\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ fun\_jac\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00669}00669\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }fun\_jac\_p(x,\ y,\ p):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00670}00670\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ df\_dy,\ df\_dp\ =\ fun\_jac(x,\ y,\ p)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00671}00671\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ np.asarray(df\_dy,\ dtype),\ np.asarray(df\_dp,\ dtype)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00672}00672\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00673}00673\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ bc\_jac\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00674}00674\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }bc\_jac\_wrapped(ya,\ yb,\ p):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00675}00675\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ dbc\_dya,\ dbc\_dyb,\ dbc\_dp\ =\ bc\_jac(ya,\ yb,\ p)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00676}00676\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ (np.asarray(dbc\_dya,\ dtype),\ np.asarray(dbc\_dyb,\ dtype),}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00677}00677\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ np.asarray(dbc\_dp,\ dtype))}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00678}00678\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00679}00679\ \ \ \ \ \textcolor{keywordflow}{if}\ S\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00680}00680\ \ \ \ \ \ \ \ \ fun\_wrapped\ =\ fun\_p}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00681}00681\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00682}00682\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }fun\_wrapped(x,\ y,\ p):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00683}00683\ \ \ \ \ \ \ \ \ \ \ \ \ f\ =\ fun\_p(x,\ y,\ p)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00684}00684\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ x[0]\ ==\ a:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00685}00685\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f[:,\ 0]\ =\ np.dot(D,\ f[:,\ 0])}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00686}00686\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f[:,\ 1:]\ +=\ np.dot(S,\ y[:,\ 1:])\ /\ (x[1:]\ -\/\ a)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00687}00687\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00688}00688\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\ +=\ np.dot(S,\ y)\ /\ (x\ -\/\ a)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00689}00689\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ f}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00690}00690\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00691}00691\ \ \ \ \ \textcolor{keywordflow}{if}\ fun\_jac\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00692}00692\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ S\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00693}00693\ \ \ \ \ \ \ \ \ \ \ \ \ fun\_jac\_wrapped\ =\ fun\_jac\_p}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00694}00694\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00695}00695\ \ \ \ \ \ \ \ \ \ \ \ \ Sr\ =\ S[:,\ :,\ np.newaxis]}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00696}00696\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00697}00697\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }fun\_jac\_wrapped(x,\ y,\ p):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00698}00698\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ df\_dy,\ df\_dp\ =\ fun\_jac\_p(x,\ y,\ p)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00699}00699\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ x[0]\ ==\ a:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00700}00700\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ df\_dy[:,\ :,\ 0]\ =\ np.dot(D,\ df\_dy[:,\ :,\ 0])}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00701}00701\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ df\_dy[:,\ :,\ 1:]\ +=\ Sr\ /\ (x[1:]\ -\/\ a)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00702}00702\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00703}00703\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ df\_dy\ +=\ Sr\ /\ (x\ -\/\ a)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00704}00704\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00705}00705\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ df\_dy,\ df\_dp}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00706}00706\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00707}00707\ \ \ \ \ \textcolor{keywordflow}{return}\ fun\_wrapped,\ bc\_wrapped,\ fun\_jac\_wrapped,\ bc\_jac\_wrapped}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00708}00708\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00709}00709\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00710}\mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_ac7d9e00cd7b244fb96fd92ff8510b1a6}{00710}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_ac7d9e00cd7b244fb96fd92ff8510b1a6}{solve\_bvp}}(fun,\ bc,\ x,\ y,\ p=None,\ S=None,\ fun\_jac=None,\ bc\_jac=None,}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00711}00711\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ tol=1e-\/3,\ max\_nodes=1000,\ verbose=0,\ bc\_tol=None):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00712}00712\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Solve\ a\ boundary\ value\ problem\ for\ a\ system\ of\ ODEs.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00713}00713\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00714}00714\ \textcolor{stringliteral}{\ \ \ \ This\ function\ numerically\ solves\ a\ first\ order\ system\ of\ ODEs\ subject\ to}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00715}00715\ \textcolor{stringliteral}{\ \ \ \ two-\/point\ boundary\ conditions::}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00716}00716\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00717}00717\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ dy\ /\ dx\ =\ f(x,\ y,\ p)\ +\ S\ *\ y\ /\ (x\ -\/\ a),\ a\ <=\ x\ <=\ b}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00718}00718\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ bc(y(a),\ y(b),\ p)\ =\ 0}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00719}00719\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00720}00720\ \textcolor{stringliteral}{\ \ \ \ Here\ x\ is\ a\ 1-\/D\ independent\ variable,\ y(x)\ is\ an\ N-\/D}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00721}00721\ \textcolor{stringliteral}{\ \ \ \ vector-\/valued\ function\ and\ p\ is\ a\ k-\/D\ vector\ of\ unknown}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00722}00722\ \textcolor{stringliteral}{\ \ \ \ parameters\ which\ is\ to\ be\ found\ along\ with\ y(x).\ For\ the\ problem\ to\ be}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00723}00723\ \textcolor{stringliteral}{\ \ \ \ determined,\ there\ must\ be\ n\ +\ k\ boundary\ conditions,\ i.e.,\ bc\ must\ be\ an}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00724}00724\ \textcolor{stringliteral}{\ \ \ \ (n\ +\ k)-\/D\ function.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00725}00725\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00726}00726\ \textcolor{stringliteral}{\ \ \ \ The\ last\ singular\ term\ on\ the\ right-\/hand\ side\ of\ the\ system\ is\ optional.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00727}00727\ \textcolor{stringliteral}{\ \ \ \ It\ is\ defined\ by\ an\ n-\/by-\/n\ matrix\ S,\ such\ that\ the\ solution\ must\ satisfy}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00728}00728\ \textcolor{stringliteral}{\ \ \ \ S\ y(a)\ =\ 0.\ This\ condition\ will\ be\ forced\ during\ iterations,\ so\ it\ must\ not}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00729}00729\ \textcolor{stringliteral}{\ \ \ \ contradict\ boundary\ conditions.\ See\ [2]\_\ for\ the\ explanation\ how\ this\ term}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00730}00730\ \textcolor{stringliteral}{\ \ \ \ is\ handled\ when\ solving\ BVPs\ numerically.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00731}00731\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00732}00732\ \textcolor{stringliteral}{\ \ \ \ Problems\ in\ a\ complex\ domain\ can\ be\ solved\ as\ well.\ In\ this\ case,\ y\ and\ p}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00733}00733\ \textcolor{stringliteral}{\ \ \ \ are\ considered\ to\ be\ complex,\ and\ f\ and\ bc\ are\ assumed\ to\ be\ complex-\/valued}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00734}00734\ \textcolor{stringliteral}{\ \ \ \ functions,\ but\ x\ stays\ real.\ Note\ that\ f\ and\ bc\ must\ be\ complex}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00735}00735\ \textcolor{stringliteral}{\ \ \ \ differentiable\ (satisfy\ Cauchy-\/Riemann\ equations\ [4]\_),\ otherwise\ you}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00736}00736\ \textcolor{stringliteral}{\ \ \ \ should\ rewrite\ your\ problem\ for\ real\ and\ imaginary\ parts\ separately.\ To}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00737}00737\ \textcolor{stringliteral}{\ \ \ \ solve\ a\ problem\ in\ a\ complex\ domain,\ pass\ an\ initial\ guess\ for\ y\ with\ a}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00738}00738\ \textcolor{stringliteral}{\ \ \ \ complex\ data\ type\ (see\ below).}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00739}00739\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00740}00740\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00741}00741\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00742}00742\ \textcolor{stringliteral}{\ \ \ \ fun\ :\ callable}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00743}00743\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Right-\/hand\ side\ of\ the\ system.\ The\ calling\ signature\ is\ \`{}\`{}fun(x,\ y)\`{}\`{},}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00744}00744\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ or\ \`{}\`{}fun(x,\ y,\ p)\`{}\`{}\ if\ parameters\ are\ present.\ All\ arguments\ are}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00745}00745\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ndarray:\ \`{}\`{}x\`{}\`{}\ with\ shape\ (m,),\ \`{}\`{}y\`{}\`{}\ with\ shape\ (n,\ m),\ meaning\ that}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00746}00746\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}y[:,\ i]\`{}\`{}\ corresponds\ to\ \`{}\`{}x[i]\`{}\`{},\ and\ \`{}\`{}p\`{}\`{}\ with\ shape\ (k,).\ The}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00747}00747\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ return\ value\ must\ be\ an\ array\ with\ shape\ (n,\ m)\ and\ with\ the\ same}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00748}00748\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ layout\ as\ \`{}\`{}y\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00749}00749\ \textcolor{stringliteral}{\ \ \ \ bc\ :\ callable}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00750}00750\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Function\ evaluating\ residuals\ of\ the\ boundary\ conditions.\ The\ calling}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00751}00751\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ signature\ is\ \`{}\`{}bc(ya,\ yb)\`{}\`{},\ or\ \`{}\`{}bc(ya,\ yb,\ p)\`{}\`{}\ if\ parameters\ are}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00752}00752\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ present.\ All\ arguments\ are\ ndarray:\ \`{}\`{}ya\`{}\`{}\ and\ \`{}\`{}yb\`{}\`{}\ with\ shape\ (n,),}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00753}00753\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ and\ \`{}\`{}p\`{}\`{}\ with\ shape\ (k,).\ The\ return\ value\ must\ be\ an\ array\ with}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00754}00754\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ shape\ (n\ +\ k,).}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00755}00755\ \textcolor{stringliteral}{\ \ \ \ x\ :\ array\_like,\ shape\ (m,)}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00756}00756\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Initial\ mesh.\ Must\ be\ a\ strictly\ increasing\ sequence\ of\ real\ numbers}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00757}00757\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ with\ \`{}\`{}x[0]=a\`{}\`{}\ and\ \`{}\`{}x[-\/1]=b\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00758}00758\ \textcolor{stringliteral}{\ \ \ \ y\ :\ array\_like,\ shape\ (n,\ m)}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00759}00759\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Initial\ guess\ for\ the\ function\ values\ at\ the\ mesh\ nodes,\ ith\ column}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00760}00760\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ corresponds\ to\ \`{}\`{}x[i]\`{}\`{}.\ For\ problems\ in\ a\ complex\ domain\ pass\ \`{}y\`{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00761}00761\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ with\ a\ complex\ data\ type\ (even\ if\ the\ initial\ guess\ is\ purely\ real).}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00762}00762\ \textcolor{stringliteral}{\ \ \ \ p\ :\ array\_like\ with\ shape\ (k,)\ or\ None,\ optional}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00763}00763\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Initial\ guess\ for\ the\ unknown\ parameters.\ If\ None\ (default),\ it\ is}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00764}00764\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ assumed\ that\ the\ problem\ doesn't\ depend\ on\ any\ parameters.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00765}00765\ \textcolor{stringliteral}{\ \ \ \ S\ :\ array\_like\ with\ shape\ (n,\ n)\ or\ None}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00766}00766\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Matrix\ defining\ the\ singular\ term.\ If\ None\ (default),\ the\ problem\ is}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00767}00767\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ solved\ without\ the\ singular\ term.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00768}00768\ \textcolor{stringliteral}{\ \ \ \ fun\_jac\ :\ callable\ or\ None,\ optional}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00769}00769\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Function\ computing\ derivatives\ of\ f\ with\ respect\ to\ y\ and\ p.\ The}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00770}00770\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ calling\ signature\ is\ \`{}\`{}fun\_jac(x,\ y)\`{}\`{},\ or\ \`{}\`{}fun\_jac(x,\ y,\ p)\`{}\`{}\ if}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00771}00771\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ parameters\ are\ present.\ The\ return\ must\ contain\ 1\ or\ 2\ elements\ in\ the}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00772}00772\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ following\ order:}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00773}00773\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00774}00774\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ *\ df\_dy\ :\ array\_like\ with\ shape\ (n,\ n,\ m),\ where\ an\ element}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00775}00775\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ (i,\ j,\ q)\ equals\ to\ d\ f\_i(x\_q,\ y\_q,\ p)\ /\ d\ (y\_q)\_j.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00776}00776\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ *\ df\_dp\ :\ array\_like\ with\ shape\ (n,\ k,\ m),\ where\ an\ element}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00777}00777\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ (i,\ j,\ q)\ equals\ to\ d\ f\_i(x\_q,\ y\_q,\ p)\ /\ d\ p\_j.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00778}00778\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00779}00779\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Here\ q\ numbers\ nodes\ at\ which\ x\ and\ y\ are\ defined,\ whereas\ i\ and\ j}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00780}00780\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ number\ vector\ components.\ If\ the\ problem\ is\ solved\ without\ unknown}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00781}00781\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ parameters,\ df\_dp\ should\ not\ be\ returned.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00782}00782\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00783}00783\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ \`{}fun\_jac\`{}\ is\ None\ (default),\ the\ derivatives\ will\ be\ estimated}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00784}00784\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ by\ the\ forward\ finite\ differences.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00785}00785\ \textcolor{stringliteral}{\ \ \ \ bc\_jac\ :\ callable\ or\ None,\ optional}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00786}00786\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Function\ computing\ derivatives\ of\ bc\ with\ respect\ to\ ya,\ yb,\ and\ p.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00787}00787\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ calling\ signature\ is\ \`{}\`{}bc\_jac(ya,\ yb)\`{}\`{},\ or\ \`{}\`{}bc\_jac(ya,\ yb,\ p)\`{}\`{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00788}00788\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ if\ parameters\ are\ present.\ The\ return\ must\ contain\ 2\ or\ 3\ elements\ in}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00789}00789\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ following\ order:}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00790}00790\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00791}00791\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ *\ dbc\_dya\ :\ array\_like\ with\ shape\ (n,\ n),\ where\ an\ element\ (i,\ j)}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00792}00792\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ equals\ to\ d\ bc\_i(ya,\ yb,\ p)\ /\ d\ ya\_j.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00793}00793\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ *\ dbc\_dyb\ :\ array\_like\ with\ shape\ (n,\ n),\ where\ an\ element\ (i,\ j)}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00794}00794\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ equals\ to\ d\ bc\_i(ya,\ yb,\ p)\ /\ d\ yb\_j.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00795}00795\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ *\ dbc\_dp\ :\ array\_like\ with\ shape\ (n,\ k),\ where\ an\ element\ (i,\ j)}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00796}00796\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ equals\ to\ d\ bc\_i(ya,\ yb,\ p)\ /\ d\ p\_j.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00797}00797\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00798}00798\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ the\ problem\ is\ solved\ without\ unknown\ parameters,\ dbc\_dp\ should\ not}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00799}00799\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ be\ returned.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00800}00800\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00801}00801\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ \`{}bc\_jac\`{}\ is\ None\ (default),\ the\ derivatives\ will\ be\ estimated\ by}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00802}00802\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ forward\ finite\ differences.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00803}00803\ \textcolor{stringliteral}{\ \ \ \ tol\ :\ float,\ optional}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00804}00804\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Desired\ tolerance\ of\ the\ solution.\ If\ we\ define\ \`{}\`{}r\ =\ y'\ -\/\ f(x,\ y)\`{}\`{},}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00805}00805\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ where\ y\ is\ the\ found\ solution,\ then\ the\ solver\ tries\ to\ achieve\ on\ each}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00806}00806\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ mesh\ interval\ \`{}\`{}norm(r\ /\ (1\ +\ abs(f))\ <\ tol\`{}\`{},\ where\ \`{}\`{}norm\`{}\`{}\ is}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00807}00807\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ estimated\ in\ a\ root\ mean\ squared\ sense\ (using\ a\ numerical\ quadrature}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00808}00808\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ formula).\ Default\ is\ 1e-\/3.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00809}00809\ \textcolor{stringliteral}{\ \ \ \ max\_nodes\ :\ int,\ optional}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00810}00810\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Maximum\ allowed\ number\ of\ the\ mesh\ nodes.\ If\ exceeded,\ the\ algorithm}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00811}00811\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ terminates.\ Default\ is\ 1000.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00812}00812\ \textcolor{stringliteral}{\ \ \ \ verbose\ :\ \{0,\ 1,\ 2\},\ optional}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00813}00813\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Level\ of\ algorithm's\ verbosity:}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00814}00814\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00815}00815\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ *\ 0\ (default)\ :\ work\ silently.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00816}00816\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ *\ 1\ :\ display\ a\ termination\ report.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00817}00817\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ *\ 2\ :\ display\ progress\ during\ iterations.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00818}00818\ \textcolor{stringliteral}{\ \ \ \ bc\_tol\ :\ float,\ optional}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00819}00819\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Desired\ absolute\ tolerance\ for\ the\ boundary\ condition\ residuals:\ \`{}bc\`{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00820}00820\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ value\ should\ satisfy\ \`{}\`{}abs(bc)\ <\ bc\_tol\`{}\`{}\ component-\/wise.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00821}00821\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Equals\ to\ \`{}tol\`{}\ by\ default.\ Up\ to\ 10\ iterations\ are\ allowed\ to\ achieve\ this}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00822}00822\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ tolerance.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00823}00823\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00824}00824\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00825}00825\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00826}00826\ \textcolor{stringliteral}{\ \ \ \ Bunch\ object\ with\ the\ following\ fields\ defined:}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00827}00827\ \textcolor{stringliteral}{\ \ \ \ sol\ :\ PPoly}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00828}00828\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Found\ solution\ for\ y\ as\ \`{}scipy.interpolate.PPoly\`{}\ instance,\ a\ C1}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00829}00829\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ continuous\ cubic\ spline.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00830}00830\ \textcolor{stringliteral}{\ \ \ \ p\ :\ ndarray\ or\ None,\ shape\ (k,)}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00831}00831\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Found\ parameters.\ None,\ if\ the\ parameters\ were\ not\ present\ in\ the}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00832}00832\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ problem.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00833}00833\ \textcolor{stringliteral}{\ \ \ \ x\ :\ ndarray,\ shape\ (m,)}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00834}00834\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Nodes\ of\ the\ final\ mesh.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00835}00835\ \textcolor{stringliteral}{\ \ \ \ y\ :\ ndarray,\ shape\ (n,\ m)}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00836}00836\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Solution\ values\ at\ the\ mesh\ nodes.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00837}00837\ \textcolor{stringliteral}{\ \ \ \ yp\ :\ ndarray,\ shape\ (n,\ m)}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00838}00838\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Solution\ derivatives\ at\ the\ mesh\ nodes.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00839}00839\ \textcolor{stringliteral}{\ \ \ \ rms\_residuals\ :\ ndarray,\ shape\ (m\ -\/\ 1,)}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00840}00840\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ RMS\ values\ of\ the\ relative\ residuals\ over\ each\ mesh\ interval\ (see\ the}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00841}00841\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ description\ of\ \`{}tol\`{}\ parameter).}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00842}00842\ \textcolor{stringliteral}{\ \ \ \ niter\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00843}00843\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ completed\ iterations.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00844}00844\ \textcolor{stringliteral}{\ \ \ \ status\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00845}00845\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Reason\ for\ algorithm\ termination:}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00846}00846\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00847}00847\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ *\ 0:\ The\ algorithm\ converged\ to\ the\ desired\ accuracy.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00848}00848\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ *\ 1:\ The\ maximum\ number\ of\ mesh\ nodes\ is\ exceeded.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00849}00849\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ *\ 2:\ A\ singular\ Jacobian\ encountered\ when\ solving\ the\ collocation}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00850}00850\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ system.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00851}00851\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00852}00852\ \textcolor{stringliteral}{\ \ \ \ message\ :\ string}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00853}00853\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Verbal\ description\ of\ the\ termination\ reason.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00854}00854\ \textcolor{stringliteral}{\ \ \ \ success\ :\ bool}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00855}00855\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ True\ if\ the\ algorithm\ converged\ to\ the\ desired\ accuracy\ (\`{}\`{}status=0\`{}\`{}).}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00856}00856\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00857}00857\ \textcolor{stringliteral}{\ \ \ \ Notes}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00858}00858\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00859}00859\ \textcolor{stringliteral}{\ \ \ \ This\ function\ implements\ a\ 4th\ order\ collocation\ algorithm\ with\ the}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00860}00860\ \textcolor{stringliteral}{\ \ \ \ control\ of\ residuals\ similar\ to\ [1]\_.\ A\ collocation\ system\ is\ solved}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00861}00861\ \textcolor{stringliteral}{\ \ \ \ by\ a\ damped\ Newton\ method\ with\ an\ affine-\/invariant\ criterion\ function\ as}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00862}00862\ \textcolor{stringliteral}{\ \ \ \ described\ in\ [3]\_.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00863}00863\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00864}00864\ \textcolor{stringliteral}{\ \ \ \ Note\ that\ in\ [1]\_\ \ integral\ residuals\ are\ defined\ without\ normalization}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00865}00865\ \textcolor{stringliteral}{\ \ \ \ by\ interval\ lengths.\ So,\ their\ definition\ is\ different\ by\ a\ multiplier\ of}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00866}00866\ \textcolor{stringliteral}{\ \ \ \ h**0.5\ (h\ is\ an\ interval\ length)\ from\ the\ definition\ used\ here.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00867}00867\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00868}00868\ \textcolor{stringliteral}{\ \ \ \ ..\ versionadded::\ 0.18.0}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00869}00869\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00870}00870\ \textcolor{stringliteral}{\ \ \ \ References}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00871}00871\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00872}00872\ \textcolor{stringliteral}{\ \ \ \ ..\ [1]\ J.\ Kierzenka,\ L.\ F.\ Shampine,\ "{}A\ BVP\ Solver\ Based\ on\ Residual}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00873}00873\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ Control\ and\ the\ Maltab\ PSE"{},\ ACM\ Trans.\ Math.\ Softw.,\ Vol.\ 27,}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00874}00874\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ Number\ 3,\ pp.\ 299-\/316,\ 2001.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00875}00875\ \textcolor{stringliteral}{\ \ \ \ ..\ [2]\ L.F.\ Shampine,\ P.\ H.\ Muir\ and\ H.\ Xu,\ "{}A\ User-\/Friendly\ Fortran\ BVP}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00876}00876\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ Solver"{}.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00877}00877\ \textcolor{stringliteral}{\ \ \ \ ..\ [3]\ U.\ Ascher,\ R.\ Mattheij\ and\ R.\ Russell\ "{}Numerical\ Solution\ of}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00878}00878\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ Boundary\ Value\ Problems\ for\ Ordinary\ Differential\ Equations"{}.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00879}00879\ \textcolor{stringliteral}{\ \ \ \ ..\ [4]\ \`{}Cauchy-\/Riemann\ equations}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00880}00880\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ <https://en.wikipedia.org/wiki/Cauchy-\/Riemann\_equations>\`{}\_\ on}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00881}00881\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Wikipedia.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00882}00882\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00883}00883\ \textcolor{stringliteral}{\ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00884}00884\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00885}00885\ \textcolor{stringliteral}{\ \ \ \ In\ the\ first\ example,\ we\ solve\ Bratu's\ problem::}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00886}00886\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00887}00887\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ y''\ +\ k\ *\ exp(y)\ =\ 0}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00888}00888\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ y(0)\ =\ y(1)\ =\ 0}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00889}00889\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00890}00890\ \textcolor{stringliteral}{\ \ \ \ for\ k\ =\ 1.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00891}00891\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00892}00892\ \textcolor{stringliteral}{\ \ \ \ We\ rewrite\ the\ equation\ as\ a\ first-\/order\ system\ and\ implement\ its}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00893}00893\ \textcolor{stringliteral}{\ \ \ \ right-\/hand\ side\ evaluation::}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00894}00894\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00895}00895\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ y1'\ =\ y2}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00896}00896\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ y2'\ =\ -\/exp(y1)}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00897}00897\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00898}00898\ \textcolor{stringliteral}{\ \ \ \ >>>\ import\ numpy\ as\ np}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00899}00899\ \textcolor{stringliteral}{\ \ \ \ >>>\ def\ fun(x,\ y):}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00900}00900\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ return\ np.vstack((y[1],\ -\/np.exp(y[0])))}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00901}00901\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00902}00902\ \textcolor{stringliteral}{\ \ \ \ Implement\ evaluation\ of\ the\ boundary\ condition\ residuals:}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00903}00903\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00904}00904\ \textcolor{stringliteral}{\ \ \ \ >>>\ def\ bc(ya,\ yb):}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00905}00905\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ return\ np.array([ya[0],\ yb[0]])}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00906}00906\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00907}00907\ \textcolor{stringliteral}{\ \ \ \ Define\ the\ initial\ mesh\ with\ 5\ nodes:}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00908}00908\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00909}00909\ \textcolor{stringliteral}{\ \ \ \ >>>\ x\ =\ np.linspace(0,\ 1,\ 5)}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00910}00910\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00911}00911\ \textcolor{stringliteral}{\ \ \ \ This\ problem\ is\ known\ to\ have\ two\ solutions.\ To\ obtain\ both\ of\ them,\ we}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00912}00912\ \textcolor{stringliteral}{\ \ \ \ use\ two\ different\ initial\ guesses\ for\ y.\ We\ denote\ them\ by\ subscripts}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00913}00913\ \textcolor{stringliteral}{\ \ \ \ a\ and\ b.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00914}00914\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00915}00915\ \textcolor{stringliteral}{\ \ \ \ >>>\ y\_a\ =\ np.zeros((2,\ x.size))}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00916}00916\ \textcolor{stringliteral}{\ \ \ \ >>>\ y\_b\ =\ np.zeros((2,\ x.size))}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00917}00917\ \textcolor{stringliteral}{\ \ \ \ >>>\ y\_b[0]\ =\ 3}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00918}00918\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00919}00919\ \textcolor{stringliteral}{\ \ \ \ Now\ we\ are\ ready\ to\ run\ the\ solver.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00920}00920\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00921}00921\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ scipy.integrate\ import\ solve\_bvp}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00922}00922\ \textcolor{stringliteral}{\ \ \ \ >>>\ res\_a\ =\ solve\_bvp(fun,\ bc,\ x,\ y\_a)}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00923}00923\ \textcolor{stringliteral}{\ \ \ \ >>>\ res\_b\ =\ solve\_bvp(fun,\ bc,\ x,\ y\_b)}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00924}00924\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00925}00925\ \textcolor{stringliteral}{\ \ \ \ Let's\ plot\ the\ two\ found\ solutions.\ We\ take\ an\ advantage\ of\ having\ the}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00926}00926\ \textcolor{stringliteral}{\ \ \ \ solution\ in\ a\ spline\ form\ to\ produce\ a\ smooth\ plot.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00927}00927\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00928}00928\ \textcolor{stringliteral}{\ \ \ \ >>>\ x\_plot\ =\ np.linspace(0,\ 1,\ 100)}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00929}00929\ \textcolor{stringliteral}{\ \ \ \ >>>\ y\_plot\_a\ =\ res\_a.sol(x\_plot)[0]}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00930}00930\ \textcolor{stringliteral}{\ \ \ \ >>>\ y\_plot\_b\ =\ res\_b.sol(x\_plot)[0]}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00931}00931\ \textcolor{stringliteral}{\ \ \ \ >>>\ import\ matplotlib.pyplot\ as\ plt}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00932}00932\ \textcolor{stringliteral}{\ \ \ \ >>>\ plt.plot(x\_plot,\ y\_plot\_a,\ label='y\_a')}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00933}00933\ \textcolor{stringliteral}{\ \ \ \ >>>\ plt.plot(x\_plot,\ y\_plot\_b,\ label='y\_b')}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00934}00934\ \textcolor{stringliteral}{\ \ \ \ >>>\ plt.legend()}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00935}00935\ \textcolor{stringliteral}{\ \ \ \ >>>\ plt.xlabel("{}x"{})}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00936}00936\ \textcolor{stringliteral}{\ \ \ \ >>>\ plt.ylabel("{}y"{})}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00937}00937\ \textcolor{stringliteral}{\ \ \ \ >>>\ plt.show()}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00938}00938\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00939}00939\ \textcolor{stringliteral}{\ \ \ \ We\ see\ that\ the\ two\ solutions\ have\ similar\ shape,\ but\ differ\ in\ scale}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00940}00940\ \textcolor{stringliteral}{\ \ \ \ significantly.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00941}00941\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00942}00942\ \textcolor{stringliteral}{\ \ \ \ In\ the\ second\ example,\ we\ solve\ a\ simple\ Sturm-\/Liouville\ problem::}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00943}00943\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00944}00944\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ y''\ +\ k**2\ *\ y\ =\ 0}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00945}00945\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ y(0)\ =\ y(1)\ =\ 0}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00946}00946\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00947}00947\ \textcolor{stringliteral}{\ \ \ \ It\ is\ known\ that\ a\ non-\/trivial\ solution\ y\ =\ A\ *\ sin(k\ *\ x)\ is\ possible\ for}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00948}00948\ \textcolor{stringliteral}{\ \ \ \ k\ =\ pi\ *\ n,\ where\ n\ is\ an\ integer.\ To\ establish\ the\ normalization\ constant}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00949}00949\ \textcolor{stringliteral}{\ \ \ \ A\ =\ 1\ we\ add\ a\ boundary\ condition::}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00950}00950\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00951}00951\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ y'(0)\ =\ k}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00952}00952\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00953}00953\ \textcolor{stringliteral}{\ \ \ \ Again,\ we\ rewrite\ our\ equation\ as\ a\ first-\/order\ system\ and\ implement\ its}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00954}00954\ \textcolor{stringliteral}{\ \ \ \ right-\/hand\ side\ evaluation::}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00955}00955\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00956}00956\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ y1'\ =\ y2}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00957}00957\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ y2'\ =\ -\/k**2\ *\ y1}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00958}00958\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00959}00959\ \textcolor{stringliteral}{\ \ \ \ >>>\ def\ fun(x,\ y,\ p):}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00960}00960\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ k\ =\ p[0]}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00961}00961\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ return\ np.vstack((y[1],\ -\/k**2\ *\ y[0]))}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00962}00962\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00963}00963\ \textcolor{stringliteral}{\ \ \ \ Note\ that\ parameters\ p\ are\ passed\ as\ a\ vector\ (with\ one\ element\ in\ our}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00964}00964\ \textcolor{stringliteral}{\ \ \ \ case).}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00965}00965\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00966}00966\ \textcolor{stringliteral}{\ \ \ \ Implement\ the\ boundary\ conditions:}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00967}00967\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00968}00968\ \textcolor{stringliteral}{\ \ \ \ >>>\ def\ bc(ya,\ yb,\ p):}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00969}00969\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ k\ =\ p[0]}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00970}00970\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ return\ np.array([ya[0],\ yb[0],\ ya[1]\ -\/\ k])}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00971}00971\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00972}00972\ \textcolor{stringliteral}{\ \ \ \ Set\ up\ the\ initial\ mesh\ and\ guess\ for\ y.\ We\ aim\ to\ find\ the\ solution\ for}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00973}00973\ \textcolor{stringliteral}{\ \ \ \ k\ =\ 2\ *\ pi,\ to\ achieve\ that\ we\ set\ values\ of\ y\ to\ approximately\ follow}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00974}00974\ \textcolor{stringliteral}{\ \ \ \ sin(2\ *\ pi\ *\ x):}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00975}00975\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00976}00976\ \textcolor{stringliteral}{\ \ \ \ >>>\ x\ =\ np.linspace(0,\ 1,\ 5)}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00977}00977\ \textcolor{stringliteral}{\ \ \ \ >>>\ y\ =\ np.zeros((2,\ x.size))}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00978}00978\ \textcolor{stringliteral}{\ \ \ \ >>>\ y[0,\ 1]\ =\ 1}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00979}00979\ \textcolor{stringliteral}{\ \ \ \ >>>\ y[0,\ 3]\ =\ -\/1}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00980}00980\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00981}00981\ \textcolor{stringliteral}{\ \ \ \ Run\ the\ solver\ with\ 6\ as\ an\ initial\ guess\ for\ k.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00982}00982\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00983}00983\ \textcolor{stringliteral}{\ \ \ \ >>>\ sol\ =\ solve\_bvp(fun,\ bc,\ x,\ y,\ p=[6])}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00984}00984\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00985}00985\ \textcolor{stringliteral}{\ \ \ \ We\ see\ that\ the\ found\ k\ is\ approximately\ correct:}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00986}00986\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00987}00987\ \textcolor{stringliteral}{\ \ \ \ >>>\ sol.p[0]}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00988}00988\ \textcolor{stringliteral}{\ \ \ \ 6.28329460046}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00989}00989\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00990}00990\ \textcolor{stringliteral}{\ \ \ \ And,\ finally,\ plot\ the\ solution\ to\ see\ the\ anticipated\ sinusoid:}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00991}00991\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00992}00992\ \textcolor{stringliteral}{\ \ \ \ >>>\ x\_plot\ =\ np.linspace(0,\ 1,\ 100)}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00993}00993\ \textcolor{stringliteral}{\ \ \ \ >>>\ y\_plot\ =\ sol.sol(x\_plot)[0]}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00994}00994\ \textcolor{stringliteral}{\ \ \ \ >>>\ plt.plot(x\_plot,\ y\_plot)}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00995}00995\ \textcolor{stringliteral}{\ \ \ \ >>>\ plt.xlabel("{}x"{})}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00996}00996\ \textcolor{stringliteral}{\ \ \ \ >>>\ plt.ylabel("{}y"{})}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00997}00997\ \textcolor{stringliteral}{\ \ \ \ >>>\ plt.show()}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00998}00998\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l00999}00999\ \ \ \ \ x\ =\ np.asarray(x,\ dtype=float)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01000}01000\ \ \ \ \ \textcolor{keywordflow}{if}\ x.ndim\ !=\ 1:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01001}01001\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}\`{}x`\ must\ be\ 1\ dimensional."{}})}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01002}01002\ \ \ \ \ h\ =\ np.diff(x)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01003}01003\ \ \ \ \ \textcolor{keywordflow}{if}\ np.any(h\ <=\ 0):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01004}01004\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}\`{}x`\ must\ be\ strictly\ increasing."{}})}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01005}01005\ \ \ \ \ a\ =\ x[0]}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01006}01006\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01007}01007\ \ \ \ \ y\ =\ np.asarray(y)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01008}01008\ \ \ \ \ \textcolor{keywordflow}{if}\ np.issubdtype(y.dtype,\ np.complexfloating):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01009}01009\ \ \ \ \ \ \ \ \ dtype\ =\ complex}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01010}01010\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01011}01011\ \ \ \ \ \ \ \ \ dtype\ =\ float}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01012}01012\ \ \ \ \ y\ =\ y.astype(dtype,\ copy=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01013}01013\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01014}01014\ \ \ \ \ \textcolor{keywordflow}{if}\ y.ndim\ !=\ 2:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01015}01015\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}\`{}y`\ must\ be\ 2\ dimensional."{}})}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01016}01016\ \ \ \ \ \textcolor{keywordflow}{if}\ y.shape[1]\ !=\ x.shape[0]:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01017}01017\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}\`{}y`\ is\ expected\ to\ have\ \{\}\ columns,\ but\ actually\ "{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01018}01018\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}has\ \{\}."{}}.format(x.shape[0],\ y.shape[1]))}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01019}01019\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01020}01020\ \ \ \ \ \textcolor{keywordflow}{if}\ p\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01021}01021\ \ \ \ \ \ \ \ \ p\ =\ np.array([])}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01022}01022\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01023}01023\ \ \ \ \ \ \ \ \ p\ =\ np.asarray(p,\ dtype=dtype)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01024}01024\ \ \ \ \ \textcolor{keywordflow}{if}\ p.ndim\ !=\ 1:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01025}01025\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}\`{}p`\ must\ be\ 1\ dimensional."{}})}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01026}01026\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01027}01027\ \ \ \ \ \textcolor{keywordflow}{if}\ tol\ <\ 100\ *\ EPS:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01028}01028\ \ \ \ \ \ \ \ \ warn(f\textcolor{stringliteral}{"{}\`{}tol`\ is\ too\ low,\ setting\ to\ \{100\ *\ EPS:.2e\}"{}})}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01029}01029\ \ \ \ \ \ \ \ \ tol\ =\ 100\ *\ EPS}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01030}01030\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01031}01031\ \ \ \ \ \textcolor{keywordflow}{if}\ verbose\ \textcolor{keywordflow}{not}\ \textcolor{keywordflow}{in}\ [0,\ 1,\ 2]:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01032}01032\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}\`{}verbose`\ must\ be\ in\ [0,\ 1,\ 2]."{}})}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01033}01033\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01034}01034\ \ \ \ \ n\ =\ y.shape[0]}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01035}01035\ \ \ \ \ k\ =\ p.shape[0]}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01036}01036\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01037}01037\ \ \ \ \ \textcolor{keywordflow}{if}\ S\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01038}01038\ \ \ \ \ \ \ \ \ S\ =\ np.asarray(S,\ dtype=dtype)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01039}01039\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ S.shape\ !=\ (n,\ n):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01040}01040\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}\`{}S`\ is\ expected\ to\ have\ shape\ \{\},\ "{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01041}01041\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}but\ actually\ has\ \{\}"{}}.format((n,\ n),\ S.shape))}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01042}01042\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01043}01043\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Compute\ I\ -\/\ S\string^+\ S\ to\ impose\ necessary\ boundary\ conditions.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01044}01044\ \ \ \ \ \ \ \ \ B\ =\ np.identity(n)\ -\/\ np.dot(pinv(S),\ S)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01045}01045\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01046}01046\ \ \ \ \ \ \ \ \ y[:,\ 0]\ =\ np.dot(B,\ y[:,\ 0])}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01047}01047\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01048}01048\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Compute\ (I\ -\/\ S)\string^+\ to\ correct\ derivatives\ at\ x=a.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01049}01049\ \ \ \ \ \ \ \ \ D\ =\ pinv(np.identity(n)\ -\/\ S)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01050}01050\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01051}01051\ \ \ \ \ \ \ \ \ B\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01052}01052\ \ \ \ \ \ \ \ \ D\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01053}01053\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01054}01054\ \ \ \ \ \textcolor{keywordflow}{if}\ bc\_tol\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01055}01055\ \ \ \ \ \ \ \ \ bc\_tol\ =\ tol}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01056}01056\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01057}01057\ \ \ \ \ \textcolor{comment}{\#\ Maximum\ number\ of\ iterations}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01058}01058\ \ \ \ \ max\_iteration\ =\ 10}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01059}01059\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01060}01060\ \ \ \ \ fun\_wrapped,\ bc\_wrapped,\ fun\_jac\_wrapped,\ bc\_jac\_wrapped\ =\ \mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_ab326bbe47e4328938c2cf9b65c6d5dc3}{wrap\_functions}}(}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01061}01061\ \ \ \ \ \ \ \ \ fun,\ bc,\ fun\_jac,\ bc\_jac,\ k,\ a,\ S,\ D,\ dtype)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01062}01062\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01063}01063\ \ \ \ \ f\ =\ fun\_wrapped(x,\ y,\ p)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01064}01064\ \ \ \ \ \textcolor{keywordflow}{if}\ f.shape\ !=\ y.shape:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01065}01065\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}\`{}fun`\ return\ is\ expected\ to\ have\ shape\ \{\},\ "{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01066}01066\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}but\ actually\ has\ \{\}."{}}.format(y.shape,\ f.shape))}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01067}01067\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01068}01068\ \ \ \ \ bc\_res\ =\ bc\_wrapped(y[:,\ 0],\ y[:,\ -\/1],\ p)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01069}01069\ \ \ \ \ \textcolor{keywordflow}{if}\ bc\_res.shape\ !=\ (n\ +\ k,):}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01070}01070\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}\`{}bc`\ return\ is\ expected\ to\ have\ shape\ \{\},\ "{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01071}01071\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}but\ actually\ has\ \{\}."{}}.format((n\ +\ k,),\ bc\_res.shape))}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01072}01072\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01073}01073\ \ \ \ \ status\ =\ 0}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01074}01074\ \ \ \ \ iteration\ =\ 0}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01075}01075\ \ \ \ \ \textcolor{keywordflow}{if}\ verbose\ ==\ 2:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01076}01076\ \ \ \ \ \ \ \ \ print\_iteration\_header()}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01077}01077\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01078}01078\ \ \ \ \ \textcolor{keywordflow}{while}\ \textcolor{keyword}{True}:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01079}01079\ \ \ \ \ \ \ \ \ m\ =\ x.shape[0]}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01080}01080\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01081}01081\ \ \ \ \ \ \ \ \ col\_fun,\ jac\_sys\ =\ \mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_a3e5192bec9ee862fea0740740b0b180a}{prepare\_sys}}(n,\ m,\ k,\ fun\_wrapped,\ bc\_wrapped,}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01082}01082\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ fun\_jac\_wrapped,\ bc\_jac\_wrapped,\ x,\ h)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01083}01083\ \ \ \ \ \ \ \ \ y,\ p,\ singular\ =\ \mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_a9b44b4b962bed36f279bfe9307fe6eb3}{solve\_newton}}(n,\ m,\ h,\ col\_fun,\ bc\_wrapped,\ jac\_sys,}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01084}01084\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ y,\ p,\ B,\ tol,\ bc\_tol)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01085}01085\ \ \ \ \ \ \ \ \ iteration\ +=\ 1}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01086}01086\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01087}01087\ \ \ \ \ \ \ \ \ col\_res,\ y\_middle,\ f,\ f\_middle\ =\ \mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_a10253dea50687b4fa2f6c452de6f749a}{collocation\_fun}}(fun\_wrapped,\ y,}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01088}01088\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p,\ x,\ h)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01089}01089\ \ \ \ \ \ \ \ \ bc\_res\ =\ bc\_wrapped(y[:,\ 0],\ y[:,\ -\/1],\ p)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01090}01090\ \ \ \ \ \ \ \ \ max\_bc\_res\ =\ np.max(abs(bc\_res))}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01091}01091\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01092}01092\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ This\ relation\ is\ not\ trivial,\ but\ can\ be\ verified.}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01093}01093\ \ \ \ \ \ \ \ \ r\_middle\ =\ 1.5\ *\ col\_res\ /\ h}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01094}01094\ \ \ \ \ \ \ \ \ sol\ =\ \mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_a52008364a7339728115c99023d524c26}{create\_spline}}(y,\ f,\ x,\ h)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01095}01095\ \ \ \ \ \ \ \ \ rms\_res\ =\ \mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_af426b824c4dbc0de39b9942652a8904e}{estimate\_rms\_residuals}}(fun\_wrapped,\ sol,\ x,\ h,\ p,}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01096}01096\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ r\_middle,\ f\_middle)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01097}01097\ \ \ \ \ \ \ \ \ max\_rms\_res\ =\ np.max(rms\_res)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01098}01098\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01099}01099\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ singular:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01100}01100\ \ \ \ \ \ \ \ \ \ \ \ \ status\ =\ 2}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01101}01101\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01102}01102\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01103}01103\ \ \ \ \ \ \ \ \ insert\_1,\ =\ np.nonzero((rms\_res\ >\ tol)\ \&\ (rms\_res\ <\ 100\ *\ tol))}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01104}01104\ \ \ \ \ \ \ \ \ insert\_2,\ =\ np.nonzero(rms\_res\ >=\ 100\ *\ tol)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01105}01105\ \ \ \ \ \ \ \ \ nodes\_added\ =\ insert\_1.shape[0]\ +\ 2\ *\ insert\_2.shape[0]}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01106}01106\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01107}01107\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ m\ +\ nodes\_added\ >\ max\_nodes:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01108}01108\ \ \ \ \ \ \ \ \ \ \ \ \ status\ =\ 1}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01109}01109\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ verbose\ ==\ 2:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01110}01110\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ nodes\_added\ =\ f\textcolor{stringliteral}{"{}(\{nodes\_added\})"{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01111}01111\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print\_iteration\_progress(iteration,\ max\_rms\_res,\ max\_bc\_res,}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01112}01112\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ m,\ nodes\_added)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01113}01113\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01114}01114\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01115}01115\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ verbose\ ==\ 2:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01116}01116\ \ \ \ \ \ \ \ \ \ \ \ \ print\_iteration\_progress(iteration,\ max\_rms\_res,\ max\_bc\_res,\ m,}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01117}01117\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ nodes\_added)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01118}01118\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01119}01119\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ nodes\_added\ >\ 0:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01120}01120\ \ \ \ \ \ \ \ \ \ \ \ \ x\ =\ \mbox{\hyperlink{namespacescipy_1_1integrate_1_1__bvp_a9b2734b62ef488e502e42e0aa66a9946}{modify\_mesh}}(x,\ insert\_1,\ insert\_2)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01121}01121\ \ \ \ \ \ \ \ \ \ \ \ \ h\ =\ np.diff(x)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01122}01122\ \ \ \ \ \ \ \ \ \ \ \ \ y\ =\ sol(x)}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01123}01123\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ max\_bc\_res\ <=\ bc\_tol:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01124}01124\ \ \ \ \ \ \ \ \ \ \ \ \ status\ =\ 0}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01125}01125\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01126}01126\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ iteration\ >=\ max\_iteration:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01127}01127\ \ \ \ \ \ \ \ \ \ \ \ \ status\ =\ 3}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01128}01128\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01129}01129\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01130}01130\ \ \ \ \ \textcolor{keywordflow}{if}\ verbose\ >\ 0:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01131}01131\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ status\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01132}01132\ \ \ \ \ \ \ \ \ \ \ \ \ print(\textcolor{stringliteral}{"{}Solved\ in\ \{\}\ iterations,\ number\ of\ nodes\ \{\}.\ \(\backslash\)n"{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01133}01133\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Maximum\ relative\ residual:\ \{:.2e\}\ \(\backslash\)n"{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01134}01134\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Maximum\ boundary\ residual:\ \{:.2e\}"{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01135}01135\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ .format(iteration,\ x.shape[0],\ max\_rms\_res,\ max\_bc\_res))}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01136}01136\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ status\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01137}01137\ \ \ \ \ \ \ \ \ \ \ \ \ print(\textcolor{stringliteral}{"{}Number\ of\ nodes\ is\ exceeded\ after\ iteration\ \{\}.\ \(\backslash\)n"{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01138}01138\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Maximum\ relative\ residual:\ \{:.2e\}\ \(\backslash\)n"{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01139}01139\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Maximum\ boundary\ residual:\ \{:.2e\}"{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01140}01140\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ .format(iteration,\ max\_rms\_res,\ max\_bc\_res))}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01141}01141\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ status\ ==\ 2:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01142}01142\ \ \ \ \ \ \ \ \ \ \ \ \ print(\textcolor{stringliteral}{"{}Singular\ Jacobian\ encountered\ when\ solving\ the\ collocation\ "{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01143}01143\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}system\ on\ iteration\ \{\}.\ \(\backslash\)n"{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01144}01144\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Maximum\ relative\ residual:\ \{:.2e\}\ \(\backslash\)n"{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01145}01145\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Maximum\ boundary\ residual:\ \{:.2e\}"{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01146}01146\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ .format(iteration,\ max\_rms\_res,\ max\_bc\_res))}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01147}01147\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ status\ ==\ 3:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01148}01148\ \ \ \ \ \ \ \ \ \ \ \ \ print(\textcolor{stringliteral}{"{}The\ solver\ was\ unable\ to\ satisfy\ boundary\ conditions\ "{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01149}01149\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}tolerance\ on\ iteration\ \{\}.\ \(\backslash\)n"{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01150}01150\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Maximum\ relative\ residual:\ \{:.2e\}\ \(\backslash\)n"{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01151}01151\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Maximum\ boundary\ residual:\ \{:.2e\}"{}}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01152}01152\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ .format(iteration,\ max\_rms\_res,\ max\_bc\_res))}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01153}01153\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01154}01154\ \ \ \ \ \textcolor{keywordflow}{if}\ p.size\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01155}01155\ \ \ \ \ \ \ \ \ p\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01156}01156\ }
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01157}01157\ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classscipy_1_1integrate_1_1__bvp_1_1BVPResult}{BVPResult}}(sol=sol,\ p=p,\ x=x,\ y=y,\ yp=f,\ rms\_residuals=rms\_res,}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01158}01158\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ niter=iteration,\ status=status,}
+\DoxyCodeLine{\Hypertarget{__bvp_8py_source_l01159}01159\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ message=TERMINATION\_MESSAGES[status],\ success=status\ ==\ 0)}
+
+\end{DoxyCode}

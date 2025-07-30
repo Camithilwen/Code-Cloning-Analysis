@@ -1,0 +1,591 @@
+\doxysection{extensions.\+py}
+\hypertarget{extensions_8py_source}{}\label{extensions_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/pandas/core/\_numba/extensions.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/pandas/core/\_numba/extensions.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00001}\mbox{\hyperlink{namespacepandas_1_1core_1_1__numba_1_1extensions}{00001}}\ \textcolor{comment}{\#\ Disable\ type\ checking\ for\ this\ module\ since\ numba's\ internals}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00002}00002\ \textcolor{comment}{\#\ are\ not\ typed,\ and\ we\ use\ numba's\ internals\ via\ its\ extension\ API}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00003}00003\ \textcolor{comment}{\#\ mypy:\ ignore-\/errors}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00004}00004\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00005}00005\ \textcolor{stringliteral}{Utility\ classes/functions\ to\ let\ numba\ recognize}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00006}00006\ \textcolor{stringliteral}{pandas\ Index/Series/DataFrame}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00007}00007\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00008}00008\ \textcolor{stringliteral}{Mostly\ vendored\ from\ https://github.com/numba/numba/blob/main/numba/tests/pdlike\_usecase.py}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00009}00009\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00010}00010\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00011}00011\ \textcolor{keyword}{from}\ \_\_future\_\_\ \textcolor{keyword}{import}\ annotations}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00012}00012\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00013}00013\ \textcolor{keyword}{from}\ contextlib\ \textcolor{keyword}{import}\ contextmanager}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00014}00014\ \textcolor{keyword}{import}\ operator}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00015}00015\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00016}00016\ \textcolor{keyword}{import}\ numba}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00017}00017\ \textcolor{keyword}{from}\ numba\ \textcolor{keyword}{import}\ types}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00018}00018\ \textcolor{keyword}{from}\ numba.core\ \textcolor{keyword}{import}\ cgutils}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00019}00019\ \textcolor{keyword}{from}\ numba.core.datamodel\ \textcolor{keyword}{import}\ models}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00020}00020\ \textcolor{keyword}{from}\ numba.core.extending\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00021}00021\ \ \ \ \ NativeValue,}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00022}00022\ \ \ \ \ box,}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00023}00023\ \ \ \ \ lower\_builtin,}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00024}00024\ \ \ \ \ make\_attribute\_wrapper,}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00025}00025\ \ \ \ \ overload,}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00026}00026\ \ \ \ \ overload\_attribute,}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00027}00027\ \ \ \ \ overload\_method,}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00028}00028\ \ \ \ \ register\_model,}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00029}00029\ \ \ \ \ type\_callable,}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00030}00030\ \ \ \ \ typeof\_impl,}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00031}00031\ \ \ \ \ unbox,}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00032}00032\ )}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00033}00033\ \textcolor{keyword}{from}\ numba.core.imputils\ \textcolor{keyword}{import}\ impl\_ret\_borrowed}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00034}00034\ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00035}00035\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00036}00036\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1__libs}{pandas.\_libs}}\ \textcolor{keyword}{import}\ lib}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00037}00037\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00038}00038\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1indexes_1_1base}{pandas.core.indexes.base}}\ \textcolor{keyword}{import}\ Index}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00039}00039\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1indexing}{pandas.core.indexing}}\ \textcolor{keyword}{import}\ \_iLocIndexer}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00040}00040\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1internals}{pandas.core.internals}}\ \textcolor{keyword}{import}\ SingleBlockManager}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00041}00041\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1series}{pandas.core.series}}\ \textcolor{keyword}{import}\ Series}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00042}00042\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00043}00043\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00044}00044\ \textcolor{comment}{\#\ Helper\ function\ to\ hack\ around\ fact\ that\ Index\ casts\ numpy\ string\ dtype\ to\ object}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00045}00045\ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00046}00046\ \textcolor{comment}{\#\ Idea\ is\ to\ set\ an\ attribute\ on\ a\ Index\ called\ \_numba\_data}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00047}00047\ \textcolor{comment}{\#\ that\ is\ the\ original\ data,\ or\ the\ object\ data\ casted\ to\ numpy\ string\ dtype,}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00048}00048\ \textcolor{comment}{\#\ with\ a\ context\ manager\ that\ is\ unset\ afterwards}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00049}00049\ \textcolor{preprocessor}{@contextmanager}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00050}00050\ \textcolor{keyword}{def\ }set\_numba\_data(index:\ Index):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00051}00051\ \ \ \ \ numba\_data\ =\ index.\_data}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00052}00052\ \ \ \ \ \textcolor{keywordflow}{if}\ numba\_data.dtype\ \textcolor{keywordflow}{in}\ (object,\ \textcolor{stringliteral}{"{}string"{}}):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00053}00053\ \ \ \ \ \ \ \ \ numba\_data\ =\ np.asarray(numba\_data)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00054}00054\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ lib.is\_string\_array(numba\_data):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00055}00055\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00056}00056\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}The\ numba\ engine\ only\ supports\ using\ string\ or\ numeric\ column\ names"{}}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00057}00057\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00058}00058\ \ \ \ \ \ \ \ \ numba\_data\ =\ numba\_data.astype(\textcolor{stringliteral}{"{}U"{}})}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00059}00059\ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00060}00060\ \ \ \ \ \ \ \ \ index.\_numba\_data\ =\ numba\_data}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00061}00061\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{yield}\ index}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00062}00062\ \ \ \ \ \textcolor{keywordflow}{finally}:}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00063}00063\ \ \ \ \ \ \ \ \ del\ index.\_numba\_data}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00064}00064\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00065}00065\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00066}00066\ \textcolor{comment}{\#\ TODO:\ Range\ index\ support}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00067}00067\ \textcolor{comment}{\#\ (this\ currently\ lowers\ OK,\ but\ does\ not\ round-\/trip)}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00068}\mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1IndexType}{00068}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1IndexType}{IndexType}}(types.Type):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00069}00069\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00070}00070\ \textcolor{stringliteral}{\ \ \ \ The\ type\ class\ for\ Index\ objects.}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00071}00071\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00072}00072\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00073}00073\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ dtype,\ layout,\ pyclass:\ any)\ -\/>\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00074}00074\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1IndexType_af17a4ef52cc3566bd742ea27d01c29df}{pyclass}}\ =\ pyclass}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00075}00075\ \ \ \ \ \ \ \ \ name\ =\ f\textcolor{stringliteral}{"{}index(\{dtype\},\ \{layout\})"{}}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00076}00076\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1IndexType_a087f5026ff9e9dd83678c86f3fda131b}{dtype}}\ =\ dtype}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00077}00077\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1IndexType_a9963d9cc377203de467650c00974e97d}{layout}}\ =\ layout}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00078}00078\ \ \ \ \ \ \ \ \ super().\_\_init\_\_(name)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00079}00079\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00080}00080\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00081}00081\ \ \ \ \ \textcolor{keyword}{def\ }key(self):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00082}00082\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1IndexType_af17a4ef52cc3566bd742ea27d01c29df}{pyclass}},\ self.\mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1IndexType_a087f5026ff9e9dd83678c86f3fda131b}{dtype}},\ self.\mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1IndexType_a9963d9cc377203de467650c00974e97d}{layout}}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00083}00083\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00084}00084\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00085}00085\ \ \ \ \ \textcolor{keyword}{def\ }as\_array(self):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00086}00086\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ types.Array(self.\mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1IndexType_a087f5026ff9e9dd83678c86f3fda131b}{dtype}},\ 1,\ self.\mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1IndexType_a9963d9cc377203de467650c00974e97d}{layout}})}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00087}00087\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00088}00088\ \ \ \ \ \textcolor{keyword}{def\ }copy(self,\ dtype=None,\ ndim:\ int\ =\ 1,\ layout=\textcolor{keywordtype}{None}):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00089}00089\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ ndim\ ==\ 1}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00090}00090\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ dtype\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00091}00091\ \ \ \ \ \ \ \ \ \ \ \ \ dtype\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1IndexType_a087f5026ff9e9dd83678c86f3fda131b}{dtype}}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00092}00092\ \ \ \ \ \ \ \ \ layout\ =\ layout\ \textcolor{keywordflow}{or}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1IndexType_a9963d9cc377203de467650c00974e97d}{layout}}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00093}00093\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ type(self)(dtype,\ layout,\ self.\mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1IndexType_af17a4ef52cc3566bd742ea27d01c29df}{pyclass}})}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00094}00094\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00095}00095\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00096}\mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1SeriesType}{00096}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1SeriesType}{SeriesType}}(types.Type):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00097}00097\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00098}00098\ \textcolor{stringliteral}{\ \ \ \ The\ type\ class\ for\ Series\ objects.}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00099}00099\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00100}00100\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00101}00101\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ dtype,\ index,\ namety)\ -\/>\ None:}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00102}00102\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ isinstance(index,\ IndexType)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00103}00103\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1SeriesType_a896518ef542218ec53881f302a89b183}{dtype}}\ =\ dtype}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00104}00104\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1SeriesType_a3993a67ff6daf76e498e0c3be47a5828}{index}}\ =\ index}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00105}00105\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1SeriesType_a3f23f53c4772dabf11474f8ca5a68cdb}{values}}\ =\ types.Array(self.\mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1SeriesType_a896518ef542218ec53881f302a89b183}{dtype}},\ 1,\ \textcolor{stringliteral}{"{}C"{}})}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00106}00106\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1SeriesType_a82d1055c66a71032a26a024f5ac6b7ca}{namety}}\ =\ namety}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00107}00107\ \ \ \ \ \ \ \ \ name\ =\ f\textcolor{stringliteral}{"{}series(\{dtype\},\ \{index\},\ \{namety\})"{}}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00108}00108\ \ \ \ \ \ \ \ \ super().\_\_init\_\_(name)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00109}00109\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00110}00110\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00111}00111\ \ \ \ \ \textcolor{keyword}{def\ }key(self):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00112}00112\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1SeriesType_a896518ef542218ec53881f302a89b183}{dtype}},\ self.\mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1SeriesType_a3993a67ff6daf76e498e0c3be47a5828}{index}},\ self.\mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1SeriesType_a82d1055c66a71032a26a024f5ac6b7ca}{namety}}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00113}00113\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00114}00114\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00115}00115\ \ \ \ \ \textcolor{keyword}{def\ }as\_array(self):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00116}00116\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1SeriesType_a3f23f53c4772dabf11474f8ca5a68cdb}{values}}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00117}00117\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00118}00118\ \ \ \ \ \textcolor{keyword}{def\ }copy(self,\ dtype=None,\ ndim:\ int\ =\ 1,\ layout:\ str\ =\ \textcolor{stringliteral}{"{}C"{}}):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00119}00119\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ ndim\ ==\ 1}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00120}00120\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ layout\ ==\ \textcolor{stringliteral}{"{}C"{}}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00121}00121\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ dtype\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00122}00122\ \ \ \ \ \ \ \ \ \ \ \ \ dtype\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1SeriesType_a896518ef542218ec53881f302a89b183}{dtype}}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00123}00123\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ type(self)(dtype,\ self.\mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1SeriesType_a3993a67ff6daf76e498e0c3be47a5828}{index}},\ self.\mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1SeriesType_a82d1055c66a71032a26a024f5ac6b7ca}{namety}})}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00124}00124\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00125}00125\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00126}00126\ \textcolor{preprocessor}{@typeof\_impl.register(Index)}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00127}\mbox{\hyperlink{namespacepandas_1_1core_1_1__numba_1_1extensions_a44e509f526acf05fba198921dd3cf463}{00127}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1core_1_1__numba_1_1extensions_a44e509f526acf05fba198921dd3cf463}{typeof\_index}}(val,\ c):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00128}00128\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00129}00129\ \textcolor{stringliteral}{\ \ \ \ This\ will\ assume\ that\ only\ strings\ are\ in\ object\ dtype}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00130}00130\ \textcolor{stringliteral}{\ \ \ \ index.}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00131}00131\ \textcolor{stringliteral}{\ \ \ \ (you\ should\ check\ this\ before\ this\ gets\ lowered\ down\ to\ numba)}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00132}00132\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00133}00133\ \ \ \ \ \textcolor{comment}{\#\ arrty\ =\ typeof\_impl(val.\_data,\ c)}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00134}00134\ \ \ \ \ arrty\ =\ typeof\_impl(val.\_numba\_data,\ c)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00135}00135\ \ \ \ \ \textcolor{keyword}{assert}\ arrty.ndim\ ==\ 1}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00136}00136\ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1IndexType}{IndexType}}(arrty.dtype,\ arrty.layout,\ type(val))}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00137}00137\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00138}00138\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00139}00139\ \textcolor{preprocessor}{@typeof\_impl.register(Series)}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00140}00140\ \textcolor{keyword}{def\ }typeof\_series(val,\ c):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00141}00141\ \ \ \ \ index\ =\ typeof\_impl(val.index,\ c)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00142}00142\ \ \ \ \ arrty\ =\ typeof\_impl(val.values,\ c)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00143}00143\ \ \ \ \ namety\ =\ typeof\_impl(val.name,\ c)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00144}00144\ \ \ \ \ \textcolor{keyword}{assert}\ arrty.ndim\ ==\ 1}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00145}00145\ \ \ \ \ \textcolor{keyword}{assert}\ arrty.layout\ ==\ \textcolor{stringliteral}{"{}C"{}}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00146}00146\ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1SeriesType}{SeriesType}}(arrty.dtype,\ index,\ namety)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00147}00147\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00148}00148\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00149}00149\ \textcolor{preprocessor}{@type\_callable(Series)}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00150}00150\ \textcolor{keyword}{def\ }type\_series\_constructor(context):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00151}00151\ \ \ \ \ \textcolor{keyword}{def\ }typer(data,\ index,\ name=None):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00152}00152\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(index,\ IndexType)\ \textcolor{keywordflow}{and}\ isinstance(data,\ types.Array):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00153}00153\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ data.ndim\ ==\ 1}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00154}00154\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ name\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00155}00155\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ name\ =\ types.intp}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00156}00156\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1SeriesType}{SeriesType}}(data.dtype,\ index,\ name)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00157}00157\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00158}00158\ \ \ \ \ \textcolor{keywordflow}{return}\ typer}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00159}00159\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00160}00160\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00161}00161\ \textcolor{preprocessor}{@type\_callable(Index)}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00162}00162\ \textcolor{keyword}{def\ }type\_index\_constructor(context):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00163}00163\ \ \ \ \ \textcolor{keyword}{def\ }typer(data,\ hashmap=None):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00164}00164\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(data,\ types.Array):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00165}00165\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ data.layout\ ==\ \textcolor{stringliteral}{"{}C"{}}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00166}00166\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ data.ndim\ ==\ 1}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00167}00167\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ hashmap\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{or}\ isinstance(hashmap,\ types.DictType)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00168}00168\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1IndexType}{IndexType}}(data.dtype,\ layout=data.layout,\ pyclass=Index)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00169}00169\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00170}00170\ \ \ \ \ \textcolor{keywordflow}{return}\ typer}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00171}00171\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00172}00172\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00173}00173\ \textcolor{comment}{\#\ Backend\ extensions\ for\ Index\ and\ Series\ and\ Frame}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00174}00174\ \textcolor{preprocessor}{@register\_model(IndexType)}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00175}\mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1IndexModel}{00175}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1IndexModel}{IndexModel}}(models.StructModel):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00176}00176\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ dmm,\ fe\_type)\ -\/>\ None:}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00177}00177\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ We\ don't\ want\ the\ numpy\ string\ scalar\ type\ in\ our\ hashmap}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00178}00178\ \ \ \ \ \ \ \ \ members\ =\ [}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00179}00179\ \ \ \ \ \ \ \ \ \ \ \ \ (\textcolor{stringliteral}{"{}data"{}},\ fe\_type.as\_array),}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00180}00180\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ This\ is\ an\ attempt\ to\ emulate\ our\ hashtable\ code\ with\ a\ numba}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00181}00181\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ typed\ dict}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00182}00182\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ It\ maps\ from\ values\ in\ the\ index\ to\ their\ integer\ positions\ in\ the\ array}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00183}00183\ \ \ \ \ \ \ \ \ \ \ \ \ (\textcolor{stringliteral}{"{}hashmap"{}},\ types.DictType(fe\_type.dtype,\ types.intp)),}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00184}00184\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Pointer\ to\ the\ Index\ object\ this\ was\ created\ from,\ or\ that\ it}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00185}00185\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ boxes\ to}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00186}00186\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ https://numba.discourse.group/t/qst-\/how-\/to-\/cache-\/the-\/boxing-\/of-\/an-\/object/2128/2?u=lithomas1}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00187}00187\ \ \ \ \ \ \ \ \ \ \ \ \ (\textcolor{stringliteral}{"{}parent"{}},\ types.pyobject),}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00188}00188\ \ \ \ \ \ \ \ \ ]}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00189}00189\ \ \ \ \ \ \ \ \ models.StructModel.\_\_init\_\_(self,\ dmm,\ fe\_type,\ members)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00190}00190\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00191}00191\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00192}00192\ \textcolor{preprocessor}{@register\_model(SeriesType)}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00193}\mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1SeriesModel}{00193}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1SeriesModel}{SeriesModel}}(models.StructModel):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00194}00194\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ dmm,\ fe\_type)\ -\/>\ None:}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00195}00195\ \ \ \ \ \ \ \ \ members\ =\ [}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00196}00196\ \ \ \ \ \ \ \ \ \ \ \ \ (\textcolor{stringliteral}{"{}index"{}},\ fe\_type.index),}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00197}00197\ \ \ \ \ \ \ \ \ \ \ \ \ (\textcolor{stringliteral}{"{}values"{}},\ fe\_type.as\_array),}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00198}00198\ \ \ \ \ \ \ \ \ \ \ \ \ (\textcolor{stringliteral}{"{}name"{}},\ fe\_type.namety),}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00199}00199\ \ \ \ \ \ \ \ \ ]}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00200}00200\ \ \ \ \ \ \ \ \ models.StructModel.\_\_init\_\_(self,\ dmm,\ fe\_type,\ members)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00201}00201\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00202}00202\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00203}00203\ make\_attribute\_wrapper(IndexType,\ \textcolor{stringliteral}{"{}data"{}},\ \textcolor{stringliteral}{"{}\_data"{}})}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00204}00204\ make\_attribute\_wrapper(IndexType,\ \textcolor{stringliteral}{"{}hashmap"{}},\ \textcolor{stringliteral}{"{}hashmap"{}})}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00205}00205\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00206}00206\ make\_attribute\_wrapper(SeriesType,\ \textcolor{stringliteral}{"{}index"{}},\ \textcolor{stringliteral}{"{}index"{}})}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00207}00207\ make\_attribute\_wrapper(SeriesType,\ \textcolor{stringliteral}{"{}values"{}},\ \textcolor{stringliteral}{"{}values"{}})}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00208}00208\ make\_attribute\_wrapper(SeriesType,\ \textcolor{stringliteral}{"{}name"{}},\ \textcolor{stringliteral}{"{}name"{}})}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00209}00209\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00210}00210\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00211}00211\ \textcolor{preprocessor}{@lower\_builtin(Series,\ types.Array,\ IndexType)}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00212}00212\ \textcolor{keyword}{def\ }pdseries\_constructor(context,\ builder,\ sig,\ args):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00213}00213\ \ \ \ \ data,\ index\ =\ args}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00214}00214\ \ \ \ \ series\ =\ cgutils.create\_struct\_proxy(sig.return\_type)(context,\ builder)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00215}00215\ \ \ \ \ series.index\ =\ index}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00216}00216\ \ \ \ \ series.values\ =\ data}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00217}00217\ \ \ \ \ series.name\ =\ context.get\_constant(types.intp,\ 0)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00218}00218\ \ \ \ \ \textcolor{keywordflow}{return}\ impl\_ret\_borrowed(context,\ builder,\ sig.return\_type,\ series.\_getvalue())}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00219}00219\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00220}00220\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00221}00221\ \textcolor{preprocessor}{@lower\_builtin(Series,\ types.Array,\ IndexType,\ types.intp)}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00222}00222\ \textcolor{preprocessor}{@lower\_builtin(Series,\ types.Array,\ IndexType,\ types.float64)}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00223}00223\ \textcolor{preprocessor}{@lower\_builtin(Series,\ types.Array,\ IndexType,\ types.unicode\_type)}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00224}00224\ \textcolor{keyword}{def\ }pdseries\_constructor\_with\_name(context,\ builder,\ sig,\ args):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00225}00225\ \ \ \ \ data,\ index,\ name\ =\ args}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00226}00226\ \ \ \ \ series\ =\ cgutils.create\_struct\_proxy(sig.return\_type)(context,\ builder)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00227}00227\ \ \ \ \ series.index\ =\ index}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00228}00228\ \ \ \ \ series.values\ =\ data}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00229}00229\ \ \ \ \ series.name\ =\ name}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00230}00230\ \ \ \ \ \textcolor{keywordflow}{return}\ impl\_ret\_borrowed(context,\ builder,\ sig.return\_type,\ series.\_getvalue())}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00231}00231\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00232}00232\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00233}00233\ \textcolor{preprocessor}{@lower\_builtin(Index,\ types.Array,\ types.DictType,\ types.pyobject)}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00234}00234\ \textcolor{keyword}{def\ }index\_constructor\_2arg(context,\ builder,\ sig,\ args):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00235}00235\ \ \ \ \ (data,\ hashmap,\ parent)\ =\ args}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00236}00236\ \ \ \ \ index\ =\ cgutils.create\_struct\_proxy(sig.return\_type)(context,\ builder)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00237}00237\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00238}00238\ \ \ \ \ index.data\ =\ data}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00239}00239\ \ \ \ \ index.hashmap\ =\ hashmap}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00240}00240\ \ \ \ \ index.parent\ =\ parent}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00241}00241\ \ \ \ \ \textcolor{keywordflow}{return}\ impl\_ret\_borrowed(context,\ builder,\ sig.return\_type,\ index.\_getvalue())}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00242}00242\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00243}00243\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00244}00244\ \textcolor{preprocessor}{@lower\_builtin(Index,\ types.Array,\ types.DictType)}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00245}00245\ \textcolor{keyword}{def\ }index\_constructor\_2arg\_parent(context,\ builder,\ sig,\ args):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00246}00246\ \ \ \ \ \textcolor{comment}{\#\ Basically\ same\ as\ index\_constructor\_1arg,\ but\ also\ lets\ you\ specify\ the}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00247}00247\ \ \ \ \ \textcolor{comment}{\#\ parent\ object}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00248}00248\ \ \ \ \ (data,\ hashmap)\ =\ args}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00249}00249\ \ \ \ \ index\ =\ cgutils.create\_struct\_proxy(sig.return\_type)(context,\ builder)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00250}00250\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00251}00251\ \ \ \ \ index.data\ =\ data}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00252}00252\ \ \ \ \ index.hashmap\ =\ hashmap}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00253}00253\ \ \ \ \ \textcolor{keywordflow}{return}\ impl\_ret\_borrowed(context,\ builder,\ sig.return\_type,\ index.\_getvalue())}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00254}00254\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00255}00255\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00256}00256\ \textcolor{preprocessor}{@lower\_builtin(Index,\ types.Array)}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00257}00257\ \textcolor{keyword}{def\ }index\_constructor\_1arg(context,\ builder,\ sig,\ args):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00258}00258\ \ \ \ \ \textcolor{keyword}{from}\ numba.typed\ \textcolor{keyword}{import}\ Dict}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00259}00259\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00260}00260\ \ \ \ \ key\_type\ =\ sig.return\_type.dtype}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00261}00261\ \ \ \ \ value\_type\ =\ types.intp}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00262}00262\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00263}00263\ \ \ \ \ \textcolor{keyword}{def\ }index\_impl(data):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00264}00264\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classpandas_1_1core_1_1indexes_1_1base_1_1Index}{Index}}(data,\ Dict.empty(key\_type,\ value\_type))}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00265}00265\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00266}00266\ \ \ \ \ \textcolor{keywordflow}{return}\ context.compile\_internal(builder,\ index\_impl,\ sig,\ args)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00267}00267\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00268}00268\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00269}00269\ \textcolor{comment}{\#\ Helper\ to\ convert\ the\ unicodecharseq\ (numpy\ string\ scalar)\ into\ a\ unicode\_type}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00270}00270\ \textcolor{comment}{\#\ (regular\ string)}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00271}00271\ \textcolor{keyword}{def\ }maybe\_cast\_str(x):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00272}00272\ \ \ \ \ \textcolor{comment}{\#\ Dummy\ function\ that\ numba\ can\ overload}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00273}00273\ \ \ \ \ \textcolor{keywordflow}{pass}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00274}00274\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00275}00275\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00276}00276\ @overload(maybe\_cast\_str)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00277}\mbox{\hyperlink{namespacepandas_1_1core_1_1__numba_1_1extensions_a530c2b27fc6058dadfdbd622fe67b800}{00277}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1core_1_1__numba_1_1extensions_a530c2b27fc6058dadfdbd622fe67b800}{maybe\_cast\_str\_impl}}(x):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00278}00278\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Converts\ numba\ UnicodeCharSeq\ (numpy\ string\ scalar)\ -\/>\ unicode\ type\ (string).}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00279}00279\ \textcolor{stringliteral}{\ \ \ \ Is\ a\ no-\/op\ for\ other\ types."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00280}00280\ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(x,\ types.UnicodeCharSeq):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00281}00281\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{lambda}\ x:\ str(x)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00282}00282\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00283}00283\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{lambda}\ x:\ x}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00284}00284\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00285}00285\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00286}00286\ \textcolor{preprocessor}{@unbox(IndexType)}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00287}\mbox{\hyperlink{namespacepandas_1_1core_1_1__numba_1_1extensions_a92227a6252d6b538fcd5a37fa8dd6286}{00287}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1core_1_1__numba_1_1extensions_a92227a6252d6b538fcd5a37fa8dd6286}{unbox\_index}}(typ,\ obj,\ c):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00288}00288\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00289}00289\ \textcolor{stringliteral}{\ \ \ \ Convert\ a\ Index\ object\ to\ a\ native\ structure.}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00290}00290\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00291}00291\ \textcolor{stringliteral}{\ \ \ \ Note:\ Object\ dtype\ is\ not\ allowed\ here}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00292}00292\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00293}00293\ \ \ \ \ data\_obj\ =\ c.pyapi.object\_getattr\_string(obj,\ \textcolor{stringliteral}{"{}\_numba\_data"{}})}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00294}00294\ \ \ \ \ index\ =\ cgutils.create\_struct\_proxy(typ)(c.context,\ c.builder)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00295}00295\ \ \ \ \ \textcolor{comment}{\#\ If\ we\ see\ an\ object\ array,\ assume\ its\ been\ validated\ as\ only\ containing\ strings}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00296}00296\ \ \ \ \ \textcolor{comment}{\#\ We\ still\ need\ to\ do\ the\ conversion\ though}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00297}00297\ \ \ \ \ index.data\ =\ c.unbox(typ.as\_array,\ data\_obj).value}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00298}00298\ \ \ \ \ typed\_dict\_obj\ =\ c.pyapi.unserialize(c.pyapi.serialize\_object(numba.typed.Dict))}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00299}00299\ \ \ \ \ \textcolor{comment}{\#\ Create\ an\ empty\ typed\ dict\ in\ numba\ for\ the\ hashmap\ for\ indexing}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00300}00300\ \ \ \ \ \textcolor{comment}{\#\ equiv\ of\ numba.typed.Dict.empty(typ.dtype,\ types.intp)}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00301}00301\ \ \ \ \ arr\_type\_obj\ =\ c.pyapi.unserialize(c.pyapi.serialize\_object(typ.dtype))}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00302}00302\ \ \ \ \ intp\_type\_obj\ =\ c.pyapi.unserialize(c.pyapi.serialize\_object(types.intp))}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00303}00303\ \ \ \ \ hashmap\_obj\ =\ c.pyapi.call\_method(}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00304}00304\ \ \ \ \ \ \ \ \ typed\_dict\_obj,\ \textcolor{stringliteral}{"{}empty"{}},\ (arr\_type\_obj,\ intp\_type\_obj)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00305}00305\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00306}00306\ \ \ \ \ index.hashmap\ =\ c.unbox(types.DictType(typ.dtype,\ types.intp),\ hashmap\_obj).value}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00307}00307\ \ \ \ \ \textcolor{comment}{\#\ Set\ the\ parent\ for\ speedy\ boxing.}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00308}00308\ \ \ \ \ index.parent\ =\ obj}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00309}00309\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00310}00310\ \ \ \ \ \textcolor{comment}{\#\ Decrefs}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00311}00311\ \ \ \ \ c.pyapi.decref(data\_obj)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00312}00312\ \ \ \ \ c.pyapi.decref(arr\_type\_obj)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00313}00313\ \ \ \ \ c.pyapi.decref(intp\_type\_obj)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00314}00314\ \ \ \ \ c.pyapi.decref(typed\_dict\_obj)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00315}00315\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00316}00316\ \ \ \ \ \textcolor{keywordflow}{return}\ NativeValue(index.\_getvalue())}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00317}00317\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00318}00318\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00319}00319\ \textcolor{preprocessor}{@unbox(SeriesType)}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00320}\mbox{\hyperlink{namespacepandas_1_1core_1_1__numba_1_1extensions_a8ac0e7b8c71d76b96bda0a0bf12a44b7}{00320}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1core_1_1__numba_1_1extensions_a8ac0e7b8c71d76b96bda0a0bf12a44b7}{unbox\_series}}(typ,\ obj,\ c):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00321}00321\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00322}00322\ \textcolor{stringliteral}{\ \ \ \ Convert\ a\ Series\ object\ to\ a\ native\ structure.}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00323}00323\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00324}00324\ \ \ \ \ index\_obj\ =\ c.pyapi.object\_getattr\_string(obj,\ \textcolor{stringliteral}{"{}index"{}})}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00325}00325\ \ \ \ \ values\_obj\ =\ c.pyapi.object\_getattr\_string(obj,\ \textcolor{stringliteral}{"{}values"{}})}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00326}00326\ \ \ \ \ name\_obj\ =\ c.pyapi.object\_getattr\_string(obj,\ \textcolor{stringliteral}{"{}name"{}})}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00327}00327\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00328}00328\ \ \ \ \ series\ =\ cgutils.create\_struct\_proxy(typ)(c.context,\ c.builder)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00329}00329\ \ \ \ \ series.index\ =\ c.unbox(typ.index,\ index\_obj).value}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00330}00330\ \ \ \ \ series.values\ =\ c.unbox(typ.values,\ values\_obj).value}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00331}00331\ \ \ \ \ series.name\ =\ c.unbox(typ.namety,\ name\_obj).value}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00332}00332\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00333}00333\ \ \ \ \ \textcolor{comment}{\#\ Decrefs}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00334}00334\ \ \ \ \ c.pyapi.decref(index\_obj)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00335}00335\ \ \ \ \ c.pyapi.decref(values\_obj)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00336}00336\ \ \ \ \ c.pyapi.decref(name\_obj)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00337}00337\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00338}00338\ \ \ \ \ \textcolor{keywordflow}{return}\ NativeValue(series.\_getvalue())}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00339}00339\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00340}00340\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00341}00341\ \textcolor{preprocessor}{@box(IndexType)}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00342}\mbox{\hyperlink{namespacepandas_1_1core_1_1__numba_1_1extensions_a5a12cb256f55cb6d2ccf42fa4f2e87d7}{00342}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1core_1_1__numba_1_1extensions_a5a12cb256f55cb6d2ccf42fa4f2e87d7}{box\_index}}(typ,\ val,\ c):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00343}00343\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00344}00344\ \textcolor{stringliteral}{\ \ \ \ Convert\ a\ native\ index\ structure\ to\ a\ Index\ object.}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00345}00345\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00346}00346\ \textcolor{stringliteral}{\ \ \ \ If\ our\ native\ index\ is\ of\ a\ numpy\ string\ dtype,\ we'll\ cast\ it\ to}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00347}00347\ \textcolor{stringliteral}{\ \ \ \ object.}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00348}00348\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00349}00349\ \ \ \ \ \textcolor{comment}{\#\ First\ build\ a\ Numpy\ array\ object,\ then\ wrap\ it\ in\ a\ Index}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00350}00350\ \ \ \ \ index\ =\ cgutils.create\_struct\_proxy(typ)(c.context,\ c.builder,\ value=val)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00351}00351\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00352}00352\ \ \ \ \ res\ =\ cgutils.alloca\_once\_value(c.builder,\ index.parent)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00353}00353\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00354}00354\ \ \ \ \ \textcolor{comment}{\#\ Does\ parent\ exist?}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00355}00355\ \ \ \ \ \textcolor{comment}{\#\ (it\ means\ already\ boxed\ once,\ or\ Index\ same\ as\ original\ df.index\ or\ df.columns)}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00356}00356\ \ \ \ \ \textcolor{comment}{\#\ xref\ https://github.com/numba/numba/blob/596e8a55334cc46854e3192766e643767bd7c934/numba/core/boxing.py\#L593C17-\/L593C17}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00357}00357\ \ \ \ \ \textcolor{keyword}{with}\ c.builder.if\_else(cgutils.is\_not\_null(c.builder,\ index.parent))\ \textcolor{keyword}{as}\ (}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00358}00358\ \ \ \ \ \ \ \ \ has\_parent,}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00359}00359\ \ \ \ \ \ \ \ \ otherwise,}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00360}00360\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00361}00361\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ has\_parent:}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00362}00362\ \ \ \ \ \ \ \ \ \ \ \ \ c.pyapi.incref(index.parent)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00363}00363\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ otherwise:}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00364}00364\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ TODO:\ preserve\ the\ original\ class\ for\ the\ index}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00365}00365\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Also\ need\ preserve\ the\ name\ of\ the\ Index}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00366}00366\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ class\_obj\ =\ c.pyapi.unserialize(c.pyapi.serialize\_object(typ.pyclass))}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00367}00367\ \ \ \ \ \ \ \ \ \ \ \ \ class\_obj\ =\ c.pyapi.unserialize(c.pyapi.serialize\_object(Index))}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00368}00368\ \ \ \ \ \ \ \ \ \ \ \ \ array\_obj\ =\ c.box(typ.as\_array,\ index.data)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00369}00369\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(typ.dtype,\ types.UnicodeCharSeq):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00370}00370\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ We\ converted\ to\ numpy\ string\ dtype,\ convert\ back}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00371}00371\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ to\ object\ since\ \_simple\_new\ won't\ do\ that\ for\ uss}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00372}00372\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ object\_str\_obj\ =\ c.pyapi.unserialize(c.pyapi.serialize\_object(\textcolor{stringliteral}{"{}object"{}}))}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00373}00373\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ array\_obj\ =\ c.pyapi.call\_method(array\_obj,\ \textcolor{stringliteral}{"{}astype"{}},\ (object\_str\_obj,))}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00374}00374\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ c.pyapi.decref(object\_str\_obj)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00375}00375\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ this\ is\ basically\ Index.\_simple\_new(array\_obj,\ name\_obj)\ in\ python}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00376}00376\ \ \ \ \ \ \ \ \ \ \ \ \ index\_obj\ =\ c.pyapi.call\_method(class\_obj,\ \textcolor{stringliteral}{"{}\_simple\_new"{}},\ (array\_obj,))}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00377}00377\ \ \ \ \ \ \ \ \ \ \ \ \ index.parent\ =\ index\_obj}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00378}00378\ \ \ \ \ \ \ \ \ \ \ \ \ c.builder.store(index\_obj,\ res)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00379}00379\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00380}00380\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Decrefs}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00381}00381\ \ \ \ \ \ \ \ \ \ \ \ \ c.pyapi.decref(class\_obj)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00382}00382\ \ \ \ \ \ \ \ \ \ \ \ \ c.pyapi.decref(array\_obj)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00383}00383\ \ \ \ \ \textcolor{keywordflow}{return}\ c.builder.load(res)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00384}00384\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00385}00385\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00386}00386\ \textcolor{preprocessor}{@box(SeriesType)}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00387}\mbox{\hyperlink{namespacepandas_1_1core_1_1__numba_1_1extensions_a047b10b17c5d6931bc90cfaf1534d255}{00387}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1core_1_1__numba_1_1extensions_a047b10b17c5d6931bc90cfaf1534d255}{box\_series}}(typ,\ val,\ c):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00388}00388\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00389}00389\ \textcolor{stringliteral}{\ \ \ \ Convert\ a\ native\ series\ structure\ to\ a\ Series\ object.}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00390}00390\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00391}00391\ \ \ \ \ series\ =\ cgutils.create\_struct\_proxy(typ)(c.context,\ c.builder,\ value=val)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00392}00392\ \ \ \ \ series\_const\_obj\ =\ c.pyapi.unserialize(c.pyapi.serialize\_object(Series.\_from\_mgr))}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00393}00393\ \ \ \ \ mgr\_const\_obj\ =\ c.pyapi.unserialize(}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00394}00394\ \ \ \ \ \ \ \ \ c.pyapi.serialize\_object(SingleBlockManager.from\_array)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00395}00395\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00396}00396\ \ \ \ \ index\_obj\ =\ c.box(typ.index,\ series.index)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00397}00397\ \ \ \ \ array\_obj\ =\ c.box(typ.as\_array,\ series.values)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00398}00398\ \ \ \ \ name\_obj\ =\ c.box(typ.namety,\ series.name)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00399}00399\ \ \ \ \ \textcolor{comment}{\#\ This\ is\ basically\ equivalent\ of}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00400}00400\ \ \ \ \ \textcolor{comment}{\#\ pd.Series(data=array\_obj,\ index=index\_obj)}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00401}00401\ \ \ \ \ \textcolor{comment}{\#\ To\ improve\ perf,\ we\ will\ construct\ the\ Series\ from\ a\ manager}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00402}00402\ \ \ \ \ \textcolor{comment}{\#\ object\ to\ avoid\ checks.}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00403}00403\ \ \ \ \ \textcolor{comment}{\#\ We'll\ also\ set\ the\ name\ attribute\ manually\ to\ avoid\ validation}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00404}00404\ \ \ \ \ mgr\_obj\ =\ c.pyapi.call\_function\_objargs(}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00405}00405\ \ \ \ \ \ \ \ \ mgr\_const\_obj,}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00406}00406\ \ \ \ \ \ \ \ \ (}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00407}00407\ \ \ \ \ \ \ \ \ \ \ \ \ array\_obj,}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00408}00408\ \ \ \ \ \ \ \ \ \ \ \ \ index\_obj,}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00409}00409\ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00410}00410\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00411}00411\ \ \ \ \ mgr\_axes\_obj\ =\ c.pyapi.object\_getattr\_string(mgr\_obj,\ \textcolor{stringliteral}{"{}axes"{}})}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00412}00412\ \ \ \ \ \textcolor{comment}{\#\ Series.\_constructor\_from\_mgr(mgr,\ axes)}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00413}00413\ \ \ \ \ series\_obj\ =\ c.pyapi.call\_function\_objargs(}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00414}00414\ \ \ \ \ \ \ \ \ series\_const\_obj,\ (mgr\_obj,\ mgr\_axes\_obj)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00415}00415\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00416}00416\ \ \ \ \ c.pyapi.object\_setattr\_string(series\_obj,\ \textcolor{stringliteral}{"{}\_name"{}},\ name\_obj)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00417}00417\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00418}00418\ \ \ \ \ \textcolor{comment}{\#\ Decrefs}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00419}00419\ \ \ \ \ c.pyapi.decref(series\_const\_obj)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00420}00420\ \ \ \ \ c.pyapi.decref(mgr\_axes\_obj)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00421}00421\ \ \ \ \ c.pyapi.decref(mgr\_obj)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00422}00422\ \ \ \ \ c.pyapi.decref(mgr\_const\_obj)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00423}00423\ \ \ \ \ c.pyapi.decref(index\_obj)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00424}00424\ \ \ \ \ c.pyapi.decref(array\_obj)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00425}00425\ \ \ \ \ c.pyapi.decref(name\_obj)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00426}00426\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00427}00427\ \ \ \ \ \textcolor{keywordflow}{return}\ series\_obj}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00428}00428\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00429}00429\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00430}00430\ \textcolor{comment}{\#\ Add\ common\ series\ reductions\ (e.g.\ mean,\ sum),}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00431}00431\ \textcolor{comment}{\#\ and\ also\ add\ common\ binops\ (e.g.\ add,\ sub,\ mul,\ div)}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00432}00432\ \textcolor{keyword}{def\ }generate\_series\_reduction(ser\_reduction,\ ser\_method):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00433}00433\ \ \ \ \ \textcolor{preprocessor}{@overload\_method(SeriesType,\ ser\_reduction)}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00434}00434\ \ \ \ \ \textcolor{keyword}{def\ }series\_reduction(series):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00435}00435\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }series\_reduction\_impl(series):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00436}00436\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ ser\_method(series.values)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00437}00437\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00438}00438\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ series\_reduction\_impl}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00439}00439\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00440}00440\ \ \ \ \ \textcolor{keywordflow}{return}\ series\_reduction}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00441}00441\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00442}00442\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00443}00443\ \textcolor{keyword}{def\ }generate\_series\_binop(binop):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00444}00444\ \ \ \ \ \textcolor{preprocessor}{@overload(binop)}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00445}00445\ \ \ \ \ \textcolor{keyword}{def\ }series\_binop(series1,\ value):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00446}00446\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(series1,\ SeriesType):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00447}00447\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(value,\ SeriesType):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00448}00448\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00449}00449\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }series\_binop\_impl(series1,\ series2):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00450}00450\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ TODO:\ Check\ index\ matching?}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00451}00451\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classpandas_1_1core_1_1series_1_1Series}{Series}}(}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00452}00452\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ binop(series1.values,\ series2.values),}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00453}00453\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ series1.index,}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00454}00454\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ series1.name,}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00455}00455\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00456}00456\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00457}00457\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ series\_binop\_impl}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00458}00458\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00459}00459\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00460}00460\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }series\_binop\_impl(series1,\ value):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00461}00461\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classpandas_1_1core_1_1series_1_1Series}{Series}}(}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00462}00462\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ binop(series1.values,\ value),\ series1.index,\ series1.name}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00463}00463\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00464}00464\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00465}00465\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ series\_binop\_impl}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00466}00466\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00467}00467\ \ \ \ \ \textcolor{keywordflow}{return}\ series\_binop}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00468}00468\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00469}00469\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00470}00470\ series\_reductions\ =\ [}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00471}00471\ \ \ \ \ (\textcolor{stringliteral}{"{}sum"{}},\ np.sum),}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00472}00472\ \ \ \ \ (\textcolor{stringliteral}{"{}mean"{}},\ np.mean),}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00473}00473\ \ \ \ \ \textcolor{comment}{\#\ Disabled\ due\ to\ discrepancies\ between\ numba\ std.\ dev}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00474}00474\ \ \ \ \ \textcolor{comment}{\#\ and\ pandas\ std.\ dev\ (no\ way\ to\ specify\ dof)}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00475}00475\ \ \ \ \ \textcolor{comment}{\#\ ("{}std"{},\ np.std),}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00476}00476\ \ \ \ \ \textcolor{comment}{\#\ ("{}var"{},\ np.var),}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00477}00477\ \ \ \ \ (\textcolor{stringliteral}{"{}min"{}},\ np.min),}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00478}00478\ \ \ \ \ (\textcolor{stringliteral}{"{}max"{}},\ np.max),}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00479}00479\ ]}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00480}00480\ \textcolor{keywordflow}{for}\ reduction,\ reduction\_method\ \textcolor{keywordflow}{in}\ series\_reductions:}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00481}00481\ \ \ \ \ generate\_series\_reduction(reduction,\ reduction\_method)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00482}00482\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00483}00483\ series\_binops\ =\ [operator.add,\ operator.sub,\ operator.mul,\ operator.truediv]}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00484}00484\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00485}00485\ \textcolor{keywordflow}{for}\ ser\_binop\ \textcolor{keywordflow}{in}\ series\_binops:}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00486}00486\ \ \ \ \ generate\_series\_binop(ser\_binop)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00487}00487\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00488}00488\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00489}00489\ \textcolor{comment}{\#\ get\_loc\ on\ Index}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00490}00490\ \textcolor{preprocessor}{@overload\_method(IndexType,\ "{}get\_loc"{})}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00491}00491\ \textcolor{keyword}{def\ }index\_get\_loc(index,\ item):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00492}00492\ \ \ \ \ \textcolor{keyword}{def\ }index\_get\_loc\_impl(index,\ item):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00493}00493\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Initialize\ the\ hash\ table\ if\ not\ initialized}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00494}00494\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(index.hashmap)\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00495}00495\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ i,\ val\ \textcolor{keywordflow}{in}\ enumerate(index.\_data):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00496}00496\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ index.hashmap[val]\ =\ i}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00497}00497\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ index.hashmap[item]}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00498}00498\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00499}00499\ \ \ \ \ \textcolor{keywordflow}{return}\ index\_get\_loc\_impl}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00500}00500\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00501}00501\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00502}00502\ \textcolor{comment}{\#\ Indexing\ for\ Series/Index}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00503}00503\ \textcolor{preprocessor}{@overload(operator.getitem)}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00504}00504\ \textcolor{keyword}{def\ }series\_indexing(series,\ item):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00505}00505\ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(series,\ SeriesType):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00506}00506\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00507}00507\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }series\_getitem(series,\ item):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00508}00508\ \ \ \ \ \ \ \ \ \ \ \ \ loc\ =\ series.index.get\_loc(item)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00509}00509\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ series.iloc[loc]}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00510}00510\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00511}00511\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ series\_getitem}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00512}00512\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00513}00513\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00514}00514\ \textcolor{preprocessor}{@overload(operator.getitem)}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00515}00515\ \textcolor{keyword}{def\ }index\_indexing(index,\ idx):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00516}00516\ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(index,\ IndexType):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00517}00517\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00518}00518\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }index\_getitem(index,\ idx):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00519}00519\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ index.\_data[idx]}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00520}00520\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00521}00521\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ index\_getitem}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00522}00522\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00523}00523\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00524}\mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1IlocType}{00524}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1IlocType}{IlocType}}(types.Type):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00525}00525\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ obj\_type)\ -\/>\ None:}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00526}00526\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1IlocType_acad2a1dc95e2665037df8db1fa9e0e1a}{obj\_type}}\ =\ obj\_type}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00527}00527\ \ \ \ \ \ \ \ \ name\ =\ f\textcolor{stringliteral}{"{}iLocIndexer(\{obj\_type\})"{}}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00528}00528\ \ \ \ \ \ \ \ \ super().\_\_init\_\_(name=name)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00529}00529\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00530}00530\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00531}00531\ \ \ \ \ \textcolor{keyword}{def\ }key(self):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00532}00532\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1IlocType_acad2a1dc95e2665037df8db1fa9e0e1a}{obj\_type}}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00533}00533\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00534}00534\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00535}00535\ \textcolor{preprocessor}{@typeof\_impl.register(\_iLocIndexer)}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00536}00536\ \textcolor{keyword}{def\ }typeof\_iloc(val,\ c):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00537}00537\ \ \ \ \ objtype\ =\ typeof\_impl(val.obj,\ c)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00538}00538\ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1IlocType}{IlocType}}(objtype)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00539}00539\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00540}00540\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00541}00541\ \textcolor{preprocessor}{@type\_callable(\_iLocIndexer)}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00542}00542\ \textcolor{keyword}{def\ }type\_iloc\_constructor(context):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00543}00543\ \ \ \ \ \textcolor{keyword}{def\ }typer(obj):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00544}00544\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(obj,\ SeriesType):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00545}00545\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1IlocType}{IlocType}}(obj)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00546}00546\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00547}00547\ \ \ \ \ \textcolor{keywordflow}{return}\ typer}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00548}00548\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00549}00549\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00550}00550\ \textcolor{preprocessor}{@lower\_builtin(\_iLocIndexer,\ SeriesType)}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00551}00551\ \textcolor{keyword}{def\ }iloc\_constructor(context,\ builder,\ sig,\ args):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00552}00552\ \ \ \ \ (obj,)\ =\ args}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00553}00553\ \ \ \ \ iloc\_indexer\ =\ cgutils.create\_struct\_proxy(sig.return\_type)(context,\ builder)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00554}00554\ \ \ \ \ iloc\_indexer.obj\ =\ obj}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00555}00555\ \ \ \ \ \textcolor{keywordflow}{return}\ impl\_ret\_borrowed(}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00556}00556\ \ \ \ \ \ \ \ \ context,\ builder,\ sig.return\_type,\ iloc\_indexer.\_getvalue()}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00557}00557\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00558}00558\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00559}00559\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00560}00560\ \textcolor{preprocessor}{@register\_model(IlocType)}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00561}\mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1ILocModel}{00561}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classpandas_1_1core_1_1__numba_1_1extensions_1_1ILocModel}{ILocModel}}(models.StructModel):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00562}00562\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ dmm,\ fe\_type)\ -\/>\ None:}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00563}00563\ \ \ \ \ \ \ \ \ members\ =\ [(\textcolor{stringliteral}{"{}obj"{}},\ fe\_type.obj\_type)]}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00564}00564\ \ \ \ \ \ \ \ \ models.StructModel.\_\_init\_\_(self,\ dmm,\ fe\_type,\ members)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00565}00565\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00566}00566\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00567}00567\ make\_attribute\_wrapper(IlocType,\ \textcolor{stringliteral}{"{}obj"{}},\ \textcolor{stringliteral}{"{}obj"{}})}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00568}00568\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00569}00569\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00570}00570\ \textcolor{preprocessor}{@overload\_attribute(SeriesType,\ "{}iloc"{})}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00571}00571\ \textcolor{keyword}{def\ }series\_iloc(series):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00572}00572\ \ \ \ \ \textcolor{keyword}{def\ }get(series):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00573}00573\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classpandas_1_1core_1_1indexing_1_1__iLocIndexer}{\_iLocIndexer}}(series)}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00574}00574\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00575}00575\ \ \ \ \ \textcolor{keywordflow}{return}\ get}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00576}00576\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00577}00577\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00578}00578\ \textcolor{preprocessor}{@overload(operator.getitem)}}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00579}00579\ \textcolor{keyword}{def\ }iloc\_getitem(iloc\_indexer,\ i):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00580}00580\ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(iloc\_indexer,\ IlocType):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00581}00581\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00582}00582\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }getitem\_impl(iloc\_indexer,\ i):}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00583}00583\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ iloc\_indexer.obj.values[i]}
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00584}00584\ }
+\DoxyCodeLine{\Hypertarget{extensions_8py_source_l00585}00585\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ getitem\_impl}
+
+\end{DoxyCode}

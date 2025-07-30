@@ -1,0 +1,755 @@
+\doxysection{\+\_\+birch.\+py}
+\hypertarget{__birch_8py_source}{}\label{__birch_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/sklearn/cluster/\_birch.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/sklearn/cluster/\_birch.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00001}\mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__birch}{00001}}\ \textcolor{comment}{\#\ Authors:\ The\ scikit-\/learn\ developers}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00002}00002\ \textcolor{comment}{\#\ SPDX-\/License-\/Identifier:\ BSD-\/3-\/Clause}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00003}00003\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00004}00004\ \textcolor{keyword}{import}\ warnings}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00005}00005\ \textcolor{keyword}{from}\ math\ \textcolor{keyword}{import}\ sqrt}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00006}00006\ \textcolor{keyword}{from}\ numbers\ \textcolor{keyword}{import}\ Integral,\ Real}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00007}00007\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00008}00008\ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00009}00009\ \textcolor{keyword}{from}\ scipy\ \textcolor{keyword}{import}\ sparse}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00010}00010\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00011}00011\ \textcolor{keyword}{from}\ ..\_config\ \textcolor{keyword}{import}\ config\_context}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00012}00012\ \textcolor{keyword}{from}\ ..base\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00013}00013\ \ \ \ \ BaseEstimator,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00014}00014\ \ \ \ \ ClassNamePrefixFeaturesOutMixin,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00015}00015\ \ \ \ \ ClusterMixin,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00016}00016\ \ \ \ \ TransformerMixin,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00017}00017\ \ \ \ \ \_fit\_context,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00018}00018\ )}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00019}00019\ \textcolor{keyword}{from}\ ..exceptions\ \textcolor{keyword}{import}\ ConvergenceWarning}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00020}00020\ \textcolor{keyword}{from}\ ..metrics\ \textcolor{keyword}{import}\ pairwise\_distances\_argmin}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00021}00021\ \textcolor{keyword}{from}\ ..metrics.pairwise\ \textcolor{keyword}{import}\ euclidean\_distances}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00022}00022\ \textcolor{keyword}{from}\ ..utils.\_param\_validation\ \textcolor{keyword}{import}\ Hidden,\ Interval,\ StrOptions}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00023}00023\ \textcolor{keyword}{from}\ ..utils.extmath\ \textcolor{keyword}{import}\ row\_norms}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00024}00024\ \textcolor{keyword}{from}\ ..utils.validation\ \textcolor{keyword}{import}\ check\_is\_fitted,\ validate\_data}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00025}00025\ \textcolor{keyword}{from}\ .\ \textcolor{keyword}{import}\ AgglomerativeClustering}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00026}00026\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00027}00027\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00028}\mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__birch_a23c4790c95cd51c557a42478218c1090}{00028}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__birch_a23c4790c95cd51c557a42478218c1090}{\_iterate\_sparse\_X}}(X):}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00029}00029\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}This\ little\ hack\ returns\ a\ densified\ row\ when\ iterating\ over\ a\ sparse}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00030}00030\ \textcolor{stringliteral}{\ \ \ \ matrix,\ instead\ of\ constructing\ a\ sparse\ matrix\ for\ every\ row\ that\ is}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00031}00031\ \textcolor{stringliteral}{\ \ \ \ expensive.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00032}00032\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00033}00033\ \ \ \ \ n\_samples\ =\ X.shape[0]}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00034}00034\ \ \ \ \ X\_indices\ =\ X.indices}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00035}00035\ \ \ \ \ X\_data\ =\ X.data}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00036}00036\ \ \ \ \ X\_indptr\ =\ X.indptr}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00037}00037\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00038}00038\ \ \ \ \ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(n\_samples):}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00039}00039\ \ \ \ \ \ \ \ \ row\ =\ np.zeros(X.shape[1])}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00040}00040\ \ \ \ \ \ \ \ \ startptr,\ endptr\ =\ X\_indptr[i],\ X\_indptr[i\ +\ 1]}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00041}00041\ \ \ \ \ \ \ \ \ nonzero\_indices\ =\ X\_indices[startptr:endptr]}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00042}00042\ \ \ \ \ \ \ \ \ row[nonzero\_indices]\ =\ X\_data[startptr:endptr]}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00043}00043\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{yield}\ row}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00044}00044\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00045}00045\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00046}\mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__birch_a199e399ad2374166d923b25e26d2303e}{00046}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__birch_a199e399ad2374166d923b25e26d2303e}{\_split\_node}}(node,\ threshold,\ branching\_factor):}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00047}00047\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}The\ node\ has\ to\ be\ split\ if\ there\ is\ no\ place\ for\ a\ new\ subcluster}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00048}00048\ \textcolor{stringliteral}{\ \ \ \ in\ the\ node.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00049}00049\ \textcolor{stringliteral}{\ \ \ \ 1.\ Two\ empty\ nodes\ and\ two\ empty\ subclusters\ are\ initialized.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00050}00050\ \textcolor{stringliteral}{\ \ \ \ 2.\ The\ pair\ of\ distant\ subclusters\ are\ found.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00051}00051\ \textcolor{stringliteral}{\ \ \ \ 3.\ The\ properties\ of\ the\ empty\ subclusters\ and\ nodes\ are\ updated}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00052}00052\ \textcolor{stringliteral}{\ \ \ \ \ \ \ according\ to\ the\ nearest\ distance\ between\ the\ subclusters\ to\ the}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00053}00053\ \textcolor{stringliteral}{\ \ \ \ \ \ \ pair\ of\ distant\ subclusters.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00054}00054\ \textcolor{stringliteral}{\ \ \ \ 4.\ The\ two\ nodes\ are\ set\ as\ children\ to\ the\ two\ subclusters.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00055}00055\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00056}00056\ \ \ \ \ new\_subcluster1\ =\ \mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFSubcluster}{\_CFSubcluster}}()}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00057}00057\ \ \ \ \ new\_subcluster2\ =\ \mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFSubcluster}{\_CFSubcluster}}()}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00058}00058\ \ \ \ \ new\_node1\ =\ \mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode}{\_CFNode}}(}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00059}00059\ \ \ \ \ \ \ \ \ threshold=threshold,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00060}00060\ \ \ \ \ \ \ \ \ branching\_factor=branching\_factor,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00061}00061\ \ \ \ \ \ \ \ \ is\_leaf=node.is\_leaf,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00062}00062\ \ \ \ \ \ \ \ \ n\_features=node.n\_features,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00063}00063\ \ \ \ \ \ \ \ \ dtype=node.init\_centroids\_.dtype,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00064}00064\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00065}00065\ \ \ \ \ new\_node2\ =\ \mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode}{\_CFNode}}(}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00066}00066\ \ \ \ \ \ \ \ \ threshold=threshold,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00067}00067\ \ \ \ \ \ \ \ \ branching\_factor=branching\_factor,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00068}00068\ \ \ \ \ \ \ \ \ is\_leaf=node.is\_leaf,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00069}00069\ \ \ \ \ \ \ \ \ n\_features=node.n\_features,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00070}00070\ \ \ \ \ \ \ \ \ dtype=node.init\_centroids\_.dtype,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00071}00071\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00072}00072\ \ \ \ \ new\_subcluster1.child\_\ =\ new\_node1}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00073}00073\ \ \ \ \ new\_subcluster2.child\_\ =\ new\_node2}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00074}00074\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00075}00075\ \ \ \ \ \textcolor{keywordflow}{if}\ node.is\_leaf:}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00076}00076\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ node.prev\_leaf\_\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00077}00077\ \ \ \ \ \ \ \ \ \ \ \ \ node.prev\_leaf\_.next\_leaf\_\ =\ new\_node1}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00078}00078\ \ \ \ \ \ \ \ \ new\_node1.prev\_leaf\_\ =\ node.prev\_leaf\_}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00079}00079\ \ \ \ \ \ \ \ \ new\_node1.next\_leaf\_\ =\ new\_node2}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00080}00080\ \ \ \ \ \ \ \ \ new\_node2.prev\_leaf\_\ =\ new\_node1}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00081}00081\ \ \ \ \ \ \ \ \ new\_node2.next\_leaf\_\ =\ node.next\_leaf\_}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00082}00082\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ node.next\_leaf\_\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00083}00083\ \ \ \ \ \ \ \ \ \ \ \ \ node.next\_leaf\_.prev\_leaf\_\ =\ new\_node2}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00084}00084\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00085}00085\ \ \ \ \ dist\ =\ euclidean\_distances(}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00086}00086\ \ \ \ \ \ \ \ \ node.centroids\_,\ Y\_norm\_squared=node.squared\_norm\_,\ squared=\textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00087}00087\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00088}00088\ \ \ \ \ n\_clusters\ =\ dist.shape[0]}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00089}00089\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00090}00090\ \ \ \ \ farthest\_idx\ =\ np.unravel\_index(dist.argmax(),\ (n\_clusters,\ n\_clusters))}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00091}00091\ \ \ \ \ node1\_dist,\ node2\_dist\ =\ dist[(farthest\_idx,)]}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00092}00092\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00093}00093\ \ \ \ \ node1\_closer\ =\ node1\_dist\ <\ node2\_dist}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00094}00094\ \ \ \ \ \textcolor{comment}{\#\ make\ sure\ node1\ is\ closest\ to\ itself\ even\ if\ all\ distances\ are\ equal.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00095}00095\ \ \ \ \ \textcolor{comment}{\#\ This\ can\ only\ happen\ when\ all\ node.centroids\_\ are\ duplicates\ leading\ to\ all}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00096}00096\ \ \ \ \ \textcolor{comment}{\#\ distances\ between\ centroids\ being\ zero.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00097}00097\ \ \ \ \ node1\_closer[farthest\_idx[0]]\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00098}00098\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00099}00099\ \ \ \ \ \textcolor{keywordflow}{for}\ idx,\ subcluster\ \textcolor{keywordflow}{in}\ enumerate(node.subclusters\_):}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00100}00100\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ node1\_closer[idx]:}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00101}00101\ \ \ \ \ \ \ \ \ \ \ \ \ new\_node1.append\_subcluster(subcluster)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00102}00102\ \ \ \ \ \ \ \ \ \ \ \ \ new\_subcluster1.update(subcluster)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00103}00103\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00104}00104\ \ \ \ \ \ \ \ \ \ \ \ \ new\_node2.append\_subcluster(subcluster)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00105}00105\ \ \ \ \ \ \ \ \ \ \ \ \ new\_subcluster2.update(subcluster)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00106}00106\ \ \ \ \ \textcolor{keywordflow}{return}\ new\_subcluster1,\ new\_subcluster2}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00107}00107\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00108}00108\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00109}\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode}{00109}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode}{\_CFNode}}:}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00110}00110\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Each\ node\ in\ a\ CFTree\ is\ called\ a\ CFNode.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00111}00111\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00112}00112\ \textcolor{stringliteral}{\ \ \ \ The\ CFNode\ can\ have\ a\ maximum\ of\ branching\_factor}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00113}00113\ \textcolor{stringliteral}{\ \ \ \ number\ of\ CFSubclusters.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00114}00114\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00115}00115\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00116}00116\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00117}00117\ \textcolor{stringliteral}{\ \ \ \ threshold\ :\ float}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00118}00118\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Threshold\ needed\ for\ a\ new\ subcluster\ to\ enter\ a\ CFSubcluster.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00119}00119\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00120}00120\ \textcolor{stringliteral}{\ \ \ \ branching\_factor\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00121}00121\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Maximum\ number\ of\ CF\ subclusters\ in\ each\ node.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00122}00122\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00123}00123\ \textcolor{stringliteral}{\ \ \ \ is\_leaf\ :\ bool}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00124}00124\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ We\ need\ to\ know\ if\ the\ CFNode\ is\ a\ leaf\ or\ not,\ in\ order\ to}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00125}00125\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ retrieve\ the\ final\ subclusters.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00126}00126\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00127}00127\ \textcolor{stringliteral}{\ \ \ \ n\_features\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00128}00128\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ number\ of\ features.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00129}00129\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00130}00130\ \textcolor{stringliteral}{\ \ \ \ Attributes}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00131}00131\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00132}00132\ \textcolor{stringliteral}{\ \ \ \ subclusters\_\ :\ list}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00133}00133\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ List\ of\ subclusters\ for\ a\ particular\ CFNode.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00134}00134\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00135}00135\ \textcolor{stringliteral}{\ \ \ \ prev\_leaf\_\ :\ \_CFNode}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00136}00136\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Useful\ only\ if\ is\_leaf\ is\ True.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00137}00137\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00138}00138\ \textcolor{stringliteral}{\ \ \ \ next\_leaf\_\ :\ \_CFNode}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00139}00139\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ next\_leaf.\ Useful\ only\ if\ is\_leaf\ is\ True.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00140}00140\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ final\ subclusters.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00141}00141\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00142}00142\ \textcolor{stringliteral}{\ \ \ \ init\_centroids\_\ :\ ndarray\ of\ shape\ (branching\_factor\ +\ 1,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00143}00143\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Manipulate\ \`{}\`{}init\_centroids\_\`{}\`{}\ throughout\ rather\ than\ centroids\_\ since}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00144}00144\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ centroids\ are\ just\ a\ view\ of\ the\ \`{}\`{}init\_centroids\_\`{}\`{}\ .}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00145}00145\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00146}00146\ \textcolor{stringliteral}{\ \ \ \ init\_sq\_norm\_\ :\ ndarray\ of\ shape\ (branching\_factor\ +\ 1,)}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00147}00147\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ manipulate\ init\_sq\_norm\_\ throughout.\ similar\ to\ \`{}\`{}init\_centroids\_\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00148}00148\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00149}00149\ \textcolor{stringliteral}{\ \ \ \ centroids\_\ :\ ndarray\ of\ shape\ (branching\_factor\ +\ 1,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00150}00150\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ View\ of\ \`{}\`{}init\_centroids\_\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00151}00151\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00152}00152\ \textcolor{stringliteral}{\ \ \ \ squared\_norm\_\ :\ ndarray\ of\ shape\ (branching\_factor\ +\ 1,)}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00153}00153\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ View\ of\ \`{}\`{}init\_sq\_norm\_\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00154}00154\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00155}00155\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00156}00156\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00157}00157\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ *,\ threshold,\ branching\_factor,\ is\_leaf,\ n\_features,\ dtype):}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00158}00158\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_a81840835450440723f5d3c33473eeff4}{threshold}}\ =\ threshold}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00159}00159\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_a9e02a44f78b916eedc692f6c13b9909f}{branching\_factor}}\ =\ branching\_factor}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00160}00160\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_abcd4499ce3da0735495836d0c71b974e}{is\_leaf}}\ =\ is\_leaf}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00161}00161\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_a7abe760c42eef3ab4baa46a01a2fb106}{n\_features}}\ =\ n\_features}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00162}00162\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00163}00163\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ list\ of\ subclusters,\ centroids\ and\ squared\ norms}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00164}00164\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ to\ manipulate\ throughout.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00165}00165\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_a4cfdb92e38584c6e895a28bab7ae066b}{subclusters\_}}\ =\ []}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00166}00166\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_ad38c4666c9f1e1fa25d05e7a3713bfee}{init\_centroids\_}}\ =\ np.zeros((branching\_factor\ +\ 1,\ n\_features),\ dtype=dtype)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00167}00167\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_afde415232a20c2f9b52bbf5053053994}{init\_sq\_norm\_}}\ =\ np.zeros((branching\_factor\ +\ 1),\ dtype)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00168}00168\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_a2b192dca13a0cab5bb5acd1f5c88116e}{squared\_norm\_}}\ =\ []}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00169}00169\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_a1e0b680b9a2e91ba52b97da29bfc8a96}{prev\_leaf\_}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00170}00170\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_a3b6458492430c816e6763cbf31a33239}{next\_leaf\_}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00171}00171\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00172}00172\ \ \ \ \ \textcolor{keyword}{def\ }append\_subcluster(self,\ subcluster):}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00173}00173\ \ \ \ \ \ \ \ \ n\_samples\ =\ len(self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_a4cfdb92e38584c6e895a28bab7ae066b}{subclusters\_}})}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00174}00174\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_a4cfdb92e38584c6e895a28bab7ae066b}{subclusters\_}}.append(subcluster)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00175}00175\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_ad38c4666c9f1e1fa25d05e7a3713bfee}{init\_centroids\_}}[n\_samples]\ =\ subcluster.centroid\_}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00176}00176\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_afde415232a20c2f9b52bbf5053053994}{init\_sq\_norm\_}}[n\_samples]\ =\ subcluster.sq\_norm\_}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00177}00177\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00178}00178\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Keep\ centroids\ and\ squared\ norm\ as\ views.\ In\ this\ way}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00179}00179\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ if\ we\ change\ init\_centroids\ and\ init\_sq\_norm\_,\ it\ is}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00180}00180\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ sufficient,}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00181}00181\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_af9bc1dc6b86f352f0e0de362f76310e7}{centroids\_}}\ =\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_ad38c4666c9f1e1fa25d05e7a3713bfee}{init\_centroids\_}}[:\ n\_samples\ +\ 1,\ :]}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00182}00182\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_a2b192dca13a0cab5bb5acd1f5c88116e}{squared\_norm\_}}\ =\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_afde415232a20c2f9b52bbf5053053994}{init\_sq\_norm\_}}[:\ n\_samples\ +\ 1]}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00183}00183\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00184}\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_a263c74f54f99f7f4f2cbe29727ebbbcd}{00184}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_a263c74f54f99f7f4f2cbe29727ebbbcd}{update\_split\_subclusters}}(self,\ subcluster,\ new\_subcluster1,\ new\_subcluster2):}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00185}00185\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Remove\ a\ subcluster\ from\ a\ node\ and\ update\ it\ with\ the}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00186}00186\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ split\ subclusters.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00187}00187\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00188}00188\ \ \ \ \ \ \ \ \ ind\ =\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_a4cfdb92e38584c6e895a28bab7ae066b}{subclusters\_}}.index(subcluster)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00189}00189\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_a4cfdb92e38584c6e895a28bab7ae066b}{subclusters\_}}[ind]\ =\ new\_subcluster1}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00190}00190\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_ad38c4666c9f1e1fa25d05e7a3713bfee}{init\_centroids\_}}[ind]\ =\ new\_subcluster1.centroid\_}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00191}00191\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_afde415232a20c2f9b52bbf5053053994}{init\_sq\_norm\_}}[ind]\ =\ new\_subcluster1.sq\_norm\_}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00192}00192\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_aeef64ea8f54a528b216829676574553f}{append\_subcluster}}(new\_subcluster2)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00193}00193\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00194}\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_a610e772f0d808101806c466958fe7f74}{00194}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_a610e772f0d808101806c466958fe7f74}{insert\_cf\_subcluster}}(self,\ subcluster):}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00195}00195\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Insert\ a\ new\ subcluster\ into\ the\ node."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00196}00196\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_a4cfdb92e38584c6e895a28bab7ae066b}{subclusters\_}}:}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00197}00197\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_aeef64ea8f54a528b216829676574553f}{append\_subcluster}}(subcluster)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00198}00198\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00199}00199\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00200}00200\ \ \ \ \ \ \ \ \ threshold\ =\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_a81840835450440723f5d3c33473eeff4}{threshold}}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00201}00201\ \ \ \ \ \ \ \ \ branching\_factor\ =\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_a9e02a44f78b916eedc692f6c13b9909f}{branching\_factor}}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00202}00202\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ We\ need\ to\ find\ the\ closest\ subcluster\ among\ all\ the}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00203}00203\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ subclusters\ so\ that\ we\ can\ insert\ our\ new\ subcluster.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00204}00204\ \ \ \ \ \ \ \ \ dist\_matrix\ =\ np.dot(self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_af9bc1dc6b86f352f0e0de362f76310e7}{centroids\_}},\ subcluster.centroid\_)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00205}00205\ \ \ \ \ \ \ \ \ dist\_matrix\ *=\ -\/2.0}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00206}00206\ \ \ \ \ \ \ \ \ dist\_matrix\ +=\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_a2b192dca13a0cab5bb5acd1f5c88116e}{squared\_norm\_}}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00207}00207\ \ \ \ \ \ \ \ \ closest\_index\ =\ np.argmin(dist\_matrix)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00208}00208\ \ \ \ \ \ \ \ \ closest\_subcluster\ =\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_a4cfdb92e38584c6e895a28bab7ae066b}{subclusters\_}}[closest\_index]}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00209}00209\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00210}00210\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ If\ the\ subcluster\ has\ a\ child,\ we\ need\ a\ recursive\ strategy.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00211}00211\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ closest\_subcluster.child\_\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00212}00212\ \ \ \ \ \ \ \ \ \ \ \ \ split\_child\ =\ closest\_subcluster.child\_.insert\_cf\_subcluster(subcluster)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00213}00213\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00214}00214\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ split\_child:}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00215}00215\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ If\ it\ is\ determined\ that\ the\ child\ need\ not\ be\ split,\ we}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00216}00216\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ can\ just\ update\ the\ closest\_subcluster}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00217}00217\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ closest\_subcluster.update(subcluster)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00218}00218\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_ad38c4666c9f1e1fa25d05e7a3713bfee}{init\_centroids\_}}[closest\_index]\ =\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_a4cfdb92e38584c6e895a28bab7ae066b}{subclusters\_}}[}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00219}00219\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ closest\_index}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00220}00220\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ].centroid\_}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00221}00221\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_afde415232a20c2f9b52bbf5053053994}{init\_sq\_norm\_}}[closest\_index]\ =\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_a4cfdb92e38584c6e895a28bab7ae066b}{subclusters\_}}[}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00222}00222\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ closest\_index}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00223}00223\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ].sq\_norm\_}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00224}00224\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00225}00225\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00226}00226\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ things\ not\ too\ good.\ we\ need\ to\ redistribute\ the\ subclusters\ in}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00227}00227\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ our\ child\ node,\ and\ add\ a\ new\ subcluster\ in\ the\ parent}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00228}00228\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ subcluster\ to\ accommodate\ the\ new\ child.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00229}00229\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00230}00230\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ new\_subcluster1,\ new\_subcluster2\ =\ \mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__birch_a199e399ad2374166d923b25e26d2303e}{\_split\_node}}(}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00231}00231\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ closest\_subcluster.child\_,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00232}00232\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ threshold,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00233}00233\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ branching\_factor,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00234}00234\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00235}00235\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_a263c74f54f99f7f4f2cbe29727ebbbcd}{update\_split\_subclusters}}(}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00236}00236\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ closest\_subcluster,\ new\_subcluster1,\ new\_subcluster2}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00237}00237\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00238}00238\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00239}00239\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_a4cfdb92e38584c6e895a28bab7ae066b}{subclusters\_}})\ >\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_a9e02a44f78b916eedc692f6c13b9909f}{branching\_factor}}:}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00240}00240\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00241}00241\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00242}00242\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00243}00243\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ good\ to\ go!}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00244}00244\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00245}00245\ \ \ \ \ \ \ \ \ \ \ \ \ merged\ =\ closest\_subcluster.merge\_subcluster(subcluster,\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_a81840835450440723f5d3c33473eeff4}{threshold}})}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00246}00246\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ merged:}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00247}00247\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_ad38c4666c9f1e1fa25d05e7a3713bfee}{init\_centroids\_}}[closest\_index]\ =\ closest\_subcluster.centroid\_}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00248}00248\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_afde415232a20c2f9b52bbf5053053994}{init\_sq\_norm\_}}[closest\_index]\ =\ closest\_subcluster.sq\_norm\_}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00249}00249\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00250}00250\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00251}00251\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ not\ close\ to\ any\ other\ subclusters,\ and\ we\ still}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00252}00252\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ have\ space,\ so\ add.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00253}00253\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ len(self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_a4cfdb92e38584c6e895a28bab7ae066b}{subclusters\_}})\ <\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_a9e02a44f78b916eedc692f6c13b9909f}{branching\_factor}}:}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00254}00254\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_aeef64ea8f54a528b216829676574553f}{append\_subcluster}}(subcluster)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00255}00255\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00256}00256\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00257}00257\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ We\ do\ not\ have\ enough\ space\ nor\ is\ it\ closer\ to\ an}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00258}00258\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ other\ subcluster.\ We\ need\ to\ split.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00259}00259\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00260}00260\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFNode_aeef64ea8f54a528b216829676574553f}{append\_subcluster}}(subcluster)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00261}00261\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00262}00262\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00263}00263\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00264}\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFSubcluster}{00264}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFSubcluster}{\_CFSubcluster}}:}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00265}00265\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Each\ subcluster\ in\ a\ CFNode\ is\ called\ a\ CFSubcluster.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00266}00266\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00267}00267\ \textcolor{stringliteral}{\ \ \ \ A\ CFSubcluster\ can\ have\ a\ CFNode\ has\ its\ child.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00268}00268\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00269}00269\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00270}00270\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00271}00271\ \textcolor{stringliteral}{\ \ \ \ linear\_sum\ :\ ndarray\ of\ shape\ (n\_features,),\ default=None}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00272}00272\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Sample.\ This\ is\ kept\ optional\ to\ allow\ initialization\ of\ empty}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00273}00273\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ subclusters.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00274}00274\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00275}00275\ \textcolor{stringliteral}{\ \ \ \ Attributes}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00276}00276\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00277}00277\ \textcolor{stringliteral}{\ \ \ \ n\_samples\_\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00278}00278\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ samples\ that\ belong\ to\ each\ subcluster.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00279}00279\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00280}00280\ \textcolor{stringliteral}{\ \ \ \ linear\_sum\_\ :\ ndarray}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00281}00281\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Linear\ sum\ of\ all\ the\ samples\ in\ a\ subcluster.\ Prevents\ holding}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00282}00282\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ all\ sample\ data\ in\ memory.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00283}00283\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00284}00284\ \textcolor{stringliteral}{\ \ \ \ squared\_sum\_\ :\ float}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00285}00285\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Sum\ of\ the\ squared\ l2\ norms\ of\ all\ samples\ belonging\ to\ a\ subcluster.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00286}00286\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00287}00287\ \textcolor{stringliteral}{\ \ \ \ centroid\_\ :\ ndarray\ of\ shape\ (branching\_factor\ +\ 1,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00288}00288\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Centroid\ of\ the\ subcluster.\ Prevent\ recomputing\ of\ centroids\ when}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00289}00289\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}CFNode.centroids\_\`{}\`{}\ is\ called.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00290}00290\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00291}00291\ \textcolor{stringliteral}{\ \ \ \ child\_\ :\ \_CFNode}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00292}00292\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Child\ Node\ of\ the\ subcluster.\ Once\ a\ given\ \_CFNode\ is\ set\ as\ the\ child}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00293}00293\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ of\ the\ \_CFNode,\ it\ is\ set\ to\ \`{}\`{}self.child\_\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00294}00294\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00295}00295\ \textcolor{stringliteral}{\ \ \ \ sq\_norm\_\ :\ ndarray\ of\ shape\ (branching\_factor\ +\ 1,)}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00296}00296\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Squared\ norm\ of\ the\ subcluster.\ Used\ to\ prevent\ recomputing\ when}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00297}00297\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ pairwise\ minimum\ distances\ are\ computed.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00298}00298\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00299}00299\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00300}00300\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ *,\ linear\_sum=None):}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00301}00301\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ linear\_sum\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00302}00302\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFSubcluster_aedb54cefa24b7b369b31502afc0ead0b}{n\_samples\_}}\ =\ 0}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00303}00303\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFSubcluster_abb61580ba709d26f57b2467fc60a4f5a}{squared\_sum\_}}\ =\ 0.0}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00304}00304\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFSubcluster_afec9fa6552aa2e7fbee33186f2c82dd7}{centroid\_}}\ =\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFSubcluster_a51c8ea6d2a8519bf7acf64d7c7604a18}{linear\_sum\_}}\ =\ 0}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00305}00305\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00306}00306\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFSubcluster_aedb54cefa24b7b369b31502afc0ead0b}{n\_samples\_}}\ =\ 1}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00307}00307\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFSubcluster_afec9fa6552aa2e7fbee33186f2c82dd7}{centroid\_}}\ =\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFSubcluster_a51c8ea6d2a8519bf7acf64d7c7604a18}{linear\_sum\_}}\ =\ linear\_sum}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00308}00308\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFSubcluster_abb61580ba709d26f57b2467fc60a4f5a}{squared\_sum\_}}\ =\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFSubcluster_af93906cd640d63574318368597a2bfcd}{sq\_norm\_}}\ =\ np.dot(}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00309}00309\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFSubcluster_a51c8ea6d2a8519bf7acf64d7c7604a18}{linear\_sum\_}},\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFSubcluster_a51c8ea6d2a8519bf7acf64d7c7604a18}{linear\_sum\_}}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00310}00310\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00311}00311\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFSubcluster_afbdf223980f12545aa092df385cf904b}{child\_}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00312}00312\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00313}00313\ \ \ \ \ \textcolor{keyword}{def\ }update(self,\ subcluster):}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00314}00314\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFSubcluster_aedb54cefa24b7b369b31502afc0ead0b}{n\_samples\_}}\ +=\ subcluster.n\_samples\_}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00315}00315\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFSubcluster_a51c8ea6d2a8519bf7acf64d7c7604a18}{linear\_sum\_}}\ +=\ subcluster.linear\_sum\_}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00316}00316\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFSubcluster_abb61580ba709d26f57b2467fc60a4f5a}{squared\_sum\_}}\ +=\ subcluster.squared\_sum\_}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00317}00317\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFSubcluster_afec9fa6552aa2e7fbee33186f2c82dd7}{centroid\_}}\ =\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFSubcluster_a51c8ea6d2a8519bf7acf64d7c7604a18}{linear\_sum\_}}\ /\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFSubcluster_aedb54cefa24b7b369b31502afc0ead0b}{n\_samples\_}}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00318}00318\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFSubcluster_af93906cd640d63574318368597a2bfcd}{sq\_norm\_}}\ =\ np.dot(self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFSubcluster_afec9fa6552aa2e7fbee33186f2c82dd7}{centroid\_}},\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFSubcluster_afec9fa6552aa2e7fbee33186f2c82dd7}{centroid\_}})}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00319}00319\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00320}\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFSubcluster_a80d62f7dd613e42a60e4e593d757cdf5}{00320}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFSubcluster_a80d62f7dd613e42a60e4e593d757cdf5}{merge\_subcluster}}(self,\ nominee\_cluster,\ threshold):}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00321}00321\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Check\ if\ a\ cluster\ is\ worthy\ enough\ to\ be\ merged.\ If}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00322}00322\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ yes\ then\ merge.}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00323}00323\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00324}00324\ \ \ \ \ \ \ \ \ new\_ss\ =\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFSubcluster_abb61580ba709d26f57b2467fc60a4f5a}{squared\_sum\_}}\ +\ nominee\_cluster.squared\_sum\_}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00325}00325\ \ \ \ \ \ \ \ \ new\_ls\ =\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFSubcluster_a51c8ea6d2a8519bf7acf64d7c7604a18}{linear\_sum\_}}\ +\ nominee\_cluster.linear\_sum\_}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00326}00326\ \ \ \ \ \ \ \ \ new\_n\ =\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFSubcluster_aedb54cefa24b7b369b31502afc0ead0b}{n\_samples\_}}\ +\ nominee\_cluster.n\_samples\_}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00327}00327\ \ \ \ \ \ \ \ \ new\_centroid\ =\ (1\ /\ new\_n)\ *\ new\_ls}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00328}00328\ \ \ \ \ \ \ \ \ new\_sq\_norm\ =\ np.dot(new\_centroid,\ new\_centroid)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00329}00329\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00330}00330\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ squared\ radius\ of\ the\ cluster\ is\ defined:}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00331}00331\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ r\string^2\ \ =\ sum\_i\ ||x\_i\ -\/\ c||\string^2\ /\ n}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00332}00332\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ with\ x\_i\ the\ n\ points\ assigned\ to\ the\ cluster\ and\ c\ its\ centroid:}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00333}00333\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ c\ =\ sum\_i\ x\_i\ /\ n}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00334}00334\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ This\ can\ be\ expanded\ to:}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00335}00335\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ r\string^2\ =\ sum\_i\ ||x\_i||\string^2\ /\ n\ -\/\ 2\ <\ sum\_i\ x\_i\ /\ n,\ c>\ +\ n\ ||c||\string^2\ /\ n}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00336}00336\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ and\ therefore\ simplifies\ to:}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00337}00337\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ r\string^2\ =\ sum\_i\ ||x\_i||\string^2\ /\ n\ -\/\ ||c||\string^2}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00338}00338\ \ \ \ \ \ \ \ \ sq\_radius\ =\ new\_ss\ /\ new\_n\ -\/\ new\_sq\_norm}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00339}00339\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00340}00340\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ sq\_radius\ <=\ threshold**2:}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00341}00341\ \ \ \ \ \ \ \ \ \ \ \ \ (}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00342}00342\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFSubcluster_aedb54cefa24b7b369b31502afc0ead0b}{n\_samples\_}},}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00343}00343\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFSubcluster_a51c8ea6d2a8519bf7acf64d7c7604a18}{linear\_sum\_}},}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00344}00344\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFSubcluster_abb61580ba709d26f57b2467fc60a4f5a}{squared\_sum\_}},}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00345}00345\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFSubcluster_afec9fa6552aa2e7fbee33186f2c82dd7}{centroid\_}},}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00346}00346\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFSubcluster_af93906cd640d63574318368597a2bfcd}{sq\_norm\_}},}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00347}00347\ \ \ \ \ \ \ \ \ \ \ \ \ )\ =\ (new\_n,\ new\_ls,\ new\_ss,\ new\_centroid,\ new\_sq\_norm)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00348}00348\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00349}00349\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00350}00350\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00351}00351\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00352}\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFSubcluster_ad91b42c90ea6eb443be5103152e71d2c}{00352}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1__CFSubcluster_ad91b42c90ea6eb443be5103152e71d2c}{radius}}(self):}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00353}00353\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Return\ radius\ of\ the\ subcluster"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00354}00354\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \#\ Because\ of\ numerical\ issues,\ this\ could\ become\ negative}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00355}00355\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ sq\_radius\ =\ self.squared\_sum\_\ /\ self.n\_samples\_\ -\/\ self.sq\_norm\_}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00356}00356\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ return\ sqrt(max(0,\ sq\_radius))}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00357}00357\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00358}00358\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00359}\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1Birch}{00359}}\ \textcolor{stringliteral}{class\ Birch(}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00360}00360\ \textcolor{stringliteral}{\ \ \ \ ClassNamePrefixFeaturesOutMixin,\ ClusterMixin,\ TransformerMixin,\ BaseEstimator}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00361}00361\ \textcolor{stringliteral}{):}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00362}00362\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}Implements\ the\ BIRCH\ clustering\ algorithm.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00363}00363\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00364}00364\ \ \ \ \ It\ is\ a\ memory-\/efficient,\ online-\/learning\ algorithm\ provided\ as\ an}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00365}00365\ \ \ \ \ alternative\ to\ :class:\`{}MiniBatchKMeans\`{}.\ It\ constructs\ a\ tree}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00366}00366\ \ \ \ \ data\ structure\ with\ the\ cluster\ centroids\ being\ read\ off\ the\ leaf.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00367}00367\ \ \ \ \ These\ can\ be\ either\ the\ final\ cluster\ centroids\ or\ can\ be\ provided\ as\ input}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00368}00368\ \ \ \ \ to\ another\ clustering\ algorithm\ such\ as\ :class:\`{}AgglomerativeClustering\`{}.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00369}00369\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00370}00370\ \ \ \ \ Read\ more\ in\ the\ :ref:\`{}User\ Guide\ <birch>\`{}.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00371}00371\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00372}00372\ \ \ \ \ ..\ versionadded::\ 0.16}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00373}00373\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00374}00374\ \ \ \ \ Parameters}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00375}00375\ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00376}00376\ \ \ \ \ threshold\ :\ float,\ default=0.5}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00377}00377\ \ \ \ \ \ \ \ \ The\ radius\ of\ the\ subcluster\ obtained\ by\ merging\ a\ new\ sample\ and\ the}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00378}00378\ \ \ \ \ \ \ \ \ closest\ subcluster\ should\ be\ lesser\ than\ the\ threshold.\ Otherwise\ a\ new}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00379}00379\ \ \ \ \ \ \ \ \ subcluster\ is\ started.\ Setting\ this\ value\ to\ be\ very\ low\ promotes}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00380}00380\ \ \ \ \ \ \ \ \ splitting\ and\ vice-\/versa.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00381}00381\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00382}00382\ \ \ \ \ branching\_factor\ :\ int,\ default=50}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00383}00383\ \ \ \ \ \ \ \ \ Maximum\ number\ of\ CF\ subclusters\ in\ each\ node.\ If\ a\ new\ samples\ enters}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00384}00384\ \ \ \ \ \ \ \ \ such\ that\ the\ number\ of\ subclusters\ exceed\ the\ branching\_factor\ then}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00385}00385\ \ \ \ \ \ \ \ \ that\ node\ is\ split\ into\ two\ nodes\ with\ the\ subclusters\ redistributed}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00386}00386\ \ \ \ \ \ \ \ \ in\ each.\ The\ parent\ subcluster\ of\ that\ node\ is\ removed\ and\ two\ new}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00387}00387\ \ \ \ \ \ \ \ \ subclusters\ are\ added\ as\ parents\ of\ the\ 2\ split\ nodes.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00388}00388\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00389}00389\ \ \ \ \ n\_clusters\ :\ int,\ instance\ of\ sklearn.cluster\ model\ or\ None,\ default=3}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00390}00390\ \ \ \ \ \ \ \ \ Number\ of\ clusters\ after\ the\ final\ clustering\ step,\ which\ treats\ the}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00391}00391\ \ \ \ \ \ \ \ \ subclusters\ from\ the\ leaves\ as\ new\ samples.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00392}00392\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00393}00393\ \ \ \ \ \ \ \ \ -\/\ \`{}None\`{}\ :\ the\ final\ clustering\ step\ is\ not\ performed\ and\ the}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00394}00394\ \ \ \ \ \ \ \ \ \ \ subclusters\ are\ returned\ as\ they\ are.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00395}00395\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00396}00396\ \ \ \ \ \ \ \ \ -\/\ :mod:\`{}sklearn.cluster\`{}\ Estimator\ :\ If\ a\ model\ is\ provided,\ the\ model}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00397}00397\ \ \ \ \ \ \ \ \ \ \ is\ fit\ treating\ the\ subclusters\ as\ new\ samples\ and\ the\ initial\ data}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00398}00398\ \ \ \ \ \ \ \ \ \ \ is\ mapped\ to\ the\ label\ of\ the\ closest\ subcluster.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00399}00399\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00400}00400\ \ \ \ \ \ \ \ \ -\/\ \`{}int\`{}\ :\ the\ model\ fit\ is\ :class:\`{}AgglomerativeClustering\`{}\ with}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00401}00401\ \ \ \ \ \ \ \ \ \ \ \`{}n\_clusters\`{}\ set\ to\ be\ equal\ to\ the\ int.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00402}00402\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00403}00403\ \ \ \ \ compute\_labels\ :\ bool,\ default=True}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00404}00404\ \ \ \ \ \ \ \ \ Whether\ or\ not\ to\ compute\ labels\ for\ each\ fit.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00405}00405\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00406}00406\ \ \ \ \ copy\ :\ bool,\ default=True}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00407}00407\ \ \ \ \ \ \ \ \ Whether\ or\ not\ to\ make\ a\ copy\ of\ the\ given\ data.\ If\ set\ to\ False,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00408}00408\ \ \ \ \ \ \ \ \ the\ initial\ data\ will\ be\ overwritten.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00409}00409\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00410}00410\ \ \ \ \ \ \ \ \ ..\ deprecated::\ 1.6}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00411}00411\ \ \ \ \ \ \ \ \ \ \ \ \ \`{}copy\`{}\ was\ deprecated\ in\ 1.6\ and\ will\ be\ removed\ in\ 1.8.\ It\ has\ no\ effect}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00412}00412\ \ \ \ \ \ \ \ \ \ \ \ \ as\ the\ estimator\ does\ not\ perform\ in-\/place\ operations\ on\ the\ input\ data.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00413}00413\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00414}00414\ \ \ \ \ Attributes}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00415}00415\ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00416}00416\ \ \ \ \ root\_\ :\ \_CFNode}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00417}00417\ \ \ \ \ \ \ \ \ Root\ of\ the\ CFTree.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00418}00418\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00419}00419\ \ \ \ \ dummy\_leaf\_\ :\ \_CFNode}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00420}00420\ \ \ \ \ \ \ \ \ Start\ pointer\ to\ all\ the\ leaves.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00421}00421\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00422}00422\ \ \ \ \ subcluster\_centers\_\ :\ ndarray}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00423}00423\ \ \ \ \ \ \ \ \ Centroids\ of\ all\ subclusters\ read\ directly\ from\ the\ leaves.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00424}00424\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00425}00425\ \ \ \ \ subcluster\_labels\_\ :\ ndarray}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00426}00426\ \ \ \ \ \ \ \ \ Labels\ assigned\ to\ the\ centroids\ of\ the\ subclusters\ after}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00427}00427\ \ \ \ \ \ \ \ \ they\ are\ clustered\ globally.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00428}00428\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00429}00429\ \ \ \ \ labels\_\ :\ ndarray\ of\ shape\ (n\_samples,)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00430}00430\ \ \ \ \ \ \ \ \ Array\ of\ labels\ assigned\ to\ the\ input\ data.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00431}00431\ \ \ \ \ \ \ \ \ if\ partial\_fit\ is\ used\ instead\ of\ fit,\ they\ are\ assigned\ to\ the}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00432}00432\ \ \ \ \ \ \ \ \ last\ batch\ of\ data.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00433}00433\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00434}00434\ \ \ \ \ n\_features\_in\_\ :\ int}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00435}00435\ \ \ \ \ \ \ \ \ Number\ of\ features\ seen\ during\ :term:\`{}fit\`{}.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00436}00436\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00437}00437\ \ \ \ \ \ \ \ \ ..\ versionadded::\ 0.24}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00438}00438\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00439}00439\ \ \ \ \ feature\_names\_in\_\ :\ ndarray\ of\ shape\ (\`{}n\_features\_in\_\`{},)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00440}00440\ \ \ \ \ \ \ \ \ Names\ of\ features\ seen\ during\ :term:\`{}fit\`{}.\ Defined\ only\ when\ \`{}X\`{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00441}00441\ \ \ \ \ \ \ \ \ has\ feature\ names\ that\ are\ all\ strings.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00442}00442\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00443}00443\ \ \ \ \ \ \ \ \ ..\ versionadded::\ 1.0}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00444}00444\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00445}00445\ \ \ \ \ See\ Also}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00446}00446\ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00447}00447\ \ \ \ \ MiniBatchKMeans\ :\ Alternative\ implementation\ that\ does\ incremental\ updates}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00448}00448\ \ \ \ \ \ \ \ \ of\ the\ centers'\ positions\ using\ mini-\/batches.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00449}00449\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00450}00450\ \ \ \ \ Notes}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00451}00451\ \ \ \ \ -\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00452}00452\ \ \ \ \ The\ tree\ data\ structure\ consists\ of\ nodes\ with\ each\ node\ consisting\ of}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00453}00453\ \ \ \ \ a\ number\ of\ subclusters.\ The\ maximum\ number\ of\ subclusters\ in\ a\ node}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00454}00454\ \ \ \ \ is\ determined\ by\ the\ branching\ factor.\ Each\ subcluster\ maintains\ a}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00455}00455\ \ \ \ \ linear\ sum,\ squared\ sum\ and\ the\ number\ of\ samples\ in\ that\ subcluster.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00456}00456\ \ \ \ \ In\ addition,\ each\ subcluster\ can\ also\ have\ a\ node\ as\ its\ child,\ if\ the}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00457}00457\ \ \ \ \ subcluster\ is\ not\ a\ member\ of\ a\ leaf\ node.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00458}00458\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00459}00459\ \ \ \ \ For\ a\ new\ point\ entering\ the\ root,\ it\ is\ merged\ with\ the\ subcluster\ closest}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00460}00460\ \ \ \ \ to\ it\ and\ the\ linear\ sum,\ squared\ sum\ and\ the\ number\ of\ samples\ of\ that}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00461}00461\ \ \ \ \ subcluster\ are\ updated.\ This\ is\ done\ recursively\ till\ the\ properties\ of}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00462}00462\ \ \ \ \ the\ leaf\ node\ are\ updated.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00463}00463\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00464}00464\ \ \ \ \ See\ :ref:\`{}sphx\_glr\_auto\_examples\_cluster\_plot\_birch\_vs\_minibatchkmeans.py\`{}\ for\ a}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00465}00465\ \ \ \ \ comparison\ with\ :class:\`{}\string~sklearn.cluster.MiniBatchKMeans\`{}.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00466}00466\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00467}00467\ \ \ \ \ References}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00468}00468\ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00469}00469\ \ \ \ \ *\ Tian\ Zhang,\ Raghu\ Ramakrishnan,\ Maron\ Livny}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00470}00470\ \ \ \ \ \ \ BIRCH:\ An\ efficient\ data\ clustering\ method\ for\ large\ databases.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00471}00471\ \ \ \ \ \ \ https://www.cs.sfu.ca/CourseCentral/459/han/papers/zhang96.pdf}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00472}00472\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00473}00473\ \ \ \ \ *\ Roberto\ Perdisci}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00474}00474\ \ \ \ \ \ \ JBirch\ -\/\ Java\ implementation\ of\ BIRCH\ clustering\ algorithm}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00475}00475\ \ \ \ \ \ \ https://code.google.com/archive/p/jbirch}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00476}00476\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00477}00477\ \ \ \ \ Examples}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00478}00478\ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00479}00479\ \ \ \ \ >>>\ from\ sklearn.cluster\ import\ Birch}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00480}00480\ \ \ \ \ >>>\ X\ =\ [[0,\ 1],\ [0.3,\ 1],\ [-\/0.3,\ 1],\ [0,\ -\/1],\ [0.3,\ -\/1],\ [-\/0.3,\ -\/1]]}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00481}00481\ \ \ \ \ >>>\ brc\ =\ Birch(n\_clusters=None)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00482}00482\ \ \ \ \ >>>\ brc.fit(X)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00483}00483\ \ \ \ \ Birch(n\_clusters=None)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00484}00484\ \ \ \ \ >>>\ brc.predict(X)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00485}00485\ \ \ \ \ array([0,\ 0,\ 0,\ 1,\ 1,\ 1])}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00486}00486\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00487}00487\ \ \ \ \ For\ a\ comparison\ of\ the\ BIRCH\ clustering\ algorithm\ with\ other\ clustering\ algorithms,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00488}00488\ \ \ \ \ see\ :ref:\`{}sphx\_glr\_auto\_examples\_cluster\_plot\_cluster\_comparison.py\`{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00489}00489\ \ \ \ \ "{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00490}00490\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00491}00491\ \ \ \ \ \_parameter\_constraints:\ dict\ =\ \{}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00492}00492\ \ \ \ \ \ \ \ \ "{}threshold"{}:\ [Interval(Real,\ 0.0,\ None,\ closed="{}neither"{})],}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00493}00493\ \ \ \ \ \ \ \ \ "{}branching\_factor"{}:\ [Interval(Integral,\ 1,\ None,\ closed="{}neither"{})],}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00494}00494\ \ \ \ \ \ \ \ \ "{}n\_clusters"{}:\ [None,\ ClusterMixin,\ Interval(Integral,\ 1,\ None,\ closed="{}left"{})],}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00495}00495\ \ \ \ \ \ \ \ \ "{}compute\_labels"{}:\ ["{}boolean"{}],}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00496}00496\ \ \ \ \ \ \ \ \ "{}copy"{}:\ ["{}boolean"{},\ Hidden(StrOptions(\{"{}deprecated"{}\}))],}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00497}00497\ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00498}00498\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00499}00499\ \ \ \ \ def\ \_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00500}00500\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00501}00501\ \ \ \ \ \ \ \ \ *,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00502}00502\ \ \ \ \ \ \ \ \ threshold=0.5,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00503}00503\ \ \ \ \ \ \ \ \ branching\_factor=50,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00504}00504\ \ \ \ \ \ \ \ \ n\_clusters=3,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00505}00505\ \ \ \ \ \ \ \ \ compute\_labels=True,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00506}00506\ \ \ \ \ \ \ \ \ copy="{}deprecated"{},}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00507}00507\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00508}00508\ \ \ \ \ \ \ \ \ self.threshold\ =\ threshold}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00509}00509\ \ \ \ \ \ \ \ \ self.branching\_factor\ =\ branching\_factor}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00510}00510\ \ \ \ \ \ \ \ \ self.n\_clusters\ =\ n\_clusters}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00511}00511\ \ \ \ \ \ \ \ \ self.compute\_labels\ =\ compute\_labels}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00512}00512\ \ \ \ \ \ \ \ \ self.copy\ =\ copy}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00513}00513\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00514}00514\ \ \ \ \ @\_fit\_context(prefer\_skip\_nested\_validation=True)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00515}\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1Birch_a90a733ab630a2fa047eb64e5e18744f5}{00515}}\ \ \ \ \ def\ fit(self,\ X,\ y=None):}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00516}00516\ \ \ \ \ \ \ \ \ "{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00517}00517\ \ \ \ \ \ \ \ \ Build\ a\ CF\ Tree\ for\ the\ input\ data.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00518}00518\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00519}00519\ \ \ \ \ \ \ \ \ Parameters}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00520}00520\ \ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00521}00521\ \ \ \ \ \ \ \ \ X\ :\ \{array-\/like,\ sparse\ matrix\}\ of\ shape\ (n\_samples,\ n\_features)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00522}00522\ \ \ \ \ \ \ \ \ \ \ \ \ Input\ data.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00523}00523\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00524}00524\ \ \ \ \ \ \ \ \ y\ :\ Ignored}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00525}00525\ \ \ \ \ \ \ \ \ \ \ \ \ Not\ used,\ present\ here\ for\ API\ consistency\ by\ convention.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00526}00526\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00527}00527\ \ \ \ \ \ \ \ \ Returns}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00528}00528\ \ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00529}00529\ \ \ \ \ \ \ \ \ self}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00530}00530\ \ \ \ \ \ \ \ \ \ \ \ \ Fitted\ estimator.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00531}00531\ \ \ \ \ \ \ \ \ "{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00532}00532\ \ \ \ \ \ \ \ \ return\ self.\_fit(X,\ partial=False)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00533}00533\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00534}00534\ \ \ \ \ def\ \_fit(self,\ X,\ partial):}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00535}00535\ \ \ \ \ \ \ \ \ has\_root\ =\ getattr(self,\ "{}root\_"{},\ None)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00536}00536\ \ \ \ \ \ \ \ \ first\_call\ =\ not\ (partial\ and\ has\_root)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00537}00537\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00538}00538\ \ \ \ \ \ \ \ \ if\ self.copy\ !=\ "{}deprecated"{}\ and\ first\_call:}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00539}00539\ \ \ \ \ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00540}00540\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "{}\`{}copy\`{}\ was\ deprecated\ in\ 1.6\ and\ will\ be\ removed\ in\ 1.8\ since\ it\ "{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00541}00541\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "{}has\ no\ effect\ internally.\ Simply\ leave\ this\ parameter\ to\ its\ default\ "{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00542}00542\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "{}value\ to\ avoid\ this\ warning."{},}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00543}00543\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ FutureWarning,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00544}00544\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00545}00545\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00546}00546\ \ \ \ \ \ \ \ \ X\ =\ validate\_data(}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00547}00547\ \ \ \ \ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00548}00548\ \ \ \ \ \ \ \ \ \ \ \ \ X,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00549}00549\ \ \ \ \ \ \ \ \ \ \ \ \ accept\_sparse="{}csr"{},}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00550}00550\ \ \ \ \ \ \ \ \ \ \ \ \ reset=first\_call,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00551}00551\ \ \ \ \ \ \ \ \ \ \ \ \ dtype=[np.float64,\ np.float32],}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00552}00552\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00553}00553\ \ \ \ \ \ \ \ \ threshold\ =\ self.threshold}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00554}00554\ \ \ \ \ \ \ \ \ branching\_factor\ =\ self.branching\_factor}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00555}00555\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00556}00556\ \ \ \ \ \ \ \ \ n\_samples,\ n\_features\ =\ X.shape}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00557}00557\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00558}00558\ \ \ \ \ \ \ \ \ \#\ If\ partial\_fit\ is\ called\ for\ the\ first\ time\ or\ fit\ is\ called,\ we}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00559}00559\ \ \ \ \ \ \ \ \ \#\ start\ a\ new\ tree.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00560}00560\ \ \ \ \ \ \ \ \ if\ first\_call:}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00561}00561\ \ \ \ \ \ \ \ \ \ \ \ \ \#\ The\ first\ root\ is\ the\ leaf.\ Manipulate\ this\ object\ throughout.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00562}00562\ \ \ \ \ \ \ \ \ \ \ \ \ self.root\_\ =\ \_CFNode(}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00563}00563\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ threshold=threshold,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00564}00564\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ branching\_factor=branching\_factor,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00565}00565\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ is\_leaf=True,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00566}00566\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ n\_features=n\_features,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00567}00567\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ dtype=X.dtype,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00568}00568\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00569}00569\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00570}00570\ \ \ \ \ \ \ \ \ \ \ \ \ \#\ To\ enable\ getting\ back\ subclusters.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00571}00571\ \ \ \ \ \ \ \ \ \ \ \ \ self.dummy\_leaf\_\ =\ \_CFNode(}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00572}00572\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ threshold=threshold,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00573}00573\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ branching\_factor=branching\_factor,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00574}00574\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ is\_leaf=True,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00575}00575\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ n\_features=n\_features,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00576}00576\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ dtype=X.dtype,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00577}00577\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00578}00578\ \ \ \ \ \ \ \ \ \ \ \ \ self.dummy\_leaf\_.next\_leaf\_\ =\ self.root\_}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00579}00579\ \ \ \ \ \ \ \ \ \ \ \ \ self.root\_.prev\_leaf\_\ =\ self.dummy\_leaf\_}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00580}00580\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00581}00581\ \ \ \ \ \ \ \ \ \#\ Cannot\ vectorize.\ Enough\ to\ convince\ to\ use\ cython.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00582}00582\ \ \ \ \ \ \ \ \ if\ not\ sparse.issparse(X):}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00583}00583\ \ \ \ \ \ \ \ \ \ \ \ \ iter\_func\ =\ iter}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00584}00584\ \ \ \ \ \ \ \ \ else:}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00585}00585\ \ \ \ \ \ \ \ \ \ \ \ \ iter\_func\ =\ \_iterate\_sparse\_X}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00586}00586\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00587}00587\ \ \ \ \ \ \ \ \ for\ sample\ in\ iter\_func(X):}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00588}00588\ \ \ \ \ \ \ \ \ \ \ \ \ subcluster\ =\ \_CFSubcluster(linear\_sum=sample)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00589}00589\ \ \ \ \ \ \ \ \ \ \ \ \ split\ =\ self.root\_.insert\_cf\_subcluster(subcluster)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00590}00590\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00591}00591\ \ \ \ \ \ \ \ \ \ \ \ \ if\ split:}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00592}00592\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ new\_subcluster1,\ new\_subcluster2\ =\ \_split\_node(}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00593}00593\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.root\_,\ threshold,\ branching\_factor}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00594}00594\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00595}00595\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ del\ self.root\_}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00596}00596\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.root\_\ =\ \_CFNode(}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00597}00597\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ threshold=threshold,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00598}00598\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ branching\_factor=branching\_factor,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00599}00599\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ is\_leaf=False,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00600}00600\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ n\_features=n\_features,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00601}00601\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ dtype=X.dtype,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00602}00602\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00603}00603\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.root\_.append\_subcluster(new\_subcluster1)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00604}00604\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.root\_.append\_subcluster(new\_subcluster2)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00605}00605\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00606}00606\ \ \ \ \ \ \ \ \ centroids\ =\ np.concatenate([leaf.centroids\_\ for\ leaf\ in\ self.\_get\_leaves()])}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00607}00607\ \ \ \ \ \ \ \ \ self.subcluster\_centers\_\ =\ centroids}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00608}00608\ \ \ \ \ \ \ \ \ self.\_n\_features\_out\ =\ self.subcluster\_centers\_.shape[0]}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00609}00609\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00610}00610\ \ \ \ \ \ \ \ \ self.\_global\_clustering(X)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00611}00611\ \ \ \ \ \ \ \ \ return\ self}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00612}00612\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00613}\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1Birch_a1dedb543528c49ca23d53bad5b8527d1}{00613}}\ \ \ \ \ def\ \_get\_leaves(self):}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00614}00614\ \ \ \ \ \ \ \ \ "{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00615}00615\ \ \ \ \ \ \ \ \ Retrieve\ the\ leaves\ of\ the\ CF\ Node.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00616}00616\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00617}00617\ \ \ \ \ \ \ \ \ Returns}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00618}00618\ \ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00619}00619\ \ \ \ \ \ \ \ \ leaves\ :\ list\ of\ shape\ (n\_leaves,)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00620}00620\ \ \ \ \ \ \ \ \ \ \ \ \ List\ of\ the\ leaf\ nodes.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00621}00621\ \ \ \ \ \ \ \ \ "{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00622}00622\ \ \ \ \ \ \ \ \ leaf\_ptr\ =\ self.dummy\_leaf\_.next\_leaf\_}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00623}00623\ \ \ \ \ \ \ \ \ leaves\ =\ []}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00624}00624\ \ \ \ \ \ \ \ \ while\ leaf\_ptr\ is\ not\ None:}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00625}00625\ \ \ \ \ \ \ \ \ \ \ \ \ leaves.append(leaf\_ptr)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00626}00626\ \ \ \ \ \ \ \ \ \ \ \ \ leaf\_ptr\ =\ leaf\_ptr.next\_leaf\_}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00627}00627\ \ \ \ \ \ \ \ \ return\ leaves}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00628}00628\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00629}00629\ \ \ \ \ @\_fit\_context(prefer\_skip\_nested\_validation=True)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00630}\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1Birch_a86b222405927ee7a299fbcc0522628a3}{00630}}\ \ \ \ \ def\ partial\_fit(self,\ X=None,\ y=None):}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00631}00631\ \ \ \ \ \ \ \ \ "{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00632}00632\ \ \ \ \ \ \ \ \ Online\ learning.\ Prevents\ rebuilding\ of\ CFTree\ from\ scratch.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00633}00633\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00634}00634\ \ \ \ \ \ \ \ \ Parameters}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00635}00635\ \ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00636}00636\ \ \ \ \ \ \ \ \ X\ :\ \{array-\/like,\ sparse\ matrix\}\ of\ shape\ (n\_samples,\ n\_features),\ \(\backslash\)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00637}00637\ \ \ \ \ \ \ \ \ \ \ \ \ default=None}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00638}00638\ \ \ \ \ \ \ \ \ \ \ \ \ Input\ data.\ If\ X\ is\ not\ provided,\ only\ the\ global\ clustering}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00639}00639\ \ \ \ \ \ \ \ \ \ \ \ \ step\ is\ done.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00640}00640\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00641}00641\ \ \ \ \ \ \ \ \ y\ :\ Ignored}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00642}00642\ \ \ \ \ \ \ \ \ \ \ \ \ Not\ used,\ present\ here\ for\ API\ consistency\ by\ convention.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00643}00643\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00644}00644\ \ \ \ \ \ \ \ \ Returns}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00645}00645\ \ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00646}00646\ \ \ \ \ \ \ \ \ self}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00647}00647\ \ \ \ \ \ \ \ \ \ \ \ \ Fitted\ estimator.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00648}00648\ \ \ \ \ \ \ \ \ "{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00649}00649\ \ \ \ \ \ \ \ \ if\ X\ is\ None:}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00650}00650\ \ \ \ \ \ \ \ \ \ \ \ \ \#\ Perform\ just\ the\ final\ global\ clustering\ step.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00651}00651\ \ \ \ \ \ \ \ \ \ \ \ \ self.\_global\_clustering()}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00652}00652\ \ \ \ \ \ \ \ \ \ \ \ \ return\ self}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00653}00653\ \ \ \ \ \ \ \ \ else:}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00654}00654\ \ \ \ \ \ \ \ \ \ \ \ \ return\ self.\_fit(X,\ partial=True)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00655}00655\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00656}\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1Birch_ab2eb69d92104c088e3045eaea0481d0d}{00656}}\ \ \ \ \ def\ predict(self,\ X):}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00657}00657\ \ \ \ \ \ \ \ \ "{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00658}00658\ \ \ \ \ \ \ \ \ Predict\ data\ using\ the\ \`{}\`{}centroids\_\`{}\`{}\ of\ subclusters.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00659}00659\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00660}00660\ \ \ \ \ \ \ \ \ Avoid\ computation\ of\ the\ row\ norms\ of\ X.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00661}00661\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00662}00662\ \ \ \ \ \ \ \ \ Parameters}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00663}00663\ \ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00664}00664\ \ \ \ \ \ \ \ \ X\ :\ \{array-\/like,\ sparse\ matrix\}\ of\ shape\ (n\_samples,\ n\_features)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00665}00665\ \ \ \ \ \ \ \ \ \ \ \ \ Input\ data.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00666}00666\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00667}00667\ \ \ \ \ \ \ \ \ Returns}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00668}00668\ \ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00669}00669\ \ \ \ \ \ \ \ \ labels\ :\ ndarray\ of\ shape(n\_samples,)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00670}00670\ \ \ \ \ \ \ \ \ \ \ \ \ Labelled\ data.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00671}00671\ \ \ \ \ \ \ \ \ "{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00672}00672\ \ \ \ \ \ \ \ \ check\_is\_fitted(self)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00673}00673\ \ \ \ \ \ \ \ \ X\ =\ validate\_data(self,\ X,\ accept\_sparse="{}csr"{},\ reset=False)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00674}00674\ \ \ \ \ \ \ \ \ return\ self.\_predict(X)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00675}00675\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00676}\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1Birch_aac8fd7cd33cce7658e3a122a75d390a1}{00676}}\ \ \ \ \ def\ \_predict(self,\ X):}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00677}00677\ \ \ \ \ \ \ \ \ "{}"{}"{}Predict\ data\ using\ the\ \`{}\`{}centroids\_\`{}\`{}\ of\ subclusters."{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00678}00678\ \ \ \ \ \ \ \ \ kwargs\ =\ \{"{}Y\_norm\_squared"{}:\ self.\_subcluster\_norms\}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00679}00679\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00680}00680\ \ \ \ \ \ \ \ \ with\ config\_context(assume\_finite=True):}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00681}00681\ \ \ \ \ \ \ \ \ \ \ \ \ argmin\ =\ pairwise\_distances\_argmin(}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00682}00682\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ X,\ self.subcluster\_centers\_,\ metric\_kwargs=kwargs}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00683}00683\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00684}00684\ \ \ \ \ \ \ \ \ return\ self.subcluster\_labels\_[argmin]}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00685}00685\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00686}\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1Birch_ab102e5dd297568fd3ac24bdfa488f258}{00686}}\ \ \ \ \ def\ transform(self,\ X):}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00687}00687\ \ \ \ \ \ \ \ \ "{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00688}00688\ \ \ \ \ \ \ \ \ Transform\ X\ into\ subcluster\ centroids\ dimension.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00689}00689\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00690}00690\ \ \ \ \ \ \ \ \ Each\ dimension\ represents\ the\ distance\ from\ the\ sample\ point\ to\ each}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00691}00691\ \ \ \ \ \ \ \ \ cluster\ centroid.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00692}00692\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00693}00693\ \ \ \ \ \ \ \ \ Parameters}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00694}00694\ \ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00695}00695\ \ \ \ \ \ \ \ \ X\ :\ \{array-\/like,\ sparse\ matrix\}\ of\ shape\ (n\_samples,\ n\_features)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00696}00696\ \ \ \ \ \ \ \ \ \ \ \ \ Input\ data.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00697}00697\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00698}00698\ \ \ \ \ \ \ \ \ Returns}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00699}00699\ \ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00700}00700\ \ \ \ \ \ \ \ \ X\_trans\ :\ \{array-\/like,\ sparse\ matrix\}\ of\ shape\ (n\_samples,\ n\_clusters)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00701}00701\ \ \ \ \ \ \ \ \ \ \ \ \ Transformed\ data.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00702}00702\ \ \ \ \ \ \ \ \ "{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00703}00703\ \ \ \ \ \ \ \ \ check\_is\_fitted(self)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00704}00704\ \ \ \ \ \ \ \ \ X\ =\ validate\_data(self,\ X,\ accept\_sparse="{}csr"{},\ reset=False)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00705}00705\ \ \ \ \ \ \ \ \ with\ config\_context(assume\_finite=True):}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00706}00706\ \ \ \ \ \ \ \ \ \ \ \ \ return\ euclidean\_distances(X,\ self.subcluster\_centers\_)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00707}00707\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00708}\mbox{\hyperlink{classsklearn_1_1cluster_1_1__birch_1_1Birch_a04ea56acde44f6636e1b27208ebfbfcf}{00708}}\ \ \ \ \ def\ \_global\_clustering(self,\ X=None):}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00709}00709\ \ \ \ \ \ \ \ \ "{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00710}00710\ \ \ \ \ \ \ \ \ Global\ clustering\ for\ the\ subclusters\ obtained\ after\ fitting}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00711}00711\ \ \ \ \ \ \ \ \ "{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00712}00712\ \ \ \ \ \ \ \ \ clusterer\ =\ self.n\_clusters}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00713}00713\ \ \ \ \ \ \ \ \ centroids\ =\ self.subcluster\_centers\_}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00714}00714\ \ \ \ \ \ \ \ \ compute\_labels\ =\ (X\ is\ not\ None)\ and\ self.compute\_labels}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00715}00715\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00716}00716\ \ \ \ \ \ \ \ \ \#\ Preprocessing\ for\ the\ global\ clustering.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00717}00717\ \ \ \ \ \ \ \ \ not\_enough\_centroids\ =\ False}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00718}00718\ \ \ \ \ \ \ \ \ if\ isinstance(clusterer,\ Integral):}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00719}00719\ \ \ \ \ \ \ \ \ \ \ \ \ clusterer\ =\ AgglomerativeClustering(n\_clusters=self.n\_clusters)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00720}00720\ \ \ \ \ \ \ \ \ \ \ \ \ \#\ There\ is\ no\ need\ to\ perform\ the\ global\ clustering\ step.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00721}00721\ \ \ \ \ \ \ \ \ \ \ \ \ if\ len(centroids)\ <\ self.n\_clusters:}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00722}00722\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ not\_enough\_centroids\ =\ True}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00723}00723\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00724}00724\ \ \ \ \ \ \ \ \ \#\ To\ use\ in\ predict\ to\ avoid\ recalculation.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00725}00725\ \ \ \ \ \ \ \ \ self.\_subcluster\_norms\ =\ row\_norms(self.subcluster\_centers\_,\ squared=True)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00726}00726\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00727}00727\ \ \ \ \ \ \ \ \ if\ clusterer\ is\ None\ or\ not\_enough\_centroids:}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00728}00728\ \ \ \ \ \ \ \ \ \ \ \ \ self.subcluster\_labels\_\ =\ np.arange(len(centroids))}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00729}00729\ \ \ \ \ \ \ \ \ \ \ \ \ if\ not\_enough\_centroids:}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00730}00730\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00731}00731\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "{}Number\ of\ subclusters\ found\ (\%d)\ by\ BIRCH\ is\ less\ "{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00732}00732\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "{}than\ (\%d).\ Decrease\ the\ threshold."{}}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00733}00733\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \%\ (len(centroids),\ self.n\_clusters),}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00734}00734\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ConvergenceWarning,}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00735}00735\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00736}00736\ \ \ \ \ \ \ \ \ else:}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00737}00737\ \ \ \ \ \ \ \ \ \ \ \ \ \#\ The\ global\ clustering\ step\ that\ clusters\ the\ subclusters\ of}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00738}00738\ \ \ \ \ \ \ \ \ \ \ \ \ \#\ the\ leaves.\ It\ assumes\ the\ centroids\ of\ the\ subclusters\ as}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00739}00739\ \ \ \ \ \ \ \ \ \ \ \ \ \#\ samples\ and\ finds\ the\ final\ centroids.}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00740}00740\ \ \ \ \ \ \ \ \ \ \ \ \ self.subcluster\_labels\_\ =\ clusterer.fit\_predict(self.subcluster\_centers\_)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00741}00741\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00742}00742\ \ \ \ \ \ \ \ \ if\ compute\_labels:}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00743}00743\ \ \ \ \ \ \ \ \ \ \ \ \ self.labels\_\ =\ self.\_predict(X)}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00744}00744\ }
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00745}00745\ \ \ \ \ def\ \_\_sklearn\_tags\_\_(self):}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00746}00746\ \ \ \ \ \ \ \ \ tags\ =\ super().\_\_sklearn\_tags\_\_()}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00747}00747\ \ \ \ \ \ \ \ \ tags.transformer\_tags.preserves\_dtype\ =\ ["{}float64"{},\ "{}float32"{}]}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00748}00748\ \ \ \ \ \ \ \ \ tags.input\_tags.sparse\ =\ True}
+\DoxyCodeLine{\Hypertarget{__birch_8py_source_l00749}00749\ \ \ \ \ \ \ \ \ return\ tags}
+
+\end{DoxyCode}

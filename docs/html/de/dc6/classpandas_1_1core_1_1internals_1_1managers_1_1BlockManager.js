@@ -1,0 +1,28 @@
+var classpandas_1_1core_1_1internals_1_1managers_1_1BlockManager =
+[
+    [ "_equal_values", "de/dc6/classpandas_1_1core_1_1internals_1_1managers_1_1BlockManager.html#ad49cbec3485eb30c74028934d57849d3", null ],
+    [ "_insert_update_blklocs_and_blknos", "de/dc6/classpandas_1_1core_1_1internals_1_1managers_1_1BlockManager.html#ad16ae9d0414dcb1964fcef71f4990a61", null ],
+    [ "_insert_update_mgr_locs", "de/dc6/classpandas_1_1core_1_1internals_1_1managers_1_1BlockManager.html#acb9f0a89c01ac61f6a27bdeff684d75e", null ],
+    [ "_interleave", "de/dc6/classpandas_1_1core_1_1internals_1_1managers_1_1BlockManager.html#aa846c3993140f95e28502b360dc96bb9", null ],
+    [ "_iset_single", "de/dc6/classpandas_1_1core_1_1internals_1_1managers_1_1BlockManager.html#a9217c28741bbd4a689e950bac7aeb95e", null ],
+    [ "_iset_split_block", "de/dc6/classpandas_1_1core_1_1internals_1_1managers_1_1BlockManager.html#ac0eb477021824b52cbc6fdda9e732eaa", null ],
+    [ "as_array", "de/dc6/classpandas_1_1core_1_1internals_1_1managers_1_1BlockManager.html#a49a860b1cd5305920daa1c3e6404cc23", null ],
+    [ "column_arrays", "de/dc6/classpandas_1_1core_1_1internals_1_1managers_1_1BlockManager.html#ae348cf2ec58f0c0f6da37d2b336d1bea", null ],
+    [ "column_setitem", "de/dc6/classpandas_1_1core_1_1internals_1_1managers_1_1BlockManager.html#a8a87c3714f76fb54b5b4c516822d789f", null ],
+    [ "concat_horizontal", "de/dc6/classpandas_1_1core_1_1internals_1_1managers_1_1BlockManager.html#a66fd60c61621dd9eb34ba7d55a680afa", null ],
+    [ "concat_vertical", "de/dc6/classpandas_1_1core_1_1internals_1_1managers_1_1BlockManager.html#a22cb3b8652a3ba08e0afc2834e36c463", null ],
+    [ "fast_xs", "de/dc6/classpandas_1_1core_1_1internals_1_1managers_1_1BlockManager.html#a068d57e985e652eef5316d3ecc96adbe", null ],
+    [ "from_blocks", "de/dc6/classpandas_1_1core_1_1internals_1_1managers_1_1BlockManager.html#a53e53f699c1564da65acacabf0c2fe91", null ],
+    [ "grouped_reduce", "de/dc6/classpandas_1_1core_1_1internals_1_1managers_1_1BlockManager.html#a773f529f4bba4107ffe18ac0e6631395", null ],
+    [ "idelete", "de/dc6/classpandas_1_1core_1_1internals_1_1managers_1_1BlockManager.html#a193fc0d2f1422929962f0654684c2acf", null ],
+    [ "iget", "de/dc6/classpandas_1_1core_1_1internals_1_1managers_1_1BlockManager.html#ad9397ed069e4b6cb61c907ada4f691b6", null ],
+    [ "iget_values", "de/dc6/classpandas_1_1core_1_1internals_1_1managers_1_1BlockManager.html#ac8d135562c95b875224f5a28114fbbb5", null ],
+    [ "insert", "de/dc6/classpandas_1_1core_1_1internals_1_1managers_1_1BlockManager.html#aa59923d0eb6e035b6e043fe9e5f8ae96", null ],
+    [ "is_consolidated", "de/dc6/classpandas_1_1core_1_1internals_1_1managers_1_1BlockManager.html#ae8596d26a1ac221fd81d931e59ecaa9f", null ],
+    [ "iset", "de/dc6/classpandas_1_1core_1_1internals_1_1managers_1_1BlockManager.html#adfb4f5e3454df9164c2842b7dbc6611d", null ],
+    [ "operate_blockwise", "de/dc6/classpandas_1_1core_1_1internals_1_1managers_1_1BlockManager.html#a0c79d8076df86e9f32f98267436c0a1c", null ],
+    [ "quantile", "de/dc6/classpandas_1_1core_1_1internals_1_1managers_1_1BlockManager.html#a73805c8e0d841fadbc7f6668b750ae60", null ],
+    [ "reduce", "de/dc6/classpandas_1_1core_1_1internals_1_1managers_1_1BlockManager.html#accd3276e3860731c24b86a13b93c9d48", null ],
+    [ "to_dict", "de/dc6/classpandas_1_1core_1_1internals_1_1managers_1_1BlockManager.html#addea99b88a583a5d043276dfeda3b822", null ],
+    [ "unstack", "de/dc6/classpandas_1_1core_1_1internals_1_1managers_1_1BlockManager.html#a156ba860aedb652d9349b55b1c84466a", null ]
+];

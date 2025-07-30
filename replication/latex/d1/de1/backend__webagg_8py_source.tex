@@ -1,0 +1,334 @@
+\doxysection{backend\+\_\+webagg.\+py}
+\hypertarget{backend__webagg_8py_source}{}\label{backend__webagg_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/matplotlib/backends/backend\_webagg.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/matplotlib/backends/backend\_webagg.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00001}\mbox{\hyperlink{namespacematplotlib_1_1backends_1_1backend__webagg}{00001}}\ \textcolor{stringliteral}{"{}"{}"{}Displays\ Agg\ images\ in\ the\ browser,\ with\ interactivity."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00002}00002\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00003}00003\ \textcolor{comment}{\#\ The\ WebAgg\ backend\ is\ divided\ into\ two\ modules:}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00004}00004\ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00005}00005\ \textcolor{comment}{\#\ -\/\ \`{}backend\_webagg\_core.py`\ contains\ code\ necessary\ to\ embed\ a\ WebAgg}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00006}00006\ \textcolor{comment}{\#\ \ \ plot\ inside\ of\ a\ web\ application,\ and\ communicate\ in\ an\ abstract}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00007}00007\ \textcolor{comment}{\#\ \ \ way\ over\ a\ web\ socket.}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00008}00008\ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00009}00009\ \textcolor{comment}{\#\ -\/\ \`{}backend\_webagg.py`\ contains\ a\ concrete\ implementation\ of\ a\ basic}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00010}00010\ \textcolor{comment}{\#\ \ \ application,\ implemented\ with\ tornado.}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00011}00011\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00012}00012\ \textcolor{keyword}{from}\ contextlib\ \textcolor{keyword}{import}\ contextmanager}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00013}00013\ \textcolor{keyword}{import}\ errno}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00014}00014\ \textcolor{keyword}{from}\ io\ \textcolor{keyword}{import}\ BytesIO}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00015}00015\ \textcolor{keyword}{import}\ json}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00016}00016\ \textcolor{keyword}{import}\ mimetypes}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00017}00017\ \textcolor{keyword}{from}\ pathlib\ \textcolor{keyword}{import}\ Path}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00018}00018\ \textcolor{keyword}{import}\ random}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00019}00019\ \textcolor{keyword}{import}\ sys}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00020}00020\ \textcolor{keyword}{import}\ signal}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00021}00021\ \textcolor{keyword}{import}\ threading}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00022}00022\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00023}00023\ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00024}00024\ \ \ \ \ \textcolor{keyword}{import}\ tornado}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00025}00025\ \textcolor{keywordflow}{except}\ ImportError\ \textcolor{keyword}{as}\ err:}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00026}00026\ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classRuntimeError}{RuntimeError}}(\textcolor{stringliteral}{"{}The\ WebAgg\ backend\ requires\ Tornado."{}})\ \textcolor{keyword}{from}\ err}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00027}00027\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00028}00028\ \textcolor{keyword}{import}\ \mbox{\hyperlink{namespacetornado_1_1web}{tornado.web}}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00029}00029\ \textcolor{keyword}{import}\ tornado.ioloop}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00030}00030\ \textcolor{keyword}{import}\ \mbox{\hyperlink{namespacetornado_1_1websocket}{tornado.websocket}}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00031}00031\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00032}00032\ \textcolor{keyword}{import}\ matplotlib\ \textcolor{keyword}{as}\ mpl}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00033}00033\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacematplotlib_1_1backend__bases}{matplotlib.backend\_bases}}\ \textcolor{keyword}{import}\ \_Backend}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00034}00034\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacematplotlib_1_1__pylab__helpers}{matplotlib.\_pylab\_helpers}}\ \textcolor{keyword}{import}\ Gcf}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00035}00035\ \textcolor{keyword}{from}\ .\ \textcolor{keyword}{import}\ backend\_webagg\_core\ \textcolor{keyword}{as}\ core}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00036}00036\ \textcolor{keyword}{from}\ .backend\_webagg\_core\ \textcolor{keyword}{import}\ (\ \ \textcolor{comment}{\#\ noqa:\ F401\ \#\ pylint:\ disable=W0611}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00037}00037\ \ \ \ \ TimerAsyncio,\ TimerTornado)}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00038}00038\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00039}00039\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00040}00040\ webagg\_server\_thread\ =\ threading.Thread(}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00041}00041\ \ \ \ \ target=\textcolor{keyword}{lambda}:\ tornado.ioloop.IOLoop.instance().start())}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00042}00042\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00043}00043\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00044}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg_1_1FigureManagerWebAgg}{00044}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg_1_1FigureManagerWebAgg}{FigureManagerWebAgg}}(core.FigureManagerWebAgg):}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00045}00045\ \ \ \ \ \_toolbar2\_class\ =\ core.NavigationToolbar2WebAgg}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00046}00046\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00047}00047\ \ \ \ \ \textcolor{preprocessor}{@classmethod}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00048}00048\ \ \ \ \ \textcolor{keyword}{def\ }pyplot\_show(cls,\ *,\ block=None):}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00049}00049\ \ \ \ \ \ \ \ \ WebAggApplication.initialize()}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00050}00050\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00051}00051\ \ \ \ \ \ \ \ \ url\ =\ \textcolor{stringliteral}{"{}http://\{address\}:\{port\}\{prefix\}"{}}.format(}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00052}00052\ \ \ \ \ \ \ \ \ \ \ \ \ address=WebAggApplication.address,}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00053}00053\ \ \ \ \ \ \ \ \ \ \ \ \ port=WebAggApplication.port,}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00054}00054\ \ \ \ \ \ \ \ \ \ \ \ \ prefix=WebAggApplication.url\_prefix)}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00055}00055\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00056}00056\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ mpl.rcParams[\textcolor{stringliteral}{'webagg.open\_in\_browser'}]:}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00057}00057\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{import}\ webbrowser}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00058}00058\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ webbrowser.open(url):}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00059}00059\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(f\textcolor{stringliteral}{"{}To\ view\ figure,\ visit\ \{url\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00060}00060\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00061}00061\ \ \ \ \ \ \ \ \ \ \ \ \ print(f\textcolor{stringliteral}{"{}To\ view\ figure,\ visit\ \{url\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00062}00062\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00063}00063\ \ \ \ \ \ \ \ \ WebAggApplication.start()}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00064}00064\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00065}00065\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00066}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg_1_1FigureCanvasWebAgg}{00066}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg_1_1FigureCanvasWebAgg}{FigureCanvasWebAgg}}(core.FigureCanvasWebAggCore):}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00067}00067\ \ \ \ \ manager\_class\ =\ FigureManagerWebAgg}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00068}00068\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00069}00069\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00070}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg_1_1WebAggApplication}{00070}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg_1_1WebAggApplication}{WebAggApplication}}(tornado.web.Application):}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00071}00071\ \ \ \ \ initialized\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00072}00072\ \ \ \ \ started\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00073}00073\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00074}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg_1_1WebAggApplication_1_1FavIcon}{00074}}\ \ \ \ \ \textcolor{keyword}{class\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg_1_1WebAggApplication_1_1FavIcon}{FavIcon}}(\mbox{\hyperlink{classtornado_1_1web_1_1RequestHandler}{tornado.web.RequestHandler}}):}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00075}00075\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }get(self):}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00076}00076\ \ \ \ \ \ \ \ \ \ \ \ \ self.set\_header(\textcolor{stringliteral}{'Content-\/Type'},\ \textcolor{stringliteral}{'image/png'})}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00077}00077\ \ \ \ \ \ \ \ \ \ \ \ \ self.write(Path(mpl.get\_data\_path(),}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00078}00078\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'images/matplotlib.png'}).read\_bytes())}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00079}00079\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00080}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg_1_1WebAggApplication_1_1SingleFigurePage}{00080}}\ \ \ \ \ \textcolor{keyword}{class\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg_1_1WebAggApplication_1_1SingleFigurePage}{SingleFigurePage}}(\mbox{\hyperlink{classtornado_1_1web_1_1RequestHandler}{tornado.web.RequestHandler}}):}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00081}00081\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ application,\ request,\ *,\ url\_prefix='',\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00082}00082\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg_1_1WebAggApplication_1_1SingleFigurePage_a2af057ae2b13f7a87131432932fcb194}{url\_prefix}}\ =\ url\_prefix}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00083}00083\ \ \ \ \ \ \ \ \ \ \ \ \ super().\_\_init\_\_(application,\ request,\ **kwargs)}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00084}00084\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00085}00085\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }get(self,\ fignum):}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00086}00086\ \ \ \ \ \ \ \ \ \ \ \ \ fignum\ =\ int(fignum)}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00087}00087\ \ \ \ \ \ \ \ \ \ \ \ \ manager\ =\ Gcf.get\_fig\_manager(fignum)}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00088}00088\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00089}00089\ \ \ \ \ \ \ \ \ \ \ \ \ ws\_uri\ =\ f\textcolor{stringliteral}{'ws://\{self.request.host\}\{self.url\_prefix\}/'}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00090}00090\ \ \ \ \ \ \ \ \ \ \ \ \ self.render(}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00091}00091\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}single\_figure.html"{}},}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00092}00092\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ prefix=self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg_1_1WebAggApplication_1_1SingleFigurePage_a2af057ae2b13f7a87131432932fcb194}{url\_prefix}},}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00093}00093\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ws\_uri=ws\_uri,}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00094}00094\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ fig\_id=fignum,}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00095}00095\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ toolitems=core.NavigationToolbar2WebAgg.toolitems,}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00096}00096\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ canvas=manager.canvas)}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00097}00097\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00098}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg_1_1WebAggApplication_1_1AllFiguresPage}{00098}}\ \ \ \ \ \textcolor{keyword}{class\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg_1_1WebAggApplication_1_1AllFiguresPage}{AllFiguresPage}}(\mbox{\hyperlink{classtornado_1_1web_1_1RequestHandler}{tornado.web.RequestHandler}}):}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00099}00099\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ application,\ request,\ *,\ url\_prefix='',\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00100}00100\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg_1_1WebAggApplication_1_1AllFiguresPage_a78c941eda5f9ea16d7dee4e4be6192b8}{url\_prefix}}\ =\ url\_prefix}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00101}00101\ \ \ \ \ \ \ \ \ \ \ \ \ super().\_\_init\_\_(application,\ request,\ **kwargs)}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00102}00102\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00103}00103\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }get(self):}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00104}00104\ \ \ \ \ \ \ \ \ \ \ \ \ ws\_uri\ =\ f\textcolor{stringliteral}{'ws://\{self.request.host\}\{self.url\_prefix\}/'}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00105}00105\ \ \ \ \ \ \ \ \ \ \ \ \ self.render(}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00106}00106\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}all\_figures.html"{}},}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00107}00107\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ prefix=self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg_1_1WebAggApplication_1_1AllFiguresPage_a78c941eda5f9ea16d7dee4e4be6192b8}{url\_prefix}},}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00108}00108\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ws\_uri=ws\_uri,}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00109}00109\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ figures=sorted(Gcf.figs.items()),}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00110}00110\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ toolitems=core.NavigationToolbar2WebAgg.toolitems)}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00111}00111\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00112}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg_1_1WebAggApplication_1_1MplJs}{00112}}\ \ \ \ \ \textcolor{keyword}{class\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg_1_1WebAggApplication_1_1MplJs}{MplJs}}(\mbox{\hyperlink{classtornado_1_1web_1_1RequestHandler}{tornado.web.RequestHandler}}):}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00113}00113\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }get(self):}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00114}00114\ \ \ \ \ \ \ \ \ \ \ \ \ self.set\_header(\textcolor{stringliteral}{'Content-\/Type'},\ \textcolor{stringliteral}{'application/javascript'})}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00115}00115\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00116}00116\ \ \ \ \ \ \ \ \ \ \ \ \ js\_content\ =\ core.FigureManagerWebAgg.get\_javascript()}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00117}00117\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00118}00118\ \ \ \ \ \ \ \ \ \ \ \ \ self.write(js\_content)}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00119}00119\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00120}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg_1_1WebAggApplication_1_1Download}{00120}}\ \ \ \ \ \textcolor{keyword}{class\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg_1_1WebAggApplication_1_1Download}{Download}}(\mbox{\hyperlink{classtornado_1_1web_1_1RequestHandler}{tornado.web.RequestHandler}}):}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00121}00121\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }get(self,\ fignum,\ fmt):}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00122}00122\ \ \ \ \ \ \ \ \ \ \ \ \ fignum\ =\ int(fignum)}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00123}00123\ \ \ \ \ \ \ \ \ \ \ \ \ manager\ =\ Gcf.get\_fig\_manager(fignum)}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00124}00124\ \ \ \ \ \ \ \ \ \ \ \ \ self.set\_header(}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00125}00125\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'Content-\/Type'},\ mimetypes.types\_map.get(fmt,\ \textcolor{stringliteral}{'binary'}))}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00126}00126\ \ \ \ \ \ \ \ \ \ \ \ \ buff\ =\ \mbox{\hyperlink{classBytesIO}{BytesIO}}()}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00127}00127\ \ \ \ \ \ \ \ \ \ \ \ \ manager.canvas.figure.savefig(buff,\ format=fmt)}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00128}00128\ \ \ \ \ \ \ \ \ \ \ \ \ self.write(buff.getvalue())}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00129}00129\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00130}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg_1_1WebAggApplication_1_1WebSocket}{00130}}\ \ \ \ \ \textcolor{keyword}{class\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg_1_1WebAggApplication_1_1WebSocket}{WebSocket}}(\mbox{\hyperlink{classtornado_1_1websocket_1_1WebSocketHandler}{tornado.websocket.WebSocketHandler}}):}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00131}00131\ \ \ \ \ \ \ \ \ supports\_binary\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00132}00132\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00133}00133\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }open(self,\ fignum):}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00134}00134\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg_1_1WebAggApplication_1_1WebSocket_a50abcf7b7843baae4b50170672a37886}{fignum}}\ =\ int(fignum)}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00135}00135\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg_1_1WebAggApplication_1_1WebSocket_a06e35560433ebb96795125337011235c}{manager}}\ =\ Gcf.get\_fig\_manager(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg_1_1WebAggApplication_1_1WebSocket_a50abcf7b7843baae4b50170672a37886}{fignum}})}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00136}00136\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg_1_1WebAggApplication_1_1WebSocket_a06e35560433ebb96795125337011235c}{manager}}.add\_web\_socket(self)}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00137}00137\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ hasattr(self,\ \textcolor{stringliteral}{'set\_nodelay'}):}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00138}00138\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.set\_nodelay(\textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00139}00139\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00140}00140\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }on\_close(self):}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00141}00141\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg_1_1WebAggApplication_1_1WebSocket_a06e35560433ebb96795125337011235c}{manager}}.remove\_web\_socket(self)}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00142}00142\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00143}00143\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }on\_message(self,\ message):}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00144}00144\ \ \ \ \ \ \ \ \ \ \ \ \ message\ =\ json.loads(message)}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00145}00145\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ 'supports\_binary'\ message\ is\ on\ a\ client-\/by-\/client}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00146}00146\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ basis.\ \ The\ others\ affect\ the\ (shared)\ canvas\ as\ a}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00147}00147\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ whole.}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00148}00148\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ message[\textcolor{stringliteral}{'type'}]\ ==\ \textcolor{stringliteral}{'supports\_binary'}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00149}00149\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg_1_1WebAggApplication_1_1WebSocket_af2bc2bd1d099542c9fd9496bbcd09db0}{supports\_binary}}\ =\ message[\textcolor{stringliteral}{'value'}]}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00150}00150\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00151}00151\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ manager\ =\ Gcf.get\_fig\_manager(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg_1_1WebAggApplication_1_1WebSocket_a50abcf7b7843baae4b50170672a37886}{fignum}})}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00152}00152\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ It\ is\ possible\ for\ a\ figure\ to\ be\ closed,}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00153}00153\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ but\ a\ stale\ figure\ UI\ is\ still\ sending\ messages}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00154}00154\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ from\ the\ browser.}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00155}00155\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ manager\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00156}00156\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ manager.handle\_json(message)}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00157}00157\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00158}00158\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }send\_json(self,\ content):}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00159}00159\ \ \ \ \ \ \ \ \ \ \ \ \ self.write\_message(json.dumps(content))}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00160}00160\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00161}00161\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }send\_binary(self,\ blob):}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00162}00162\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg_1_1WebAggApplication_1_1WebSocket_af2bc2bd1d099542c9fd9496bbcd09db0}{supports\_binary}}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00163}00163\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.write\_message(blob,\ binary=\textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00164}00164\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00165}00165\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ data\_uri\ =\ \textcolor{stringliteral}{"{}data:image/png;base64,\{\}"{}}.format(}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00166}00166\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ blob.encode(\textcolor{stringliteral}{'base64'}).replace(\textcolor{stringliteral}{'\(\backslash\)n'},\ \textcolor{stringliteral}{''}))}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00167}00167\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.write\_message(data\_uri)}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00168}00168\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00169}00169\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ url\_prefix=''):}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00170}00170\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ url\_prefix:}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00171}00171\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ url\_prefix[0]\ ==\ \textcolor{stringliteral}{'/'}\ \textcolor{keywordflow}{and}\ url\_prefix[-\/1]\ !=\ \textcolor{stringliteral}{'/'},\ \(\backslash\)}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00172}00172\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'url\_prefix\ must\ start\ with\ a\ "{}/"{}\ and\ not\ end\ with\ one.'}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00173}00173\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00174}00174\ \ \ \ \ \ \ \ \ super().\_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00175}00175\ \ \ \ \ \ \ \ \ \ \ \ \ [}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00176}00176\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Static\ files\ for\ the\ CSS\ and\ JS}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00177}00177\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (url\_prefix\ +\ \textcolor{stringliteral}{r'/\_static/(.*)'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00178}00178\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ tornado.web.StaticFileHandler,}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00179}00179\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \{\textcolor{stringliteral}{'path'}:\ core.FigureManagerWebAgg.get\_static\_file\_path()\}),}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00180}00180\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00181}00181\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Static\ images\ for\ the\ toolbar}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00182}00182\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (url\_prefix\ +\ \textcolor{stringliteral}{r'/\_images/(.*)'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00183}00183\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ tornado.web.StaticFileHandler,}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00184}00184\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \{\textcolor{stringliteral}{'path'}:\ Path(mpl.get\_data\_path(),\ \textcolor{stringliteral}{'images'})\}),}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00185}00185\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00186}00186\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ A\ Matplotlib\ favicon}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00187}00187\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (url\_prefix\ +\ \textcolor{stringliteral}{r'/favicon.ico'},\ self.FavIcon),}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00188}00188\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00189}00189\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ page\ that\ contains\ all\ of\ the\ pieces}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00190}00190\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (url\_prefix\ +\ \textcolor{stringliteral}{r'/([0-\/9]+)'},\ self.SingleFigurePage,}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00191}00191\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \{\textcolor{stringliteral}{'url\_prefix'}:\ url\_prefix\}),}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00192}00192\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00193}00193\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ page\ that\ contains\ all\ of\ the\ figures}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00194}00194\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (url\_prefix\ +\ \textcolor{stringliteral}{r'/?'},\ self.AllFiguresPage,}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00195}00195\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \{\textcolor{stringliteral}{'url\_prefix'}:\ url\_prefix\}),}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00196}00196\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00197}00197\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (url\_prefix\ +\ \textcolor{stringliteral}{r'/js/mpl.js'},\ self.MplJs),}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00198}00198\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00199}00199\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Sends\ images\ and\ events\ to\ the\ browser,\ and\ receives}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00200}00200\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ events\ from\ the\ browser}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00201}00201\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (url\_prefix\ +\ \textcolor{stringliteral}{r'/([0-\/9]+)/ws'},\ self.WebSocket),}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00202}00202\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00203}00203\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Handles\ the\ downloading\ (i.e.,\ saving)\ of\ static\ images}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00204}00204\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (url\_prefix\ +\ \textcolor{stringliteral}{r'/([0-\/9]+)/download.([a-\/z0-\/9.]+)'},}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00205}00205\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.Download),}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00206}00206\ \ \ \ \ \ \ \ \ \ \ \ \ ],}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00207}00207\ \ \ \ \ \ \ \ \ \ \ \ \ template\_path=core.FigureManagerWebAgg.get\_static\_file\_path())}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00208}00208\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00209}00209\ \ \ \ \ \textcolor{preprocessor}{@classmethod}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00210}00210\ \ \ \ \ \textcolor{keyword}{def\ }initialize(cls,\ url\_prefix='',\ port=None,\ address=None):}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00211}00211\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ cls.initialized:}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00212}00212\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00213}00213\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00214}00214\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Create\ the\ class\ instance}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00215}00215\ \ \ \ \ \ \ \ \ app\ =\ cls(url\_prefix=url\_prefix)}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00216}00216\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00217}00217\ \ \ \ \ \ \ \ \ cls.url\_prefix\ =\ url\_prefix}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00218}00218\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00219}00219\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ This\ port\ selection\ algorithm\ is\ borrowed,\ more\ or\ less}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00220}00220\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ verbatim,\ from\ IPython.}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00221}00221\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }random\_ports(port,\ n):}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00222}00222\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00223}00223\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Generate\ a\ list\ of\ n\ random\ ports\ near\ the\ given\ port.}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00224}00224\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00225}00225\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ first\ 5\ ports\ will\ be\ sequential,\ and\ the\ remaining\ n-\/5\ will\ be}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00226}00226\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ randomly\ selected\ in\ the\ range\ [port-\/2*n,\ port+2*n].}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00227}00227\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00228}00228\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(min(5,\ n)):}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00229}00229\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{yield}\ port\ +\ i}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00230}00230\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(n\ -\/\ 5):}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00231}00231\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{yield}\ port\ +\ random.randint(-\/2\ *\ n,\ 2\ *\ n)}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00232}00232\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00233}00233\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ address\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00234}00234\ \ \ \ \ \ \ \ \ \ \ \ \ cls.address\ =\ mpl.rcParams[\textcolor{stringliteral}{'webagg.address'}]}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00235}00235\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00236}00236\ \ \ \ \ \ \ \ \ \ \ \ \ cls.address\ =\ address}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00237}00237\ \ \ \ \ \ \ \ \ cls.port\ =\ mpl.rcParams[\textcolor{stringliteral}{'webagg.port'}]}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00238}00238\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ port\ \textcolor{keywordflow}{in}\ random\_ports(cls.port,}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00239}00239\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ mpl.rcParams[\textcolor{stringliteral}{'webagg.port\_retries'}]):}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00240}00240\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00241}00241\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ app.listen(port,\ cls.address)}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00242}00242\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ OSError\ \textcolor{keyword}{as}\ e:}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00243}00243\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ e.errno\ !=\ errno.EADDRINUSE:}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00244}00244\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00245}00245\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00246}00246\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ cls.port\ =\ port}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00247}00247\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00248}00248\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00249}00249\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ SystemExit(}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00250}00250\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}The\ webagg\ server\ could\ not\ be\ started\ because\ an\ available\ "{}}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00251}00251\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}port\ could\ not\ be\ found"{}})}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00252}00252\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00253}00253\ \ \ \ \ \ \ \ \ cls.initialized\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00254}00254\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00255}00255\ \ \ \ \ \textcolor{preprocessor}{@classmethod}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00256}00256\ \ \ \ \ \textcolor{keyword}{def\ }start(cls):}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00257}00257\ \ \ \ \ \ \ \ \ \textcolor{keyword}{import}\ asyncio}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00258}00258\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00259}00259\ \ \ \ \ \ \ \ \ \ \ \ \ asyncio.get\_running\_loop()}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00260}00260\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ RuntimeError:}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00261}00261\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{pass}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00262}00262\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00263}00263\ \ \ \ \ \ \ \ \ \ \ \ \ cls.started\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00264}00264\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00265}00265\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ cls.started:}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00266}00266\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00267}00267\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00268}00268\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00269}00269\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ IOLoop.running()\ was\ removed\ as\ of\ Tornado\ 2.4;\ see\ for\ example}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00270}00270\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ https://groups.google.com/forum/\#!topic/python-\/tornado/QLMzkpQBGOY}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00271}00271\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Thus\ there\ is\ no\ correct\ way\ to\ check\ if\ the\ loop\ has\ already\ been}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00272}00272\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ launched.\ We\ may\ end\ up\ with\ two\ concurrently\ running\ loops\ in\ that}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00273}00273\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ unlucky\ case\ with\ all\ the\ expected\ consequences.}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00274}00274\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00275}00275\ \ \ \ \ \ \ \ \ ioloop\ =\ tornado.ioloop.IOLoop.instance()}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00276}00276\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00277}00277\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }shutdown():}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00278}00278\ \ \ \ \ \ \ \ \ \ \ \ \ ioloop.stop()}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00279}00279\ \ \ \ \ \ \ \ \ \ \ \ \ print(\textcolor{stringliteral}{"{}Server\ is\ stopped"{}})}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00280}00280\ \ \ \ \ \ \ \ \ \ \ \ \ sys.stdout.flush()}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00281}00281\ \ \ \ \ \ \ \ \ \ \ \ \ cls.started\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00282}00282\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00283}00283\ \ \ \ \ \ \ \ \ \textcolor{preprocessor}{@contextmanager}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00284}00284\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }catch\_sigint():}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00285}00285\ \ \ \ \ \ \ \ \ \ \ \ \ old\_handler\ =\ signal.signal(}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00286}00286\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ signal.SIGINT,}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00287}00287\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{lambda}\ sig,\ frame:\ ioloop.add\_callback\_from\_signal(shutdown))}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00288}00288\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00289}00289\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{yield}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00290}00290\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{finally}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00291}00291\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ signal.signal(signal.SIGINT,\ old\_handler)}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00292}00292\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00293}00293\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Set\ the\ flag\ to\ True\ *before*\ blocking\ on\ ioloop.start()}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00294}00294\ \ \ \ \ \ \ \ \ cls.started\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00295}00295\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00296}00296\ \ \ \ \ \ \ \ \ print(\textcolor{stringliteral}{"{}Press\ Ctrl+C\ to\ stop\ WebAgg\ server"{}})}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00297}00297\ \ \ \ \ \ \ \ \ sys.stdout.flush()}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00298}00298\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ catch\_sigint():}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00299}00299\ \ \ \ \ \ \ \ \ \ \ \ \ ioloop.start()}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00300}00300\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00301}00301\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00302}00302\ \textcolor{keyword}{def\ }ipython\_inline\_display(figure):}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00303}00303\ \ \ \ \ \textcolor{keyword}{import}\ tornado.template}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00304}00304\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00305}00305\ \ \ \ \ WebAggApplication.initialize()}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00306}00306\ \ \ \ \ \textcolor{keyword}{import}\ asyncio}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00307}00307\ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00308}00308\ \ \ \ \ \ \ \ \ asyncio.get\_running\_loop()}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00309}00309\ \ \ \ \ \textcolor{keywordflow}{except}\ RuntimeError:}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00310}00310\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ webagg\_server\_thread.is\_alive():}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00311}00311\ \ \ \ \ \ \ \ \ \ \ \ \ webagg\_server\_thread.start()}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00312}00312\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00313}00313\ \ \ \ \ fignum\ =\ figure.number}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00314}00314\ \ \ \ \ tpl\ =\ Path(core.FigureManagerWebAgg.get\_static\_file\_path(),}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00315}00315\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}ipython\_inline\_figure.html"{}}).read\_text()}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00316}00316\ \ \ \ \ t\ =\ tornado.template.Template(tpl)}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00317}00317\ \ \ \ \ \textcolor{keywordflow}{return}\ t.generate(}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00318}00318\ \ \ \ \ \ \ \ \ prefix=WebAggApplication.url\_prefix,}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00319}00319\ \ \ \ \ \ \ \ \ fig\_id=fignum,}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00320}00320\ \ \ \ \ \ \ \ \ toolitems=core.NavigationToolbar2WebAgg.toolitems,}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00321}00321\ \ \ \ \ \ \ \ \ canvas=figure.canvas,}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00322}00322\ \ \ \ \ \ \ \ \ port=WebAggApplication.port).decode(\textcolor{stringliteral}{'utf-\/8'})}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00323}00323\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00324}00324\ }
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00325}00325\ \textcolor{preprocessor}{@\_Backend.export}}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00326}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg_1_1__BackendWebAgg}{00326}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__webagg_1_1__BackendWebAgg}{\_BackendWebAgg}}(\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1__Backend}{\_Backend}}):}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00327}00327\ \ \ \ \ FigureCanvas\ =\ FigureCanvasWebAgg}
+\DoxyCodeLine{\Hypertarget{backend__webagg_8py_source_l00328}00328\ \ \ \ \ FigureManager\ =\ FigureManagerWebAgg}
+
+\end{DoxyCode}

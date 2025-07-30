@@ -1,0 +1,830 @@
+\doxysection{\+\_\+bayes.\+py}
+\hypertarget{__bayes_8py_source}{}\label{__bayes_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/sklearn/linear\_model/\_bayes.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/sklearn/linear\_model/\_bayes.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00001}\mbox{\hyperlink{namespacesklearn_1_1linear__model_1_1__bayes}{00001}}\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00002}00002\ \textcolor{stringliteral}{Various\ bayesian\ regression}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00003}00003\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00004}00004\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00005}00005\ \textcolor{comment}{\#\ Authors:\ The\ scikit-\/learn\ developers}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00006}00006\ \textcolor{comment}{\#\ SPDX-\/License-\/Identifier:\ BSD-\/3-\/Clause}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00007}00007\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00008}00008\ \textcolor{keyword}{from}\ math\ \textcolor{keyword}{import}\ log}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00009}00009\ \textcolor{keyword}{from}\ numbers\ \textcolor{keyword}{import}\ Integral,\ Real}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00010}00010\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00011}00011\ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00012}00012\ \textcolor{keyword}{from}\ scipy\ \textcolor{keyword}{import}\ linalg}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00013}00013\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacescipy_1_1linalg}{scipy.linalg}}\ \textcolor{keyword}{import}\ pinvh}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00014}00014\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00015}00015\ \textcolor{keyword}{from}\ ..base\ \textcolor{keyword}{import}\ RegressorMixin,\ \_fit\_context}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00016}00016\ \textcolor{keyword}{from}\ ..utils\ \textcolor{keyword}{import}\ \_safe\_indexing}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00017}00017\ \textcolor{keyword}{from}\ ..utils.\_param\_validation\ \textcolor{keyword}{import}\ Interval}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00018}00018\ \textcolor{keyword}{from}\ ..utils.extmath\ \textcolor{keyword}{import}\ fast\_logdet}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00019}00019\ \textcolor{keyword}{from}\ ..utils.validation\ \textcolor{keyword}{import}\ \_check\_sample\_weight,\ validate\_data}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00020}00020\ \textcolor{keyword}{from}\ .\_base\ \textcolor{keyword}{import}\ LinearModel,\ \_preprocess\_data,\ \_rescale\_data}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00021}00021\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00022}00022\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00024}00024\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00025}00025\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00026}\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge}{00026}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge}{BayesianRidge}}(\mbox{\hyperlink{classsklearn_1_1base_1_1RegressorMixin}{RegressorMixin}},\ \mbox{\hyperlink{classsklearn_1_1linear__model_1_1__base_1_1LinearModel}{LinearModel}}):}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00027}00027\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Bayesian\ ridge\ regression.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00028}00028\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00029}00029\ \textcolor{stringliteral}{\ \ \ \ Fit\ a\ Bayesian\ ridge\ model.\ See\ the\ Notes\ section\ for\ details\ on\ this}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00030}00030\ \textcolor{stringliteral}{\ \ \ \ implementation\ and\ the\ optimization\ of\ the\ regularization\ parameters}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00031}00031\ \textcolor{stringliteral}{\ \ \ \ lambda\ (precision\ of\ the\ weights)\ and\ alpha\ (precision\ of\ the\ noise).}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00032}00032\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00033}00033\ \textcolor{stringliteral}{\ \ \ \ Read\ more\ in\ the\ :ref:\`{}User\ Guide\ <bayesian\_regression>\`{}.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00034}00034\ \textcolor{stringliteral}{\ \ \ \ For\ an\ intuitive\ visualization\ of\ how\ the\ sinusoid\ is\ approximated\ by}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00035}00035\ \textcolor{stringliteral}{\ \ \ \ a\ polynomial\ using\ different\ pairs\ of\ initial\ values,\ see}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00036}00036\ \textcolor{stringliteral}{\ \ \ \ :ref:\`{}sphx\_glr\_auto\_examples\_linear\_model\_plot\_bayesian\_ridge\_curvefit.py\`{}.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00037}00037\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00038}00038\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00039}00039\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00040}00040\ \textcolor{stringliteral}{\ \ \ \ max\_iter\ :\ int,\ default=300}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00041}00041\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Maximum\ number\ of\ iterations\ over\ the\ complete\ dataset\ before}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00042}00042\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ stopping\ independently\ of\ any\ early\ stopping\ criterion.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00043}00043\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00044}00044\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionchanged::\ 1.3}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00045}00045\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00046}00046\ \textcolor{stringliteral}{\ \ \ \ tol\ :\ float,\ default=1e-\/3}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00047}00047\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Stop\ the\ algorithm\ if\ w\ has\ converged.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00048}00048\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00049}00049\ \textcolor{stringliteral}{\ \ \ \ alpha\_1\ :\ float,\ default=1e-\/6}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00050}00050\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Hyper-\/parameter\ :\ shape\ parameter\ for\ the\ Gamma\ distribution\ prior}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00051}00051\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ over\ the\ alpha\ parameter.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00052}00052\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00053}00053\ \textcolor{stringliteral}{\ \ \ \ alpha\_2\ :\ float,\ default=1e-\/6}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00054}00054\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Hyper-\/parameter\ :\ inverse\ scale\ parameter\ (rate\ parameter)\ for\ the}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00055}00055\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Gamma\ distribution\ prior\ over\ the\ alpha\ parameter.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00056}00056\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00057}00057\ \textcolor{stringliteral}{\ \ \ \ lambda\_1\ :\ float,\ default=1e-\/6}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00058}00058\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Hyper-\/parameter\ :\ shape\ parameter\ for\ the\ Gamma\ distribution\ prior}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00059}00059\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ over\ the\ lambda\ parameter.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00060}00060\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00061}00061\ \textcolor{stringliteral}{\ \ \ \ lambda\_2\ :\ float,\ default=1e-\/6}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00062}00062\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Hyper-\/parameter\ :\ inverse\ scale\ parameter\ (rate\ parameter)\ for\ the}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00063}00063\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Gamma\ distribution\ prior\ over\ the\ lambda\ parameter.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00064}00064\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00065}00065\ \textcolor{stringliteral}{\ \ \ \ alpha\_init\ :\ float,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00066}00066\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Initial\ value\ for\ alpha\ (precision\ of\ the\ noise).}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00067}00067\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ not\ set,\ alpha\_init\ is\ 1/Var(y).}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00068}00068\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00069}00069\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 0.22}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00070}00070\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00071}00071\ \textcolor{stringliteral}{\ \ \ \ lambda\_init\ :\ float,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00072}00072\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Initial\ value\ for\ lambda\ (precision\ of\ the\ weights).}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00073}00073\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ not\ set,\ lambda\_init\ is\ 1.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00074}00074\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00075}00075\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 0.22}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00076}00076\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00077}00077\ \textcolor{stringliteral}{\ \ \ \ compute\_score\ :\ bool,\ default=False}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00078}00078\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ True,\ compute\ the\ log\ marginal\ likelihood\ at\ each\ iteration\ of\ the}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00079}00079\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ optimization.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00080}00080\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00081}00081\ \textcolor{stringliteral}{\ \ \ \ fit\_intercept\ :\ bool,\ default=True}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00082}00082\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Whether\ to\ calculate\ the\ intercept\ for\ this\ model.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00083}00083\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ intercept\ is\ not\ treated\ as\ a\ probabilistic\ parameter}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00084}00084\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ and\ thus\ has\ no\ associated\ variance.\ If\ set}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00085}00085\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ to\ False,\ no\ intercept\ will\ be\ used\ in\ calculations}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00086}00086\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ (i.e.\ data\ is\ expected\ to\ be\ centered).}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00087}00087\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00088}00088\ \textcolor{stringliteral}{\ \ \ \ copy\_X\ :\ bool,\ default=True}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00089}00089\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ True,\ X\ will\ be\ copied;\ else,\ it\ may\ be\ overwritten.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00090}00090\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00091}00091\ \textcolor{stringliteral}{\ \ \ \ verbose\ :\ bool,\ default=False}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00092}00092\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Verbose\ mode\ when\ fitting\ the\ model.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00093}00093\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00094}00094\ \textcolor{stringliteral}{\ \ \ \ Attributes}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00095}00095\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00096}00096\ \textcolor{stringliteral}{\ \ \ \ coef\_\ :\ array-\/like\ of\ shape\ (n\_features,)}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00097}00097\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Coefficients\ of\ the\ regression\ model\ (mean\ of\ distribution)}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00098}00098\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00099}00099\ \textcolor{stringliteral}{\ \ \ \ intercept\_\ :\ float}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00100}00100\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Independent\ term\ in\ decision\ function.\ Set\ to\ 0.0\ if}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00101}00101\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}fit\_intercept\ =\ False\`{}.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00102}00102\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00103}00103\ \textcolor{stringliteral}{\ \ \ \ alpha\_\ :\ float}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00104}00104\ \textcolor{stringliteral}{\ \ \ \ \ \ \ Estimated\ precision\ of\ the\ noise.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00105}00105\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00106}00106\ \textcolor{stringliteral}{\ \ \ \ lambda\_\ :\ float}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00107}00107\ \textcolor{stringliteral}{\ \ \ \ \ \ \ Estimated\ precision\ of\ the\ weights.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00108}00108\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00109}00109\ \textcolor{stringliteral}{\ \ \ \ sigma\_\ :\ array-\/like\ of\ shape\ (n\_features,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00110}00110\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Estimated\ variance-\/covariance\ matrix\ of\ the\ weights}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00111}00111\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00112}00112\ \textcolor{stringliteral}{\ \ \ \ scores\_\ :\ array-\/like\ of\ shape\ (n\_iter\_+1,)}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00113}00113\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ computed\_score\ is\ True,\ value\ of\ the\ log\ marginal\ likelihood\ (to\ be}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00114}00114\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ maximized)\ at\ each\ iteration\ of\ the\ optimization.\ The\ array\ starts}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00115}00115\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ with\ the\ value\ of\ the\ log\ marginal\ likelihood\ obtained\ for\ the\ initial}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00116}00116\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ values\ of\ alpha\ and\ lambda\ and\ ends\ with\ the\ value\ obtained\ for\ the}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00117}00117\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ estimated\ alpha\ and\ lambda.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00118}00118\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00119}00119\ \textcolor{stringliteral}{\ \ \ \ n\_iter\_\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00120}00120\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ actual\ number\ of\ iterations\ to\ reach\ the\ stopping\ criterion.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00121}00121\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00122}00122\ \textcolor{stringliteral}{\ \ \ \ X\_offset\_\ :\ ndarray\ of\ shape\ (n\_features,)}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00123}00123\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ \`{}fit\_intercept=True\`{},\ offset\ subtracted\ for\ centering\ data\ to\ a}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00124}00124\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ zero\ mean.\ Set\ to\ np.zeros(n\_features)\ otherwise.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00125}00125\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00126}00126\ \textcolor{stringliteral}{\ \ \ \ X\_scale\_\ :\ ndarray\ of\ shape\ (n\_features,)}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00127}00127\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Set\ to\ np.ones(n\_features).}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00128}00128\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00129}00129\ \textcolor{stringliteral}{\ \ \ \ n\_features\_in\_\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00130}00130\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ features\ seen\ during\ :term:\`{}fit\`{}.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00131}00131\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00132}00132\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 0.24}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00133}00133\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00134}00134\ \textcolor{stringliteral}{\ \ \ \ feature\_names\_in\_\ :\ ndarray\ of\ shape\ (\`{}n\_features\_in\_\`{},)}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00135}00135\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Names\ of\ features\ seen\ during\ :term:\`{}fit\`{}.\ Defined\ only\ when\ \`{}X\`{}}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00136}00136\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ has\ feature\ names\ that\ are\ all\ strings.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00137}00137\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00138}00138\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 1.0}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00139}00139\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00140}00140\ \textcolor{stringliteral}{\ \ \ \ See\ Also}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00141}00141\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00142}00142\ \textcolor{stringliteral}{\ \ \ \ ARDRegression\ :\ Bayesian\ ARD\ regression.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00143}00143\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00144}00144\ \textcolor{stringliteral}{\ \ \ \ Notes}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00145}00145\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00146}00146\ \textcolor{stringliteral}{\ \ \ \ There\ exist\ several\ strategies\ to\ perform\ Bayesian\ ridge\ regression.\ This}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00147}00147\ \textcolor{stringliteral}{\ \ \ \ implementation\ is\ based\ on\ the\ algorithm\ described\ in\ Appendix\ A\ of}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00148}00148\ \textcolor{stringliteral}{\ \ \ \ (Tipping,\ 2001)\ where\ updates\ of\ the\ regularization\ parameters\ are\ done\ as}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00149}00149\ \textcolor{stringliteral}{\ \ \ \ suggested\ in\ (MacKay,\ 1992).\ Note\ that\ according\ to\ A\ New}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00150}00150\ \textcolor{stringliteral}{\ \ \ \ View\ of\ Automatic\ Relevance\ Determination\ (Wipf\ and\ Nagarajan,\ 2008)\ these}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00151}00151\ \textcolor{stringliteral}{\ \ \ \ update\ rules\ do\ not\ guarantee\ that\ the\ marginal\ likelihood\ is\ increasing}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00152}00152\ \textcolor{stringliteral}{\ \ \ \ between\ two\ consecutive\ iterations\ of\ the\ optimization.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00153}00153\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00154}00154\ \textcolor{stringliteral}{\ \ \ \ References}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00155}00155\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00156}00156\ \textcolor{stringliteral}{\ \ \ \ D.\ J.\ C.\ MacKay,\ Bayesian\ Interpolation,\ Computation\ and\ Neural\ Systems,}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00157}00157\ \textcolor{stringliteral}{\ \ \ \ Vol.\ 4,\ No.\ 3,\ 1992.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00158}00158\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00159}00159\ \textcolor{stringliteral}{\ \ \ \ M.\ E.\ Tipping,\ Sparse\ Bayesian\ Learning\ and\ the\ Relevance\ Vector\ Machine,}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00160}00160\ \textcolor{stringliteral}{\ \ \ \ Journal\ of\ Machine\ Learning\ Research,\ Vol.\ 1,\ 2001.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00161}00161\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00162}00162\ \textcolor{stringliteral}{\ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00163}00163\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00164}00164\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn\ import\ linear\_model}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00165}00165\ \textcolor{stringliteral}{\ \ \ \ >>>\ clf\ =\ linear\_model.BayesianRidge()}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00166}00166\ \textcolor{stringliteral}{\ \ \ \ >>>\ clf.fit([[0,0],\ [1,\ 1],\ [2,\ 2]],\ [0,\ 1,\ 2])}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00167}00167\ \textcolor{stringliteral}{\ \ \ \ BayesianRidge()}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00168}00168\ \textcolor{stringliteral}{\ \ \ \ >>>\ clf.predict([[1,\ 1]])}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00169}00169\ \textcolor{stringliteral}{\ \ \ \ array([1.])}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00170}00170\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00171}00171\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00172}00172\ \ \ \ \ \_parameter\_constraints:\ dict\ =\ \{}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00173}00173\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}max\_iter"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Integral,\ 1,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}})],}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00174}00174\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}tol"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Real,\ 0,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}neither"{}})],}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00175}00175\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}alpha\_1"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Real,\ 0,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}})],}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00176}00176\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}alpha\_2"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Real,\ 0,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}})],}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00177}00177\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}lambda\_1"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Real,\ 0,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}})],}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00178}00178\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}lambda\_2"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Real,\ 0,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}})],}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00179}00179\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}alpha\_init"{}}:\ [\textcolor{keywordtype}{None},\ \mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Real,\ 0,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}})],}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00180}00180\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}lambda\_init"{}}:\ [\textcolor{keywordtype}{None},\ \mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Real,\ 0,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}})],}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00181}00181\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}compute\_score"{}}:\ [\textcolor{stringliteral}{"{}boolean"{}}],}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00182}00182\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}fit\_intercept"{}}:\ [\textcolor{stringliteral}{"{}boolean"{}}],}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00183}00183\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}copy\_X"{}}:\ [\textcolor{stringliteral}{"{}boolean"{}}],}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00184}00184\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}verbose"{}}:\ [\textcolor{stringliteral}{"{}verbose"{}}],}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00185}00185\ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00186}00186\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00187}00187\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00188}00188\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00189}00189\ \ \ \ \ \ \ \ \ *,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00190}00190\ \ \ \ \ \ \ \ \ max\_iter=300,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00191}00191\ \ \ \ \ \ \ \ \ tol=1.0e-\/3,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00192}00192\ \ \ \ \ \ \ \ \ alpha\_1=1.0e-\/6,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00193}00193\ \ \ \ \ \ \ \ \ alpha\_2=1.0e-\/6,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00194}00194\ \ \ \ \ \ \ \ \ lambda\_1=1.0e-\/6,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00195}00195\ \ \ \ \ \ \ \ \ lambda\_2=1.0e-\/6,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00196}00196\ \ \ \ \ \ \ \ \ alpha\_init=None,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00197}00197\ \ \ \ \ \ \ \ \ lambda\_init=None,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00198}00198\ \ \ \ \ \ \ \ \ compute\_score=False,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00199}00199\ \ \ \ \ \ \ \ \ fit\_intercept=True,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00200}00200\ \ \ \ \ \ \ \ \ copy\_X=True,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00201}00201\ \ \ \ \ \ \ \ \ verbose=False,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00202}00202\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00203}00203\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_a5c97c53b8cab104cc40ac8da5ebab6ac}{max\_iter}}\ =\ max\_iter}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00204}00204\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_ada00cf4feb1de30a774cc6c7ca64c219}{tol}}\ =\ tol}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00205}00205\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_a92a000ecb63acaeb2d6b575ec50a4a3c}{alpha\_1}}\ =\ alpha\_1}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00206}00206\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_ae7627d1ae6fc852adca94087c05166ac}{alpha\_2}}\ =\ alpha\_2}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00207}00207\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_a8fc28a298b3f71808f96ebceb67f27ab}{lambda\_1}}\ =\ lambda\_1}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00208}00208\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_a7b5ad83061b4bccdf739c2aa5c3fda5b}{lambda\_2}}\ =\ lambda\_2}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00209}00209\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_ad6c5287b3b4ed83e2c74f51454841541}{alpha\_init}}\ =\ alpha\_init}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00210}00210\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_a28c6eebc29bb91090977175527720f9a}{lambda\_init}}\ =\ lambda\_init}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00211}00211\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_ac11eb5d2ebd2646d223e7300b74f7d5c}{compute\_score}}\ =\ compute\_score}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00212}00212\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__base_1_1LinearModel_af4afe40bc0c024c58cf3e154f1a5adcd}{fit\_intercept}}\ =\ fit\_intercept}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00213}00213\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_a84bf8913bc1363bd5e72dd958e1606b7}{copy\_X}}\ =\ copy\_X}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00214}00214\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_a6e21f492348ef75e78ab5b2377c15341}{verbose}}\ =\ verbose}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00215}00215\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00216}00216\ \ \ \ \ \textcolor{preprocessor}{@\_fit\_context(prefer\_skip\_nested\_validation=True)}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00217}\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_aaf2099b246e7ea65dca910b1f63a7c6d}{00217}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_aaf2099b246e7ea65dca910b1f63a7c6d}{fit}}(self,\ X,\ y,\ sample\_weight=None):}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00218}00218\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Fit\ the\ model.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00219}00219\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00220}00220\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00221}00221\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00222}00222\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\ :\ ndarray\ of\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00223}00223\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Training\ data.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00224}00224\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ y\ :\ ndarray\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00225}00225\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Target\ values.\ Will\ be\ cast\ to\ X's\ dtype\ if\ necessary.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00226}00226\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00227}00227\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ sample\_weight\ :\ ndarray\ of\ shape\ (n\_samples,),\ default=None}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00228}00228\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Individual\ weights\ for\ each\ sample.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00229}00229\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00230}00230\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ ..\ versionadded::\ 0.20}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00231}00231\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ parameter\ *sample\_weight*\ support\ to\ BayesianRidge.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00232}00232\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00233}00233\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00234}00234\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00235}00235\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ self\ :\ object}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00236}00236\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Returns\ the\ instance\ itself.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00237}00237\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00238}00238\ \ \ \ \ \ \ \ \ X,\ y\ =\ validate\_data(}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00239}00239\ \ \ \ \ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00240}00240\ \ \ \ \ \ \ \ \ \ \ \ \ X,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00241}00241\ \ \ \ \ \ \ \ \ \ \ \ \ y,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00242}00242\ \ \ \ \ \ \ \ \ \ \ \ \ dtype=[np.float64,\ np.float32],}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00243}00243\ \ \ \ \ \ \ \ \ \ \ \ \ force\_writeable=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00244}00244\ \ \ \ \ \ \ \ \ \ \ \ \ y\_numeric=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00245}00245\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00246}00246\ \ \ \ \ \ \ \ \ dtype\ =\ X.dtype}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00247}00247\ \ \ \ \ \ \ \ \ n\_samples,\ n\_features\ =\ X.shape}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00248}00248\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00249}00249\ \ \ \ \ \ \ \ \ sw\_sum\ =\ n\_samples}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00250}00250\ \ \ \ \ \ \ \ \ y\_var\ =\ y.var()}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00251}00251\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ sample\_weight\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00252}00252\ \ \ \ \ \ \ \ \ \ \ \ \ sample\_weight\ =\ \_check\_sample\_weight(sample\_weight,\ X,\ dtype=dtype)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00253}00253\ \ \ \ \ \ \ \ \ \ \ \ \ sw\_sum\ =\ sample\_weight.sum()}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00254}00254\ \ \ \ \ \ \ \ \ \ \ \ \ y\_mean\ =\ np.average(y,\ weights=sample\_weight)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00255}00255\ \ \ \ \ \ \ \ \ \ \ \ \ y\_var\ =\ np.average((y\ -\/\ y\_mean)\ **\ 2,\ weights=sample\_weight)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00256}00256\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00257}00257\ \ \ \ \ \ \ \ \ X,\ y,\ X\_offset\_,\ y\_offset\_,\ X\_scale\_\ =\ \_preprocess\_data(}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00258}00258\ \ \ \ \ \ \ \ \ \ \ \ \ X,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00259}00259\ \ \ \ \ \ \ \ \ \ \ \ \ y,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00260}00260\ \ \ \ \ \ \ \ \ \ \ \ \ fit\_intercept=self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__base_1_1LinearModel_af4afe40bc0c024c58cf3e154f1a5adcd}{fit\_intercept}},}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00261}00261\ \ \ \ \ \ \ \ \ \ \ \ \ copy=self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_a84bf8913bc1363bd5e72dd958e1606b7}{copy\_X}},}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00262}00262\ \ \ \ \ \ \ \ \ \ \ \ \ sample\_weight=sample\_weight,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00263}00263\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00264}00264\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00265}00265\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ sample\_weight\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00266}00266\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Sample\ weight\ can\ be\ implemented\ via\ a\ simple\ rescaling.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00267}00267\ \ \ \ \ \ \ \ \ \ \ \ \ X,\ y,\ \_\ =\ \_rescale\_data(X,\ y,\ sample\_weight)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00268}00268\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00269}00269\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_a3fc505b94b4e187faacbba3a1658741a}{X\_offset\_}}\ =\ X\_offset\_}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00270}00270\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_a0c363acab6c0ec658984f912872081b1}{X\_scale\_}}\ =\ X\_scale\_}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00271}00271\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00272}00272\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Initialization\ of\ the\ values\ of\ the\ parameters}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00273}00273\ \ \ \ \ \ \ \ \ eps\ =\ np.finfo(np.float64).eps}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00274}00274\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Add\ \`{}eps`\ in\ the\ denominator\ to\ omit\ division\ by\ zero}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00275}00275\ \ \ \ \ \ \ \ \ alpha\_\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_ad6c5287b3b4ed83e2c74f51454841541}{alpha\_init}}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00276}00276\ \ \ \ \ \ \ \ \ lambda\_\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_a28c6eebc29bb91090977175527720f9a}{lambda\_init}}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00277}00277\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ alpha\_\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00278}00278\ \ \ \ \ \ \ \ \ \ \ \ \ alpha\_\ =\ 1.0\ /\ (y\_var\ +\ eps)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00279}00279\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ lambda\_\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00280}00280\ \ \ \ \ \ \ \ \ \ \ \ \ lambda\_\ =\ 1.0}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00281}00281\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00282}00282\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Avoid\ unintended\ type\ promotion\ to\ float64\ with\ numpy\ 2}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00283}00283\ \ \ \ \ \ \ \ \ alpha\_\ =\ np.asarray(alpha\_,\ dtype=dtype)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00284}00284\ \ \ \ \ \ \ \ \ lambda\_\ =\ np.asarray(lambda\_,\ dtype=dtype)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00285}00285\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00286}00286\ \ \ \ \ \ \ \ \ verbose\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_a6e21f492348ef75e78ab5b2377c15341}{verbose}}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00287}00287\ \ \ \ \ \ \ \ \ lambda\_1\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_a8fc28a298b3f71808f96ebceb67f27ab}{lambda\_1}}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00288}00288\ \ \ \ \ \ \ \ \ lambda\_2\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_a7b5ad83061b4bccdf739c2aa5c3fda5b}{lambda\_2}}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00289}00289\ \ \ \ \ \ \ \ \ alpha\_1\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_a92a000ecb63acaeb2d6b575ec50a4a3c}{alpha\_1}}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00290}00290\ \ \ \ \ \ \ \ \ alpha\_2\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_ae7627d1ae6fc852adca94087c05166ac}{alpha\_2}}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00291}00291\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00292}00292\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_a4b3f0ed45e52ba9fb9841faa4caf7589}{scores\_}}\ =\ list()}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00293}00293\ \ \ \ \ \ \ \ \ coef\_old\_\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00294}00294\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00295}00295\ \ \ \ \ \ \ \ \ XT\_y\ =\ np.dot(X.T,\ y)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00296}00296\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Let\ M,\ N\ =\ n\_samples,\ n\_features\ and\ K\ =\ min(M,\ N).}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00297}00297\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ posterior\ covariance\ matrix\ needs\ Vh\_full:\ (N,\ N).}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00298}00298\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ full\ SVD\ is\ only\ required\ when\ n\_samples\ <\ n\_features.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00299}00299\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ When\ n\_samples\ <\ n\_features,\ K=M\ and\ full\_matrices=True}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00300}00300\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ U:\ (M,\ M),\ S:\ M,\ Vh\_full:\ (N,\ N),\ Vh:\ (M,\ N)}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00301}00301\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ When\ n\_samples\ >\ n\_features,\ K=N\ and\ full\_matrices=False}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00302}00302\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ U:\ (M,\ N),\ S:\ N,\ Vh\_full:\ (N,\ N),\ Vh:\ (N,\ N)}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00303}00303\ \ \ \ \ \ \ \ \ U,\ S,\ Vh\_full\ =\ linalg.svd(X,\ full\_matrices=(n\_samples\ <\ n\_features))}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00304}00304\ \ \ \ \ \ \ \ \ K\ =\ len(S)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00305}00305\ \ \ \ \ \ \ \ \ eigen\_vals\_\ =\ S**2}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00306}00306\ \ \ \ \ \ \ \ \ eigen\_vals\_full\ =\ np.zeros(n\_features,\ dtype=dtype)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00307}00307\ \ \ \ \ \ \ \ \ eigen\_vals\_full[0:K]\ =\ eigen\_vals\_}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00308}00308\ \ \ \ \ \ \ \ \ Vh\ =\ Vh\_full[0:K,\ :]}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00309}00309\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00310}00310\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Convergence\ loop\ of\ the\ bayesian\ ridge\ regression}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00311}00311\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ iter\_\ \textcolor{keywordflow}{in}\ range(self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_a5c97c53b8cab104cc40ac8da5ebab6ac}{max\_iter}}):}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00312}00312\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ update\ posterior\ mean\ coef\_\ based\ on\ alpha\_\ and\ lambda\_\ and}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00313}00313\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ compute\ corresponding\ sse\ (sum\ of\ squared\ errors)}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00314}00314\ \ \ \ \ \ \ \ \ \ \ \ \ coef\_,\ sse\_\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_a3afe56b2340e6c01b0b9b19708fe35b8}{\_update\_coef\_}}(}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00315}00315\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ X,\ y,\ n\_samples,\ n\_features,\ XT\_y,\ U,\ Vh,\ eigen\_vals\_,\ alpha\_,\ lambda\_}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00316}00316\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00317}00317\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_ac11eb5d2ebd2646d223e7300b74f7d5c}{compute\_score}}:}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00318}00318\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ compute\ the\ log\ marginal\ likelihood}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00319}00319\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ s\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_a4ef80c2a3711dd5964c453db3e794861}{\_log\_marginal\_likelihood}}(}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00320}00320\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ n\_samples,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00321}00321\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ n\_features,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00322}00322\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ sw\_sum,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00323}00323\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ eigen\_vals\_,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00324}00324\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ alpha\_,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00325}00325\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ lambda\_,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00326}00326\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ coef\_,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00327}00327\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ sse\_,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00328}00328\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00329}00329\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_a4b3f0ed45e52ba9fb9841faa4caf7589}{scores\_}}.append(s)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00330}00330\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00331}00331\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Update\ alpha\ and\ lambda\ according\ to\ (MacKay,\ 1992)}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00332}00332\ \ \ \ \ \ \ \ \ \ \ \ \ gamma\_\ =\ np.sum((alpha\_\ *\ eigen\_vals\_)\ /\ (lambda\_\ +\ alpha\_\ *\ eigen\_vals\_))}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00333}00333\ \ \ \ \ \ \ \ \ \ \ \ \ lambda\_\ =\ (gamma\_\ +\ 2\ *\ lambda\_1)\ /\ (np.sum(coef\_**2)\ +\ 2\ *\ lambda\_2)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00334}00334\ \ \ \ \ \ \ \ \ \ \ \ \ alpha\_\ =\ (sw\_sum\ -\/\ gamma\_\ +\ 2\ *\ alpha\_1)\ /\ (sse\_\ +\ 2\ *\ alpha\_2)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00335}00335\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00336}00336\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Check\ for\ convergence}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00337}00337\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ iter\_\ !=\ 0\ \textcolor{keywordflow}{and}\ np.sum(np.abs(coef\_old\_\ -\/\ coef\_))\ <\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_ada00cf4feb1de30a774cc6c7ca64c219}{tol}}:}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00338}00338\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ verbose:}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00339}00339\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(\textcolor{stringliteral}{"{}Convergence\ after\ "{}},\ str(iter\_),\ \textcolor{stringliteral}{"{}\ iterations"{}})}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00340}00340\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00341}00341\ \ \ \ \ \ \ \ \ \ \ \ \ coef\_old\_\ =\ np.copy(coef\_)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00342}00342\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00343}00343\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_a9bc6632ac2f06fa9d4ae2839c85d6591}{n\_iter\_}}\ =\ iter\_\ +\ 1}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00344}00344\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00345}00345\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ return\ regularization\ parameters\ and\ corresponding\ posterior\ mean,}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00346}00346\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ log\ marginal\ likelihood\ and\ posterior\ covariance}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00347}00347\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_afacb366fd4d0872db9cba461ca6c8dbc}{alpha\_}}\ =\ alpha\_}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00348}00348\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_a48995fa6f5b773c0d0dcaed59b283b4e}{lambda\_}}\ =\ lambda\_}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00349}00349\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_a8b7eba766d377b162bf86f74ad508e72}{coef\_}},\ sse\_\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_a3afe56b2340e6c01b0b9b19708fe35b8}{\_update\_coef\_}}(}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00350}00350\ \ \ \ \ \ \ \ \ \ \ \ \ X,\ y,\ n\_samples,\ n\_features,\ XT\_y,\ U,\ Vh,\ eigen\_vals\_,\ alpha\_,\ lambda\_}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00351}00351\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00352}00352\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_ac11eb5d2ebd2646d223e7300b74f7d5c}{compute\_score}}:}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00353}00353\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ compute\ the\ log\ marginal\ likelihood}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00354}00354\ \ \ \ \ \ \ \ \ \ \ \ \ s\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_a4ef80c2a3711dd5964c453db3e794861}{\_log\_marginal\_likelihood}}(}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00355}00355\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ n\_samples,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00356}00356\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ n\_features,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00357}00357\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ sw\_sum,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00358}00358\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ eigen\_vals\_,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00359}00359\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ alpha\_,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00360}00360\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ lambda\_,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00361}00361\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ coef\_,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00362}00362\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ sse\_,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00363}00363\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00364}00364\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_a4b3f0ed45e52ba9fb9841faa4caf7589}{scores\_}}.append(s)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00365}00365\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_a4b3f0ed45e52ba9fb9841faa4caf7589}{scores\_}}\ =\ np.array(self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_a4b3f0ed45e52ba9fb9841faa4caf7589}{scores\_}})}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00366}00366\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00367}00367\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ posterior\ covariance}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00368}00368\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_a32c0d2ff0fa45f6ffb937ab058e706ec}{sigma\_}}\ =\ np.dot(}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00369}00369\ \ \ \ \ \ \ \ \ \ \ \ \ Vh\_full.T,\ Vh\_full\ /\ (alpha\_\ *\ eigen\_vals\_full\ +\ lambda\_)[:,\ np.newaxis]}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00370}00370\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00371}00371\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00372}00372\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__base_1_1LinearModel_a510bc90afa85cd9e57d91f73a4023d24}{\_set\_intercept}}(X\_offset\_,\ y\_offset\_,\ X\_scale\_)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00373}00373\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00374}00374\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00375}00375\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00376}\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_af8c429dd611ce63d0d73b315443cc6c5}{00376}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_af8c429dd611ce63d0d73b315443cc6c5}{predict}}(self,\ X,\ return\_std=False):}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00377}00377\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Predict\ using\ the\ linear\ model.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00378}00378\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00379}00379\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ In\ addition\ to\ the\ mean\ of\ the\ predictive\ distribution,\ also\ its}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00380}00380\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ standard\ deviation\ can\ be\ returned.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00381}00381\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00382}00382\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00383}00383\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00384}00384\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\ :\ \{array-\/like,\ sparse\ matrix\}\ of\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00385}00385\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Samples.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00386}00386\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00387}00387\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ return\_std\ :\ bool,\ default=False}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00388}00388\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Whether\ to\ return\ the\ standard\ deviation\ of\ posterior\ prediction.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00389}00389\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00390}00390\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00391}00391\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00392}00392\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ y\_mean\ :\ array-\/like\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00393}00393\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Mean\ of\ predictive\ distribution\ of\ query\ points.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00394}00394\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00395}00395\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ y\_std\ :\ array-\/like\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00396}00396\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Standard\ deviation\ of\ predictive\ distribution\ of\ query\ points.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00397}00397\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00398}00398\ \ \ \ \ \ \ \ \ y\_mean\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__base_1_1LinearModel_a1eef77bcfd399b0fd83f59646388eda1}{\_decision\_function}}(X)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00399}00399\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ return\_std:}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00400}00400\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ y\_mean}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00401}00401\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00402}00402\ \ \ \ \ \ \ \ \ \ \ \ \ sigmas\_squared\_data\ =\ (np.dot(X,\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_a32c0d2ff0fa45f6ffb937ab058e706ec}{sigma\_}})\ *\ X).sum(axis=1)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00403}00403\ \ \ \ \ \ \ \ \ \ \ \ \ y\_std\ =\ np.sqrt(sigmas\_squared\_data\ +\ (1.0\ /\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_afacb366fd4d0872db9cba461ca6c8dbc}{alpha\_}}))}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00404}00404\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ y\_mean,\ y\_std}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00405}00405\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00406}\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_a3afe56b2340e6c01b0b9b19708fe35b8}{00406}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_a3afe56b2340e6c01b0b9b19708fe35b8}{\_update\_coef\_}}(}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00407}00407\ \ \ \ \ \ \ \ \ self,\ X,\ y,\ n\_samples,\ n\_features,\ XT\_y,\ U,\ Vh,\ eigen\_vals\_,\ alpha\_,\ lambda\_}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00408}00408\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00409}00409\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Update\ posterior\ mean\ and\ compute\ corresponding\ sse\ (sum\ of\ squared\ errors).}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00410}00410\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00411}00411\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Posterior\ mean\ is\ given\ by\ coef\_\ =\ scaled\_sigma\_\ *\ X.T\ *\ y\ where}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00412}00412\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ scaled\_sigma\_\ =\ (lambda\_/alpha\_\ *\ np.eye(n\_features)}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00413}00413\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ +\ np.dot(X.T,\ X))\string^-\/1}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00414}00414\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00415}00415\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00416}00416\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ n\_samples\ >\ n\_features:}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00417}00417\ \ \ \ \ \ \ \ \ \ \ \ \ coef\_\ =\ np.linalg.multi\_dot(}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00418}00418\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ [Vh.T,\ Vh\ /\ (eigen\_vals\_\ +\ lambda\_\ /\ alpha\_)[:,\ np.newaxis],\ XT\_y]}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00419}00419\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00420}00420\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00421}00421\ \ \ \ \ \ \ \ \ \ \ \ \ coef\_\ =\ np.linalg.multi\_dot(}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00422}00422\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ [X.T,\ U\ /\ (eigen\_vals\_\ +\ lambda\_\ /\ alpha\_)[\textcolor{keywordtype}{None},\ :],\ U.T,\ y]}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00423}00423\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00424}00424\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00425}00425\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Note:\ we\ do\ not\ need\ to\ explicitly\ use\ the\ weights\ in\ this\ sum\ because}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00426}00426\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ y\ and\ X\ were\ preprocessed\ by\ \_rescale\_data\ to\ handle\ the\ weights.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00427}00427\ \ \ \ \ \ \ \ \ sse\_\ =\ np.sum((y\ -\/\ np.dot(X,\ coef\_))\ **\ 2)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00428}00428\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00429}00429\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ coef\_,\ sse\_}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00430}00430\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00431}\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_a4ef80c2a3711dd5964c453db3e794861}{00431}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_a4ef80c2a3711dd5964c453db3e794861}{\_log\_marginal\_likelihood}}(}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00432}00432\ \ \ \ \ \ \ \ \ self,\ n\_samples,\ n\_features,\ sw\_sum,\ eigen\_vals,\ alpha\_,\ lambda\_,\ coef,\ sse}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00433}00433\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00434}00434\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Log\ marginal\ likelihood."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00435}00435\ \ \ \ \ \ \ \ \ alpha\_1\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_a92a000ecb63acaeb2d6b575ec50a4a3c}{alpha\_1}}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00436}00436\ \ \ \ \ \ \ \ \ alpha\_2\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_ae7627d1ae6fc852adca94087c05166ac}{alpha\_2}}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00437}00437\ \ \ \ \ \ \ \ \ lambda\_1\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_a8fc28a298b3f71808f96ebceb67f27ab}{lambda\_1}}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00438}00438\ \ \ \ \ \ \ \ \ lambda\_2\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1BayesianRidge_a7b5ad83061b4bccdf739c2aa5c3fda5b}{lambda\_2}}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00439}00439\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00440}00440\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ compute\ the\ log\ of\ the\ determinant\ of\ the\ posterior\ covariance.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00441}00441\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ posterior\ covariance\ is\ given\ by}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00442}00442\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ sigma\ =\ (lambda\_\ *\ np.eye(n\_features)\ +\ alpha\_\ *\ np.dot(X.T,\ X))\string^-\/1}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00443}00443\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ n\_samples\ >\ n\_features:}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00444}00444\ \ \ \ \ \ \ \ \ \ \ \ \ logdet\_sigma\ =\ -\/np.sum(np.log(lambda\_\ +\ alpha\_\ *\ eigen\_vals))}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00445}00445\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00446}00446\ \ \ \ \ \ \ \ \ \ \ \ \ logdet\_sigma\ =\ np.full(n\_features,\ lambda\_,\ dtype=np.array(lambda\_).dtype)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00447}00447\ \ \ \ \ \ \ \ \ \ \ \ \ logdet\_sigma[:n\_samples]\ +=\ alpha\_\ *\ eigen\_vals}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00448}00448\ \ \ \ \ \ \ \ \ \ \ \ \ logdet\_sigma\ =\ -\/np.sum(np.log(logdet\_sigma))}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00449}00449\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00450}00450\ \ \ \ \ \ \ \ \ score\ =\ lambda\_1\ *\ log(lambda\_)\ -\/\ lambda\_2\ *\ lambda\_}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00451}00451\ \ \ \ \ \ \ \ \ score\ +=\ alpha\_1\ *\ log(alpha\_)\ -\/\ alpha\_2\ *\ alpha\_}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00452}00452\ \ \ \ \ \ \ \ \ score\ +=\ 0.5\ *\ (}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00453}00453\ \ \ \ \ \ \ \ \ \ \ \ \ n\_features\ *\ log(lambda\_)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00454}00454\ \ \ \ \ \ \ \ \ \ \ \ \ +\ sw\_sum\ *\ log(alpha\_)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00455}00455\ \ \ \ \ \ \ \ \ \ \ \ \ -\/\ alpha\_\ *\ sse}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00456}00456\ \ \ \ \ \ \ \ \ \ \ \ \ -\/\ lambda\_\ *\ np.sum(coef**2)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00457}00457\ \ \ \ \ \ \ \ \ \ \ \ \ +\ logdet\_sigma}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00458}00458\ \ \ \ \ \ \ \ \ \ \ \ \ -\/\ sw\_sum\ *\ log(2\ *\ np.pi)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00459}00459\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00460}00460\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00461}00461\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ score}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00462}00462\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00463}00463\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00464}00464\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00466}00466\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00467}00467\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00468}\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression}{00468}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression}{ARDRegression}}(\mbox{\hyperlink{classsklearn_1_1base_1_1RegressorMixin}{RegressorMixin}},\ \mbox{\hyperlink{classsklearn_1_1linear__model_1_1__base_1_1LinearModel}{LinearModel}}):}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00469}00469\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Bayesian\ ARD\ regression.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00470}00470\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00471}00471\ \textcolor{stringliteral}{\ \ \ \ Fit\ the\ weights\ of\ a\ regression\ model,\ using\ an\ ARD\ prior.\ The\ weights\ of}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00472}00472\ \textcolor{stringliteral}{\ \ \ \ the\ regression\ model\ are\ assumed\ to\ be\ in\ Gaussian\ distributions.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00473}00473\ \textcolor{stringliteral}{\ \ \ \ Also\ estimate\ the\ parameters\ lambda\ (precisions\ of\ the\ distributions\ of\ the}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00474}00474\ \textcolor{stringliteral}{\ \ \ \ weights)\ and\ alpha\ (precision\ of\ the\ distribution\ of\ the\ noise).}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00475}00475\ \textcolor{stringliteral}{\ \ \ \ The\ estimation\ is\ done\ by\ an\ iterative\ procedures\ (Evidence\ Maximization)}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00476}00476\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00477}00477\ \textcolor{stringliteral}{\ \ \ \ Read\ more\ in\ the\ :ref:\`{}User\ Guide\ <bayesian\_regression>\`{}.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00478}00478\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00479}00479\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00480}00480\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00481}00481\ \textcolor{stringliteral}{\ \ \ \ max\_iter\ :\ int,\ default=300}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00482}00482\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Maximum\ number\ of\ iterations.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00483}00483\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00484}00484\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionchanged::\ 1.3}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00485}00485\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00486}00486\ \textcolor{stringliteral}{\ \ \ \ tol\ :\ float,\ default=1e-\/3}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00487}00487\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Stop\ the\ algorithm\ if\ w\ has\ converged.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00488}00488\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00489}00489\ \textcolor{stringliteral}{\ \ \ \ alpha\_1\ :\ float,\ default=1e-\/6}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00490}00490\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Hyper-\/parameter\ :\ shape\ parameter\ for\ the\ Gamma\ distribution\ prior}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00491}00491\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ over\ the\ alpha\ parameter.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00492}00492\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00493}00493\ \textcolor{stringliteral}{\ \ \ \ alpha\_2\ :\ float,\ default=1e-\/6}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00494}00494\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Hyper-\/parameter\ :\ inverse\ scale\ parameter\ (rate\ parameter)\ for\ the}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00495}00495\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Gamma\ distribution\ prior\ over\ the\ alpha\ parameter.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00496}00496\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00497}00497\ \textcolor{stringliteral}{\ \ \ \ lambda\_1\ :\ float,\ default=1e-\/6}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00498}00498\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Hyper-\/parameter\ :\ shape\ parameter\ for\ the\ Gamma\ distribution\ prior}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00499}00499\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ over\ the\ lambda\ parameter.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00500}00500\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00501}00501\ \textcolor{stringliteral}{\ \ \ \ lambda\_2\ :\ float,\ default=1e-\/6}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00502}00502\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Hyper-\/parameter\ :\ inverse\ scale\ parameter\ (rate\ parameter)\ for\ the}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00503}00503\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Gamma\ distribution\ prior\ over\ the\ lambda\ parameter.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00504}00504\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00505}00505\ \textcolor{stringliteral}{\ \ \ \ compute\_score\ :\ bool,\ default=False}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00506}00506\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ True,\ compute\ the\ objective\ function\ at\ each\ step\ of\ the\ model.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00507}00507\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00508}00508\ \textcolor{stringliteral}{\ \ \ \ threshold\_lambda\ :\ float,\ default=10\ 000}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00509}00509\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Threshold\ for\ removing\ (pruning)\ weights\ with\ high\ precision\ from}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00510}00510\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ computation.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00511}00511\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00512}00512\ \textcolor{stringliteral}{\ \ \ \ fit\_intercept\ :\ bool,\ default=True}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00513}00513\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Whether\ to\ calculate\ the\ intercept\ for\ this\ model.\ If\ set}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00514}00514\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ to\ false,\ no\ intercept\ will\ be\ used\ in\ calculations}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00515}00515\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ (i.e.\ data\ is\ expected\ to\ be\ centered).}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00516}00516\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00517}00517\ \textcolor{stringliteral}{\ \ \ \ copy\_X\ :\ bool,\ default=True}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00518}00518\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ True,\ X\ will\ be\ copied;\ else,\ it\ may\ be\ overwritten.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00519}00519\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00520}00520\ \textcolor{stringliteral}{\ \ \ \ verbose\ :\ bool,\ default=False}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00521}00521\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Verbose\ mode\ when\ fitting\ the\ model.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00522}00522\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00523}00523\ \textcolor{stringliteral}{\ \ \ \ Attributes}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00524}00524\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00525}00525\ \textcolor{stringliteral}{\ \ \ \ coef\_\ :\ array-\/like\ of\ shape\ (n\_features,)}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00526}00526\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Coefficients\ of\ the\ regression\ model\ (mean\ of\ distribution)}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00527}00527\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00528}00528\ \textcolor{stringliteral}{\ \ \ \ alpha\_\ :\ float}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00529}00529\ \textcolor{stringliteral}{\ \ \ \ \ \ \ estimated\ precision\ of\ the\ noise.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00530}00530\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00531}00531\ \textcolor{stringliteral}{\ \ \ \ lambda\_\ :\ array-\/like\ of\ shape\ (n\_features,)}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00532}00532\ \textcolor{stringliteral}{\ \ \ \ \ \ \ estimated\ precisions\ of\ the\ weights.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00533}00533\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00534}00534\ \textcolor{stringliteral}{\ \ \ \ sigma\_\ :\ array-\/like\ of\ shape\ (n\_features,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00535}00535\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ estimated\ variance-\/covariance\ matrix\ of\ the\ weights}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00536}00536\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00537}00537\ \textcolor{stringliteral}{\ \ \ \ scores\_\ :\ float}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00538}00538\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ if\ computed,\ value\ of\ the\ objective\ function\ (to\ be\ maximized)}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00539}00539\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00540}00540\ \textcolor{stringliteral}{\ \ \ \ n\_iter\_\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00541}00541\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ actual\ number\ of\ iterations\ to\ reach\ the\ stopping\ criterion.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00542}00542\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00543}00543\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 1.3}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00544}00544\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00545}00545\ \textcolor{stringliteral}{\ \ \ \ intercept\_\ :\ float}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00546}00546\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Independent\ term\ in\ decision\ function.\ Set\ to\ 0.0\ if}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00547}00547\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}fit\_intercept\ =\ False\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00548}00548\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00549}00549\ \textcolor{stringliteral}{\ \ \ \ X\_offset\_\ :\ float}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00550}00550\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ \`{}fit\_intercept=True\`{},\ offset\ subtracted\ for\ centering\ data\ to\ a}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00551}00551\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ zero\ mean.\ Set\ to\ np.zeros(n\_features)\ otherwise.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00552}00552\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00553}00553\ \textcolor{stringliteral}{\ \ \ \ X\_scale\_\ :\ float}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00554}00554\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Set\ to\ np.ones(n\_features).}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00555}00555\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00556}00556\ \textcolor{stringliteral}{\ \ \ \ n\_features\_in\_\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00557}00557\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ features\ seen\ during\ :term:\`{}fit\`{}.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00558}00558\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00559}00559\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 0.24}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00560}00560\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00561}00561\ \textcolor{stringliteral}{\ \ \ \ feature\_names\_in\_\ :\ ndarray\ of\ shape\ (\`{}n\_features\_in\_\`{},)}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00562}00562\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Names\ of\ features\ seen\ during\ :term:\`{}fit\`{}.\ Defined\ only\ when\ \`{}X\`{}}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00563}00563\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ has\ feature\ names\ that\ are\ all\ strings.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00564}00564\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00565}00565\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 1.0}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00566}00566\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00567}00567\ \textcolor{stringliteral}{\ \ \ \ See\ Also}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00568}00568\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00569}00569\ \textcolor{stringliteral}{\ \ \ \ BayesianRidge\ :\ Bayesian\ ridge\ regression.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00570}00570\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00571}00571\ \textcolor{stringliteral}{\ \ \ \ References}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00572}00572\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00573}00573\ \textcolor{stringliteral}{\ \ \ \ D.\ J.\ C.\ MacKay,\ Bayesian\ nonlinear\ modeling\ for\ the\ prediction}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00574}00574\ \textcolor{stringliteral}{\ \ \ \ competition,\ ASHRAE\ Transactions,\ 1994.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00575}00575\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00576}00576\ \textcolor{stringliteral}{\ \ \ \ R.\ Salakhutdinov,\ Lecture\ notes\ on\ Statistical\ Machine\ Learning,}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00577}00577\ \textcolor{stringliteral}{\ \ \ \ http://www.utstat.toronto.edu/\string~rsalakhu/sta4273/notes/Lecture2.pdf\#page=15}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00578}00578\ \textcolor{stringliteral}{\ \ \ \ Their\ beta\ is\ our\ \`{}\`{}self.alpha\_\`{}\`{}}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00579}00579\ \textcolor{stringliteral}{\ \ \ \ Their\ alpha\ is\ our\ \`{}\`{}self.lambda\_\`{}\`{}}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00580}00580\ \textcolor{stringliteral}{\ \ \ \ ARD\ is\ a\ little\ different\ than\ the\ slide:\ only\ dimensions/features\ for}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00581}00581\ \textcolor{stringliteral}{\ \ \ \ which\ \`{}\`{}self.lambda\_\ <\ self.threshold\_lambda\`{}\`{}\ are\ kept\ and\ the\ rest\ are}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00582}00582\ \textcolor{stringliteral}{\ \ \ \ discarded.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00583}00583\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00584}00584\ \textcolor{stringliteral}{\ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00585}00585\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00586}00586\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn\ import\ linear\_model}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00587}00587\ \textcolor{stringliteral}{\ \ \ \ >>>\ clf\ =\ linear\_model.ARDRegression()}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00588}00588\ \textcolor{stringliteral}{\ \ \ \ >>>\ clf.fit([[0,0],\ [1,\ 1],\ [2,\ 2]],\ [0,\ 1,\ 2])}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00589}00589\ \textcolor{stringliteral}{\ \ \ \ ARDRegression()}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00590}00590\ \textcolor{stringliteral}{\ \ \ \ >>>\ clf.predict([[1,\ 1]])}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00591}00591\ \textcolor{stringliteral}{\ \ \ \ array([1.])}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00592}00592\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00593}00593\ \textcolor{stringliteral}{\ \ \ \ -\/\ \ \ :ref:\`{}sphx\_glr\_auto\_examples\_linear\_model\_plot\_ard.py\`{}\ demonstrates\ ARD}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00594}00594\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Regression.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00595}00595\ \textcolor{stringliteral}{\ \ \ \ -\/\ \ \ :ref:\`{}sphx\_glr\_auto\_examples\_linear\_model\_plot\_lasso\_and\_elasticnet.py\`{}}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00596}00596\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ showcases\ ARD\ Regression\ alongside\ Lasso\ and\ Elastic-\/Net\ for\ sparse,}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00597}00597\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ correlated\ signals,\ in\ the\ presence\ of\ noise.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00598}00598\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00599}00599\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00600}00600\ \ \ \ \ \_parameter\_constraints:\ dict\ =\ \{}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00601}00601\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}max\_iter"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Integral,\ 1,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}})],}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00602}00602\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}tol"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Real,\ 0,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}})],}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00603}00603\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}alpha\_1"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Real,\ 0,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}})],}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00604}00604\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}alpha\_2"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Real,\ 0,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}})],}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00605}00605\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}lambda\_1"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Real,\ 0,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}})],}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00606}00606\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}lambda\_2"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Real,\ 0,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}})],}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00607}00607\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}compute\_score"{}}:\ [\textcolor{stringliteral}{"{}boolean"{}}],}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00608}00608\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}threshold\_lambda"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Real,\ 0,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}})],}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00609}00609\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}fit\_intercept"{}}:\ [\textcolor{stringliteral}{"{}boolean"{}}],}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00610}00610\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}copy\_X"{}}:\ [\textcolor{stringliteral}{"{}boolean"{}}],}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00611}00611\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}verbose"{}}:\ [\textcolor{stringliteral}{"{}verbose"{}}],}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00612}00612\ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00613}00613\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00614}00614\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00615}00615\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00616}00616\ \ \ \ \ \ \ \ \ *,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00617}00617\ \ \ \ \ \ \ \ \ max\_iter=300,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00618}00618\ \ \ \ \ \ \ \ \ tol=1.0e-\/3,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00619}00619\ \ \ \ \ \ \ \ \ alpha\_1=1.0e-\/6,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00620}00620\ \ \ \ \ \ \ \ \ alpha\_2=1.0e-\/6,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00621}00621\ \ \ \ \ \ \ \ \ lambda\_1=1.0e-\/6,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00622}00622\ \ \ \ \ \ \ \ \ lambda\_2=1.0e-\/6,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00623}00623\ \ \ \ \ \ \ \ \ compute\_score=False,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00624}00624\ \ \ \ \ \ \ \ \ threshold\_lambda=1.0e4,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00625}00625\ \ \ \ \ \ \ \ \ fit\_intercept=True,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00626}00626\ \ \ \ \ \ \ \ \ copy\_X=True,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00627}00627\ \ \ \ \ \ \ \ \ verbose=False,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00628}00628\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00629}00629\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_a6533e96d6086a2e0a40b8571deaf29c9}{max\_iter}}\ =\ max\_iter}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00630}00630\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_a9c8ad7c54db5c05824335cf9e686f1fc}{tol}}\ =\ tol}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00631}00631\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__base_1_1LinearModel_af4afe40bc0c024c58cf3e154f1a5adcd}{fit\_intercept}}\ =\ fit\_intercept}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00632}00632\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_a49b7707cfaad119c198ba8025f733bde}{alpha\_1}}\ =\ alpha\_1}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00633}00633\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_a7a0abdb1d0028aec0c66c1b18d0f9ffd}{alpha\_2}}\ =\ alpha\_2}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00634}00634\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_a669c1a5010be95f2a1da58dca36392ca}{lambda\_1}}\ =\ lambda\_1}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00635}00635\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_a58baddfa6ce8951837e46416347a26b2}{lambda\_2}}\ =\ lambda\_2}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00636}00636\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_ab7f1b0d6221dc5d09b19cf882b705f51}{compute\_score}}\ =\ compute\_score}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00637}00637\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_a42909ee1e186de67af64f544f9577fcc}{threshold\_lambda}}\ =\ threshold\_lambda}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00638}00638\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_a22a2ff96f22dbcbab9f2f692262127cb}{copy\_X}}\ =\ copy\_X}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00639}00639\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_a41bb63325615075872c76731b582ca01}{verbose}}\ =\ verbose}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00640}00640\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00641}00641\ \ \ \ \ \textcolor{preprocessor}{@\_fit\_context(prefer\_skip\_nested\_validation=True)}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00642}\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_ab194f27369cba52c1305e910e677c9ce}{00642}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_ab194f27369cba52c1305e910e677c9ce}{fit}}(self,\ X,\ y):}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00643}00643\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Fit\ the\ model\ according\ to\ the\ given\ training\ data\ and\ parameters.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00644}00644\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00645}00645\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Iterative\ procedure\ to\ maximize\ the\ evidence}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00646}00646\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00647}00647\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00648}00648\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00649}00649\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\ :\ array-\/like\ of\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00650}00650\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Training\ vector,\ where\ \`{}n\_samples\`{}\ is\ the\ number\ of\ samples\ and}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00651}00651\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \`{}n\_features\`{}\ is\ the\ number\ of\ features.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00652}00652\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ y\ :\ array-\/like\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00653}00653\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Target\ values\ (integers).\ Will\ be\ cast\ to\ X's\ dtype\ if\ necessary.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00654}00654\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00655}00655\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00656}00656\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00657}00657\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ self\ :\ object}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00658}00658\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Fitted\ estimator.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00659}00659\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00660}00660\ \ \ \ \ \ \ \ \ X,\ y\ =\ validate\_data(}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00661}00661\ \ \ \ \ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00662}00662\ \ \ \ \ \ \ \ \ \ \ \ \ X,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00663}00663\ \ \ \ \ \ \ \ \ \ \ \ \ y,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00664}00664\ \ \ \ \ \ \ \ \ \ \ \ \ dtype=[np.float64,\ np.float32],}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00665}00665\ \ \ \ \ \ \ \ \ \ \ \ \ force\_writeable=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00666}00666\ \ \ \ \ \ \ \ \ \ \ \ \ y\_numeric=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00667}00667\ \ \ \ \ \ \ \ \ \ \ \ \ ensure\_min\_samples=2,}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00668}00668\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00669}00669\ \ \ \ \ \ \ \ \ dtype\ =\ X.dtype}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00670}00670\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00671}00671\ \ \ \ \ \ \ \ \ n\_samples,\ n\_features\ =\ X.shape}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00672}00672\ \ \ \ \ \ \ \ \ coef\_\ =\ np.zeros(n\_features,\ dtype=dtype)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00673}00673\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00674}00674\ \ \ \ \ \ \ \ \ X,\ y,\ X\_offset\_,\ y\_offset\_,\ X\_scale\_\ =\ \_preprocess\_data(}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00675}00675\ \ \ \ \ \ \ \ \ \ \ \ \ X,\ y,\ fit\_intercept=self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__base_1_1LinearModel_af4afe40bc0c024c58cf3e154f1a5adcd}{fit\_intercept}},\ copy=self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_a22a2ff96f22dbcbab9f2f692262127cb}{copy\_X}}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00676}00676\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00677}00677\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00678}00678\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_a7f455f67ade9ad4f898d15afe7f18957}{X\_offset\_}}\ =\ X\_offset\_}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00679}00679\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_a120262b689f2130316123e636fd90a25}{X\_scale\_}}\ =\ X\_scale\_}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00680}00680\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00681}00681\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Launch\ the\ convergence\ loop}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00682}00682\ \ \ \ \ \ \ \ \ keep\_lambda\ =\ np.ones(n\_features,\ dtype=bool)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00683}00683\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00684}00684\ \ \ \ \ \ \ \ \ lambda\_1\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_a669c1a5010be95f2a1da58dca36392ca}{lambda\_1}}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00685}00685\ \ \ \ \ \ \ \ \ lambda\_2\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_a58baddfa6ce8951837e46416347a26b2}{lambda\_2}}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00686}00686\ \ \ \ \ \ \ \ \ alpha\_1\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_a49b7707cfaad119c198ba8025f733bde}{alpha\_1}}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00687}00687\ \ \ \ \ \ \ \ \ alpha\_2\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_a7a0abdb1d0028aec0c66c1b18d0f9ffd}{alpha\_2}}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00688}00688\ \ \ \ \ \ \ \ \ verbose\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_a41bb63325615075872c76731b582ca01}{verbose}}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00689}00689\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00690}00690\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Initialization\ of\ the\ values\ of\ the\ parameters}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00691}00691\ \ \ \ \ \ \ \ \ eps\ =\ np.finfo(np.float64).eps}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00692}00692\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Add\ \`{}eps`\ in\ the\ denominator\ to\ omit\ division\ by\ zero\ if\ \`{}np.var(y)`}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00693}00693\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ is\ zero.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00694}00694\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Explicitly\ set\ dtype\ to\ avoid\ unintended\ type\ promotion\ with\ numpy\ 2.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00695}00695\ \ \ \ \ \ \ \ \ alpha\_\ =\ np.asarray(1.0\ /\ (np.var(y)\ +\ eps),\ dtype=dtype)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00696}00696\ \ \ \ \ \ \ \ \ lambda\_\ =\ np.ones(n\_features,\ dtype=dtype)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00697}00697\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00698}00698\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_adef39157da7d43eec4f765813822f7e3}{scores\_}}\ =\ list()}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00699}00699\ \ \ \ \ \ \ \ \ coef\_old\_\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00700}00700\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00701}00701\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }update\_coeff(X,\ y,\ coef\_,\ alpha\_,\ keep\_lambda,\ sigma\_):}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00702}00702\ \ \ \ \ \ \ \ \ \ \ \ \ coef\_[keep\_lambda]\ =\ alpha\_\ *\ np.linalg.multi\_dot(}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00703}00703\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ [sigma\_,\ X[:,\ keep\_lambda].T,\ y]}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00704}00704\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00705}00705\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ coef\_}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00706}00706\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00707}00707\ \ \ \ \ \ \ \ \ update\_sigma\ =\ (}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00708}00708\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_a4ea7d755abb36a425e4ff7caa2185dd4}{\_update\_sigma}}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00709}00709\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ n\_samples\ >=\ n\_features}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00710}00710\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_a1bab74da4324ebabcd5ccdec4162855e}{\_update\_sigma\_woodbury}}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00711}00711\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00712}00712\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Iterative\ procedure\ of\ ARDRegression}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00713}00713\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ iter\_\ \textcolor{keywordflow}{in}\ range(self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_a6533e96d6086a2e0a40b8571deaf29c9}{max\_iter}}):}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00714}00714\ \ \ \ \ \ \ \ \ \ \ \ \ sigma\_\ =\ update\_sigma(X,\ alpha\_,\ lambda\_,\ keep\_lambda)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00715}00715\ \ \ \ \ \ \ \ \ \ \ \ \ coef\_\ =\ update\_coeff(X,\ y,\ coef\_,\ alpha\_,\ keep\_lambda,\ sigma\_)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00716}00716\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00717}00717\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Update\ alpha\ and\ lambda}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00718}00718\ \ \ \ \ \ \ \ \ \ \ \ \ sse\_\ =\ np.sum((y\ -\/\ np.dot(X,\ coef\_))\ **\ 2)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00719}00719\ \ \ \ \ \ \ \ \ \ \ \ \ gamma\_\ =\ 1.0\ -\/\ lambda\_[keep\_lambda]\ *\ np.diag(sigma\_)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00720}00720\ \ \ \ \ \ \ \ \ \ \ \ \ lambda\_[keep\_lambda]\ =\ (gamma\_\ +\ 2.0\ *\ lambda\_1)\ /\ (}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00721}00721\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (coef\_[keep\_lambda])\ **\ 2\ +\ 2.0\ *\ lambda\_2}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00722}00722\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00723}00723\ \ \ \ \ \ \ \ \ \ \ \ \ alpha\_\ =\ (n\_samples\ -\/\ gamma\_.sum()\ +\ 2.0\ *\ alpha\_1)\ /\ (sse\_\ +\ 2.0\ *\ alpha\_2)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00724}00724\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00725}00725\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Prune\ the\ weights\ with\ a\ precision\ over\ a\ threshold}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00726}00726\ \ \ \ \ \ \ \ \ \ \ \ \ keep\_lambda\ =\ lambda\_\ <\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_a42909ee1e186de67af64f544f9577fcc}{threshold\_lambda}}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00727}00727\ \ \ \ \ \ \ \ \ \ \ \ \ coef\_[\string~keep\_lambda]\ =\ 0}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00728}00728\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00729}00729\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Compute\ the\ objective\ function}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00730}00730\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_ab7f1b0d6221dc5d09b19cf882b705f51}{compute\_score}}:}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00731}00731\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ s\ =\ (lambda\_1\ *\ np.log(lambda\_)\ -\/\ lambda\_2\ *\ lambda\_).sum()}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00732}00732\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ s\ +=\ alpha\_1\ *\ log(alpha\_)\ -\/\ alpha\_2\ *\ alpha\_}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00733}00733\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ s\ +=\ 0.5\ *\ (}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00734}00734\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ fast\_logdet(sigma\_)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00735}00735\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ +\ n\_samples\ *\ log(alpha\_)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00736}00736\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ +\ np.sum(np.log(lambda\_))}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00737}00737\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00738}00738\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ s\ -\/=\ 0.5\ *\ (alpha\_\ *\ sse\_\ +\ (lambda\_\ *\ coef\_**2).sum())}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00739}00739\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_adef39157da7d43eec4f765813822f7e3}{scores\_}}.append(s)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00740}00740\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00741}00741\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Check\ for\ convergence}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00742}00742\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ iter\_\ >\ 0\ \textcolor{keywordflow}{and}\ np.sum(np.abs(coef\_old\_\ -\/\ coef\_))\ <\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_a9c8ad7c54db5c05824335cf9e686f1fc}{tol}}:}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00743}00743\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ verbose:}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00744}00744\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(\textcolor{stringliteral}{"{}Converged\ after\ \%s\ iterations"{}}\ \%\ iter\_)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00745}00745\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00746}00746\ \ \ \ \ \ \ \ \ \ \ \ \ coef\_old\_\ =\ np.copy(coef\_)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00747}00747\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00748}00748\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ keep\_lambda.any():}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00749}00749\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00750}00750\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00751}00751\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_ae917168fea2444e5f2dc6d0756179091}{n\_iter\_}}\ =\ iter\_\ +\ 1}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00752}00752\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00753}00753\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ keep\_lambda.any():}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00754}00754\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ update\ sigma\ and\ mu\ using\ updated\ params\ from\ the\ last\ iteration}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00755}00755\ \ \ \ \ \ \ \ \ \ \ \ \ sigma\_\ =\ update\_sigma(X,\ alpha\_,\ lambda\_,\ keep\_lambda)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00756}00756\ \ \ \ \ \ \ \ \ \ \ \ \ coef\_\ =\ update\_coeff(X,\ y,\ coef\_,\ alpha\_,\ keep\_lambda,\ sigma\_)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00757}00757\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00758}00758\ \ \ \ \ \ \ \ \ \ \ \ \ sigma\_\ =\ np.array([]).reshape(0,\ 0)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00759}00759\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00760}00760\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_ae98f4ccbbafb109d44cb4e2c34862fb3}{coef\_}}\ =\ coef\_}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00761}00761\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_aa21adedadb35c9ac7faeccf8e9f97745}{alpha\_}}\ =\ alpha\_}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00762}00762\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_a03f523885a041edb24be8f1924802dfa}{sigma\_}}\ =\ sigma\_}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00763}00763\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_a9b52a03499faf071e90a5904a6bbf8f7}{lambda\_}}\ =\ lambda\_}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00764}00764\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__base_1_1LinearModel_a510bc90afa85cd9e57d91f73a4023d24}{\_set\_intercept}}(X\_offset\_,\ y\_offset\_,\ X\_scale\_)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00765}00765\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00766}00766\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00767}00767\ \ \ \ \ \textcolor{keyword}{def\ }\_update\_sigma\_woodbury(self,\ X,\ alpha\_,\ lambda\_,\ keep\_lambda):}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00768}00768\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ See\ slides\ as\ referenced\ in\ the\ docstring\ note}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00769}00769\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ this\ function\ is\ used\ when\ n\_samples\ <\ n\_features\ and\ will\ invert}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00770}00770\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ a\ matrix\ of\ shape\ (n\_samples,\ n\_samples)\ making\ use\ of\ the}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00771}00771\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ woodbury\ formula:}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00772}00772\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ https://en.wikipedia.org/wiki/Woodbury\_matrix\_identity}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00773}00773\ \ \ \ \ \ \ \ \ n\_samples\ =\ X.shape[0]}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00774}00774\ \ \ \ \ \ \ \ \ X\_keep\ =\ X[:,\ keep\_lambda]}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00775}00775\ \ \ \ \ \ \ \ \ inv\_lambda\ =\ 1\ /\ lambda\_[keep\_lambda].reshape(1,\ -\/1)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00776}00776\ \ \ \ \ \ \ \ \ sigma\_\ =\ pinvh(}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00777}00777\ \ \ \ \ \ \ \ \ \ \ \ \ np.eye(n\_samples,\ dtype=X.dtype)\ /\ alpha\_}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00778}00778\ \ \ \ \ \ \ \ \ \ \ \ \ +\ np.dot(X\_keep\ *\ inv\_lambda,\ X\_keep.T)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00779}00779\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00780}00780\ \ \ \ \ \ \ \ \ sigma\_\ =\ np.dot(sigma\_,\ X\_keep\ *\ inv\_lambda)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00781}00781\ \ \ \ \ \ \ \ \ sigma\_\ =\ -\/np.dot(inv\_lambda.reshape(-\/1,\ 1)\ *\ X\_keep.T,\ sigma\_)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00782}00782\ \ \ \ \ \ \ \ \ sigma\_[np.diag\_indices(sigma\_.shape[1])]\ +=\ 1.0\ /\ lambda\_[keep\_lambda]}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00783}00783\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ sigma\_}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00784}00784\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00785}00785\ \ \ \ \ \textcolor{keyword}{def\ }\_update\_sigma(self,\ X,\ alpha\_,\ lambda\_,\ keep\_lambda):}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00786}00786\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ See\ slides\ as\ referenced\ in\ the\ docstring\ note}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00787}00787\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ this\ function\ is\ used\ when\ n\_samples\ >=\ n\_features\ and\ will}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00788}00788\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ invert\ a\ matrix\ of\ shape\ (n\_features,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00789}00789\ \ \ \ \ \ \ \ \ X\_keep\ =\ X[:,\ keep\_lambda]}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00790}00790\ \ \ \ \ \ \ \ \ gram\ =\ np.dot(X\_keep.T,\ X\_keep)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00791}00791\ \ \ \ \ \ \ \ \ eye\ =\ np.eye(gram.shape[0],\ dtype=X.dtype)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00792}00792\ \ \ \ \ \ \ \ \ sigma\_inv\ =\ lambda\_[keep\_lambda]\ *\ eye\ +\ alpha\_\ *\ gram}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00793}00793\ \ \ \ \ \ \ \ \ sigma\_\ =\ pinvh(sigma\_inv)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00794}00794\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ sigma\_}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00795}00795\ }
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00796}\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_a29561d37647f806a01b8feb3f48c9f58}{00796}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_a29561d37647f806a01b8feb3f48c9f58}{predict}}(self,\ X,\ return\_std=False):}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00797}00797\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Predict\ using\ the\ linear\ model.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00798}00798\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00799}00799\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ In\ addition\ to\ the\ mean\ of\ the\ predictive\ distribution,\ also\ its}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00800}00800\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ standard\ deviation\ can\ be\ returned.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00801}00801\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00802}00802\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00803}00803\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00804}00804\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\ :\ \{array-\/like,\ sparse\ matrix\}\ of\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00805}00805\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Samples.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00806}00806\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00807}00807\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ return\_std\ :\ bool,\ default=False}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00808}00808\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Whether\ to\ return\ the\ standard\ deviation\ of\ posterior\ prediction.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00809}00809\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00810}00810\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00811}00811\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00812}00812\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ y\_mean\ :\ array-\/like\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00813}00813\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Mean\ of\ predictive\ distribution\ of\ query\ points.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00814}00814\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00815}00815\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ y\_std\ :\ array-\/like\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00816}00816\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Standard\ deviation\ of\ predictive\ distribution\ of\ query\ points.}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00817}00817\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00818}00818\ \ \ \ \ \ \ \ \ y\_mean\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__base_1_1LinearModel_a1eef77bcfd399b0fd83f59646388eda1}{\_decision\_function}}(X)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00819}00819\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ return\_std\ \textcolor{keywordflow}{is}\ \textcolor{keyword}{False}:}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00820}00820\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ y\_mean}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00821}00821\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00822}00822\ \ \ \ \ \ \ \ \ \ \ \ \ col\_index\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_a9b52a03499faf071e90a5904a6bbf8f7}{lambda\_}}\ <\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_a42909ee1e186de67af64f544f9577fcc}{threshold\_lambda}}}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00823}00823\ \ \ \ \ \ \ \ \ \ \ \ \ X\ =\ \_safe\_indexing(X,\ indices=col\_index,\ axis=1)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00824}00824\ \ \ \ \ \ \ \ \ \ \ \ \ sigmas\_squared\_data\ =\ (np.dot(X,\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_a03f523885a041edb24be8f1924802dfa}{sigma\_}})\ *\ X).sum(axis=1)}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00825}00825\ \ \ \ \ \ \ \ \ \ \ \ \ y\_std\ =\ np.sqrt(sigmas\_squared\_data\ +\ (1.0\ /\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__bayes_1_1ARDRegression_aa21adedadb35c9ac7faeccf8e9f97745}{alpha\_}}))}
+\DoxyCodeLine{\Hypertarget{__bayes_8py_source_l00826}00826\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ y\_mean,\ y\_std}
+
+\end{DoxyCode}

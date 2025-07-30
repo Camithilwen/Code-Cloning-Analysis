@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['naive_5fclassifier_0',['naive_classifier',['../dc/d56/namespacenaive__classifier.html',1,'']]]
+  ['main_0',['main',['../d2/dc1/namespacemain.html',1,'']]]
 ];

@@ -33,7 +33,8 @@ login(token=os.getenv("HF_TOKEN"))
 repos = {}
 
 class EmbeddingModelManager:
-    """Embedding Model Management Class
+    """!
+    Embedding Model Management Class
 
     Defines, loads, manages, and cleans up the repository embedding process.
     """
@@ -249,7 +250,7 @@ class RepositoryEmbedder:
         self.model_manager = model_manager
         self.repos = repos
 
-        # Expanded code file extensions
+        # File extension store
         self.code_extensions = {
             '.py', '.js', '.java', '.cpp', '.c', '.h', '.cs', '.php',
             '.rb', '.go', '.rs', '.swift', '.kt', '.ts', '.jsx', '.tsx',

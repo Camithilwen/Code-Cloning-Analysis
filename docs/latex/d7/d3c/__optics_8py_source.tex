@@ -1,0 +1,1208 @@
+\doxysection{\+\_\+optics.\+py}
+\hypertarget{__optics_8py_source}{}\label{__optics_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/sklearn/cluster/\_optics.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/sklearn/cluster/\_optics.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00001}\mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__optics}{00001}}\ \textcolor{stringliteral}{"{}"{}"{}Ordering\ Points\ To\ Identify\ the\ Clustering\ Structure\ (OPTICS)}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00002}00002\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00003}00003\ \textcolor{stringliteral}{These\ routines\ execute\ the\ OPTICS\ algorithm,\ and\ implement\ various}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00004}00004\ \textcolor{stringliteral}{cluster\ extraction\ methods\ of\ the\ ordered\ list.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00005}00005\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00006}00006\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00007}00007\ \textcolor{comment}{\#\ Authors:\ The\ scikit-\/learn\ developers}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00008}00008\ \textcolor{comment}{\#\ SPDX-\/License-\/Identifier:\ BSD-\/3-\/Clause}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00009}00009\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00010}00010\ \textcolor{keyword}{import}\ warnings}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00011}00011\ \textcolor{keyword}{from}\ numbers\ \textcolor{keyword}{import}\ Integral,\ Real}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00012}00012\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00013}00013\ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00014}00014\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacescipy_1_1sparse}{scipy.sparse}}\ \textcolor{keyword}{import}\ SparseEfficiencyWarning,\ issparse}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00015}00015\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00016}00016\ \textcolor{keyword}{from}\ ..base\ \textcolor{keyword}{import}\ BaseEstimator,\ ClusterMixin,\ \_fit\_context}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00017}00017\ \textcolor{keyword}{from}\ ..exceptions\ \textcolor{keyword}{import}\ DataConversionWarning}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00018}00018\ \textcolor{keyword}{from}\ ..metrics\ \textcolor{keyword}{import}\ pairwise\_distances}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00019}00019\ \textcolor{keyword}{from}\ ..metrics.pairwise\ \textcolor{keyword}{import}\ \_VALID\_METRICS,\ PAIRWISE\_BOOLEAN\_FUNCTIONS}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00020}00020\ \textcolor{keyword}{from}\ ..neighbors\ \textcolor{keyword}{import}\ NearestNeighbors}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00021}00021\ \textcolor{keyword}{from}\ ..utils\ \textcolor{keyword}{import}\ gen\_batches}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00022}00022\ \textcolor{keyword}{from}\ ..utils.\_chunking\ \textcolor{keyword}{import}\ get\_chunk\_n\_rows}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00023}00023\ \textcolor{keyword}{from}\ ..utils.\_param\_validation\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00024}00024\ \ \ \ \ HasMethods,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00025}00025\ \ \ \ \ Interval,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00026}00026\ \ \ \ \ RealNotInt,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00027}00027\ \ \ \ \ StrOptions,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00028}00028\ \ \ \ \ validate\_params,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00029}00029\ )}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00030}00030\ \textcolor{keyword}{from}\ ..utils.validation\ \textcolor{keyword}{import}\ check\_memory,\ validate\_data}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00031}00031\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00032}00032\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00033}\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS}{00033}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS}{OPTICS}}(\mbox{\hyperlink{classsklearn_1_1base_1_1ClusterMixin}{ClusterMixin}},\ \mbox{\hyperlink{classsklearn_1_1base_1_1BaseEstimator}{BaseEstimator}}):}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00034}00034\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Estimate\ clustering\ structure\ from\ vector\ array.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00035}00035\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00036}00036\ \textcolor{stringliteral}{\ \ \ \ OPTICS\ (Ordering\ Points\ To\ Identify\ the\ Clustering\ Structure),\ closely}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00037}00037\ \textcolor{stringliteral}{\ \ \ \ related\ to\ DBSCAN,\ finds\ core\ samples\ of\ high\ density\ and\ expands\ clusters}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00038}00038\ \textcolor{stringliteral}{\ \ \ \ from\ them\ [1]\_.\ Unlike\ DBSCAN,\ it\ keeps\ cluster\ hierarchy\ for\ a\ variable}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00039}00039\ \textcolor{stringliteral}{\ \ \ \ neighborhood\ radius.\ Better\ suited\ for\ usage\ on\ large\ datasets\ than\ the}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00040}00040\ \textcolor{stringliteral}{\ \ \ \ current\ scikit-\/learn\ implementation\ of\ DBSCAN.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00041}00041\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00042}00042\ \textcolor{stringliteral}{\ \ \ \ Clusters\ are\ then\ extracted\ from\ the\ cluster-\/order\ using\ a}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00043}00043\ \textcolor{stringliteral}{\ \ \ \ DBSCAN-\/like\ method\ (cluster\_method\ =\ 'dbscan')\ or\ an\ automatic}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00044}00044\ \textcolor{stringliteral}{\ \ \ \ technique\ proposed\ in\ [1]\_\ (cluster\_method\ =\ 'xi').}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00045}00045\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00046}00046\ \textcolor{stringliteral}{\ \ \ \ This\ implementation\ deviates\ from\ the\ original\ OPTICS\ by\ first\ performing}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00047}00047\ \textcolor{stringliteral}{\ \ \ \ k-\/nearest-\/neighborhood\ searches\ on\ all\ points\ to\ identify\ core\ sizes\ of}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00048}00048\ \textcolor{stringliteral}{\ \ \ \ all\ points\ (instead\ of\ computing\ neighbors\ while\ looping\ through\ points).}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00049}00049\ \textcolor{stringliteral}{\ \ \ \ Reachability\ distances\ to\ only\ unprocessed\ points\ are\ then\ computed,\ to}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00050}00050\ \textcolor{stringliteral}{\ \ \ \ construct\ the\ cluster\ order,\ similar\ to\ the\ original\ OPTICS.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00051}00051\ \textcolor{stringliteral}{\ \ \ \ Note\ that\ we\ do\ not\ employ\ a\ heap\ to\ manage\ the\ expansion}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00052}00052\ \textcolor{stringliteral}{\ \ \ \ candidates,\ so\ the\ time\ complexity\ will\ be\ O(n\string^2).}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00053}00053\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00054}00054\ \textcolor{stringliteral}{\ \ \ \ Read\ more\ in\ the\ :ref:\`{}User\ Guide\ <optics>\`{}.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00055}00055\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00056}00056\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00057}00057\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00058}00058\ \textcolor{stringliteral}{\ \ \ \ min\_samples\ :\ int\ >\ 1\ or\ float\ between\ 0\ and\ 1,\ default=5}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00059}00059\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ number\ of\ samples\ in\ a\ neighborhood\ for\ a\ point\ to\ be\ considered\ as}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00060}00060\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ a\ core\ point.\ Also,\ up\ and\ down\ steep\ regions\ can't\ have\ more\ than}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00061}00061\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}min\_samples\`{}\`{}\ consecutive\ non-\/steep\ points.\ Expressed\ as\ an\ absolute}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00062}00062\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ number\ or\ a\ fraction\ of\ the\ number\ of\ samples\ (rounded\ to\ be\ at\ least}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00063}00063\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 2).}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00064}00064\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00065}00065\ \textcolor{stringliteral}{\ \ \ \ max\_eps\ :\ float,\ default=np.inf}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00066}00066\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ maximum\ distance\ between\ two\ samples\ for\ one\ to\ be\ considered\ as}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00067}00067\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ in\ the\ neighborhood\ of\ the\ other.\ Default\ value\ of\ \`{}\`{}np.inf\`{}\`{}\ will}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00068}00068\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ identify\ clusters\ across\ all\ scales;\ reducing\ \`{}\`{}max\_eps\`{}\`{}\ will\ result}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00069}00069\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ in\ shorter\ run\ times.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00070}00070\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00071}00071\ \textcolor{stringliteral}{\ \ \ \ metric\ :\ str\ or\ callable,\ default='minkowski'}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00072}00072\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Metric\ to\ use\ for\ distance\ computation.\ Any\ metric\ from\ scikit-\/learn}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00073}00073\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ or\ :mod:\`{}scipy.spatial.distance\`{}\ can\ be\ used.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00074}00074\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00075}00075\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ \`{}metric\`{}\ is\ a\ callable\ function,\ it\ is\ called\ on\ each}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00076}00076\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ pair\ of\ instances\ (rows)\ and\ the\ resulting\ value\ recorded.\ The\ callable}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00077}00077\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ should\ take\ two\ arrays\ as\ input\ and\ return\ one\ value\ indicating\ the}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00078}00078\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ distance\ between\ them.\ This\ works\ for\ Scipy's\ metrics,\ but\ is\ less}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00079}00079\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ efficient\ than\ passing\ the\ metric\ name\ as\ a\ string.\ If\ metric\ is}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00080}00080\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}precomputed"{},\ \`{}X\`{}\ is\ assumed\ to\ be\ a\ distance\ matrix\ and\ must\ be}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00081}00081\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ square.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00082}00082\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00083}00083\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Valid\ values\ for\ metric\ are:}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00084}00084\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00085}00085\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ from\ scikit-\/learn:\ ['cityblock',\ 'cosine',\ 'euclidean',\ 'l1',\ 'l2',}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00086}00086\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ 'manhattan']}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00087}00087\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00088}00088\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ from\ scipy.spatial.distance:\ ['braycurtis',\ 'canberra',\ 'chebyshev',}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00089}00089\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ 'correlation',\ 'dice',\ 'hamming',\ 'jaccard',\ 'kulsinski',}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00090}00090\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ 'mahalanobis',\ 'minkowski',\ 'rogerstanimoto',\ 'russellrao',}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00091}00091\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ 'seuclidean',\ 'sokalmichener',\ 'sokalsneath',\ 'sqeuclidean',}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00092}00092\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ 'yule']}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00093}00093\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00094}00094\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Sparse\ matrices\ are\ only\ supported\ by\ scikit-\/learn\ metrics.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00095}00095\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ See\ :mod:\`{}scipy.spatial.distance\`{}\ for\ details\ on\ these\ metrics.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00096}00096\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00097}00097\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ note::}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00098}00098\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \`{}'kulsinski'\`{}\ is\ deprecated\ from\ SciPy\ 1.9\ and\ will\ be\ removed\ in\ SciPy\ 1.11.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00099}00099\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00100}00100\ \textcolor{stringliteral}{\ \ \ \ p\ :\ float,\ default=2}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00101}00101\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameter\ for\ the\ Minkowski\ metric\ from}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00102}00102\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :class:\`{}\string~sklearn.metrics.pairwise\_distances\`{}.\ When\ p\ =\ 1,\ this\ is}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00103}00103\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ equivalent\ to\ using\ manhattan\_distance\ (l1),\ and\ euclidean\_distance}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00104}00104\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ (l2)\ for\ p\ =\ 2.\ For\ arbitrary\ p,\ minkowski\_distance\ (l\_p)\ is\ used.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00105}00105\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00106}00106\ \textcolor{stringliteral}{\ \ \ \ metric\_params\ :\ dict,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00107}00107\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Additional\ keyword\ arguments\ for\ the\ metric\ function.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00108}00108\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00109}00109\ \textcolor{stringliteral}{\ \ \ \ cluster\_method\ :\ \{'xi',\ 'dbscan'\},\ default='xi'}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00110}00110\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ extraction\ method\ used\ to\ extract\ clusters\ using\ the\ calculated}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00111}00111\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ reachability\ and\ ordering.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00112}00112\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00113}00113\ \textcolor{stringliteral}{\ \ \ \ eps\ :\ float,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00114}00114\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ maximum\ distance\ between\ two\ samples\ for\ one\ to\ be\ considered\ as}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00115}00115\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ in\ the\ neighborhood\ of\ the\ other.\ By\ default\ it\ assumes\ the\ same\ value}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00116}00116\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ as\ \`{}\`{}max\_eps\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00117}00117\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Used\ only\ when\ \`{}\`{}cluster\_method='dbscan'\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00118}00118\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00119}00119\ \textcolor{stringliteral}{\ \ \ \ xi\ :\ float\ between\ 0\ and\ 1,\ default=0.05}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00120}00120\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Determines\ the\ minimum\ steepness\ on\ the\ reachability\ plot\ that}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00121}00121\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ constitutes\ a\ cluster\ boundary.\ For\ example,\ an\ upwards\ point\ in\ the}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00122}00122\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ reachability\ plot\ is\ defined\ by\ the\ ratio\ from\ one\ point\ to\ its}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00123}00123\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ successor\ being\ at\ most\ 1-\/xi.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00124}00124\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Used\ only\ when\ \`{}\`{}cluster\_method='xi'\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00125}00125\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00126}00126\ \textcolor{stringliteral}{\ \ \ \ predecessor\_correction\ :\ bool,\ default=True}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00127}00127\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Correct\ clusters\ according\ to\ the\ predecessors\ calculated\ by\ OPTICS}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00128}00128\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ [2]\_.\ This\ parameter\ has\ minimal\ effect\ on\ most\ datasets.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00129}00129\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Used\ only\ when\ \`{}\`{}cluster\_method='xi'\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00130}00130\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00131}00131\ \textcolor{stringliteral}{\ \ \ \ min\_cluster\_size\ :\ int\ >\ 1\ or\ float\ between\ 0\ and\ 1,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00132}00132\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Minimum\ number\ of\ samples\ in\ an\ OPTICS\ cluster,\ expressed\ as\ an}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00133}00133\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ absolute\ number\ or\ a\ fraction\ of\ the\ number\ of\ samples\ (rounded\ to\ be}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00134}00134\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ at\ least\ 2).\ If\ \`{}\`{}None\`{}\`{},\ the\ value\ of\ \`{}\`{}min\_samples\`{}\`{}\ is\ used\ instead.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00135}00135\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Used\ only\ when\ \`{}\`{}cluster\_method='xi'\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00136}00136\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00137}00137\ \textcolor{stringliteral}{\ \ \ \ algorithm\ :\ \{'auto',\ 'ball\_tree',\ 'kd\_tree',\ 'brute'\},\ default='auto'}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00138}00138\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Algorithm\ used\ to\ compute\ the\ nearest\ neighbors:}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00139}00139\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00140}00140\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ 'ball\_tree'\ will\ use\ :class:\`{}\string~sklearn.neighbors.BallTree\`{}.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00141}00141\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ 'kd\_tree'\ will\ use\ :class:\`{}\string~sklearn.neighbors.KDTree\`{}.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00142}00142\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ 'brute'\ will\ use\ a\ brute-\/force\ search.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00143}00143\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ 'auto'\ (default)\ will\ attempt\ to\ decide\ the\ most\ appropriate}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00144}00144\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ algorithm\ based\ on\ the\ values\ passed\ to\ :meth:\`{}fit\`{}\ method.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00145}00145\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00146}00146\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Note:\ fitting\ on\ sparse\ input\ will\ override\ the\ setting\ of}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00147}00147\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ this\ parameter,\ using\ brute\ force.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00148}00148\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00149}00149\ \textcolor{stringliteral}{\ \ \ \ leaf\_size\ :\ int,\ default=30}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00150}00150\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Leaf\ size\ passed\ to\ :class:\`{}\string~sklearn.neighbors.BallTree\`{}\ or}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00151}00151\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :class:\`{}\string~sklearn.neighbors.KDTree\`{}.\ This\ can\ affect\ the\ speed\ of\ the}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00152}00152\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ construction\ and\ query,\ as\ well\ as\ the\ memory\ required\ to\ store\ the}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00153}00153\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ tree.\ The\ optimal\ value\ depends\ on\ the\ nature\ of\ the\ problem.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00154}00154\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00155}00155\ \textcolor{stringliteral}{\ \ \ \ memory\ :\ str\ or\ object\ with\ the\ joblib.Memory\ interface,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00156}00156\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Used\ to\ cache\ the\ output\ of\ the\ computation\ of\ the\ tree.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00157}00157\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ By\ default,\ no\ caching\ is\ done.\ If\ a\ string\ is\ given,\ it\ is\ the}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00158}00158\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ path\ to\ the\ caching\ directory.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00159}00159\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00160}00160\ \textcolor{stringliteral}{\ \ \ \ n\_jobs\ :\ int,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00161}00161\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ number\ of\ parallel\ jobs\ to\ run\ for\ neighbors\ search.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00162}00162\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}None\`{}\`{}\ means\ 1\ unless\ in\ a\ :obj:\`{}joblib.parallel\_backend\`{}\ context.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00163}00163\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}-\/1\`{}\`{}\ means\ using\ all\ processors.\ See\ :term:\`{}Glossary\ <n\_jobs>\`{}}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00164}00164\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ for\ more\ details.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00165}00165\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00166}00166\ \textcolor{stringliteral}{\ \ \ \ Attributes}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00167}00167\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00168}00168\ \textcolor{stringliteral}{\ \ \ \ labels\_\ :\ ndarray\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00169}00169\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Cluster\ labels\ for\ each\ point\ in\ the\ dataset\ given\ to\ fit().}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00170}00170\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Noisy\ samples\ and\ points\ which\ are\ not\ included\ in\ a\ leaf\ cluster}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00171}00171\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ of\ \`{}\`{}cluster\_hierarchy\_\`{}\`{}\ are\ labeled\ as\ -\/1.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00172}00172\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00173}00173\ \textcolor{stringliteral}{\ \ \ \ reachability\_\ :\ ndarray\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00174}00174\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Reachability\ distances\ per\ sample,\ indexed\ by\ object\ order.\ Use}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00175}00175\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}clust.reachability\_[clust.ordering\_]\`{}\`{}\ to\ access\ in\ cluster\ order.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00176}00176\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00177}00177\ \textcolor{stringliteral}{\ \ \ \ ordering\_\ :\ ndarray\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00178}00178\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ cluster\ ordered\ list\ of\ sample\ indices.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00179}00179\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00180}00180\ \textcolor{stringliteral}{\ \ \ \ core\_distances\_\ :\ ndarray\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00181}00181\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Distance\ at\ which\ each\ sample\ becomes\ a\ core\ point,\ indexed\ by\ object}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00182}00182\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ order.\ Points\ which\ will\ never\ be\ core\ have\ a\ distance\ of\ inf.\ Use}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00183}00183\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}clust.core\_distances\_[clust.ordering\_]\`{}\`{}\ to\ access\ in\ cluster\ order.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00184}00184\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00185}00185\ \textcolor{stringliteral}{\ \ \ \ predecessor\_\ :\ ndarray\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00186}00186\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Point\ that\ a\ sample\ was\ reached\ from,\ indexed\ by\ object\ order.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00187}00187\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Seed\ points\ have\ a\ predecessor\ of\ -\/1.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00188}00188\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00189}00189\ \textcolor{stringliteral}{\ \ \ \ cluster\_hierarchy\_\ :\ ndarray\ of\ shape\ (n\_clusters,\ 2)}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00190}00190\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ list\ of\ clusters\ in\ the\ form\ of\ \`{}\`{}[start,\ end]\`{}\`{}\ in\ each\ row,\ with}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00191}00191\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ all\ indices\ inclusive.\ The\ clusters\ are\ ordered\ according\ to}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00192}00192\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}(end,\ -\/start)\`{}\`{}\ (ascending)\ so\ that\ larger\ clusters\ encompassing}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00193}00193\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ smaller\ clusters\ come\ after\ those\ smaller\ ones.\ Since\ \`{}\`{}labels\_\`{}\`{}\ does}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00194}00194\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ not\ reflect\ the\ hierarchy,\ usually}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00195}00195\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}len(cluster\_hierarchy\_)\ >\ np.unique(optics.labels\_)\`{}\`{}.\ Please\ also}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00196}00196\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ note\ that\ these\ indices\ are\ of\ the\ \`{}\`{}ordering\_\`{}\`{},\ i.e.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00197}00197\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}X[ordering\_][start:end\ +\ 1]\`{}\`{}\ form\ a\ cluster.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00198}00198\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Only\ available\ when\ \`{}\`{}cluster\_method='xi'\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00199}00199\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00200}00200\ \textcolor{stringliteral}{\ \ \ \ n\_features\_in\_\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00201}00201\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ features\ seen\ during\ :term:\`{}fit\`{}.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00202}00202\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00203}00203\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 0.24}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00204}00204\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00205}00205\ \textcolor{stringliteral}{\ \ \ \ feature\_names\_in\_\ :\ ndarray\ of\ shape\ (\`{}n\_features\_in\_\`{},)}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00206}00206\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Names\ of\ features\ seen\ during\ :term:\`{}fit\`{}.\ Defined\ only\ when\ \`{}X\`{}}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00207}00207\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ has\ feature\ names\ that\ are\ all\ strings.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00208}00208\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00209}00209\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 1.0}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00210}00210\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00211}00211\ \textcolor{stringliteral}{\ \ \ \ See\ Also}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00212}00212\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00213}00213\ \textcolor{stringliteral}{\ \ \ \ DBSCAN\ :\ A\ similar\ clustering\ for\ a\ specified\ neighborhood\ radius\ (eps).}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00214}00214\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Our\ implementation\ is\ optimized\ for\ runtime.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00215}00215\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00216}00216\ \textcolor{stringliteral}{\ \ \ \ References}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00217}00217\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00218}00218\ \textcolor{stringliteral}{\ \ \ \ ..\ [1]\ Ankerst,\ Mihael,\ Markus\ M.\ Breunig,\ Hans-\/Peter\ Kriegel,}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00219}00219\ \textcolor{stringliteral}{\ \ \ \ \ \ \ and\ Jörg\ Sander.\ "{}OPTICS:\ ordering\ points\ to\ identify\ the\ clustering}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00220}00220\ \textcolor{stringliteral}{\ \ \ \ \ \ \ structure."{}\ ACM\ SIGMOD\ Record\ 28,\ no.\ 2\ (1999):\ 49-\/60.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00221}00221\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00222}00222\ \textcolor{stringliteral}{\ \ \ \ ..\ [2]\ Schubert,\ Erich,\ Michael\ Gertz.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00223}00223\ \textcolor{stringliteral}{\ \ \ \ \ \ \ "{}Improving\ the\ Cluster\ Structure\ Extracted\ from\ OPTICS\ Plots."{}\ Proc.\ of}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00224}00224\ \textcolor{stringliteral}{\ \ \ \ \ \ \ the\ Conference\ "{}Lernen,\ Wissen,\ Daten,\ Analysen"{}\ (LWDA)\ (2018):\ 318-\/329.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00225}00225\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00226}00226\ \textcolor{stringliteral}{\ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00227}00227\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00228}00228\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.cluster\ import\ OPTICS}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00229}00229\ \textcolor{stringliteral}{\ \ \ \ >>>\ import\ numpy\ as\ np}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00230}00230\ \textcolor{stringliteral}{\ \ \ \ >>>\ X\ =\ np.array([[1,\ 2],\ [2,\ 5],\ [3,\ 6],}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00231}00231\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ [8,\ 7],\ [8,\ 8],\ [7,\ 3]])}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00232}00232\ \textcolor{stringliteral}{\ \ \ \ >>>\ clustering\ =\ OPTICS(min\_samples=2).fit(X)}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00233}00233\ \textcolor{stringliteral}{\ \ \ \ >>>\ clustering.labels\_}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00234}00234\ \textcolor{stringliteral}{\ \ \ \ array([0,\ 0,\ 0,\ 1,\ 1,\ 1])}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00235}00235\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00236}00236\ \textcolor{stringliteral}{\ \ \ \ For\ a\ more\ detailed\ example\ see}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00237}00237\ \textcolor{stringliteral}{\ \ \ \ :ref:\`{}sphx\_glr\_auto\_examples\_cluster\_plot\_optics.py\`{}.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00238}00238\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00239}00239\ \textcolor{stringliteral}{\ \ \ \ For\ a\ comparison\ of\ OPTICS\ with\ other\ clustering\ algorithms,\ see}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00240}00240\ \textcolor{stringliteral}{\ \ \ \ :ref:\`{}sphx\_glr\_auto\_examples\_cluster\_plot\_cluster\_comparison.py\`{}}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00241}00241\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00242}00242\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00243}00243\ \ \ \ \ \_parameter\_constraints:\ dict\ =\ \{}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00244}00244\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}min\_samples"{}}:\ [}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00245}00245\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Integral,\ 2,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}}),}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00246}00246\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(RealNotInt,\ 0,\ 1,\ closed=\textcolor{stringliteral}{"{}both"{}}),}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00247}00247\ \ \ \ \ \ \ \ \ ],}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00248}00248\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}max\_eps"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Real,\ 0,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}both"{}})],}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00249}00249\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}metric"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1StrOptions}{StrOptions}}(set(\_VALID\_METRICS)\ |\ \{\textcolor{stringliteral}{"{}precomputed"{}}\}),\ callable],}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00250}00250\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}p"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Real,\ 1,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}})],}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00251}00251\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}metric\_params"{}}:\ [dict,\ \textcolor{keywordtype}{None}],}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00252}00252\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}cluster\_method"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1StrOptions}{StrOptions}}(\{\textcolor{stringliteral}{"{}dbscan"{}},\ \textcolor{stringliteral}{"{}xi"{}}\})],}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00253}00253\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}eps"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Real,\ 0,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}both"{}}),\ \textcolor{keywordtype}{None}],}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00254}00254\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}xi"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Real,\ 0,\ 1,\ closed=\textcolor{stringliteral}{"{}both"{}})],}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00255}00255\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}predecessor\_correction"{}}:\ [\textcolor{stringliteral}{"{}boolean"{}}],}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00256}00256\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}min\_cluster\_size"{}}:\ [}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00257}00257\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Integral,\ 2,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}}),}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00258}00258\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(RealNotInt,\ 0,\ 1,\ closed=\textcolor{stringliteral}{"{}right"{}}),}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00259}00259\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00260}00260\ \ \ \ \ \ \ \ \ ],}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00261}00261\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}algorithm"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1StrOptions}{StrOptions}}(\{\textcolor{stringliteral}{"{}auto"{}},\ \textcolor{stringliteral}{"{}brute"{}},\ \textcolor{stringliteral}{"{}ball\_tree"{}},\ \textcolor{stringliteral}{"{}kd\_tree"{}}\})],}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00262}00262\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}leaf\_size"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Integral,\ 1,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}})],}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00263}00263\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}memory"{}}:\ [str,\ \mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1HasMethods}{HasMethods}}(\textcolor{stringliteral}{"{}cache"{}}),\ \textcolor{keywordtype}{None}],}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00264}00264\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}n\_jobs"{}}:\ [Integral,\ \textcolor{keywordtype}{None}],}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00265}00265\ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00266}00266\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00267}00267\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00268}00268\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00269}00269\ \ \ \ \ \ \ \ \ *,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00270}00270\ \ \ \ \ \ \ \ \ min\_samples=5,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00271}00271\ \ \ \ \ \ \ \ \ max\_eps=np.inf,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00272}00272\ \ \ \ \ \ \ \ \ metric="{}minkowski"{},}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00273}00273\ \ \ \ \ \ \ \ \ p=2,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00274}00274\ \ \ \ \ \ \ \ \ metric\_params=None,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00275}00275\ \ \ \ \ \ \ \ \ cluster\_method="{}xi"{},}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00276}00276\ \ \ \ \ \ \ \ \ eps=None,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00277}00277\ \ \ \ \ \ \ \ \ xi=0.05,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00278}00278\ \ \ \ \ \ \ \ \ predecessor\_correction=True,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00279}00279\ \ \ \ \ \ \ \ \ min\_cluster\_size=None,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00280}00280\ \ \ \ \ \ \ \ \ algorithm="{}auto"{},}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00281}00281\ \ \ \ \ \ \ \ \ leaf\_size=30,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00282}00282\ \ \ \ \ \ \ \ \ memory=None,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00283}00283\ \ \ \ \ \ \ \ \ n\_jobs=None,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00284}00284\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00285}00285\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_a95f06bf0133cc032a6a374fc9beb07df}{max\_eps}}\ =\ max\_eps}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00286}00286\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_abc7909db99a3cf38f0d5b16442fba0d0}{min\_samples}}\ =\ min\_samples}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00287}00287\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_a5c278b7a94457822c9bc802e6ca17040}{min\_cluster\_size}}\ =\ min\_cluster\_size}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00288}00288\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_a33ede0876cc2f490cb7d070a7a9a53ff}{algorithm}}\ =\ algorithm}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00289}00289\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_a5d351afd2086e1ff86ee3ef69dd05340}{metric}}\ =\ metric}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00290}00290\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_a74e8bf394cff541e23ab1a8d4943b9bc}{metric\_params}}\ =\ metric\_params}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00291}00291\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_a9210b02da2c782d041e63df9057186de}{p}}\ =\ p}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00292}00292\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_a944ae21600f46ffc7deacc05c33f9d57}{leaf\_size}}\ =\ leaf\_size}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00293}00293\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_aacda4422cdee5c24da102842f2dd05a0}{cluster\_method}}\ =\ cluster\_method}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00294}00294\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_a1feae80c8b10cc3a9e11f3a2248c4153}{eps}}\ =\ eps}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00295}00295\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_aa9ad7d0ecd93b4f96859705959e1f695}{xi}}\ =\ xi}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00296}00296\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_a3226fdf2a0e0764eaf65c9e9e0768d5e}{predecessor\_correction}}\ =\ predecessor\_correction}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00297}00297\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_aa538a2ae9a08c7e4544e84815decb575}{memory}}\ =\ memory}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00298}00298\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_aa10c2ebb11394309ec0dce70de90904a}{n\_jobs}}\ =\ n\_jobs}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00299}00299\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00300}00300\ \ \ \ \ \textcolor{preprocessor}{@\_fit\_context}(}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00301}00301\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Optics.metric\ is\ not\ validated\ yet}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00302}00302\ \ \ \ \ \ \ \ \ prefer\_skip\_nested\_validation=\textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00303}00303\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00304}\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_ac98ed8d744261b60bd1c70577f099b00}{00304}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_ac98ed8d744261b60bd1c70577f099b00}{fit}}(self,\ X,\ y=None):}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00305}00305\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Perform\ OPTICS\ clustering.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00306}00306\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00307}00307\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Extracts\ an\ ordered\ list\ of\ points\ and\ reachability\ distances,\ and}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00308}00308\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ performs\ initial\ clustering\ using\ \`{}\`{}max\_eps\`{}\`{}\ distance\ specified\ at}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00309}00309\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ OPTICS\ object\ instantiation.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00310}00310\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00311}00311\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00312}00312\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00313}00313\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\ :\ \{ndarray,\ sparse\ matrix\}\ of\ shape\ (n\_samples,\ n\_features),\ or\ \(\backslash\)}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00314}00314\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (n\_samples,\ n\_samples)\ if\ metric='precomputed'}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00315}00315\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ A\ feature\ array,\ or\ array\ of\ distances\ between\ samples\ if}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00316}00316\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ metric='precomputed'.\ If\ a\ sparse\ matrix\ is\ provided,\ it\ will\ be}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00317}00317\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ converted\ into\ CSR\ format.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00318}00318\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00319}00319\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ y\ :\ Ignored}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00320}00320\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Not\ used,\ present\ for\ API\ consistency\ by\ convention.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00321}00321\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00322}00322\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00323}00323\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00324}00324\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ self\ :\ object}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00325}00325\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Returns\ a\ fitted\ instance\ of\ self.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00326}00326\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00327}00327\ \ \ \ \ \ \ \ \ dtype\ =\ bool\ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_a5d351afd2086e1ff86ee3ef69dd05340}{metric}}\ \textcolor{keywordflow}{in}\ PAIRWISE\_BOOLEAN\_FUNCTIONS\ \textcolor{keywordflow}{else}\ float}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00328}00328\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ dtype\ \textcolor{keywordflow}{is}\ bool\ \textcolor{keywordflow}{and}\ X.dtype\ !=\ bool:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00329}00329\ \ \ \ \ \ \ \ \ \ \ \ \ msg\ =\ (}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00330}00330\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Data\ will\ be\ converted\ to\ boolean\ for"{}}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00331}00331\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\ metric\ \{self.metric\},\ to\ avoid\ this\ warning,"{}}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00332}00332\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ you\ may\ convert\ the\ data\ prior\ to\ calling\ fit."{}}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00333}00333\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00334}00334\ \ \ \ \ \ \ \ \ \ \ \ \ warnings.warn(msg,\ DataConversionWarning)}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00335}00335\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00336}00336\ \ \ \ \ \ \ \ \ X\ =\ validate\_data(self,\ X,\ dtype=dtype,\ accept\_sparse=\textcolor{stringliteral}{"{}csr"{}})}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00337}00337\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_a5d351afd2086e1ff86ee3ef69dd05340}{metric}}\ ==\ \textcolor{stringliteral}{"{}precomputed"{}}\ \textcolor{keywordflow}{and}\ issparse(X):}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00338}00338\ \ \ \ \ \ \ \ \ \ \ \ \ X\ =\ X.copy()\ \ \textcolor{comment}{\#\ copy\ to\ avoid\ in-\/place\ modification}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00339}00339\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ warnings.catch\_warnings():}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00340}00340\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ warnings.simplefilter(\textcolor{stringliteral}{"{}ignore"{}},\ SparseEfficiencyWarning)}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00341}00341\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Set\ each\ diagonal\ to\ an\ explicit\ value\ so\ each\ point\ is\ its}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00342}00342\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ own\ neighbor}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00343}00343\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ X.setdiag(X.diagonal())}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00344}00344\ \ \ \ \ \ \ \ \ memory\ =\ check\_memory(self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_aa538a2ae9a08c7e4544e84815decb575}{memory}})}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00345}00345\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00346}00346\ \ \ \ \ \ \ \ \ (}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00347}00347\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_a9681b0ccbe8e3911c7e1379dbd6c9559}{ordering\_}},}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00348}00348\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_a24f69f8cb788a379ca1946ec772ce44d}{core\_distances\_}},}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00349}00349\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_a40e8901e6478c8695c662c29fa474d1f}{reachability\_}},}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00350}00350\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_a3e757be4cd690743ed4bdce74116e813}{predecessor\_}},}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00351}00351\ \ \ \ \ \ \ \ \ )\ =\ memory.cache(compute\_optics\_graph)(}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00352}00352\ \ \ \ \ \ \ \ \ \ \ \ \ X=X,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00353}00353\ \ \ \ \ \ \ \ \ \ \ \ \ min\_samples=self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_abc7909db99a3cf38f0d5b16442fba0d0}{min\_samples}},}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00354}00354\ \ \ \ \ \ \ \ \ \ \ \ \ algorithm=self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_a33ede0876cc2f490cb7d070a7a9a53ff}{algorithm}},}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00355}00355\ \ \ \ \ \ \ \ \ \ \ \ \ leaf\_size=self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_a944ae21600f46ffc7deacc05c33f9d57}{leaf\_size}},}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00356}00356\ \ \ \ \ \ \ \ \ \ \ \ \ metric=self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_a5d351afd2086e1ff86ee3ef69dd05340}{metric}},}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00357}00357\ \ \ \ \ \ \ \ \ \ \ \ \ metric\_params=self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_a74e8bf394cff541e23ab1a8d4943b9bc}{metric\_params}},}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00358}00358\ \ \ \ \ \ \ \ \ \ \ \ \ p=self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_a9210b02da2c782d041e63df9057186de}{p}},}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00359}00359\ \ \ \ \ \ \ \ \ \ \ \ \ n\_jobs=self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_aa10c2ebb11394309ec0dce70de90904a}{n\_jobs}},}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00360}00360\ \ \ \ \ \ \ \ \ \ \ \ \ max\_eps=self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_a95f06bf0133cc032a6a374fc9beb07df}{max\_eps}},}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00361}00361\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00362}00362\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00363}00363\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Extract\ clusters\ from\ the\ calculated\ orders\ and\ reachability}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00364}00364\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_aacda4422cdee5c24da102842f2dd05a0}{cluster\_method}}\ ==\ \textcolor{stringliteral}{"{}xi"{}}:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00365}00365\ \ \ \ \ \ \ \ \ \ \ \ \ labels\_,\ clusters\_\ =\ \mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__optics_af00fa5eed1925cbb01becac227d90aac}{cluster\_optics\_xi}}(}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00366}00366\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ reachability=self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_a40e8901e6478c8695c662c29fa474d1f}{reachability\_}},}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00367}00367\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ predecessor=self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_a3e757be4cd690743ed4bdce74116e813}{predecessor\_}},}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00368}00368\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ordering=self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_a9681b0ccbe8e3911c7e1379dbd6c9559}{ordering\_}},}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00369}00369\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ min\_samples=self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_abc7909db99a3cf38f0d5b16442fba0d0}{min\_samples}},}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00370}00370\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ min\_cluster\_size=self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_a5c278b7a94457822c9bc802e6ca17040}{min\_cluster\_size}},}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00371}00371\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ xi=self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_aa9ad7d0ecd93b4f96859705959e1f695}{xi}},}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00372}00372\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ predecessor\_correction=self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_a3226fdf2a0e0764eaf65c9e9e0768d5e}{predecessor\_correction}},}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00373}00373\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00374}00374\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_ad21030a92ce86abb0ba3be77a052f242}{cluster\_hierarchy\_}}\ =\ clusters\_}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00375}00375\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_aacda4422cdee5c24da102842f2dd05a0}{cluster\_method}}\ ==\ \textcolor{stringliteral}{"{}dbscan"{}}:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00376}00376\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_a1feae80c8b10cc3a9e11f3a2248c4153}{eps}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00377}00377\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ eps\ =\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_a95f06bf0133cc032a6a374fc9beb07df}{max\_eps}}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00378}00378\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00379}00379\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ eps\ =\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_a1feae80c8b10cc3a9e11f3a2248c4153}{eps}}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00380}00380\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00381}00381\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ eps\ >\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_a95f06bf0133cc032a6a374fc9beb07df}{max\_eps}}:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00382}00382\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00383}00383\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Specify\ an\ epsilon\ smaller\ than\ \%s.\ Got\ \%s."{}}\ \%\ (self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_a95f06bf0133cc032a6a374fc9beb07df}{max\_eps}},\ eps)}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00384}00384\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00385}00385\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00386}00386\ \ \ \ \ \ \ \ \ \ \ \ \ labels\_\ =\ \mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__optics_a6ae553de42635acf9bd1ca4d8ed12f2c}{cluster\_optics\_dbscan}}(}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00387}00387\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ reachability=self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_a40e8901e6478c8695c662c29fa474d1f}{reachability\_}},}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00388}00388\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ core\_distances=self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_a24f69f8cb788a379ca1946ec772ce44d}{core\_distances\_}},}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00389}00389\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ordering=self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_a9681b0ccbe8e3911c7e1379dbd6c9559}{ordering\_}},}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00390}00390\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ eps=eps,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00391}00391\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00392}00392\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00393}00393\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__optics_1_1OPTICS_a041dfaf1bf0f97d9fedf9d44563078e6}{labels\_}}\ =\ labels\_}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00394}00394\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00395}00395\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00396}00396\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00397}00397\ \textcolor{keyword}{def\ }\_validate\_size(size,\ n\_samples,\ param\_name):}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00398}00398\ \ \ \ \ \textcolor{keywordflow}{if}\ size\ >\ n\_samples:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00399}00399\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00400}00400\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\%s\ must\ be\ no\ greater\ than\ the\ number\ of\ samples\ (\%d).\ Got\ \%d"{}}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00401}00401\ \ \ \ \ \ \ \ \ \ \ \ \ \%\ (param\_name,\ n\_samples,\ size)}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00402}00402\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00403}00403\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00404}00404\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00405}00405\ \textcolor{comment}{\#\ OPTICS\ helper\ functions}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00406}\mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__optics_afb7f077f478b42dd9770583dafaa7c62}{00406}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__optics_afb7f077f478b42dd9770583dafaa7c62}{\_compute\_core\_distances\_}}(X,\ neighbors,\ min\_samples,\ working\_memory):}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00407}00407\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Compute\ the\ k-\/th\ nearest\ neighbor\ of\ each\ sample.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00408}00408\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00409}00409\ \textcolor{stringliteral}{\ \ \ \ Equivalent\ to\ neighbors.kneighbors(X,\ self.min\_samples)[0][:,\ -\/1]}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00410}00410\ \textcolor{stringliteral}{\ \ \ \ but\ with\ more\ memory\ efficiency.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00411}00411\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00412}00412\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00413}00413\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00414}00414\ \textcolor{stringliteral}{\ \ \ \ X\ :\ array-\/like\ of\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00415}00415\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ data.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00416}00416\ \textcolor{stringliteral}{\ \ \ \ neighbors\ :\ NearestNeighbors\ instance}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00417}00417\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ fitted\ nearest\ neighbors\ estimator.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00418}00418\ \textcolor{stringliteral}{\ \ \ \ working\_memory\ :\ int,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00419}00419\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ sought\ maximum\ memory\ for\ temporary\ distance\ matrix\ chunks.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00420}00420\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ When\ None\ (default),\ the\ value\ of}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00421}00421\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}sklearn.get\_config()['working\_memory']\`{}\`{}\ is\ used.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00422}00422\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00423}00423\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00424}00424\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00425}00425\ \textcolor{stringliteral}{\ \ \ \ core\_distances\ :\ ndarray\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00426}00426\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Distance\ at\ which\ each\ sample\ becomes\ a\ core\ point.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00427}00427\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Points\ which\ will\ never\ be\ core\ have\ a\ distance\ of\ inf.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00428}00428\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00429}00429\ \ \ \ \ n\_samples\ =\ X.shape[0]}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00430}00430\ \ \ \ \ core\_distances\ =\ np.empty(n\_samples)}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00431}00431\ \ \ \ \ core\_distances.fill(np.nan)}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00432}00432\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00433}00433\ \ \ \ \ chunk\_n\_rows\ =\ get\_chunk\_n\_rows(}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00434}00434\ \ \ \ \ \ \ \ \ row\_bytes=16\ *\ min\_samples,\ max\_n\_rows=n\_samples,\ working\_memory=working\_memory}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00435}00435\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00436}00436\ \ \ \ \ slices\ =\ gen\_batches(n\_samples,\ chunk\_n\_rows)}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00437}00437\ \ \ \ \ \textcolor{keywordflow}{for}\ sl\ \textcolor{keywordflow}{in}\ slices:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00438}00438\ \ \ \ \ \ \ \ \ core\_distances[sl]\ =\ neighbors.kneighbors(X[sl],\ min\_samples)[0][:,\ -\/1]}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00439}00439\ \ \ \ \ \textcolor{keywordflow}{return}\ core\_distances}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00440}00440\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00441}00441\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00442}00442\ \textcolor{preprocessor}{@validate\_params}(}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00443}00443\ \ \ \ \ \{}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00444}00444\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}X"{}}:\ [np.ndarray,\ \textcolor{stringliteral}{"{}sparse\ matrix"{}}],}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00445}00445\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}min\_samples"{}}:\ [}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00446}00446\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Integral,\ 2,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}}),}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00447}00447\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(RealNotInt,\ 0,\ 1,\ closed=\textcolor{stringliteral}{"{}both"{}}),}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00448}00448\ \ \ \ \ \ \ \ \ ],}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00449}00449\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}max\_eps"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Real,\ 0,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}both"{}})],}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00450}00450\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}metric"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1StrOptions}{StrOptions}}(set(\_VALID\_METRICS)\ |\ \{\textcolor{stringliteral}{"{}precomputed"{}}\}),\ callable],}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00451}00451\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}p"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Real,\ 0,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}right"{}}),\ \textcolor{keywordtype}{None}],}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00452}00452\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}metric\_params"{}}:\ [dict,\ \textcolor{keywordtype}{None}],}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00453}00453\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}algorithm"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1StrOptions}{StrOptions}}(\{\textcolor{stringliteral}{"{}auto"{}},\ \textcolor{stringliteral}{"{}brute"{}},\ \textcolor{stringliteral}{"{}ball\_tree"{}},\ \textcolor{stringliteral}{"{}kd\_tree"{}}\})],}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00454}00454\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}leaf\_size"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Integral,\ 1,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}})],}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00455}00455\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}n\_jobs"{}}:\ [Integral,\ \textcolor{keywordtype}{None}],}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00456}00456\ \ \ \ \ \},}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00457}00457\ \ \ \ \ prefer\_skip\_nested\_validation=\textcolor{keyword}{False},\ \ \textcolor{comment}{\#\ metric\ is\ not\ validated\ yet}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00458}00458\ )}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00459}\mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__optics_aad0efa601f27d3318be3a5cf12a2c6aa}{00459}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__optics_aad0efa601f27d3318be3a5cf12a2c6aa}{compute\_optics\_graph}}(}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00460}00460\ \ \ \ \ X,\ *,\ min\_samples,\ max\_eps,\ metric,\ p,\ metric\_params,\ algorithm,\ leaf\_size,\ n\_jobs}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00461}00461\ ):}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00462}00462\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Compute\ the\ OPTICS\ reachability\ graph.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00463}00463\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00464}00464\ \textcolor{stringliteral}{\ \ \ \ Read\ more\ in\ the\ :ref:\`{}User\ Guide\ <optics>\`{}.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00465}00465\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00466}00466\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00467}00467\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00468}00468\ \textcolor{stringliteral}{\ \ \ \ X\ :\ \{ndarray,\ sparse\ matrix\}\ of\ shape\ (n\_samples,\ n\_features),\ or\ \(\backslash\)}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00469}00469\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ (n\_samples,\ n\_samples)\ if\ metric='precomputed'}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00470}00470\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ A\ feature\ array,\ or\ array\ of\ distances\ between\ samples\ if}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00471}00471\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ metric='precomputed'.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00472}00472\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00473}00473\ \textcolor{stringliteral}{\ \ \ \ min\_samples\ :\ int\ >\ 1\ or\ float\ between\ 0\ and\ 1}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00474}00474\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ number\ of\ samples\ in\ a\ neighborhood\ for\ a\ point\ to\ be\ considered}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00475}00475\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ as\ a\ core\ point.\ Expressed\ as\ an\ absolute\ number\ or\ a\ fraction\ of\ the}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00476}00476\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ number\ of\ samples\ (rounded\ to\ be\ at\ least\ 2).}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00477}00477\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00478}00478\ \textcolor{stringliteral}{\ \ \ \ max\_eps\ :\ float,\ default=np.inf}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00479}00479\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ maximum\ distance\ between\ two\ samples\ for\ one\ to\ be\ considered\ as}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00480}00480\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ in\ the\ neighborhood\ of\ the\ other.\ Default\ value\ of\ \`{}\`{}np.inf\`{}\`{}\ will}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00481}00481\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ identify\ clusters\ across\ all\ scales;\ reducing\ \`{}\`{}max\_eps\`{}\`{}\ will\ result}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00482}00482\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ in\ shorter\ run\ times.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00483}00483\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00484}00484\ \textcolor{stringliteral}{\ \ \ \ metric\ :\ str\ or\ callable,\ default='minkowski'}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00485}00485\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Metric\ to\ use\ for\ distance\ computation.\ Any\ metric\ from\ scikit-\/learn}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00486}00486\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ or\ scipy.spatial.distance\ can\ be\ used.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00487}00487\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00488}00488\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ metric\ is\ a\ callable\ function,\ it\ is\ called\ on\ each}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00489}00489\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ pair\ of\ instances\ (rows)\ and\ the\ resulting\ value\ recorded.\ The\ callable}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00490}00490\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ should\ take\ two\ arrays\ as\ input\ and\ return\ one\ value\ indicating\ the}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00491}00491\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ distance\ between\ them.\ This\ works\ for\ Scipy's\ metrics,\ but\ is\ less}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00492}00492\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ efficient\ than\ passing\ the\ metric\ name\ as\ a\ string.\ If\ metric\ is}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00493}00493\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}precomputed"{},\ X\ is\ assumed\ to\ be\ a\ distance\ matrix\ and\ must\ be\ square.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00494}00494\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00495}00495\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Valid\ values\ for\ metric\ are:}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00496}00496\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00497}00497\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ from\ scikit-\/learn:\ ['cityblock',\ 'cosine',\ 'euclidean',\ 'l1',\ 'l2',}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00498}00498\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ 'manhattan']}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00499}00499\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00500}00500\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ from\ scipy.spatial.distance:\ ['braycurtis',\ 'canberra',\ 'chebyshev',}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00501}00501\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ 'correlation',\ 'dice',\ 'hamming',\ 'jaccard',\ 'kulsinski',}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00502}00502\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ 'mahalanobis',\ 'minkowski',\ 'rogerstanimoto',\ 'russellrao',}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00503}00503\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ 'seuclidean',\ 'sokalmichener',\ 'sokalsneath',\ 'sqeuclidean',}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00504}00504\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ 'yule']}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00505}00505\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00506}00506\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ See\ the\ documentation\ for\ scipy.spatial.distance\ for\ details\ on\ these}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00507}00507\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ metrics.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00508}00508\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00509}00509\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ note::}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00510}00510\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \`{}'kulsinski'\`{}\ is\ deprecated\ from\ SciPy\ 1.9\ and\ will\ be\ removed\ in\ SciPy\ 1.11.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00511}00511\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00512}00512\ \textcolor{stringliteral}{\ \ \ \ p\ :\ float,\ default=2}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00513}00513\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameter\ for\ the\ Minkowski\ metric\ from}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00514}00514\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :class:\`{}\string~sklearn.metrics.pairwise\_distances\`{}.\ When\ p\ =\ 1,\ this\ is}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00515}00515\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ equivalent\ to\ using\ manhattan\_distance\ (l1),\ and\ euclidean\_distance}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00516}00516\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ (l2)\ for\ p\ =\ 2.\ For\ arbitrary\ p,\ minkowski\_distance\ (l\_p)\ is\ used.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00517}00517\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00518}00518\ \textcolor{stringliteral}{\ \ \ \ metric\_params\ :\ dict,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00519}00519\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Additional\ keyword\ arguments\ for\ the\ metric\ function.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00520}00520\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00521}00521\ \textcolor{stringliteral}{\ \ \ \ algorithm\ :\ \{'auto',\ 'ball\_tree',\ 'kd\_tree',\ 'brute'\},\ default='auto'}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00522}00522\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Algorithm\ used\ to\ compute\ the\ nearest\ neighbors:}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00523}00523\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00524}00524\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ 'ball\_tree'\ will\ use\ :class:\`{}\string~sklearn.neighbors.BallTree\`{}.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00525}00525\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ 'kd\_tree'\ will\ use\ :class:\`{}\string~sklearn.neighbors.KDTree\`{}.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00526}00526\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ 'brute'\ will\ use\ a\ brute-\/force\ search.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00527}00527\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ 'auto'\ will\ attempt\ to\ decide\ the\ most\ appropriate\ algorithm}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00528}00528\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ based\ on\ the\ values\ passed\ to\ \`{}fit\`{}\ method.\ (default)}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00529}00529\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00530}00530\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Note:\ fitting\ on\ sparse\ input\ will\ override\ the\ setting\ of}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00531}00531\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ this\ parameter,\ using\ brute\ force.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00532}00532\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00533}00533\ \textcolor{stringliteral}{\ \ \ \ leaf\_size\ :\ int,\ default=30}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00534}00534\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Leaf\ size\ passed\ to\ :class:\`{}\string~sklearn.neighbors.BallTree\`{}\ or}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00535}00535\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :class:\`{}\string~sklearn.neighbors.KDTree\`{}.\ This\ can\ affect\ the\ speed\ of\ the}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00536}00536\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ construction\ and\ query,\ as\ well\ as\ the\ memory\ required\ to\ store\ the}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00537}00537\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ tree.\ The\ optimal\ value\ depends\ on\ the\ nature\ of\ the\ problem.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00538}00538\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00539}00539\ \textcolor{stringliteral}{\ \ \ \ n\_jobs\ :\ int,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00540}00540\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ number\ of\ parallel\ jobs\ to\ run\ for\ neighbors\ search.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00541}00541\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}None\`{}\`{}\ means\ 1\ unless\ in\ a\ :obj:\`{}joblib.parallel\_backend\`{}\ context.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00542}00542\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}-\/1\`{}\`{}\ means\ using\ all\ processors.\ See\ :term:\`{}Glossary\ <n\_jobs>\`{}}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00543}00543\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ for\ more\ details.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00544}00544\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00545}00545\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00546}00546\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00547}00547\ \textcolor{stringliteral}{\ \ \ \ ordering\_\ :\ array\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00548}00548\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ cluster\ ordered\ list\ of\ sample\ indices.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00549}00549\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00550}00550\ \textcolor{stringliteral}{\ \ \ \ core\_distances\_\ :\ array\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00551}00551\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Distance\ at\ which\ each\ sample\ becomes\ a\ core\ point,\ indexed\ by\ object}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00552}00552\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ order.\ Points\ which\ will\ never\ be\ core\ have\ a\ distance\ of\ inf.\ Use}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00553}00553\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}clust.core\_distances\_[clust.ordering\_]\`{}\`{}\ to\ access\ in\ cluster\ order.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00554}00554\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00555}00555\ \textcolor{stringliteral}{\ \ \ \ reachability\_\ :\ array\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00556}00556\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Reachability\ distances\ per\ sample,\ indexed\ by\ object\ order.\ Use}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00557}00557\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}clust.reachability\_[clust.ordering\_]\`{}\`{}\ to\ access\ in\ cluster\ order.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00558}00558\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00559}00559\ \textcolor{stringliteral}{\ \ \ \ predecessor\_\ :\ array\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00560}00560\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Point\ that\ a\ sample\ was\ reached\ from,\ indexed\ by\ object\ order.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00561}00561\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Seed\ points\ have\ a\ predecessor\ of\ -\/1.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00562}00562\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00563}00563\ \textcolor{stringliteral}{\ \ \ \ References}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00564}00564\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00565}00565\ \textcolor{stringliteral}{\ \ \ \ ..\ [1]\ Ankerst,\ Mihael,\ Markus\ M.\ Breunig,\ Hans-\/Peter\ Kriegel,}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00566}00566\ \textcolor{stringliteral}{\ \ \ \ \ \ \ and\ Jörg\ Sander.\ "{}OPTICS:\ ordering\ points\ to\ identify\ the\ clustering}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00567}00567\ \textcolor{stringliteral}{\ \ \ \ \ \ \ structure."{}\ ACM\ SIGMOD\ Record\ 28,\ no.\ 2\ (1999):\ 49-\/60.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00568}00568\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00569}00569\ \textcolor{stringliteral}{\ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00570}00570\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00571}00571\ \textcolor{stringliteral}{\ \ \ \ >>>\ import\ numpy\ as\ np}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00572}00572\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.cluster\ import\ compute\_optics\_graph}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00573}00573\ \textcolor{stringliteral}{\ \ \ \ >>>\ X\ =\ np.array([[1,\ 2],\ [2,\ 5],\ [3,\ 6],}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00574}00574\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ [8,\ 7],\ [8,\ 8],\ [7,\ 3]])}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00575}00575\ \textcolor{stringliteral}{\ \ \ \ >>>\ ordering,\ core\_distances,\ reachability,\ predecessor\ =\ compute\_optics\_graph(}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00576}00576\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ X,}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00577}00577\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ min\_samples=2,}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00578}00578\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ max\_eps=np.inf,}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00579}00579\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ metric="{}minkowski"{},}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00580}00580\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ p=2,}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00581}00581\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ metric\_params=None,}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00582}00582\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ algorithm="{}auto"{},}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00583}00583\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ leaf\_size=30,}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00584}00584\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ n\_jobs=None,}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00585}00585\ \textcolor{stringliteral}{\ \ \ \ ...\ )}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00586}00586\ \textcolor{stringliteral}{\ \ \ \ >>>\ ordering}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00587}00587\ \textcolor{stringliteral}{\ \ \ \ array([0,\ 1,\ 2,\ 5,\ 3,\ 4])}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00588}00588\ \textcolor{stringliteral}{\ \ \ \ >>>\ core\_distances}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00589}00589\ \textcolor{stringliteral}{\ \ \ \ array([3.16,\ 1.41,\ 1.41,\ 1.\ \ \ \ \ \ \ \ ,\ 1.\ \ \ \ \ \ \ \ ,}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00590}00590\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ 4.12])}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00591}00591\ \textcolor{stringliteral}{\ \ \ \ >>>\ reachability}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00592}00592\ \textcolor{stringliteral}{\ \ \ \ array([\ \ \ \ \ \ \ inf,\ 3.16,\ 1.41,\ 4.12,\ 1.\ \ \ \ \ \ \ \ ,}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00593}00593\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ 5.\ \ \ \ \ \ \ \ ])}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00594}00594\ \textcolor{stringliteral}{\ \ \ \ >>>\ predecessor}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00595}00595\ \textcolor{stringliteral}{\ \ \ \ array([-\/1,\ \ 0,\ \ 1,\ \ 5,\ \ 3,\ \ 2])}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00596}00596\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00597}00597\ \ \ \ \ n\_samples\ =\ X.shape[0]}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00598}00598\ \ \ \ \ \_validate\_size(min\_samples,\ n\_samples,\ \textcolor{stringliteral}{"{}min\_samples"{}})}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00599}00599\ \ \ \ \ \textcolor{keywordflow}{if}\ min\_samples\ <=\ 1:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00600}00600\ \ \ \ \ \ \ \ \ min\_samples\ =\ max(2,\ int(min\_samples\ *\ n\_samples))}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00601}00601\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00602}00602\ \ \ \ \ \textcolor{comment}{\#\ Start\ all\ points\ as\ 'unprocessed'\ \#\#}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00603}00603\ \ \ \ \ reachability\_\ =\ np.empty(n\_samples)}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00604}00604\ \ \ \ \ reachability\_.fill(np.inf)}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00605}00605\ \ \ \ \ predecessor\_\ =\ np.empty(n\_samples,\ dtype=int)}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00606}00606\ \ \ \ \ predecessor\_.fill(-\/1)}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00607}00607\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00608}00608\ \ \ \ \ nbrs\ =\ \mbox{\hyperlink{classsklearn_1_1neighbors_1_1__unsupervised_1_1NearestNeighbors}{NearestNeighbors}}(}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00609}00609\ \ \ \ \ \ \ \ \ n\_neighbors=min\_samples,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00610}00610\ \ \ \ \ \ \ \ \ algorithm=algorithm,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00611}00611\ \ \ \ \ \ \ \ \ leaf\_size=leaf\_size,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00612}00612\ \ \ \ \ \ \ \ \ metric=metric,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00613}00613\ \ \ \ \ \ \ \ \ metric\_params=metric\_params,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00614}00614\ \ \ \ \ \ \ \ \ p=p,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00615}00615\ \ \ \ \ \ \ \ \ n\_jobs=n\_jobs,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00616}00616\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00617}00617\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00618}00618\ \ \ \ \ nbrs.fit(X)}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00619}00619\ \ \ \ \ \textcolor{comment}{\#\ Here\ we\ first\ do\ a\ kNN\ query\ for\ each\ point,\ this\ differs\ from}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00620}00620\ \ \ \ \ \textcolor{comment}{\#\ the\ original\ OPTICS\ that\ only\ used\ epsilon\ range\ queries.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00621}00621\ \ \ \ \ \textcolor{comment}{\#\ TODO:\ handle\ working\_memory\ somehow?}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00622}00622\ \ \ \ \ core\_distances\_\ =\ \mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__optics_afb7f077f478b42dd9770583dafaa7c62}{\_compute\_core\_distances\_}}(}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00623}00623\ \ \ \ \ \ \ \ \ X=X,\ neighbors=nbrs,\ min\_samples=min\_samples,\ working\_memory=\textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00624}00624\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00625}00625\ \ \ \ \ \textcolor{comment}{\#\ OPTICS\ puts\ an\ upper\ limit\ on\ these,\ use\ inf\ for\ undefined.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00626}00626\ \ \ \ \ core\_distances\_[core\_distances\_\ >\ max\_eps]\ =\ np.inf}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00627}00627\ \ \ \ \ np.around(}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00628}00628\ \ \ \ \ \ \ \ \ core\_distances\_,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00629}00629\ \ \ \ \ \ \ \ \ decimals=np.finfo(core\_distances\_.dtype).precision,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00630}00630\ \ \ \ \ \ \ \ \ out=core\_distances\_,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00631}00631\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00632}00632\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00633}00633\ \ \ \ \ \textcolor{comment}{\#\ Main\ OPTICS\ loop.\ Not\ parallelizable.\ The\ order\ that\ entries\ are}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00634}00634\ \ \ \ \ \textcolor{comment}{\#\ written\ to\ the\ 'ordering\_'\ list\ is\ important!}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00635}00635\ \ \ \ \ \textcolor{comment}{\#\ Note\ that\ this\ implementation\ is\ O(n\string^2)\ theoretically,\ but}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00636}00636\ \ \ \ \ \textcolor{comment}{\#\ supposedly\ with\ very\ low\ constant\ factors.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00637}00637\ \ \ \ \ processed\ =\ np.zeros(X.shape[0],\ dtype=bool)}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00638}00638\ \ \ \ \ ordering\ =\ np.zeros(X.shape[0],\ dtype=int)}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00639}00639\ \ \ \ \ \textcolor{keywordflow}{for}\ ordering\_idx\ \textcolor{keywordflow}{in}\ range(X.shape[0]):}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00640}00640\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Choose\ next\ based\ on\ smallest\ reachability\ distance}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00641}00641\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ (And\ prefer\ smaller\ ids\ on\ ties,\ possibly\ np.inf!)}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00642}00642\ \ \ \ \ \ \ \ \ index\ =\ np.where(processed\ ==\ 0)[0]}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00643}00643\ \ \ \ \ \ \ \ \ point\ =\ index[np.argmin(reachability\_[index])]}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00644}00644\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00645}00645\ \ \ \ \ \ \ \ \ processed[point]\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00646}00646\ \ \ \ \ \ \ \ \ ordering[ordering\_idx]\ =\ point}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00647}00647\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ core\_distances\_[point]\ !=\ np.inf:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00648}00648\ \ \ \ \ \ \ \ \ \ \ \ \ \_set\_reach\_dist(}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00649}00649\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ core\_distances\_=core\_distances\_,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00650}00650\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ reachability\_=reachability\_,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00651}00651\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ predecessor\_=predecessor\_,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00652}00652\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ point\_index=point,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00653}00653\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ processed=processed,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00654}00654\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ X=X,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00655}00655\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ nbrs=nbrs,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00656}00656\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ metric=metric,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00657}00657\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ metric\_params=metric\_params,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00658}00658\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p=p,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00659}00659\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ max\_eps=max\_eps,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00660}00660\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00661}00661\ \ \ \ \ \textcolor{keywordflow}{if}\ np.all(np.isinf(reachability\_)):}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00662}00662\ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00663}00663\ \ \ \ \ \ \ \ \ \ \ \ \ (}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00664}00664\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}All\ reachability\ values\ are\ inf.\ Set\ a\ larger"{}}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00665}00665\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ max\_eps\ or\ all\ data\ will\ be\ considered\ outliers."{}}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00666}00666\ \ \ \ \ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00667}00667\ \ \ \ \ \ \ \ \ \ \ \ \ UserWarning,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00668}00668\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00669}00669\ \ \ \ \ \textcolor{keywordflow}{return}\ ordering,\ core\_distances\_,\ reachability\_,\ predecessor\_}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00670}00670\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00671}00671\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00672}00672\ \textcolor{keyword}{def\ }\_set\_reach\_dist(}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00673}00673\ \ \ \ \ core\_distances\_,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00674}00674\ \ \ \ \ reachability\_,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00675}00675\ \ \ \ \ predecessor\_,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00676}00676\ \ \ \ \ point\_index,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00677}00677\ \ \ \ \ processed,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00678}00678\ \ \ \ \ X,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00679}00679\ \ \ \ \ nbrs,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00680}00680\ \ \ \ \ metric,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00681}00681\ \ \ \ \ metric\_params,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00682}00682\ \ \ \ \ p,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00683}00683\ \ \ \ \ max\_eps,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00684}00684\ ):}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00685}00685\ \ \ \ \ P\ =\ X[point\_index\ :\ point\_index\ +\ 1]}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00686}00686\ \ \ \ \ \textcolor{comment}{\#\ Assume\ that\ radius\_neighbors\ is\ faster\ without\ distances}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00687}00687\ \ \ \ \ \textcolor{comment}{\#\ and\ we\ don't\ need\ all\ distances,\ nevertheless,\ this\ means}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00688}00688\ \ \ \ \ \textcolor{comment}{\#\ we\ may\ be\ doing\ some\ work\ twice.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00689}00689\ \ \ \ \ indices\ =\ nbrs.radius\_neighbors(P,\ radius=max\_eps,\ return\_distance=\textcolor{keyword}{False})[0]}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00690}00690\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00691}00691\ \ \ \ \ \textcolor{comment}{\#\ Getting\ indices\ of\ neighbors\ that\ have\ not\ been\ processed}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00692}00692\ \ \ \ \ unproc\ =\ np.compress(\string~np.take(processed,\ indices),\ indices)}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00693}00693\ \ \ \ \ \textcolor{comment}{\#\ Neighbors\ of\ current\ point\ are\ already\ processed.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00694}00694\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ unproc.size:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00695}00695\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00696}00696\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00697}00697\ \ \ \ \ \textcolor{comment}{\#\ Only\ compute\ distances\ to\ unprocessed\ neighbors:}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00698}00698\ \ \ \ \ \textcolor{keywordflow}{if}\ metric\ ==\ \textcolor{stringliteral}{"{}precomputed"{}}:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00699}00699\ \ \ \ \ \ \ \ \ dists\ =\ X[[point\_index],\ unproc]}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00700}00700\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(dists,\ np.matrix):}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00701}00701\ \ \ \ \ \ \ \ \ \ \ \ \ dists\ =\ np.asarray(dists)}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00702}00702\ \ \ \ \ \ \ \ \ dists\ =\ dists.ravel()}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00703}00703\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00704}00704\ \ \ \ \ \ \ \ \ \_params\ =\ dict()\ \textcolor{keywordflow}{if}\ metric\_params\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{else}\ metric\_params.copy()}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00705}00705\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ metric\ ==\ \textcolor{stringliteral}{"{}minkowski"{}}\ \textcolor{keywordflow}{and}\ \textcolor{stringliteral}{"{}p"{}}\ \textcolor{keywordflow}{not}\ \textcolor{keywordflow}{in}\ \_params:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00706}00706\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ the\ same\ logic\ as\ neighbors,\ p\ is\ ignored\ if\ explicitly\ set}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00707}00707\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ in\ the\ dict\ params}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00708}00708\ \ \ \ \ \ \ \ \ \ \ \ \ \_params[\textcolor{stringliteral}{"{}p"{}}]\ =\ p}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00709}00709\ \ \ \ \ \ \ \ \ dists\ =\ pairwise\_distances(P,\ X[unproc],\ metric,\ n\_jobs=\textcolor{keywordtype}{None},\ **\_params).ravel()}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00710}00710\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00711}00711\ \ \ \ \ rdists\ =\ np.maximum(dists,\ core\_distances\_[point\_index])}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00712}00712\ \ \ \ \ np.around(rdists,\ decimals=np.finfo(rdists.dtype).precision,\ out=rdists)}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00713}00713\ \ \ \ \ improved\ =\ np.where(rdists\ <\ np.take(reachability\_,\ unproc))}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00714}00714\ \ \ \ \ reachability\_[unproc[improved]]\ =\ rdists[improved]}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00715}00715\ \ \ \ \ predecessor\_[unproc[improved]]\ =\ point\_index}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00716}00716\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00717}00717\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00718}00718\ \textcolor{preprocessor}{@validate\_params}(}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00719}00719\ \ \ \ \ \{}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00720}00720\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}reachability"{}}:\ [np.ndarray],}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00721}00721\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}core\_distances"{}}:\ [np.ndarray],}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00722}00722\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}ordering"{}}:\ [np.ndarray],}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00723}00723\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}eps"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Real,\ 0,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}both"{}})],}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00724}00724\ \ \ \ \ \},}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00725}00725\ \ \ \ \ prefer\_skip\_nested\_validation=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00726}00726\ )}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00727}\mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__optics_a6ae553de42635acf9bd1ca4d8ed12f2c}{00727}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__optics_a6ae553de42635acf9bd1ca4d8ed12f2c}{cluster\_optics\_dbscan}}(*,\ reachability,\ core\_distances,\ ordering,\ eps):}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00728}00728\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Perform\ DBSCAN\ extraction\ for\ an\ arbitrary\ epsilon.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00729}00729\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00730}00730\ \textcolor{stringliteral}{\ \ \ \ Extracting\ the\ clusters\ runs\ in\ linear\ time.\ Note\ that\ this\ results\ in}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00731}00731\ \textcolor{stringliteral}{\ \ \ \ \`{}\`{}labels\_\`{}\`{}\ which\ are\ close\ to\ a\ :class:\`{}\string~sklearn.cluster.DBSCAN\`{}\ with}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00732}00732\ \textcolor{stringliteral}{\ \ \ \ similar\ settings\ and\ \`{}\`{}eps\`{}\`{},\ only\ if\ \`{}\`{}eps\`{}\`{}\ is\ close\ to\ \`{}\`{}max\_eps\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00733}00733\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00734}00734\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00735}00735\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00736}00736\ \textcolor{stringliteral}{\ \ \ \ reachability\ :\ ndarray\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00737}00737\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Reachability\ distances\ calculated\ by\ OPTICS\ (\`{}\`{}reachability\_\`{}\`{}).}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00738}00738\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00739}00739\ \textcolor{stringliteral}{\ \ \ \ core\_distances\ :\ ndarray\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00740}00740\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Distances\ at\ which\ points\ become\ core\ (\`{}\`{}core\_distances\_\`{}\`{}).}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00741}00741\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00742}00742\ \textcolor{stringliteral}{\ \ \ \ ordering\ :\ ndarray\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00743}00743\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ OPTICS\ ordered\ point\ indices\ (\`{}\`{}ordering\_\`{}\`{}).}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00744}00744\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00745}00745\ \textcolor{stringliteral}{\ \ \ \ eps\ :\ float}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00746}00746\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ DBSCAN\ \`{}\`{}eps\`{}\`{}\ parameter.\ Must\ be\ set\ to\ <\ \`{}\`{}max\_eps\`{}\`{}.\ Results}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00747}00747\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ will\ be\ close\ to\ DBSCAN\ algorithm\ if\ \`{}\`{}eps\`{}\`{}\ and\ \`{}\`{}max\_eps\`{}\`{}\ are\ close}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00748}00748\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ to\ one\ another.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00749}00749\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00750}00750\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00751}00751\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00752}00752\ \textcolor{stringliteral}{\ \ \ \ labels\_\ :\ array\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00753}00753\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ estimated\ labels.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00754}00754\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00755}00755\ \textcolor{stringliteral}{\ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00756}00756\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00757}00757\ \textcolor{stringliteral}{\ \ \ \ >>>\ import\ numpy\ as\ np}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00758}00758\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.cluster\ import\ cluster\_optics\_dbscan,\ compute\_optics\_graph}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00759}00759\ \textcolor{stringliteral}{\ \ \ \ >>>\ X\ =\ np.array([[1,\ 2],\ [2,\ 5],\ [3,\ 6],}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00760}00760\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ [8,\ 7],\ [8,\ 8],\ [7,\ 3]])}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00761}00761\ \textcolor{stringliteral}{\ \ \ \ >>>\ ordering,\ core\_distances,\ reachability,\ predecessor\ =\ compute\_optics\_graph(}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00762}00762\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ X,}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00763}00763\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ min\_samples=2,}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00764}00764\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ max\_eps=np.inf,}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00765}00765\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ metric="{}minkowski"{},}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00766}00766\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ p=2,}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00767}00767\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ metric\_params=None,}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00768}00768\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ algorithm="{}auto"{},}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00769}00769\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ leaf\_size=30,}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00770}00770\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ n\_jobs=None,}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00771}00771\ \textcolor{stringliteral}{\ \ \ \ ...\ )}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00772}00772\ \textcolor{stringliteral}{\ \ \ \ >>>\ eps\ =\ 4.5}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00773}00773\ \textcolor{stringliteral}{\ \ \ \ >>>\ labels\ =\ cluster\_optics\_dbscan(}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00774}00774\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ reachability=reachability,}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00775}00775\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ core\_distances=core\_distances,}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00776}00776\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ ordering=ordering,}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00777}00777\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ eps=eps,}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00778}00778\ \textcolor{stringliteral}{\ \ \ \ ...\ )}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00779}00779\ \textcolor{stringliteral}{\ \ \ \ >>>\ labels}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00780}00780\ \textcolor{stringliteral}{\ \ \ \ array([0,\ 0,\ 0,\ 1,\ 1,\ 1])}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00781}00781\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00782}00782\ \ \ \ \ n\_samples\ =\ len(core\_distances)}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00783}00783\ \ \ \ \ labels\ =\ np.zeros(n\_samples,\ dtype=int)}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00784}00784\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00785}00785\ \ \ \ \ far\_reach\ =\ reachability\ >\ eps}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00786}00786\ \ \ \ \ near\_core\ =\ core\_distances\ <=\ eps}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00787}00787\ \ \ \ \ labels[ordering]\ =\ np.cumsum(far\_reach[ordering]\ \&\ near\_core[ordering])\ -\/\ 1}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00788}00788\ \ \ \ \ labels[far\_reach\ \&\ \string~near\_core]\ =\ -\/1}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00789}00789\ \ \ \ \ \textcolor{keywordflow}{return}\ labels}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00790}00790\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00791}00791\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00792}00792\ \textcolor{preprocessor}{@validate\_params}(}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00793}00793\ \ \ \ \ \{}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00794}00794\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}reachability"{}}:\ [np.ndarray],}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00795}00795\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}predecessor"{}}:\ [np.ndarray],}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00796}00796\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}ordering"{}}:\ [np.ndarray],}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00797}00797\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}min\_samples"{}}:\ [}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00798}00798\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Integral,\ 2,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}}),}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00799}00799\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(RealNotInt,\ 0,\ 1,\ closed=\textcolor{stringliteral}{"{}both"{}}),}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00800}00800\ \ \ \ \ \ \ \ \ ],}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00801}00801\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}min\_cluster\_size"{}}:\ [}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00802}00802\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Integral,\ 2,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}}),}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00803}00803\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(RealNotInt,\ 0,\ 1,\ closed=\textcolor{stringliteral}{"{}both"{}}),}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00804}00804\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00805}00805\ \ \ \ \ \ \ \ \ ],}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00806}00806\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}xi"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Real,\ 0,\ 1,\ closed=\textcolor{stringliteral}{"{}both"{}})],}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00807}00807\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}predecessor\_correction"{}}:\ [\textcolor{stringliteral}{"{}boolean"{}}],}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00808}00808\ \ \ \ \ \},}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00809}00809\ \ \ \ \ prefer\_skip\_nested\_validation=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00810}00810\ )}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00811}\mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__optics_af00fa5eed1925cbb01becac227d90aac}{00811}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__optics_af00fa5eed1925cbb01becac227d90aac}{cluster\_optics\_xi}}(}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00812}00812\ \ \ \ \ *,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00813}00813\ \ \ \ \ reachability,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00814}00814\ \ \ \ \ predecessor,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00815}00815\ \ \ \ \ ordering,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00816}00816\ \ \ \ \ min\_samples,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00817}00817\ \ \ \ \ min\_cluster\_size=None,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00818}00818\ \ \ \ \ xi=0.05,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00819}00819\ \ \ \ \ predecessor\_correction=True,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00820}00820\ ):}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00821}00821\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Automatically\ extract\ clusters\ according\ to\ the\ Xi-\/steep\ method.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00822}00822\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00823}00823\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00824}00824\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00825}00825\ \textcolor{stringliteral}{\ \ \ \ reachability\ :\ ndarray\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00826}00826\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Reachability\ distances\ calculated\ by\ OPTICS\ (\`{}reachability\_\`{}).}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00827}00827\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00828}00828\ \textcolor{stringliteral}{\ \ \ \ predecessor\ :\ ndarray\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00829}00829\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Predecessors\ calculated\ by\ OPTICS.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00830}00830\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00831}00831\ \textcolor{stringliteral}{\ \ \ \ ordering\ :\ ndarray\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00832}00832\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ OPTICS\ ordered\ point\ indices\ (\`{}ordering\_\`{}).}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00833}00833\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00834}00834\ \textcolor{stringliteral}{\ \ \ \ min\_samples\ :\ int\ >\ 1\ or\ float\ between\ 0\ and\ 1}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00835}00835\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ same\ as\ the\ min\_samples\ given\ to\ OPTICS.\ Up\ and\ down\ steep\ regions}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00836}00836\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ can't\ have\ more\ then\ \`{}\`{}min\_samples\`{}\`{}\ consecutive\ non-\/steep\ points.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00837}00837\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Expressed\ as\ an\ absolute\ number\ or\ a\ fraction\ of\ the\ number\ of\ samples}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00838}00838\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ (rounded\ to\ be\ at\ least\ 2).}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00839}00839\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00840}00840\ \textcolor{stringliteral}{\ \ \ \ min\_cluster\_size\ :\ int\ >\ 1\ or\ float\ between\ 0\ and\ 1,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00841}00841\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Minimum\ number\ of\ samples\ in\ an\ OPTICS\ cluster,\ expressed\ as\ an}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00842}00842\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ absolute\ number\ or\ a\ fraction\ of\ the\ number\ of\ samples\ (rounded\ to\ be}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00843}00843\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ at\ least\ 2).\ If\ \`{}\`{}None\`{}\`{},\ the\ value\ of\ \`{}\`{}min\_samples\`{}\`{}\ is\ used\ instead.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00844}00844\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00845}00845\ \textcolor{stringliteral}{\ \ \ \ xi\ :\ float\ between\ 0\ and\ 1,\ default=0.05}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00846}00846\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Determines\ the\ minimum\ steepness\ on\ the\ reachability\ plot\ that}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00847}00847\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ constitutes\ a\ cluster\ boundary.\ For\ example,\ an\ upwards\ point\ in\ the}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00848}00848\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ reachability\ plot\ is\ defined\ by\ the\ ratio\ from\ one\ point\ to\ its}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00849}00849\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ successor\ being\ at\ most\ 1-\/xi.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00850}00850\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00851}00851\ \textcolor{stringliteral}{\ \ \ \ predecessor\_correction\ :\ bool,\ default=True}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00852}00852\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Correct\ clusters\ based\ on\ the\ calculated\ predecessors.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00853}00853\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00854}00854\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00855}00855\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00856}00856\ \textcolor{stringliteral}{\ \ \ \ labels\ :\ ndarray\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00857}00857\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ labels\ assigned\ to\ samples.\ Points\ which\ are\ not\ included}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00858}00858\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ in\ any\ cluster\ are\ labeled\ as\ -\/1.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00859}00859\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00860}00860\ \textcolor{stringliteral}{\ \ \ \ clusters\ :\ ndarray\ of\ shape\ (n\_clusters,\ 2)}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00861}00861\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ list\ of\ clusters\ in\ the\ form\ of\ \`{}\`{}[start,\ end]\`{}\`{}\ in\ each\ row,\ with}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00862}00862\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ all\ indices\ inclusive.\ The\ clusters\ are\ ordered\ according\ to\ \`{}\`{}(end,}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00863}00863\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/start)\`{}\`{}\ (ascending)\ so\ that\ larger\ clusters\ encompassing\ smaller}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00864}00864\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ clusters\ come\ after\ such\ nested\ smaller\ clusters.\ Since\ \`{}\`{}labels\`{}\`{}\ does}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00865}00865\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ not\ reflect\ the\ hierarchy,\ usually\ \`{}\`{}len(clusters)\ >}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00866}00866\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ np.unique(labels)\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00867}00867\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00868}00868\ \textcolor{stringliteral}{\ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00869}00869\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00870}00870\ \textcolor{stringliteral}{\ \ \ \ >>>\ import\ numpy\ as\ np}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00871}00871\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.cluster\ import\ cluster\_optics\_xi,\ compute\_optics\_graph}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00872}00872\ \textcolor{stringliteral}{\ \ \ \ >>>\ X\ =\ np.array([[1,\ 2],\ [2,\ 5],\ [3,\ 6],}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00873}00873\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ [8,\ 7],\ [8,\ 8],\ [7,\ 3]])}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00874}00874\ \textcolor{stringliteral}{\ \ \ \ >>>\ ordering,\ core\_distances,\ reachability,\ predecessor\ =\ compute\_optics\_graph(}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00875}00875\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ X,}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00876}00876\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ min\_samples=2,}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00877}00877\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ max\_eps=np.inf,}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00878}00878\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ metric="{}minkowski"{},}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00879}00879\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ p=2,}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00880}00880\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ metric\_params=None,}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00881}00881\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ algorithm="{}auto"{},}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00882}00882\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ leaf\_size=30,}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00883}00883\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ n\_jobs=None}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00884}00884\ \textcolor{stringliteral}{\ \ \ \ ...\ )}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00885}00885\ \textcolor{stringliteral}{\ \ \ \ >>>\ min\_samples\ =\ 2}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00886}00886\ \textcolor{stringliteral}{\ \ \ \ >>>\ labels,\ clusters\ =\ cluster\_optics\_xi(}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00887}00887\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ reachability=reachability,}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00888}00888\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ predecessor=predecessor,}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00889}00889\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ ordering=ordering,}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00890}00890\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ min\_samples=min\_samples,}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00891}00891\ \textcolor{stringliteral}{\ \ \ \ ...\ )}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00892}00892\ \textcolor{stringliteral}{\ \ \ \ >>>\ labels}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00893}00893\ \textcolor{stringliteral}{\ \ \ \ array([0,\ 0,\ 0,\ 1,\ 1,\ 1])}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00894}00894\ \textcolor{stringliteral}{\ \ \ \ >>>\ clusters}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00895}00895\ \textcolor{stringliteral}{\ \ \ \ array([[0,\ 2],}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00896}00896\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ [3,\ 5],}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00897}00897\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ [0,\ 5]])}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00898}00898\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00899}00899\ \ \ \ \ n\_samples\ =\ len(reachability)}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00900}00900\ \ \ \ \ \_validate\_size(min\_samples,\ n\_samples,\ \textcolor{stringliteral}{"{}min\_samples"{}})}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00901}00901\ \ \ \ \ \textcolor{keywordflow}{if}\ min\_samples\ <=\ 1:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00902}00902\ \ \ \ \ \ \ \ \ min\_samples\ =\ max(2,\ int(min\_samples\ *\ n\_samples))}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00903}00903\ \ \ \ \ \textcolor{keywordflow}{if}\ min\_cluster\_size\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00904}00904\ \ \ \ \ \ \ \ \ min\_cluster\_size\ =\ min\_samples}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00905}00905\ \ \ \ \ \_validate\_size(min\_cluster\_size,\ n\_samples,\ \textcolor{stringliteral}{"{}min\_cluster\_size"{}})}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00906}00906\ \ \ \ \ \textcolor{keywordflow}{if}\ min\_cluster\_size\ <=\ 1:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00907}00907\ \ \ \ \ \ \ \ \ min\_cluster\_size\ =\ max(2,\ int(min\_cluster\_size\ *\ n\_samples))}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00908}00908\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00909}00909\ \ \ \ \ clusters\ =\ \mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__optics_a9ca4867ed224dee781e1ae63c64f4307}{\_xi\_cluster}}(}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00910}00910\ \ \ \ \ \ \ \ \ reachability[ordering],}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00911}00911\ \ \ \ \ \ \ \ \ predecessor[ordering],}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00912}00912\ \ \ \ \ \ \ \ \ ordering,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00913}00913\ \ \ \ \ \ \ \ \ xi,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00914}00914\ \ \ \ \ \ \ \ \ min\_samples,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00915}00915\ \ \ \ \ \ \ \ \ min\_cluster\_size,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00916}00916\ \ \ \ \ \ \ \ \ predecessor\_correction,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00917}00917\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00918}00918\ \ \ \ \ labels\ =\ \mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__optics_a9754cc79736a1fd15348c5d32097d5bc}{\_extract\_xi\_labels}}(ordering,\ clusters)}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00919}00919\ \ \ \ \ \textcolor{keywordflow}{return}\ labels,\ clusters}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00920}00920\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00921}00921\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00922}\mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__optics_ab161ee0866fb871a43881f9228dc10da}{00922}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__optics_ab161ee0866fb871a43881f9228dc10da}{\_extend\_region}}(steep\_point,\ xward\_point,\ start,\ min\_samples):}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00923}00923\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Extend\ the\ area\ until\ it's\ maximal.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00924}00924\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00925}00925\ \textcolor{stringliteral}{\ \ \ \ It's\ the\ same\ function\ for\ both\ upward\ and\ downward\ reagions,\ depending\ on}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00926}00926\ \textcolor{stringliteral}{\ \ \ \ the\ given\ input\ parameters.\ Assuming:}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00927}00927\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00928}00928\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ steep\_\{upward/downward\}:\ bool\ array\ indicating\ whether\ a\ point\ is\ a}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00929}00929\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ steep\ \{upward/downward\};}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00930}00930\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ upward/downward:\ bool\ array\ indicating\ whether\ a\ point\ is}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00931}00931\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ upward/downward;}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00932}00932\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00933}00933\ \textcolor{stringliteral}{\ \ \ \ To\ extend\ an\ upward\ reagion,\ \`{}\`{}steep\_point=steep\_upward\`{}\`{}\ and}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00934}00934\ \textcolor{stringliteral}{\ \ \ \ \`{}\`{}xward\_point=downward\`{}\`{}\ are\ expected,\ and\ to\ extend\ a\ downward\ region,}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00935}00935\ \textcolor{stringliteral}{\ \ \ \ \`{}\`{}steep\_point=steep\_downward\`{}\`{}\ and\ \`{}\`{}xward\_point=upward\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00936}00936\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00937}00937\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00938}00938\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00939}00939\ \textcolor{stringliteral}{\ \ \ \ steep\_point\ :\ ndarray\ of\ shape\ (n\_samples,),\ dtype=bool}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00940}00940\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ True\ if\ the\ point\ is\ steep\ downward\ (upward).}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00941}00941\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00942}00942\ \textcolor{stringliteral}{\ \ \ \ xward\_point\ :\ ndarray\ of\ shape\ (n\_samples,),\ dtype=bool}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00943}00943\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ True\ if\ the\ point\ is\ an\ upward\ (respectively\ downward)\ point.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00944}00944\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00945}00945\ \textcolor{stringliteral}{\ \ \ \ start\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00946}00946\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ start\ of\ the\ xward\ region.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00947}00947\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00948}00948\ \textcolor{stringliteral}{\ \ \ \ min\_samples\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00949}00949\ \textcolor{stringliteral}{\ \ \ \ \ \ \ The\ same\ as\ the\ min\_samples\ given\ to\ OPTICS.\ Up\ and\ down\ steep}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00950}00950\ \textcolor{stringliteral}{\ \ \ \ \ \ \ regions\ can't\ have\ more\ then\ \`{}\`{}min\_samples\`{}\`{}\ consecutive\ non-\/steep}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00951}00951\ \textcolor{stringliteral}{\ \ \ \ \ \ \ points.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00952}00952\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00953}00953\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00954}00954\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00955}00955\ \textcolor{stringliteral}{\ \ \ \ index\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00956}00956\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ current\ index\ iterating\ over\ all\ the\ samples,\ i.e.\ where\ we\ are\ up}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00957}00957\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ to\ in\ our\ search.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00958}00958\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00959}00959\ \textcolor{stringliteral}{\ \ \ \ end\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00960}00960\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ end\ of\ the\ region,\ which\ can\ be\ behind\ the\ index.\ The\ region}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00961}00961\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ includes\ the\ \`{}\`{}end\`{}\`{}\ index.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00962}00962\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00963}00963\ \ \ \ \ n\_samples\ =\ len(steep\_point)}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00964}00964\ \ \ \ \ non\_xward\_points\ =\ 0}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00965}00965\ \ \ \ \ index\ =\ start}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00966}00966\ \ \ \ \ end\ =\ start}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00967}00967\ \ \ \ \ \textcolor{comment}{\#\ find\ a\ maximal\ area}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00968}00968\ \ \ \ \ \textcolor{keywordflow}{while}\ index\ <\ n\_samples:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00969}00969\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ steep\_point[index]:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00970}00970\ \ \ \ \ \ \ \ \ \ \ \ \ non\_xward\_points\ =\ 0}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00971}00971\ \ \ \ \ \ \ \ \ \ \ \ \ end\ =\ index}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00972}00972\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ \textcolor{keywordflow}{not}\ xward\_point[index]:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00973}00973\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ it's\ not\ a\ steep\ point,\ but\ still\ goes\ up.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00974}00974\ \ \ \ \ \ \ \ \ \ \ \ \ non\_xward\_points\ +=\ 1}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00975}00975\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ region\ should\ include\ no\ more\ than\ min\_samples\ consecutive}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00976}00976\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ non\ steep\ xward\ points.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00977}00977\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ non\_xward\_points\ >\ min\_samples:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00978}00978\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00979}00979\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00980}00980\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ end}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00981}00981\ \ \ \ \ \ \ \ \ index\ +=\ 1}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00982}00982\ \ \ \ \ \textcolor{keywordflow}{return}\ end}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00983}00983\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00984}00984\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00985}\mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__optics_a59f52f7066710373e697427ce6891250}{00985}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__optics_a59f52f7066710373e697427ce6891250}{\_update\_filter\_sdas}}(sdas,\ mib,\ xi\_complement,\ reachability\_plot):}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00986}00986\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Update\ steep\ down\ areas\ (SDAs)\ using\ the\ new\ maximum\ in\ between\ (mib)}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00987}00987\ \textcolor{stringliteral}{\ \ \ \ value,\ and\ the\ given\ complement\ of\ xi,\ i.e.\ \`{}\`{}1\ -\/\ xi\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00988}00988\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00989}00989\ \ \ \ \ \textcolor{keywordflow}{if}\ np.isinf(mib):}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00990}00990\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ []}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00991}00991\ \ \ \ \ res\ =\ [}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00992}00992\ \ \ \ \ \ \ \ \ sda\ \textcolor{keywordflow}{for}\ sda\ \textcolor{keywordflow}{in}\ sdas\ \textcolor{keywordflow}{if}\ mib\ <=\ reachability\_plot[sda[\textcolor{stringliteral}{"{}start"{}}]]\ *\ xi\_complement}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00993}00993\ \ \ \ \ ]}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00994}00994\ \ \ \ \ \textcolor{keywordflow}{for}\ sda\ \textcolor{keywordflow}{in}\ res:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00995}00995\ \ \ \ \ \ \ \ \ sda[\textcolor{stringliteral}{"{}mib"{}}]\ =\ max(sda[\textcolor{stringliteral}{"{}mib"{}}],\ mib)}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00996}00996\ \ \ \ \ \textcolor{keywordflow}{return}\ res}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00997}00997\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00998}00998\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l00999}\mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__optics_ada463efea84a53b7ea5e103432ed6421}{00999}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__optics_ada463efea84a53b7ea5e103432ed6421}{\_correct\_predecessor}}(reachability\_plot,\ predecessor\_plot,\ ordering,\ s,\ e):}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01000}01000\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Correct\ for\ predecessors.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01001}01001\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01002}01002\ \textcolor{stringliteral}{\ \ \ \ Applies\ Algorithm\ 2\ of\ [1]\_.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01003}01003\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01004}01004\ \textcolor{stringliteral}{\ \ \ \ Input\ parameters\ are\ ordered\ by\ the\ computer\ OPTICS\ ordering.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01005}01005\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01006}01006\ \textcolor{stringliteral}{\ \ \ \ ..\ [1]\ Schubert,\ Erich,\ Michael\ Gertz.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01007}01007\ \textcolor{stringliteral}{\ \ \ \ \ \ \ "{}Improving\ the\ Cluster\ Structure\ Extracted\ from\ OPTICS\ Plots."{}\ Proc.\ of}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01008}01008\ \textcolor{stringliteral}{\ \ \ \ \ \ \ the\ Conference\ "{}Lernen,\ Wissen,\ Daten,\ Analysen"{}\ (LWDA)\ (2018):\ 318-\/329.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01009}01009\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01010}01010\ \ \ \ \ \textcolor{keywordflow}{while}\ s\ <\ e:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01011}01011\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ reachability\_plot[s]\ >\ reachability\_plot[e]:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01012}01012\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ s,\ e}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01013}01013\ \ \ \ \ \ \ \ \ p\_e\ =\ predecessor\_plot[e]}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01014}01014\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(s,\ e):}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01015}01015\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ p\_e\ ==\ ordering[i]:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01016}01016\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ s,\ e}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01017}01017\ \ \ \ \ \ \ \ \ e\ -\/=\ 1}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01018}01018\ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keywordtype}{None},\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01019}01019\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01020}01020\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01021}\mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__optics_a9ca4867ed224dee781e1ae63c64f4307}{01021}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__optics_a9ca4867ed224dee781e1ae63c64f4307}{\_xi\_cluster}}(}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01022}01022\ \ \ \ \ reachability\_plot,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01023}01023\ \ \ \ \ predecessor\_plot,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01024}01024\ \ \ \ \ ordering,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01025}01025\ \ \ \ \ xi,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01026}01026\ \ \ \ \ min\_samples,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01027}01027\ \ \ \ \ min\_cluster\_size,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01028}01028\ \ \ \ \ predecessor\_correction,}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01029}01029\ ):}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01030}01030\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Automatically\ extract\ clusters\ according\ to\ the\ Xi-\/steep\ method.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01031}01031\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01032}01032\ \textcolor{stringliteral}{\ \ \ \ This\ is\ rouphly\ an\ implementation\ of\ Figure\ 19\ of\ the\ OPTICS\ paper.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01033}01033\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01034}01034\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01035}01035\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01036}01036\ \textcolor{stringliteral}{\ \ \ \ reachability\_plot\ :\ array-\/like\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01037}01037\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ reachability\ plot,\ i.e.\ reachability\ ordered\ according\ to}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01038}01038\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ calculated\ ordering,\ all\ computed\ by\ OPTICS.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01039}01039\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01040}01040\ \textcolor{stringliteral}{\ \ \ \ predecessor\_plot\ :\ array-\/like\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01041}01041\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Predecessors\ ordered\ according\ to\ the\ calculated\ ordering.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01042}01042\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01043}01043\ \textcolor{stringliteral}{\ \ \ \ xi\ :\ float,\ between\ 0\ and\ 1}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01044}01044\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Determines\ the\ minimum\ steepness\ on\ the\ reachability\ plot\ that}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01045}01045\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ constitutes\ a\ cluster\ boundary.\ For\ example,\ an\ upwards\ point\ in\ the}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01046}01046\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ reachability\ plot\ is\ defined\ by\ the\ ratio\ from\ one\ point\ to\ its}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01047}01047\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ successor\ being\ at\ most\ 1-\/xi.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01048}01048\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01049}01049\ \textcolor{stringliteral}{\ \ \ \ min\_samples\ :\ int\ >\ 1}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01050}01050\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ same\ as\ the\ min\_samples\ given\ to\ OPTICS.\ Up\ and\ down\ steep\ regions}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01051}01051\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ can't\ have\ more\ then\ \`{}\`{}min\_samples\`{}\`{}\ consecutive\ non-\/steep\ points.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01052}01052\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01053}01053\ \textcolor{stringliteral}{\ \ \ \ min\_cluster\_size\ :\ int\ >\ 1}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01054}01054\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Minimum\ number\ of\ samples\ in\ an\ OPTICS\ cluster.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01055}01055\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01056}01056\ \textcolor{stringliteral}{\ \ \ \ predecessor\_correction\ :\ bool}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01057}01057\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Correct\ clusters\ based\ on\ the\ calculated\ predecessors.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01058}01058\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01059}01059\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01060}01060\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01061}01061\ \textcolor{stringliteral}{\ \ \ \ clusters\ :\ ndarray\ of\ shape\ (n\_clusters,\ 2)}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01062}01062\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ list\ of\ clusters\ in\ the\ form\ of\ [start,\ end]\ in\ each\ row,\ with\ all}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01063}01063\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ indices\ inclusive.\ The\ clusters\ are\ ordered\ in\ a\ way\ that\ larger}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01064}01064\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ clusters\ encompassing\ smaller\ clusters\ come\ after\ those\ smaller}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01065}01065\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ clusters.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01066}01066\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01067}01067\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01068}01068\ \ \ \ \ \textcolor{comment}{\#\ Our\ implementation\ adds\ an\ inf\ to\ the\ end\ of\ reachability\ plot}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01069}01069\ \ \ \ \ \textcolor{comment}{\#\ this\ helps\ to\ find\ potential\ clusters\ at\ the\ end\ of\ the}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01070}01070\ \ \ \ \ \textcolor{comment}{\#\ reachability\ plot\ even\ if\ there's\ no\ upward\ region\ at\ the\ end\ of\ it.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01071}01071\ \ \ \ \ reachability\_plot\ =\ np.hstack((reachability\_plot,\ np.inf))}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01072}01072\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01073}01073\ \ \ \ \ xi\_complement\ =\ 1\ -\/\ xi}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01074}01074\ \ \ \ \ sdas\ =\ []\ \ \textcolor{comment}{\#\ steep\ down\ areas,\ introduced\ in\ section\ 4.3.2\ of\ the\ paper}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01075}01075\ \ \ \ \ clusters\ =\ []}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01076}01076\ \ \ \ \ index\ =\ 0}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01077}01077\ \ \ \ \ mib\ =\ 0.0\ \ \textcolor{comment}{\#\ maximum\ in\ between,\ section\ 4.3.2}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01078}01078\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01079}01079\ \ \ \ \ \textcolor{comment}{\#\ Our\ implementation\ corrects\ a\ mistake\ in\ the\ original}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01080}01080\ \ \ \ \ \textcolor{comment}{\#\ paper,\ i.e.,\ in\ Definition\ 9\ steep\ downward\ point,}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01081}01081\ \ \ \ \ \textcolor{comment}{\#\ r(p)\ *\ (1\ -\/\ x1)\ <=\ r(p\ +\ 1)\ should\ be}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01082}01082\ \ \ \ \ \textcolor{comment}{\#\ r(p)\ *\ (1\ -\/\ x1)\ >=\ r(p\ +\ 1)}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01083}01083\ \ \ \ \ \textcolor{keyword}{with}\ np.errstate(invalid=\textcolor{stringliteral}{"{}ignore"{}}):}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01084}01084\ \ \ \ \ \ \ \ \ ratio\ =\ reachability\_plot[:-\/1]\ /\ reachability\_plot[1:]}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01085}01085\ \ \ \ \ \ \ \ \ steep\_upward\ =\ ratio\ <=\ xi\_complement}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01086}01086\ \ \ \ \ \ \ \ \ steep\_downward\ =\ ratio\ >=\ 1\ /\ xi\_complement}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01087}01087\ \ \ \ \ \ \ \ \ downward\ =\ ratio\ >\ 1}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01088}01088\ \ \ \ \ \ \ \ \ upward\ =\ ratio\ <\ 1}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01089}01089\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01090}01090\ \ \ \ \ \textcolor{comment}{\#\ the\ following\ loop\ is\ almost\ exactly\ as\ Figure\ 19\ of\ the\ paper.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01091}01091\ \ \ \ \ \textcolor{comment}{\#\ it\ jumps\ over\ the\ areas\ which\ are\ not\ either\ steep\ down\ or\ up\ areas}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01092}01092\ \ \ \ \ \textcolor{keywordflow}{for}\ steep\_index\ \textcolor{keywordflow}{in}\ iter(np.flatnonzero(steep\_upward\ |\ steep\_downward)):}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01093}01093\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ just\ continue\ if\ steep\_index\ has\ been\ a\ part\ of\ a\ discovered\ xward}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01094}01094\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ area.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01095}01095\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ steep\_index\ <\ index:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01096}01096\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01097}01097\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01098}01098\ \ \ \ \ \ \ \ \ mib\ =\ max(mib,\ np.max(reachability\_plot[index\ :\ steep\_index\ +\ 1]))}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01099}01099\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01100}01100\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ steep\ downward\ areas}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01101}01101\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ steep\_downward[steep\_index]:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01102}01102\ \ \ \ \ \ \ \ \ \ \ \ \ sdas\ =\ \mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__optics_a59f52f7066710373e697427ce6891250}{\_update\_filter\_sdas}}(sdas,\ mib,\ xi\_complement,\ reachability\_plot)}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01103}01103\ \ \ \ \ \ \ \ \ \ \ \ \ D\_start\ =\ steep\_index}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01104}01104\ \ \ \ \ \ \ \ \ \ \ \ \ D\_end\ =\ \mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__optics_ab161ee0866fb871a43881f9228dc10da}{\_extend\_region}}(steep\_downward,\ upward,\ D\_start,\ min\_samples)}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01105}01105\ \ \ \ \ \ \ \ \ \ \ \ \ D\ =\ \{\textcolor{stringliteral}{"{}start"{}}:\ D\_start,\ \textcolor{stringliteral}{"{}end"{}}:\ D\_end,\ \textcolor{stringliteral}{"{}mib"{}}:\ 0.0\}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01106}01106\ \ \ \ \ \ \ \ \ \ \ \ \ sdas.append(D)}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01107}01107\ \ \ \ \ \ \ \ \ \ \ \ \ index\ =\ D\_end\ +\ 1}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01108}01108\ \ \ \ \ \ \ \ \ \ \ \ \ mib\ =\ reachability\_plot[index]}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01109}01109\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01110}01110\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ steep\ upward\ areas}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01111}01111\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01112}01112\ \ \ \ \ \ \ \ \ \ \ \ \ sdas\ =\ \mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__optics_a59f52f7066710373e697427ce6891250}{\_update\_filter\_sdas}}(sdas,\ mib,\ xi\_complement,\ reachability\_plot)}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01113}01113\ \ \ \ \ \ \ \ \ \ \ \ \ U\_start\ =\ steep\_index}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01114}01114\ \ \ \ \ \ \ \ \ \ \ \ \ U\_end\ =\ \mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__optics_ab161ee0866fb871a43881f9228dc10da}{\_extend\_region}}(steep\_upward,\ downward,\ U\_start,\ min\_samples)}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01115}01115\ \ \ \ \ \ \ \ \ \ \ \ \ index\ =\ U\_end\ +\ 1}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01116}01116\ \ \ \ \ \ \ \ \ \ \ \ \ mib\ =\ reachability\_plot[index]}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01117}01117\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01118}01118\ \ \ \ \ \ \ \ \ \ \ \ \ U\_clusters\ =\ []}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01119}01119\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ D\ \textcolor{keywordflow}{in}\ sdas:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01120}01120\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ c\_start\ =\ D[\textcolor{stringliteral}{"{}start"{}}]}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01121}01121\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ c\_end\ =\ U\_end}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01122}01122\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01123}01123\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ line\ (**),\ sc2*}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01124}01124\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ reachability\_plot[c\_end\ +\ 1]\ *\ xi\_complement\ <\ D[\textcolor{stringliteral}{"{}mib"{}}]:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01125}01125\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01126}01126\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01127}01127\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Definition\ 11:\ criterion\ 4}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01128}01128\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ D\_max\ =\ reachability\_plot[D[\textcolor{stringliteral}{"{}start"{}}]]}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01129}01129\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ D\_max\ *\ xi\_complement\ >=\ reachability\_plot[c\_end\ +\ 1]:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01130}01130\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Find\ the\ first\ index\ from\ the\ left\ side\ which\ is\ almost}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01131}01131\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ at\ the\ same\ level\ as\ the\ end\ of\ the\ detected\ cluster.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01132}01132\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{while}\ (}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01133}01133\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ reachability\_plot[c\_start\ +\ 1]\ >\ reachability\_plot[c\_end\ +\ 1]}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01134}01134\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}\ c\_start\ <\ D[\textcolor{stringliteral}{"{}end"{}}]}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01135}01135\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01136}01136\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ c\_start\ +=\ 1}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01137}01137\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ reachability\_plot[c\_end\ +\ 1]\ *\ xi\_complement\ >=\ D\_max:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01138}01138\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Find\ the\ first\ index\ from\ the\ right\ side\ which\ is\ almost}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01139}01139\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ at\ the\ same\ level\ as\ the\ beginning\ of\ the\ detected}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01140}01140\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ cluster.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01141}01141\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Our\ implementation\ corrects\ a\ mistake\ in\ the\ original}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01142}01142\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ paper,\ i.e.,\ in\ Definition\ 11\ 4c,\ r(x)\ <\ r(sD)\ should\ be}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01143}01143\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ r(x)\ >\ r(sD).}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01144}01144\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{while}\ reachability\_plot[c\_end\ -\/\ 1]\ >\ D\_max\ \textcolor{keywordflow}{and}\ c\_end\ >\ U\_start:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01145}01145\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ c\_end\ -\/=\ 1}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01146}01146\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01147}01147\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ predecessor\ correction}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01148}01148\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ predecessor\_correction:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01149}01149\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ c\_start,\ c\_end\ =\ \mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__optics_ada463efea84a53b7ea5e103432ed6421}{\_correct\_predecessor}}(}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01150}01150\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ reachability\_plot,\ predecessor\_plot,\ ordering,\ c\_start,\ c\_end}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01151}01151\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01152}01152\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ c\_start\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01153}01153\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01154}01154\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01155}01155\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Definition\ 11:\ criterion\ 3.a}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01156}01156\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ c\_end\ -\/\ c\_start\ +\ 1\ <\ min\_cluster\_size:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01157}01157\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01158}01158\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01159}01159\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Definition\ 11:\ criterion\ 1}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01160}01160\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ c\_start\ >\ D[\textcolor{stringliteral}{"{}end"{}}]:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01161}01161\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01162}01162\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01163}01163\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Definition\ 11:\ criterion\ 2}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01164}01164\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ c\_end\ <\ U\_start:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01165}01165\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01166}01166\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01167}01167\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ U\_clusters.append((c\_start,\ c\_end))}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01168}01168\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01169}01169\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ add\ smaller\ clusters\ first.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01170}01170\ \ \ \ \ \ \ \ \ \ \ \ \ U\_clusters.reverse()}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01171}01171\ \ \ \ \ \ \ \ \ \ \ \ \ clusters.extend(U\_clusters)}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01172}01172\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01173}01173\ \ \ \ \ \textcolor{keywordflow}{return}\ np.array(clusters)}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01174}01174\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01175}01175\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01176}\mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__optics_a9754cc79736a1fd15348c5d32097d5bc}{01176}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__optics_a9754cc79736a1fd15348c5d32097d5bc}{\_extract\_xi\_labels}}(ordering,\ clusters):}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01177}01177\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Extracts\ the\ labels\ from\ the\ clusters\ returned\ by\ \`{}\_xi\_cluster\`{}.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01178}01178\ \textcolor{stringliteral}{\ \ \ \ We\ rely\ on\ the\ fact\ that\ clusters\ are\ stored}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01179}01179\ \textcolor{stringliteral}{\ \ \ \ with\ the\ smaller\ clusters\ coming\ before\ the\ larger\ ones.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01180}01180\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01181}01181\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01182}01182\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01183}01183\ \textcolor{stringliteral}{\ \ \ \ ordering\ :\ array-\/like\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01184}01184\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ ordering\ of\ points\ calculated\ by\ OPTICS}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01185}01185\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01186}01186\ \textcolor{stringliteral}{\ \ \ \ clusters\ :\ array-\/like\ of\ shape\ (n\_clusters,\ 2)}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01187}01187\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ List\ of\ clusters\ i.e.\ (start,\ end)\ tuples,}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01188}01188\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ as\ returned\ by\ \`{}\_xi\_cluster\`{}.}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01189}01189\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01190}01190\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01191}01191\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01192}01192\ \textcolor{stringliteral}{\ \ \ \ labels\ :\ ndarray\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01193}01193\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01194}01194\ }
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01195}01195\ \ \ \ \ labels\ =\ np.full(len(ordering),\ -\/1,\ dtype=int)}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01196}01196\ \ \ \ \ label\ =\ 0}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01197}01197\ \ \ \ \ \textcolor{keywordflow}{for}\ c\ \textcolor{keywordflow}{in}\ clusters:}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01198}01198\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ np.any(labels[c[0]\ :\ (c[1]\ +\ 1)]\ !=\ -\/1):}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01199}01199\ \ \ \ \ \ \ \ \ \ \ \ \ labels[c[0]\ :\ (c[1]\ +\ 1)]\ =\ label}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01200}01200\ \ \ \ \ \ \ \ \ \ \ \ \ label\ +=\ 1}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01201}01201\ \ \ \ \ labels[ordering]\ =\ labels.copy()}
+\DoxyCodeLine{\Hypertarget{__optics_8py_source_l01202}01202\ \ \ \ \ \textcolor{keywordflow}{return}\ labels}
+
+\end{DoxyCode}

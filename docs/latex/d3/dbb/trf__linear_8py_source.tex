@@ -1,0 +1,255 @@
+\doxysection{trf\+\_\+linear.\+py}
+\hypertarget{trf__linear_8py_source}{}\label{trf__linear_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/scipy/optimize/\_lsq/trf\_linear.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/scipy/optimize/\_lsq/trf\_linear.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00001}\mbox{\hyperlink{namespacescipy_1_1optimize_1_1__lsq_1_1trf__linear}{00001}}\ \textcolor{stringliteral}{"{}"{}"{}The\ adaptation\ of\ Trust\ Region\ Reflective\ algorithm\ for\ a\ linear}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00002}00002\ \textcolor{stringliteral}{least-\/squares\ problem."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00003}00003\ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00004}00004\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacenumpy_1_1linalg}{numpy.linalg}}\ \textcolor{keyword}{import}\ norm}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00005}00005\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacescipy_1_1linalg}{scipy.linalg}}\ \textcolor{keyword}{import}\ qr,\ solve\_triangular}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00006}00006\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacescipy_1_1sparse_1_1linalg}{scipy.sparse.linalg}}\ \textcolor{keyword}{import}\ lsmr}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00007}00007\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacescipy_1_1optimize}{scipy.optimize}}\ \textcolor{keyword}{import}\ OptimizeResult}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00008}00008\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00009}00009\ \textcolor{keyword}{from}\ .givens\_elimination\ \textcolor{keyword}{import}\ givens\_elimination}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00010}00010\ \textcolor{keyword}{from}\ .common\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00011}00011\ \ \ \ \ EPS,\ step\_size\_to\_bound,\ find\_active\_constraints,\ in\_bounds,}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00012}00012\ \ \ \ \ make\_strictly\_feasible,\ build\_quadratic\_1d,\ evaluate\_quadratic,}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00013}00013\ \ \ \ \ minimize\_quadratic\_1d,\ CL\_scaling\_vector,\ reflective\_transformation,}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00014}00014\ \ \ \ \ print\_header\_linear,\ print\_iteration\_linear,\ compute\_grad,}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00015}00015\ \ \ \ \ regularized\_lsq\_operator,\ right\_multiplied\_operator)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00016}00016\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00017}00017\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00018}\mbox{\hyperlink{namespacescipy_1_1optimize_1_1__lsq_1_1trf__linear_aec18a607e533c685da1565632be69f77}{00018}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacescipy_1_1optimize_1_1__lsq_1_1trf__linear_aec18a607e533c685da1565632be69f77}{regularized\_lsq\_with\_qr}}(m,\ n,\ R,\ QTb,\ perm,\ diag,\ copy\_R=True):}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00019}00019\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Solve\ regularized\ least\ squares\ using\ information\ from\ QR-\/decomposition.}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00020}00020\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00021}00021\ \textcolor{stringliteral}{\ \ \ \ The\ initial\ problem\ is\ to\ solve\ the\ following\ system\ in\ a\ least-\/squares}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00022}00022\ \textcolor{stringliteral}{\ \ \ \ sense::}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00023}00023\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00024}00024\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ A\ x\ =\ b}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00025}00025\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ D\ x\ =\ 0}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00026}00026\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00027}00027\ \textcolor{stringliteral}{\ \ \ \ where\ D\ is\ diagonal\ matrix.\ The\ method\ is\ based\ on\ QR\ decomposition}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00028}00028\ \textcolor{stringliteral}{\ \ \ \ of\ the\ form\ A\ P\ =\ Q\ R,\ where\ P\ is\ a\ column\ permutation\ matrix,\ Q\ is\ an}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00029}00029\ \textcolor{stringliteral}{\ \ \ \ orthogonal\ matrix\ and\ R\ is\ an\ upper\ triangular\ matrix.}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00030}00030\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00031}00031\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00032}00032\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00033}00033\ \textcolor{stringliteral}{\ \ \ \ m,\ n\ :\ int}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00034}00034\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Initial\ shape\ of\ A.}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00035}00035\ \textcolor{stringliteral}{\ \ \ \ R\ :\ ndarray,\ shape\ (n,\ n)}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00036}00036\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Upper\ triangular\ matrix\ from\ QR\ decomposition\ of\ A.}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00037}00037\ \textcolor{stringliteral}{\ \ \ \ QTb\ :\ ndarray,\ shape\ (n,)}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00038}00038\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ First\ n\ components\ of\ Q\string^T\ b.}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00039}00039\ \textcolor{stringliteral}{\ \ \ \ perm\ :\ ndarray,\ shape\ (n,)}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00040}00040\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Array\ defining\ column\ permutation\ of\ A,\ such\ that\ ith\ column\ of}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00041}00041\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ P\ is\ perm[i]-\/th\ column\ of\ identity\ matrix.}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00042}00042\ \textcolor{stringliteral}{\ \ \ \ diag\ :\ ndarray,\ shape\ (n,)}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00043}00043\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Array\ containing\ diagonal\ elements\ of\ D.}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00044}00044\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00045}00045\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00046}00046\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00047}00047\ \textcolor{stringliteral}{\ \ \ \ x\ :\ ndarray,\ shape\ (n,)}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00048}00048\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Found\ least-\/squares\ solution.}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00049}00049\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00050}00050\ \ \ \ \ \textcolor{keywordflow}{if}\ copy\_R:}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00051}00051\ \ \ \ \ \ \ \ \ R\ =\ R.copy()}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00052}00052\ \ \ \ \ v\ =\ QTb.copy()}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00053}00053\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00054}00054\ \ \ \ \ givens\_elimination(R,\ v,\ diag[perm])}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00055}00055\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00056}00056\ \ \ \ \ abs\_diag\_R\ =\ np.abs(np.diag(R))}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00057}00057\ \ \ \ \ threshold\ =\ EPS\ *\ max(m,\ n)\ *\ np.max(abs\_diag\_R)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00058}00058\ \ \ \ \ nns,\ =\ np.nonzero(abs\_diag\_R\ >\ threshold)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00059}00059\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00060}00060\ \ \ \ \ R\ =\ R[np.ix\_(nns,\ nns)]}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00061}00061\ \ \ \ \ v\ =\ v[nns]}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00062}00062\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00063}00063\ \ \ \ \ x\ =\ np.zeros(n)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00064}00064\ \ \ \ \ x[perm[nns]]\ =\ solve\_triangular(R,\ v)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00065}00065\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00066}00066\ \ \ \ \ \textcolor{keywordflow}{return}\ x}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00067}00067\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00068}00068\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00069}\mbox{\hyperlink{namespacescipy_1_1optimize_1_1__lsq_1_1trf__linear_accbdaca3c849a7d521e3fbb82c3a5e66}{00069}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacescipy_1_1optimize_1_1__lsq_1_1trf__linear_accbdaca3c849a7d521e3fbb82c3a5e66}{backtracking}}(A,\ g,\ x,\ p,\ theta,\ p\_dot\_g,\ lb,\ ub):}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00070}00070\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Find\ an\ appropriate\ step\ size\ using\ backtracking\ line\ search."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00071}00071\ \ \ \ \ alpha\ =\ 1}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00072}00072\ \ \ \ \ \textcolor{keywordflow}{while}\ \textcolor{keyword}{True}:}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00073}00073\ \ \ \ \ \ \ \ \ x\_new,\ \_\ =\ reflective\_transformation(x\ +\ alpha\ *\ p,\ lb,\ ub)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00074}00074\ \ \ \ \ \ \ \ \ step\ =\ x\_new\ -\/\ x}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00075}00075\ \ \ \ \ \ \ \ \ cost\_change\ =\ -\/evaluate\_quadratic(A,\ g,\ step)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00076}00076\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ cost\_change\ >\ -\/0.1\ *\ alpha\ *\ p\_dot\_g:}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00077}00077\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00078}00078\ \ \ \ \ \ \ \ \ alpha\ *=\ 0.5}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00079}00079\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00080}00080\ \ \ \ \ active\ =\ find\_active\_constraints(x\_new,\ lb,\ ub)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00081}00081\ \ \ \ \ \textcolor{keywordflow}{if}\ np.any(active\ !=\ 0):}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00082}00082\ \ \ \ \ \ \ \ \ x\_new,\ \_\ =\ reflective\_transformation(x\ +\ theta\ *\ alpha\ *\ p,\ lb,\ ub)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00083}00083\ \ \ \ \ \ \ \ \ x\_new\ =\ make\_strictly\_feasible(x\_new,\ lb,\ ub,\ rstep=0)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00084}00084\ \ \ \ \ \ \ \ \ step\ =\ x\_new\ -\/\ x}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00085}00085\ \ \ \ \ \ \ \ \ cost\_change\ =\ -\/evaluate\_quadratic(A,\ g,\ step)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00086}00086\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00087}00087\ \ \ \ \ \textcolor{keywordflow}{return}\ x,\ step,\ cost\_change}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00088}00088\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00089}00089\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00090}\mbox{\hyperlink{namespacescipy_1_1optimize_1_1__lsq_1_1trf__linear_ac01c31abd965b9460f171aa801efc23c}{00090}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacescipy_1_1optimize_1_1__lsq_1_1trf__linear_ac01c31abd965b9460f171aa801efc23c}{select\_step}}(x,\ A\_h,\ g\_h,\ c\_h,\ p,\ p\_h,\ d,\ lb,\ ub,\ theta):}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00091}00091\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Select\ the\ best\ step\ according\ to\ Trust\ Region\ Reflective\ algorithm."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00092}00092\ \ \ \ \ \textcolor{keywordflow}{if}\ in\_bounds(x\ +\ p,\ lb,\ ub):}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00093}00093\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ p}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00094}00094\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00095}00095\ \ \ \ \ p\_stride,\ hits\ =\ step\_size\_to\_bound(x,\ p,\ lb,\ ub)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00096}00096\ \ \ \ \ r\_h\ =\ np.copy(p\_h)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00097}00097\ \ \ \ \ r\_h[hits.astype(bool)]\ *=\ -\/1}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00098}00098\ \ \ \ \ r\ =\ d\ *\ r\_h}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00099}00099\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00100}00100\ \ \ \ \ \textcolor{comment}{\#\ Restrict\ step,\ such\ that\ it\ hits\ the\ bound.}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00101}00101\ \ \ \ \ p\ *=\ p\_stride}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00102}00102\ \ \ \ \ p\_h\ *=\ p\_stride}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00103}00103\ \ \ \ \ x\_on\_bound\ =\ x\ +\ p}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00104}00104\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00105}00105\ \ \ \ \ \textcolor{comment}{\#\ Find\ the\ step\ size\ along\ reflected\ direction.}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00106}00106\ \ \ \ \ r\_stride\_u,\ \_\ =\ step\_size\_to\_bound(x\_on\_bound,\ r,\ lb,\ ub)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00107}00107\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00108}00108\ \ \ \ \ \textcolor{comment}{\#\ Stay\ interior.}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00109}00109\ \ \ \ \ r\_stride\_l\ =\ (1\ -\/\ theta)\ *\ r\_stride\_u}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00110}00110\ \ \ \ \ r\_stride\_u\ *=\ theta}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00111}00111\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00112}00112\ \ \ \ \ \textcolor{keywordflow}{if}\ r\_stride\_u\ >\ 0:}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00113}00113\ \ \ \ \ \ \ \ \ a,\ b,\ c\ =\ build\_quadratic\_1d(A\_h,\ g\_h,\ r\_h,\ s0=p\_h,\ diag=c\_h)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00114}00114\ \ \ \ \ \ \ \ \ r\_stride,\ r\_value\ =\ minimize\_quadratic\_1d(}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00115}00115\ \ \ \ \ \ \ \ \ \ \ \ \ a,\ b,\ r\_stride\_l,\ r\_stride\_u,\ c=c)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00116}00116\ \ \ \ \ \ \ \ \ r\_h\ =\ p\_h\ +\ r\_h\ *\ r\_stride}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00117}00117\ \ \ \ \ \ \ \ \ r\ =\ d\ *\ r\_h}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00118}00118\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00119}00119\ \ \ \ \ \ \ \ \ r\_value\ =\ np.inf}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00120}00120\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00121}00121\ \ \ \ \ \textcolor{comment}{\#\ Now\ correct\ p\_h\ to\ make\ it\ strictly\ interior.}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00122}00122\ \ \ \ \ p\_h\ *=\ theta}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00123}00123\ \ \ \ \ p\ *=\ theta}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00124}00124\ \ \ \ \ p\_value\ =\ evaluate\_quadratic(A\_h,\ g\_h,\ p\_h,\ diag=c\_h)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00125}00125\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00126}00126\ \ \ \ \ ag\_h\ =\ -\/g\_h}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00127}00127\ \ \ \ \ ag\ =\ d\ *\ ag\_h}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00128}00128\ \ \ \ \ ag\_stride\_u,\ \_\ =\ step\_size\_to\_bound(x,\ ag,\ lb,\ ub)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00129}00129\ \ \ \ \ ag\_stride\_u\ *=\ theta}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00130}00130\ \ \ \ \ a,\ b\ =\ build\_quadratic\_1d(A\_h,\ g\_h,\ ag\_h,\ diag=c\_h)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00131}00131\ \ \ \ \ ag\_stride,\ ag\_value\ =\ minimize\_quadratic\_1d(a,\ b,\ 0,\ ag\_stride\_u)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00132}00132\ \ \ \ \ ag\ *=\ ag\_stride}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00133}00133\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00134}00134\ \ \ \ \ \textcolor{keywordflow}{if}\ p\_value\ <\ r\_value\ \textcolor{keywordflow}{and}\ p\_value\ <\ ag\_value:}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00135}00135\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ p}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00136}00136\ \ \ \ \ \textcolor{keywordflow}{elif}\ r\_value\ <\ p\_value\ \textcolor{keywordflow}{and}\ r\_value\ <\ ag\_value:}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00137}00137\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ r}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00138}00138\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00139}00139\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ ag}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00140}00140\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00141}00141\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00142}00142\ \textcolor{keyword}{def\ }trf\_linear(A,\ b,\ x\_lsq,\ lb,\ ub,\ tol,\ lsq\_solver,\ lsmr\_tol,}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00143}00143\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ max\_iter,\ verbose,\ *,\ lsmr\_maxiter=None):}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00144}00144\ \ \ \ \ m,\ n\ =\ A.shape}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00145}00145\ \ \ \ \ x,\ \_\ =\ reflective\_transformation(x\_lsq,\ lb,\ ub)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00146}00146\ \ \ \ \ x\ =\ make\_strictly\_feasible(x,\ lb,\ ub,\ rstep=0.1)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00147}00147\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00148}00148\ \ \ \ \ \textcolor{keywordflow}{if}\ lsq\_solver\ ==\ \textcolor{stringliteral}{'exact'}:}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00149}00149\ \ \ \ \ \ \ \ \ QT,\ R,\ perm\ =\ qr(A,\ mode=\textcolor{stringliteral}{'economic'},\ pivoting=\textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00150}00150\ \ \ \ \ \ \ \ \ QT\ =\ QT.T}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00151}00151\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00152}00152\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ m\ <\ n:}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00153}00153\ \ \ \ \ \ \ \ \ \ \ \ \ R\ =\ np.vstack((R,\ np.zeros((n\ -\/\ m,\ n))))}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00154}00154\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00155}00155\ \ \ \ \ \ \ \ \ QTr\ =\ np.zeros(n)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00156}00156\ \ \ \ \ \ \ \ \ k\ =\ min(m,\ n)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00157}00157\ \ \ \ \ \textcolor{keywordflow}{elif}\ lsq\_solver\ ==\ \textcolor{stringliteral}{'lsmr'}:}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00158}00158\ \ \ \ \ \ \ \ \ r\_aug\ =\ np.zeros(m\ +\ n)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00159}00159\ \ \ \ \ \ \ \ \ auto\_lsmr\_tol\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00160}00160\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ lsmr\_tol\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00161}00161\ \ \ \ \ \ \ \ \ \ \ \ \ lsmr\_tol\ =\ 1e-\/2\ *\ tol}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00162}00162\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ lsmr\_tol\ ==\ \textcolor{stringliteral}{'auto'}:}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00163}00163\ \ \ \ \ \ \ \ \ \ \ \ \ auto\_lsmr\_tol\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00164}00164\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00165}00165\ \ \ \ \ r\ =\ A.dot(x)\ -\/\ b}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00166}00166\ \ \ \ \ g\ =\ compute\_grad(A,\ r)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00167}00167\ \ \ \ \ cost\ =\ 0.5\ *\ np.dot(r,\ r)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00168}00168\ \ \ \ \ initial\_cost\ =\ cost}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00169}00169\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00170}00170\ \ \ \ \ termination\_status\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00171}00171\ \ \ \ \ step\_norm\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00172}00172\ \ \ \ \ cost\_change\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00173}00173\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00174}00174\ \ \ \ \ \textcolor{keywordflow}{if}\ max\_iter\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00175}00175\ \ \ \ \ \ \ \ \ max\_iter\ =\ 100}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00176}00176\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00177}00177\ \ \ \ \ \textcolor{keywordflow}{if}\ verbose\ ==\ 2:}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00178}00178\ \ \ \ \ \ \ \ \ print\_header\_linear()}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00179}00179\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00180}00180\ \ \ \ \ \textcolor{keywordflow}{for}\ iteration\ \textcolor{keywordflow}{in}\ range(max\_iter):}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00181}00181\ \ \ \ \ \ \ \ \ v,\ dv\ =\ CL\_scaling\_vector(x,\ g,\ lb,\ ub)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00182}00182\ \ \ \ \ \ \ \ \ g\_scaled\ =\ g\ *\ v}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00183}00183\ \ \ \ \ \ \ \ \ g\_norm\ =\ norm(g\_scaled,\ ord=np.inf)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00184}00184\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ g\_norm\ <\ tol:}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00185}00185\ \ \ \ \ \ \ \ \ \ \ \ \ termination\_status\ =\ 1}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00186}00186\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00187}00187\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ verbose\ ==\ 2:}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00188}00188\ \ \ \ \ \ \ \ \ \ \ \ \ print\_iteration\_linear(iteration,\ cost,\ cost\_change,}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00189}00189\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ step\_norm,\ g\_norm)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00190}00190\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00191}00191\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ termination\_status\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00192}00192\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00193}00193\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00194}00194\ \ \ \ \ \ \ \ \ diag\_h\ =\ g\ *\ dv}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00195}00195\ \ \ \ \ \ \ \ \ diag\_root\_h\ =\ diag\_h\ **\ 0.5}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00196}00196\ \ \ \ \ \ \ \ \ d\ =\ v\ **\ 0.5}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00197}00197\ \ \ \ \ \ \ \ \ g\_h\ =\ d\ *\ g}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00198}00198\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00199}00199\ \ \ \ \ \ \ \ \ A\_h\ =\ right\_multiplied\_operator(A,\ d)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00200}00200\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ lsq\_solver\ ==\ \textcolor{stringliteral}{'exact'}:}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00201}00201\ \ \ \ \ \ \ \ \ \ \ \ \ QTr[:k]\ =\ QT.dot(r)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00202}00202\ \ \ \ \ \ \ \ \ \ \ \ \ p\_h\ =\ -\/\mbox{\hyperlink{namespacescipy_1_1optimize_1_1__lsq_1_1trf__linear_aec18a607e533c685da1565632be69f77}{regularized\_lsq\_with\_qr}}(m,\ n,\ R\ *\ d[perm],\ QTr,\ perm,}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00203}00203\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ diag\_root\_h,\ copy\_R=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00204}00204\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ lsq\_solver\ ==\ \textcolor{stringliteral}{'lsmr'}:}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00205}00205\ \ \ \ \ \ \ \ \ \ \ \ \ lsmr\_op\ =\ regularized\_lsq\_operator(A\_h,\ diag\_root\_h)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00206}00206\ \ \ \ \ \ \ \ \ \ \ \ \ r\_aug[:m]\ =\ r}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00207}00207\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ auto\_lsmr\_tol:}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00208}00208\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ eta\ =\ 1e-\/2\ *\ min(0.5,\ g\_norm)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00209}00209\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ lsmr\_tol\ =\ max(EPS,\ min(0.1,\ eta\ *\ g\_norm))}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00210}00210\ \ \ \ \ \ \ \ \ \ \ \ \ p\_h\ =\ -\/lsmr(lsmr\_op,\ r\_aug,\ maxiter=lsmr\_maxiter,}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00211}00211\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ atol=lsmr\_tol,\ btol=lsmr\_tol)[0]}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00212}00212\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00213}00213\ \ \ \ \ \ \ \ \ p\ =\ d\ *\ p\_h}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00214}00214\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00215}00215\ \ \ \ \ \ \ \ \ p\_dot\_g\ =\ np.dot(p,\ g)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00216}00216\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ p\_dot\_g\ >\ 0:}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00217}00217\ \ \ \ \ \ \ \ \ \ \ \ \ termination\_status\ =\ -\/1}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00218}00218\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00219}00219\ \ \ \ \ \ \ \ \ theta\ =\ 1\ -\/\ min(0.005,\ g\_norm)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00220}00220\ \ \ \ \ \ \ \ \ step\ =\ \mbox{\hyperlink{namespacescipy_1_1optimize_1_1__lsq_1_1trf__linear_ac01c31abd965b9460f171aa801efc23c}{select\_step}}(x,\ A\_h,\ g\_h,\ diag\_h,\ p,\ p\_h,\ d,\ lb,\ ub,\ theta)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00221}00221\ \ \ \ \ \ \ \ \ cost\_change\ =\ -\/evaluate\_quadratic(A,\ g,\ step)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00222}00222\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00223}00223\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Perhaps\ almost\ never\ executed,\ the\ idea\ is\ that\ \`{}p`\ is\ descent}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00224}00224\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ direction\ thus\ we\ must\ find\ acceptable\ cost\ decrease\ using\ simple}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00225}00225\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ "{}backtracking"{},\ otherwise\ the\ algorithm's\ logic\ would\ break.}}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00226}00226\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ cost\_change\ <\ 0:}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00227}00227\ \ \ \ \ \ \ \ \ \ \ \ \ x,\ step,\ cost\_change\ =\ \mbox{\hyperlink{namespacescipy_1_1optimize_1_1__lsq_1_1trf__linear_accbdaca3c849a7d521e3fbb82c3a5e66}{backtracking}}(}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00228}00228\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ A,\ g,\ x,\ p,\ theta,\ p\_dot\_g,\ lb,\ ub)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00229}00229\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00230}00230\ \ \ \ \ \ \ \ \ \ \ \ \ x\ =\ make\_strictly\_feasible(x\ +\ step,\ lb,\ ub,\ rstep=0)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00231}00231\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00232}00232\ \ \ \ \ \ \ \ \ step\_norm\ =\ norm(step)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00233}00233\ \ \ \ \ \ \ \ \ r\ =\ A.dot(x)\ -\/\ b}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00234}00234\ \ \ \ \ \ \ \ \ g\ =\ compute\_grad(A,\ r)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00235}00235\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00236}00236\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ cost\_change\ <\ tol\ *\ cost:}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00237}00237\ \ \ \ \ \ \ \ \ \ \ \ \ termination\_status\ =\ 2}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00238}00238\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00239}00239\ \ \ \ \ \ \ \ \ cost\ =\ 0.5\ *\ np.dot(r,\ r)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00240}00240\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00241}00241\ \ \ \ \ \textcolor{keywordflow}{if}\ termination\_status\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00242}00242\ \ \ \ \ \ \ \ \ termination\_status\ =\ 0}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00243}00243\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00244}00244\ \ \ \ \ active\_mask\ =\ find\_active\_constraints(x,\ lb,\ ub,\ rtol=tol)}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00245}00245\ }
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00246}00246\ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classscipy_1_1optimize_1_1__optimize_1_1OptimizeResult}{OptimizeResult}}(}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00247}00247\ \ \ \ \ \ \ \ \ x=x,\ fun=r,\ cost=cost,\ optimality=g\_norm,\ active\_mask=active\_mask,}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00248}00248\ \ \ \ \ \ \ \ \ nit=iteration\ +\ 1,\ status=termination\_status,}
+\DoxyCodeLine{\Hypertarget{trf__linear_8py_source_l00249}00249\ \ \ \ \ \ \ \ \ initial\_cost=initial\_cost)}
+
+\end{DoxyCode}

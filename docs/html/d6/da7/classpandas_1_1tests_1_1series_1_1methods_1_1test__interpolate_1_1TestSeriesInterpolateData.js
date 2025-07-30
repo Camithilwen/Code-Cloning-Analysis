@@ -1,0 +1,4 @@
+var classpandas_1_1tests_1_1series_1_1methods_1_1test__interpolate_1_1TestSeriesInterpolateData =
+[
+    [ "test_interpolate_timedelta_index", "d6/da7/classpandas_1_1tests_1_1series_1_1methods_1_1test__interpolate_1_1TestSeriesInterpolateData.html#a66f104cd4f31bd099e7b69c5eecb6d87", null ]
+];

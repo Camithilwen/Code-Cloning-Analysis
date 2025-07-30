@@ -1,0 +1,27 @@
+var namespacescipy_1_1stats_1_1__discrete__distns =
+[
+    [ "_nchypergeom_gen", "d1/df8/classscipy_1_1stats_1_1__discrete__distns_1_1__nchypergeom__gen.html", "d1/df8/classscipy_1_1stats_1_1__discrete__distns_1_1__nchypergeom__gen" ],
+    [ "bernoulli_gen", "d0/d6a/classscipy_1_1stats_1_1__discrete__distns_1_1bernoulli__gen.html", "d0/d6a/classscipy_1_1stats_1_1__discrete__distns_1_1bernoulli__gen" ],
+    [ "betabinom_gen", "d3/d5c/classscipy_1_1stats_1_1__discrete__distns_1_1betabinom__gen.html", "d3/d5c/classscipy_1_1stats_1_1__discrete__distns_1_1betabinom__gen" ],
+    [ "binom_gen", "d7/da2/classscipy_1_1stats_1_1__discrete__distns_1_1binom__gen.html", "d7/da2/classscipy_1_1stats_1_1__discrete__distns_1_1binom__gen" ],
+    [ "boltzmann_gen", "d9/da6/classscipy_1_1stats_1_1__discrete__distns_1_1boltzmann__gen.html", "d9/da6/classscipy_1_1stats_1_1__discrete__distns_1_1boltzmann__gen" ],
+    [ "dlaplace_gen", "d6/d20/classscipy_1_1stats_1_1__discrete__distns_1_1dlaplace__gen.html", null ],
+    [ "geom_gen", "d1/d1b/classscipy_1_1stats_1_1__discrete__distns_1_1geom__gen.html", "d1/d1b/classscipy_1_1stats_1_1__discrete__distns_1_1geom__gen" ],
+    [ "hypergeom_gen", "d5/d3b/classscipy_1_1stats_1_1__discrete__distns_1_1hypergeom__gen.html", "d5/d3b/classscipy_1_1stats_1_1__discrete__distns_1_1hypergeom__gen" ],
+    [ "logser_gen", "d5/dac/classscipy_1_1stats_1_1__discrete__distns_1_1logser__gen.html", "d5/dac/classscipy_1_1stats_1_1__discrete__distns_1_1logser__gen" ],
+    [ "nbinom_gen", "dd/df1/classscipy_1_1stats_1_1__discrete__distns_1_1nbinom__gen.html", "dd/df1/classscipy_1_1stats_1_1__discrete__distns_1_1nbinom__gen" ],
+    [ "nchypergeom_fisher_gen", "d1/dca/classscipy_1_1stats_1_1__discrete__distns_1_1nchypergeom__fisher__gen.html", null ],
+    [ "nchypergeom_wallenius_gen", "d2/d3d/classscipy_1_1stats_1_1__discrete__distns_1_1nchypergeom__wallenius__gen.html", null ],
+    [ "nhypergeom_gen", "d0/d48/classscipy_1_1stats_1_1__discrete__distns_1_1nhypergeom__gen.html", "d0/d48/classscipy_1_1stats_1_1__discrete__distns_1_1nhypergeom__gen" ],
+    [ "planck_gen", "dc/d78/classscipy_1_1stats_1_1__discrete__distns_1_1planck__gen.html", "dc/d78/classscipy_1_1stats_1_1__discrete__distns_1_1planck__gen" ],
+    [ "poisson_gen", "d3/d49/classscipy_1_1stats_1_1__discrete__distns_1_1poisson__gen.html", "d3/d49/classscipy_1_1stats_1_1__discrete__distns_1_1poisson__gen" ],
+    [ "randint_gen", "df/d6c/classscipy_1_1stats_1_1__discrete__distns_1_1randint__gen.html", "df/d6c/classscipy_1_1stats_1_1__discrete__distns_1_1randint__gen" ],
+    [ "skellam_gen", "d1/dfb/classscipy_1_1stats_1_1__discrete__distns_1_1skellam__gen.html", null ],
+    [ "yulesimon_gen", "df/d67/classscipy_1_1stats_1_1__discrete__distns_1_1yulesimon__gen.html", "df/d67/classscipy_1_1stats_1_1__discrete__distns_1_1yulesimon__gen" ],
+    [ "zipf_gen", "d3/d25/classscipy_1_1stats_1_1__discrete__distns_1_1zipf__gen.html", "d3/d25/classscipy_1_1stats_1_1__discrete__distns_1_1zipf__gen" ],
+    [ "zipfian_gen", "d6/d17/classscipy_1_1stats_1_1__discrete__distns_1_1zipfian__gen.html", "d6/d17/classscipy_1_1stats_1_1__discrete__distns_1_1zipfian__gen" ],
+    [ "_gen_harmonic", "df/dd7/namespacescipy_1_1stats_1_1__discrete__distns.html#a0f8b218dd6e0f6fc855f9b8dd015296f", null ],
+    [ "_gen_harmonic_gt1", "df/dd7/namespacescipy_1_1stats_1_1__discrete__distns.html#a59ffa996a5c84779d8d336e8478c6e7e", null ],
+    [ "_gen_harmonic_leq1", "df/dd7/namespacescipy_1_1stats_1_1__discrete__distns.html#a12714be174ebef15821e38b1ded495bd", null ],
+    [ "_vectorize_rvs_over_shapes", "df/dd7/namespacescipy_1_1stats_1_1__discrete__distns.html#a20d4649aaabfb6b95b770d45dc6247e0", null ]
+];

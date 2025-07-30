@@ -1,0 +1,28 @@
+var namespacepip_1_1__vendor_1_1requests_1_1exceptions =
+[
+    [ "ChunkedEncodingError", "d9/d5f/classpip_1_1__vendor_1_1requests_1_1exceptions_1_1ChunkedEncodingError.html", null ],
+    [ "ConnectionError", "d3/d67/classpip_1_1__vendor_1_1requests_1_1exceptions_1_1ConnectionError.html", null ],
+    [ "ConnectTimeout", "db/dcb/classpip_1_1__vendor_1_1requests_1_1exceptions_1_1ConnectTimeout.html", null ],
+    [ "ContentDecodingError", "d3/d9f/classpip_1_1__vendor_1_1requests_1_1exceptions_1_1ContentDecodingError.html", null ],
+    [ "FileModeWarning", "d6/d0a/classpip_1_1__vendor_1_1requests_1_1exceptions_1_1FileModeWarning.html", null ],
+    [ "HTTPError", "d7/d43/classpip_1_1__vendor_1_1requests_1_1exceptions_1_1HTTPError.html", null ],
+    [ "InvalidHeader", "d8/deb/classpip_1_1__vendor_1_1requests_1_1exceptions_1_1InvalidHeader.html", null ],
+    [ "InvalidJSONError", "d9/d66/classpip_1_1__vendor_1_1requests_1_1exceptions_1_1InvalidJSONError.html", null ],
+    [ "InvalidProxyURL", "d1/d2d/classpip_1_1__vendor_1_1requests_1_1exceptions_1_1InvalidProxyURL.html", null ],
+    [ "InvalidSchema", "d7/da2/classpip_1_1__vendor_1_1requests_1_1exceptions_1_1InvalidSchema.html", null ],
+    [ "InvalidURL", "d5/dd4/classpip_1_1__vendor_1_1requests_1_1exceptions_1_1InvalidURL.html", null ],
+    [ "JSONDecodeError", "d8/d03/classpip_1_1__vendor_1_1requests_1_1exceptions_1_1JSONDecodeError.html", "d8/d03/classpip_1_1__vendor_1_1requests_1_1exceptions_1_1JSONDecodeError" ],
+    [ "MissingSchema", "da/da0/classpip_1_1__vendor_1_1requests_1_1exceptions_1_1MissingSchema.html", null ],
+    [ "ProxyError", "d9/d06/classpip_1_1__vendor_1_1requests_1_1exceptions_1_1ProxyError.html", null ],
+    [ "ReadTimeout", "da/d20/classpip_1_1__vendor_1_1requests_1_1exceptions_1_1ReadTimeout.html", null ],
+    [ "RequestException", "d5/d87/classpip_1_1__vendor_1_1requests_1_1exceptions_1_1RequestException.html", "d5/d87/classpip_1_1__vendor_1_1requests_1_1exceptions_1_1RequestException" ],
+    [ "RequestsDependencyWarning", "d2/dbd/classpip_1_1__vendor_1_1requests_1_1exceptions_1_1RequestsDependencyWarning.html", null ],
+    [ "RequestsWarning", "d8/da3/classpip_1_1__vendor_1_1requests_1_1exceptions_1_1RequestsWarning.html", null ],
+    [ "RetryError", "d4/da4/classpip_1_1__vendor_1_1requests_1_1exceptions_1_1RetryError.html", null ],
+    [ "SSLError", "d6/df2/classpip_1_1__vendor_1_1requests_1_1exceptions_1_1SSLError.html", null ],
+    [ "StreamConsumedError", "d9/df9/classpip_1_1__vendor_1_1requests_1_1exceptions_1_1StreamConsumedError.html", null ],
+    [ "Timeout", "d5/d8a/classpip_1_1__vendor_1_1requests_1_1exceptions_1_1Timeout.html", null ],
+    [ "TooManyRedirects", "da/dee/classpip_1_1__vendor_1_1requests_1_1exceptions_1_1TooManyRedirects.html", null ],
+    [ "UnrewindableBodyError", "dd/da4/classpip_1_1__vendor_1_1requests_1_1exceptions_1_1UnrewindableBodyError.html", null ],
+    [ "URLRequired", "d5/d49/classpip_1_1__vendor_1_1requests_1_1exceptions_1_1URLRequired.html", null ]
+];

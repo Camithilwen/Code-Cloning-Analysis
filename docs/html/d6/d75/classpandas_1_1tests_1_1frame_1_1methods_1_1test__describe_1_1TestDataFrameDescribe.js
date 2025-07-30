@@ -1,0 +1,4 @@
+var classpandas_1_1tests_1_1frame_1_1methods_1_1test__describe_1_1TestDataFrameDescribe =
+[
+    [ "test_describe_when_include_all_exclude_not_allowed", "d6/d75/classpandas_1_1tests_1_1frame_1_1methods_1_1test__describe_1_1TestDataFrameDescribe.html#ae2019ee7982d930dc0d1b13a7ed9c087", null ]
+];

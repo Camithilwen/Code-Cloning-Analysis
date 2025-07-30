@@ -1,0 +1,533 @@
+\doxysection{compare.\+py}
+\hypertarget{compare_8py_source}{}\label{compare_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/matplotlib/testing/compare.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/matplotlib/testing/compare.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00001}\mbox{\hyperlink{namespacematplotlib_1_1testing_1_1compare}{00001}}\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00002}00002\ \textcolor{stringliteral}{Utilities\ for\ comparing\ image\ results.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00003}00003\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00004}00004\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00005}00005\ \textcolor{keyword}{import}\ atexit}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00006}00006\ \textcolor{keyword}{import}\ functools}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00007}00007\ \textcolor{keyword}{import}\ hashlib}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00008}00008\ \textcolor{keyword}{import}\ logging}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00009}00009\ \textcolor{keyword}{import}\ os}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00010}00010\ \textcolor{keyword}{from}\ pathlib\ \textcolor{keyword}{import}\ Path}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00011}00011\ \textcolor{keyword}{import}\ shutil}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00012}00012\ \textcolor{keyword}{import}\ subprocess}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00013}00013\ \textcolor{keyword}{import}\ sys}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00014}00014\ \textcolor{keyword}{from}\ tempfile\ \textcolor{keyword}{import}\ TemporaryDirectory,\ TemporaryFile}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00015}00015\ \textcolor{keyword}{import}\ weakref}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00016}00016\ \textcolor{keyword}{import}\ re}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00017}00017\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00018}00018\ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00019}00019\ \textcolor{keyword}{from}\ PIL\ \textcolor{keyword}{import}\ Image}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00020}00020\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00021}00021\ \textcolor{keyword}{import}\ matplotlib\ \textcolor{keyword}{as}\ mpl}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00022}00022\ \textcolor{keyword}{from}\ matplotlib\ \textcolor{keyword}{import}\ cbook}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00023}00023\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacematplotlib_1_1testing_1_1exceptions}{matplotlib.testing.exceptions}}\ \textcolor{keyword}{import}\ ImageComparisonFailure}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00024}00024\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00025}00025\ \_log\ =\ logging.getLogger(\_\_name\_\_)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00026}00026\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00027}00027\ \_\_all\_\_\ =\ [\textcolor{stringliteral}{'calculate\_rms'},\ \textcolor{stringliteral}{'comparable\_formats'},\ \textcolor{stringliteral}{'compare\_images'}]}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00028}00028\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00029}00029\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00030}\mbox{\hyperlink{namespacematplotlib_1_1testing_1_1compare_a351726a5273a3bf295f5c208044dada8}{00030}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacematplotlib_1_1testing_1_1compare_a351726a5273a3bf295f5c208044dada8}{make\_test\_filename}}(fname,\ purpose):}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00031}00031\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00032}00032\ \textcolor{stringliteral}{\ \ \ \ Make\ a\ new\ filename\ by\ inserting\ *purpose*\ before\ the\ file's\ extension.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00033}00033\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00034}00034\ \ \ \ \ base,\ ext\ =\ os.path.splitext(fname)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00035}00035\ \ \ \ \ \textcolor{keywordflow}{return}\ f\textcolor{stringliteral}{'\{base\}-\/\{purpose\}\{ext\}'}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00036}00036\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00037}00037\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00038}00038\ \textcolor{keyword}{def\ }\_get\_cache\_path():}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00039}00039\ \ \ \ \ cache\_dir\ =\ Path(mpl.get\_cachedir(),\ \textcolor{stringliteral}{'test\_cache'})}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00040}00040\ \ \ \ \ cache\_dir.mkdir(parents=\textcolor{keyword}{True},\ exist\_ok=\textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00041}00041\ \ \ \ \ \textcolor{keywordflow}{return}\ cache\_dir}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00042}00042\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00043}00043\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00044}00044\ \textcolor{keyword}{def\ }get\_cache\_dir():}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00045}00045\ \ \ \ \ \textcolor{keywordflow}{return}\ str(\_get\_cache\_path())}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00046}00046\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00047}00047\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00048}00048\ \textcolor{keyword}{def\ }get\_file\_hash(path,\ block\_size=2\ **\ 20):}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00049}00049\ \ \ \ \ sha256\ =\ hashlib.sha256(usedforsecurity=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00050}00050\ \ \ \ \ \textcolor{keyword}{with}\ open(path,\ \textcolor{stringliteral}{'rb'})\ \textcolor{keyword}{as}\ fd:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00051}00051\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{while}\ \textcolor{keyword}{True}:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00052}00052\ \ \ \ \ \ \ \ \ \ \ \ \ data\ =\ fd.read(block\_size)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00053}00053\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ data:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00054}00054\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00055}00055\ \ \ \ \ \ \ \ \ \ \ \ \ sha256.update(data)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00056}00056\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00057}00057\ \ \ \ \ \textcolor{keywordflow}{if}\ Path(path).suffix\ ==\ \textcolor{stringliteral}{'.pdf'}:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00058}00058\ \ \ \ \ \ \ \ \ sha256.update(str(mpl.\_get\_executable\_info(\textcolor{stringliteral}{"{}gs"{}}).version).encode(\textcolor{stringliteral}{'utf-\/8'}))}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00059}00059\ \ \ \ \ \textcolor{keywordflow}{elif}\ Path(path).suffix\ ==\ \textcolor{stringliteral}{'.svg'}:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00060}00060\ \ \ \ \ \ \ \ \ sha256.update(str(mpl.\_get\_executable\_info(\textcolor{stringliteral}{"{}inkscape"{}}).version).encode(\textcolor{stringliteral}{'utf-\/8'}))}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00061}00061\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00062}00062\ \ \ \ \ \textcolor{keywordflow}{return}\ sha256.hexdigest()}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00063}00063\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00064}00064\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00065}\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__ConverterError}{00065}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__ConverterError}{\_ConverterError}}(\mbox{\hyperlink{classException}{Exception}}):}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00066}00066\ \ \ \ \ \textcolor{keywordflow}{pass}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00067}00067\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00068}00068\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00069}\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__Converter}{00069}}\ \textcolor{keyword}{class\ }\_Converter:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00070}00070\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self):}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00071}00071\ \ \ \ \ \ \ \ \ self.\_proc\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00072}00072\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Explicitly\ register\ deletion\ from\ an\ atexit\ handler\ because\ if\ we}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00073}00073\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ wait\ until\ the\ object\ is\ GC'd\ (which\ occurs\ later),\ then\ some\ module}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00074}00074\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ globals\ (e.g.\ signal.SIGKILL)\ has\ already\ been\ set\ to\ None,\ and}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00075}00075\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ kill()\ doesn't\ work\ anymore...}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00076}00076\ \ \ \ \ \ \ \ \ atexit.register(self.\_\_del\_\_)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00077}00077\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00078}00078\ \ \ \ \ \textcolor{keyword}{def\ }\_\_del\_\_(self):}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00079}00079\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\_proc:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00080}00080\ \ \ \ \ \ \ \ \ \ \ \ \ self.\_proc.kill()}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00081}00081\ \ \ \ \ \ \ \ \ \ \ \ \ self.\_proc.wait()}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00082}00082\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ stream\ \textcolor{keywordflow}{in}\ filter(\textcolor{keywordtype}{None},\ [self.\_proc.stdin,}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00083}00083\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\_proc.stdout,}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00084}00084\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\_proc.stderr]):}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00085}00085\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ stream.close()}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00086}00086\ \ \ \ \ \ \ \ \ \ \ \ \ self.\_proc\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00087}00087\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00088}\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__Converter_ab4cda0b30f221b029e2f701dfa0f2a25}{00088}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__Converter_ab4cda0b30f221b029e2f701dfa0f2a25}{\_read\_until}}(self,\ terminator):}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00089}00089\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Read\ until\ the\ prompt\ is\ reached."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00090}00090\ \ \ \ \ \ \ \ \ buf\ =\ bytearray()}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00091}00091\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{while}\ \textcolor{keyword}{True}:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00092}00092\ \ \ \ \ \ \ \ \ \ \ \ \ c\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__Converter_a48009d1b3eef4f1e2d2eb7479b7ef827}{\_proc}}.stdout.read(1)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00093}00093\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ c:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00094}00094\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__ConverterError}{\_ConverterError}}(os.fsdecode(bytes(buf)))}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00095}00095\ \ \ \ \ \ \ \ \ \ \ \ \ buf.extend(c)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00096}00096\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ buf.endswith(terminator):}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00097}00097\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ bytes(buf)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00098}00098\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00099}00099\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00100}\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__GSConverter}{00100}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__GSConverter}{\_GSConverter}}(\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__Converter}{\_Converter}}):}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00101}00101\ \ \ \ \ \textcolor{keyword}{def\ }\_\_call\_\_(self,\ orig,\ dest):}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00102}00102\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ self.\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__Converter_a48009d1b3eef4f1e2d2eb7479b7ef827}{\_proc}}:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00103}00103\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__Converter_a48009d1b3eef4f1e2d2eb7479b7ef827}{\_proc}}\ =\ subprocess.Popen(}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00104}00104\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ [mpl.\_get\_executable\_info(\textcolor{stringliteral}{"{}gs"{}}).executable,}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00105}00105\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}-\/dNOSAFER"{}},\ \textcolor{stringliteral}{"{}-\/dNOPAUSE"{}},\ \textcolor{stringliteral}{"{}-\/dEPSCrop"{}},\ \textcolor{stringliteral}{"{}-\/sDEVICE=png16m"{}}],}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00106}00106\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ As\ far\ as\ I\ can\ see,\ ghostscript\ never\ outputs\ to\ stderr.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00107}00107\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ stdin=subprocess.PIPE,\ stdout=subprocess.PIPE)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00108}00108\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00109}00109\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__Converter_ab4cda0b30f221b029e2f701dfa0f2a25}{\_read\_until}}(b\textcolor{stringliteral}{"{}\(\backslash\)nGS"{}})}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00110}00110\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ \_ConverterError\ \textcolor{keyword}{as}\ e:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00111}00111\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classOSError}{OSError}}(f\textcolor{stringliteral}{"{}Failed\ to\ start\ Ghostscript:\(\backslash\)n\(\backslash\)n\{e.args[0]\}"{}})\ \textcolor{keyword}{from}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00112}00112\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00113}00113\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }encode\_and\_escape(name):}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00114}00114\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ (os.fsencode(name)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00115}00115\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ .replace(b\textcolor{stringliteral}{"{}\(\backslash\)\(\backslash\)"{}},\ b\textcolor{stringliteral}{"{}\(\backslash\)\(\backslash\)\(\backslash\)\(\backslash\)"{}})}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00116}00116\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ .replace(b\textcolor{stringliteral}{"{}("{}},\ br\textcolor{stringliteral}{"{}\(\backslash\)("{}})}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00117}00117\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ .replace(b\textcolor{stringliteral}{"{})"{}},\ br\textcolor{stringliteral}{"{}\(\backslash\))"{}}))}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00118}00118\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00119}00119\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__Converter_a48009d1b3eef4f1e2d2eb7479b7ef827}{\_proc}}.stdin.write(}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00120}00120\ \ \ \ \ \ \ \ \ \ \ \ \ b\textcolor{stringliteral}{"{}<<\ /OutputFile\ ("{}}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00121}00121\ \ \ \ \ \ \ \ \ \ \ \ \ +\ encode\_and\_escape(dest)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00122}00122\ \ \ \ \ \ \ \ \ \ \ \ \ +\ b\textcolor{stringliteral}{"{})\ >>\ setpagedevice\ ("{}}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00123}00123\ \ \ \ \ \ \ \ \ \ \ \ \ +\ encode\_and\_escape(orig)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00124}00124\ \ \ \ \ \ \ \ \ \ \ \ \ +\ b\textcolor{stringliteral}{"{})\ run\ flush\(\backslash\)n"{}})}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00125}00125\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__Converter_a48009d1b3eef4f1e2d2eb7479b7ef827}{\_proc}}.stdin.flush()}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00126}00126\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ GS>\ if\ nothing\ left\ on\ the\ stack;\ GS<n>\ if\ n\ items\ left\ on\ the\ stack.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00127}00127\ \ \ \ \ \ \ \ \ err\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__Converter_ab4cda0b30f221b029e2f701dfa0f2a25}{\_read\_until}}((b\textcolor{stringliteral}{"{}GS<"{}},\ b\textcolor{stringliteral}{"{}GS>"{}}))}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00128}00128\ \ \ \ \ \ \ \ \ stack\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__Converter_ab4cda0b30f221b029e2f701dfa0f2a25}{\_read\_until}}(b\textcolor{stringliteral}{"{}>"{}})\ \textcolor{keywordflow}{if}\ err.endswith(b\textcolor{stringliteral}{"{}GS<"{}})\ \textcolor{keywordflow}{else}\ b\textcolor{stringliteral}{"{}"{}}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00129}00129\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ stack\ \textcolor{keywordflow}{or}\ \textcolor{keywordflow}{not}\ os.path.exists(dest):}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00130}00130\ \ \ \ \ \ \ \ \ \ \ \ \ stack\_size\ =\ int(stack[:-\/1])\ \textcolor{keywordflow}{if}\ stack\ \textcolor{keywordflow}{else}\ 0}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00131}00131\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__Converter_a48009d1b3eef4f1e2d2eb7479b7ef827}{\_proc}}.stdin.write(b\textcolor{stringliteral}{"{}pop\(\backslash\)n"{}}\ *\ stack\_size)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00132}00132\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Using\ the\ systemencoding\ should\ at\ least\ get\ the\ filenames\ right.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00133}00133\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classmatplotlib_1_1testing_1_1exceptions_1_1ImageComparisonFailure}{ImageComparisonFailure}}(}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00134}00134\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (err\ +\ stack).decode(sys.getfilesystemencoding(),\ \textcolor{stringliteral}{"{}replace"{}}))}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00135}00135\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00136}00136\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00137}\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__SVGConverter}{00137}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__SVGConverter}{\_SVGConverter}}(\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__Converter}{\_Converter}}):}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00138}00138\ \ \ \ \ \textcolor{keyword}{def\ }\_\_call\_\_(self,\ orig,\ dest):}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00139}00139\ \ \ \ \ \ \ \ \ old\_inkscape\ =\ mpl.\_get\_executable\_info(\textcolor{stringliteral}{"{}inkscape"{}}).version.major\ <\ 1}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00140}00140\ \ \ \ \ \ \ \ \ terminator\ =\ b\textcolor{stringliteral}{"{}\(\backslash\)n>"{}}\ \textcolor{keywordflow}{if}\ old\_inkscape\ \textcolor{keywordflow}{else}\ b\textcolor{stringliteral}{"{}>\ "{}}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00141}00141\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ hasattr(self,\ \textcolor{stringliteral}{"{}\_tmpdir"{}}):}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00142}00142\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__SVGConverter_ae2f9f47c7eba464a34a8f679c50ba8c5}{\_tmpdir}}\ =\ TemporaryDirectory()}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00143}00143\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ On\ Windows,\ we\ must\ make\ sure\ that\ self.\_proc\ has\ terminated}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00144}00144\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ (which\ \_\_del\_\_\ does)\ before\ clearing\ \_tmpdir.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00145}00145\ \ \ \ \ \ \ \ \ \ \ \ \ weakref.finalize(self.\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__SVGConverter_ae2f9f47c7eba464a34a8f679c50ba8c5}{\_tmpdir}},\ self.\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__Converter_ac706b35f9381ff1baec0585283103601}{\_\_del\_\_}})}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00146}00146\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (\textcolor{keywordflow}{not}\ self.\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__Converter_a48009d1b3eef4f1e2d2eb7479b7ef827}{\_proc}}\ \ \textcolor{comment}{\#\ First\ run.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00147}00147\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{or}\ self.\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__Converter_a48009d1b3eef4f1e2d2eb7479b7ef827}{\_proc}}.poll()\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}):\ \ \textcolor{comment}{\#\ Inkscape\ terminated.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00148}00148\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__Converter_a48009d1b3eef4f1e2d2eb7479b7ef827}{\_proc}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{and}\ self.\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__Converter_a48009d1b3eef4f1e2d2eb7479b7ef827}{\_proc}}.poll()\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00149}00149\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ stream\ \textcolor{keywordflow}{in}\ filter(\textcolor{keywordtype}{None},\ [self.\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__Converter_a48009d1b3eef4f1e2d2eb7479b7ef827}{\_proc}}.stdin,}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00150}00150\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__Converter_a48009d1b3eef4f1e2d2eb7479b7ef827}{\_proc}}.stdout,}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00151}00151\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__Converter_a48009d1b3eef4f1e2d2eb7479b7ef827}{\_proc}}.stderr]):}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00152}00152\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ stream.close()}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00153}00153\ \ \ \ \ \ \ \ \ \ \ \ \ env\ =\ \{}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00154}00154\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ **os.environ,}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00155}00155\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ If\ one\ passes\ e.g.\ a\ png\ file\ to\ Inkscape,\ it\ will\ try\ to}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00156}00156\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ query\ the\ user\ for\ conversion\ options\ via\ a\ GUI\ (even\ with}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00157}00157\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \`{}-\/-\/without-\/gui`).\ \ Unsetting\ \`{}DISPLAY`\ prevents\ this\ (and}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00158}00158\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ causes\ GTK\ to\ crash\ and\ Inkscape\ to\ terminate,\ but\ that'll}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00159}00159\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ just\ be\ reported\ as\ a\ regular\ exception\ below).}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00160}00160\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}DISPLAY"{}}:\ \textcolor{stringliteral}{"{}"{}},}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00161}00161\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Do\ not\ load\ any\ user\ options.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00162}00162\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}INKSCAPE\_PROFILE\_DIR"{}}:\ self.\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__SVGConverter_ae2f9f47c7eba464a34a8f679c50ba8c5}{\_tmpdir}}.name,}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00163}00163\ \ \ \ \ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00164}00164\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Old\ versions\ of\ Inkscape\ (e.g.\ 0.48.3.1)\ seem\ to\ sometimes}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00165}00165\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ deadlock\ when\ stderr\ is\ redirected\ to\ a\ pipe,\ so\ we\ redirect\ it}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00166}00166\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ to\ a\ temporary\ file\ instead.\ \ This\ is\ not\ necessary\ anymore\ as\ of}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00167}00167\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Inkscape\ 0.92.1.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00168}00168\ \ \ \ \ \ \ \ \ \ \ \ \ stderr\ =\ TemporaryFile()}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00169}00169\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__Converter_a48009d1b3eef4f1e2d2eb7479b7ef827}{\_proc}}\ =\ subprocess.Popen(}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00170}00170\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ [\textcolor{stringliteral}{"{}inkscape"{}},\ \textcolor{stringliteral}{"{}-\/-\/without-\/gui"{}},\ \textcolor{stringliteral}{"{}-\/-\/shell"{}}]\ \textcolor{keywordflow}{if}\ old\_inkscape\ \textcolor{keywordflow}{else}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00171}00171\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ [\textcolor{stringliteral}{"{}inkscape"{}},\ \textcolor{stringliteral}{"{}-\/-\/shell"{}}],}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00172}00172\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ stdin=subprocess.PIPE,\ stdout=subprocess.PIPE,\ stderr=stderr,}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00173}00173\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ env=env,\ cwd=self.\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__SVGConverter_ae2f9f47c7eba464a34a8f679c50ba8c5}{\_tmpdir}}.name)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00174}00174\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Slight\ abuse,\ but\ makes\ shutdown\ handling\ easier.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00175}00175\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__Converter_a48009d1b3eef4f1e2d2eb7479b7ef827}{\_proc}}.stderr\ =\ stderr}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00176}00176\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00177}00177\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__Converter_ab4cda0b30f221b029e2f701dfa0f2a25}{\_read\_until}}(terminator)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00178}00178\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ \_ConverterError\ \textcolor{keyword}{as}\ err:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00179}00179\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classOSError}{OSError}}(}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00180}00180\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Failed\ to\ start\ Inkscape\ in\ interactive\ mode:\(\backslash\)n\(\backslash\)n"{}}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00181}00181\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ +\ err.args[0])\ \textcolor{keyword}{from}\ err}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00182}00182\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00183}00183\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Inkscape's\ shell\ mode\ does\ not\ support\ escaping\ metacharacters\ in\ the}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00184}00184\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ filename\ ("{}\(\backslash\)n"{},\ and\ "{}:;"{}\ for\ inkscape>=1).\ \ Avoid\ any\ problems\ by}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00185}00185\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ running\ from\ a\ temporary\ directory\ and\ using\ fixed\ filenames.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00186}00186\ \ \ \ \ \ \ \ \ inkscape\_orig\ =\ Path(self.\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__SVGConverter_ae2f9f47c7eba464a34a8f679c50ba8c5}{\_tmpdir}}.name,\ os.fsdecode(b\textcolor{stringliteral}{"{}f.svg"{}}))}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00187}00187\ \ \ \ \ \ \ \ \ inkscape\_dest\ =\ Path(self.\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__SVGConverter_ae2f9f47c7eba464a34a8f679c50ba8c5}{\_tmpdir}}.name,\ os.fsdecode(b\textcolor{stringliteral}{"{}f.png"{}}))}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00188}00188\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00189}00189\ \ \ \ \ \ \ \ \ \ \ \ \ inkscape\_orig.symlink\_to(Path(orig).resolve())}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00190}00190\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ OSError:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00191}00191\ \ \ \ \ \ \ \ \ \ \ \ \ shutil.copyfile(orig,\ inkscape\_orig)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00192}00192\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__Converter_a48009d1b3eef4f1e2d2eb7479b7ef827}{\_proc}}.stdin.write(}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00193}00193\ \ \ \ \ \ \ \ \ \ \ \ \ b\textcolor{stringliteral}{"{}f.svg\ -\/-\/export-\/png=f.png\(\backslash\)n"{}}\ \textcolor{keywordflow}{if}\ old\_inkscape\ \textcolor{keywordflow}{else}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00194}00194\ \ \ \ \ \ \ \ \ \ \ \ \ b\textcolor{stringliteral}{"{}file-\/open:f.svg;export-\/filename:f.png;export-\/do;file-\/close\(\backslash\)n"{}})}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00195}00195\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__Converter_a48009d1b3eef4f1e2d2eb7479b7ef827}{\_proc}}.stdin.flush()}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00196}00196\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00197}00197\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__Converter_ab4cda0b30f221b029e2f701dfa0f2a25}{\_read\_until}}(terminator)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00198}00198\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ \_ConverterError\ \textcolor{keyword}{as}\ err:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00199}00199\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Inkscape's\ output\ is\ not\ localized\ but\ gtk's\ is,\ so\ the\ output}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00200}00200\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ stream\ probably\ has\ a\ mixed\ encoding.\ \ Using\ the\ filesystem}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00201}00201\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ encoding\ should\ at\ least\ get\ the\ filenames\ right...}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00202}00202\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__Converter_a48009d1b3eef4f1e2d2eb7479b7ef827}{\_proc}}.stderr.seek(0)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00203}00203\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classmatplotlib_1_1testing_1_1exceptions_1_1ImageComparisonFailure}{ImageComparisonFailure}}(}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00204}00204\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__Converter_a48009d1b3eef4f1e2d2eb7479b7ef827}{\_proc}}.stderr.read().decode(}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00205}00205\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ sys.getfilesystemencoding(),\ \textcolor{stringliteral}{"{}replace"{}}))\ \textcolor{keyword}{from}\ err}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00206}00206\ \ \ \ \ \ \ \ \ os.remove(inkscape\_orig)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00207}00207\ \ \ \ \ \ \ \ \ shutil.move(inkscape\_dest,\ dest)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00208}00208\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00209}00209\ \ \ \ \ \textcolor{keyword}{def\ }\_\_del\_\_(self):}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00210}00210\ \ \ \ \ \ \ \ \ super().\_\_del\_\_()}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00211}00211\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ hasattr(self,\ \textcolor{stringliteral}{"{}\_tmpdir"{}}):}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00212}00212\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__SVGConverter_ae2f9f47c7eba464a34a8f679c50ba8c5}{\_tmpdir}}.cleanup()}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00213}00213\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00214}00214\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00215}\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__SVGWithMatplotlibFontsConverter}{00215}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__SVGWithMatplotlibFontsConverter}{\_SVGWithMatplotlibFontsConverter}}(\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__SVGConverter}{\_SVGConverter}}):}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00216}00216\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00217}00217\ \textcolor{stringliteral}{\ \ \ \ A\ SVG\ converter\ which\ explicitly\ adds\ the\ fonts\ shipped\ by\ Matplotlib\ to}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00218}00218\ \textcolor{stringliteral}{\ \ \ \ Inkspace's\ font\ search\ path,\ to\ better\ support\ \`{}svg.fonttype\ =\ "{}none"{}\`{}}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00219}00219\ \textcolor{stringliteral}{\ \ \ \ (which\ is\ in\ particular\ used\ by\ certain\ mathtext\ tests).}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00220}00220\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00221}00221\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00222}00222\ \ \ \ \ \textcolor{keyword}{def\ }\_\_call\_\_(self,\ orig,\ dest):}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00223}00223\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ hasattr(self,\ \textcolor{stringliteral}{"{}\_tmpdir"{}}):}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00224}00224\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__SVGConverter_ae2f9f47c7eba464a34a8f679c50ba8c5}{\_tmpdir}}\ =\ TemporaryDirectory()}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00225}00225\ \ \ \ \ \ \ \ \ \ \ \ \ shutil.copytree(cbook.\_get\_data\_path(\textcolor{stringliteral}{"{}fonts/ttf"{}}),}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00226}00226\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ Path(self.\mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__SVGConverter_ae2f9f47c7eba464a34a8f679c50ba8c5}{\_tmpdir}}.name,\ \textcolor{stringliteral}{"{}fonts"{}}))}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00227}00227\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ super().\_\_call\_\_(orig,\ dest)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00228}00228\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00229}00229\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00230}00230\ \textcolor{keyword}{def\ }\_update\_converter():}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00231}00231\ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00232}00232\ \ \ \ \ \ \ \ \ mpl.\_get\_executable\_info(\textcolor{stringliteral}{"{}gs"{}})}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00233}00233\ \ \ \ \ \textcolor{keywordflow}{except}\ mpl.ExecutableNotFoundError:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00234}00234\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{pass}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00235}00235\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00236}00236\ \ \ \ \ \ \ \ \ converter[\textcolor{stringliteral}{'pdf'}]\ =\ converter[\textcolor{stringliteral}{'eps'}]\ =\ \mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__GSConverter}{\_GSConverter}}()}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00237}00237\ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00238}00238\ \ \ \ \ \ \ \ \ mpl.\_get\_executable\_info(\textcolor{stringliteral}{"{}inkscape"{}})}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00239}00239\ \ \ \ \ \textcolor{keywordflow}{except}\ mpl.ExecutableNotFoundError:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00240}00240\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{pass}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00241}00241\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00242}00242\ \ \ \ \ \ \ \ \ converter[\textcolor{stringliteral}{'svg'}]\ =\ \mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__SVGConverter}{\_SVGConverter}}()}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00243}00243\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00244}00244\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00245}00245\ \textcolor{comment}{\#:\ A\ dictionary\ that\ maps\ filename\ extensions\ to\ functions\ which\ themselves}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00246}00246\ \textcolor{comment}{\#:\ convert\ between\ arguments\ \`{}old`\ and\ \`{}new`\ (filenames).}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00247}00247\ converter\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00248}00248\ \_update\_converter()}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00249}00249\ \_svg\_with\_matplotlib\_fonts\_converter\ =\ \mbox{\hyperlink{classmatplotlib_1_1testing_1_1compare_1_1__SVGWithMatplotlibFontsConverter}{\_SVGWithMatplotlibFontsConverter}}()}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00250}00250\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00251}00251\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00252}\mbox{\hyperlink{namespacematplotlib_1_1testing_1_1compare_afcd2bba2aef852e52c37363b7df4ea2d}{00252}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacematplotlib_1_1testing_1_1compare_afcd2bba2aef852e52c37363b7df4ea2d}{comparable\_formats}}():}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00253}00253\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00254}00254\ \textcolor{stringliteral}{\ \ \ \ Return\ the\ list\ of\ file\ formats\ that\ \`{}.compare\_images\`{}\ can\ compare}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00255}00255\ \textcolor{stringliteral}{\ \ \ \ on\ this\ system.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00256}00256\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00257}00257\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00258}00258\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00259}00259\ \textcolor{stringliteral}{\ \ \ \ list\ of\ str}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00260}00260\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ E.g.\ \`{}\`{}['png',\ 'pdf',\ 'svg',\ 'eps']\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00261}00261\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00262}00262\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00263}00263\ \ \ \ \ \textcolor{keywordflow}{return}\ [\textcolor{stringliteral}{'png'},\ *converter]}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00264}00264\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00265}00265\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00266}\mbox{\hyperlink{namespacematplotlib_1_1testing_1_1compare_aca3a263a625da9547cc7f27b26b53f64}{00266}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacematplotlib_1_1testing_1_1compare_aca3a263a625da9547cc7f27b26b53f64}{convert}}(filename,\ cache):}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00267}00267\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00268}00268\ \textcolor{stringliteral}{\ \ \ \ Convert\ the\ named\ file\ to\ png;\ return\ the\ name\ of\ the\ created\ file.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00269}00269\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00270}00270\ \textcolor{stringliteral}{\ \ \ \ If\ *cache*\ is\ True,\ the\ result\ of\ the\ conversion\ is\ cached\ in}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00271}00271\ \textcolor{stringliteral}{\ \ \ \ \`{}matplotlib.get\_cachedir()\ +\ '/test\_cache/'\`{}.\ \ The\ caching\ is\ based\ on\ a}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00272}00272\ \textcolor{stringliteral}{\ \ \ \ hash\ of\ the\ exact\ contents\ of\ the\ input\ file.\ \ Old\ cache\ entries\ are}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00273}00273\ \textcolor{stringliteral}{\ \ \ \ automatically\ deleted\ as\ needed\ to\ keep\ the\ size\ of\ the\ cache\ capped\ to}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00274}00274\ \textcolor{stringliteral}{\ \ \ \ twice\ the\ size\ of\ all\ baseline\ images.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00275}00275\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00276}00276\ \ \ \ \ path\ =\ Path(filename)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00277}00277\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ path.exists():}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00278}00278\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classOSError}{OSError}}(f\textcolor{stringliteral}{"{}\{path\}\ does\ not\ exist"{}})}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00279}00279\ \ \ \ \ \textcolor{keywordflow}{if}\ path.suffix[1:]\ \textcolor{keywordflow}{not}\ \textcolor{keywordflow}{in}\ converter:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00280}00280\ \ \ \ \ \ \ \ \ \textcolor{keyword}{import}\ pytest}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00281}00281\ \ \ \ \ \ \ \ \ pytest.skip(f\textcolor{stringliteral}{"{}Don't\ know\ how\ to\ convert\ \{path.suffix\}\ files\ to\ png"{}})}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00282}00282\ \ \ \ \ newpath\ =\ path.parent\ /\ f\textcolor{stringliteral}{"{}\{path.stem\}\_\{path.suffix[1:]\}.png"{}}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00283}00283\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00284}00284\ \ \ \ \ \textcolor{comment}{\#\ Only\ convert\ the\ file\ if\ the\ destination\ doesn't\ already\ exist\ or}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00285}00285\ \ \ \ \ \textcolor{comment}{\#\ is\ out\ of\ date.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00286}00286\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ newpath.exists()\ \textcolor{keywordflow}{or}\ newpath.stat().st\_mtime\ <\ path.stat().st\_mtime:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00287}00287\ \ \ \ \ \ \ \ \ cache\_dir\ =\ \_get\_cache\_path()\ \textcolor{keywordflow}{if}\ cache\ \textcolor{keywordflow}{else}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00288}00288\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00289}00289\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ cache\_dir\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00290}00290\ \ \ \ \ \ \ \ \ \ \ \ \ \_register\_conversion\_cache\_cleaner\_once()}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00291}00291\ \ \ \ \ \ \ \ \ \ \ \ \ hash\_value\ =\ get\_file\_hash(path)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00292}00292\ \ \ \ \ \ \ \ \ \ \ \ \ cached\_path\ =\ cache\_dir\ /\ (hash\_value\ +\ newpath.suffix)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00293}00293\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ cached\_path.exists():}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00294}00294\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_log.debug(\textcolor{stringliteral}{"{}For\ \%s:\ reusing\ cached\ conversion."{}},\ filename)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00295}00295\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ shutil.copyfile(cached\_path,\ newpath)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00296}00296\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ str(newpath)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00297}00297\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00298}00298\ \ \ \ \ \ \ \ \ \_log.debug(\textcolor{stringliteral}{"{}For\ \%s:\ converting\ to\ png."{}},\ filename)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00299}00299\ \ \ \ \ \ \ \ \ convert\ =\ converter[path.suffix[1:]]}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00300}00300\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ path.suffix\ ==\ \textcolor{stringliteral}{"{}.svg"{}}:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00301}00301\ \ \ \ \ \ \ \ \ \ \ \ \ contents\ =\ path.read\_text()}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00302}00302\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ NOTE:\ This\ check\ should\ be\ kept\ in\ sync\ with\ font\ styling\ in}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00303}00303\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \`{}lib/matplotlib/backends/backend\_svg.py`.\ If\ it\ changes,\ then\ be\ sure\ to}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00304}00304\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ re-\/generate\ any\ SVG\ test\ files\ using\ this\ mode,\ or\ else\ such\ tests\ will}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00305}00305\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ fail\ to\ use\ the\ converter\ for\ the\ expected\ images\ (but\ will\ for\ the}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00306}00306\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ results),\ and\ the\ tests\ will\ fail\ strangely.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00307}00307\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ re.search(}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00308}00308\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ searches\ for\ attributes\ :}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00309}00309\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ style=[font|font-\/size|font-\/weight|}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00310}00310\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ \ \ \ \ \ \ font-\/family|font-\/variant|font-\/style]}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00311}00311\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ taking\ care\ of\ the\ possibility\ of\ multiple\ style\ attributes}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00312}00312\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ before\ the\ font\ styling\ (i.e.\ opacity)}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00313}00313\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r'style="{}[\string^"{}]*font(|-\/size|-\/weight|-\/family|-\/variant|-\/style):'},}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00314}00314\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ contents\ \ \textcolor{comment}{\#\ raw\ contents\ of\ the\ svg\ file}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00315}00315\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00316}00316\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ for\ svg.fonttype\ =\ none,\ we\ explicitly\ patch\ the\ font\ search}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00317}00317\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ path\ so\ that\ fonts\ shipped\ by\ Matplotlib\ are\ found.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00318}00318\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ convert\ =\ \_svg\_with\_matplotlib\_fonts\_converter}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00319}00319\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{namespacematplotlib_1_1testing_1_1compare_aca3a263a625da9547cc7f27b26b53f64}{convert}}(path,\ newpath)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00320}00320\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00321}00321\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ cache\_dir\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00322}00322\ \ \ \ \ \ \ \ \ \ \ \ \ \_log.debug(\textcolor{stringliteral}{"{}For\ \%s:\ caching\ conversion\ result."{}},\ filename)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00323}00323\ \ \ \ \ \ \ \ \ \ \ \ \ shutil.copyfile(newpath,\ cached\_path)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00324}00324\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00325}00325\ \ \ \ \ \textcolor{keywordflow}{return}\ str(newpath)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00326}00326\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00327}00327\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00328}00328\ \textcolor{keyword}{def\ }\_clean\_conversion\_cache():}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00329}00329\ \ \ \ \ \textcolor{comment}{\#\ This\ will\ actually\ ignore\ mpl\_toolkits\ baseline\ images,\ but\ they're}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00330}00330\ \ \ \ \ \textcolor{comment}{\#\ relatively\ small.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00331}00331\ \ \ \ \ baseline\_images\_size\ =\ sum(}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00332}00332\ \ \ \ \ \ \ \ \ path.stat().st\_size}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00333}00333\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ path\ \textcolor{keywordflow}{in}\ Path(mpl.\_\_file\_\_).parent.glob(\textcolor{stringliteral}{"{}**/baseline\_images/**/*"{}}))}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00334}00334\ \ \ \ \ \textcolor{comment}{\#\ 2x:\ one\ full\ copy\ of\ baselines,\ and\ one\ full\ copy\ of\ test\ results}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00335}00335\ \ \ \ \ \textcolor{comment}{\#\ (actually\ an\ overestimate:\ we\ don't\ convert\ png\ baselines\ and\ results).}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00336}00336\ \ \ \ \ max\_cache\_size\ =\ 2\ *\ baseline\_images\_size}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00337}00337\ \ \ \ \ \textcolor{comment}{\#\ Reduce\ cache\ until\ it\ fits.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00338}00338\ \ \ \ \ \textcolor{keyword}{with}\ cbook.\_lock\_path(\_get\_cache\_path()):}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00339}00339\ \ \ \ \ \ \ \ \ cache\_stat\ =\ \{}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00340}00340\ \ \ \ \ \ \ \ \ \ \ \ \ path:\ path.stat()\ \textcolor{keywordflow}{for}\ path\ \textcolor{keywordflow}{in}\ \_get\_cache\_path().glob(\textcolor{stringliteral}{"{}*"{}})\}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00341}00341\ \ \ \ \ \ \ \ \ cache\_size\ =\ sum(stat.st\_size\ \textcolor{keywordflow}{for}\ stat\ \textcolor{keywordflow}{in}\ cache\_stat.values())}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00342}00342\ \ \ \ \ \ \ \ \ paths\_by\_atime\ =\ sorted(\ \ \textcolor{comment}{\#\ Oldest\ at\ the\ end.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00343}00343\ \ \ \ \ \ \ \ \ \ \ \ \ cache\_stat,\ key=\textcolor{keyword}{lambda}\ path:\ cache\_stat[path].st\_atime,}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00344}00344\ \ \ \ \ \ \ \ \ \ \ \ \ reverse=\textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00345}00345\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{while}\ cache\_size\ >\ max\_cache\_size:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00346}00346\ \ \ \ \ \ \ \ \ \ \ \ \ path\ =\ paths\_by\_atime.pop()}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00347}00347\ \ \ \ \ \ \ \ \ \ \ \ \ cache\_size\ -\/=\ cache\_stat[path].st\_size}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00348}00348\ \ \ \ \ \ \ \ \ \ \ \ \ path.unlink()}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00349}00349\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00350}00350\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00351}00351\ \textcolor{preprocessor}{@functools.cache}\ \ \textcolor{comment}{\#\ Ensure\ this\ is\ only\ registered\ once.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00352}00352\ \textcolor{keyword}{def\ }\_register\_conversion\_cache\_cleaner\_once():}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00353}00353\ \ \ \ \ atexit.register(\_clean\_conversion\_cache)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00354}00354\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00355}00355\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00356}00356\ \textcolor{keyword}{def\ }crop\_to\_same(actual\_path,\ actual\_image,\ expected\_path,\ expected\_image):}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00357}00357\ \ \ \ \ \textcolor{comment}{\#\ clip\ the\ images\ to\ the\ same\ size\ -\/-\/\ this\ is\ useful\ only\ when}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00358}00358\ \ \ \ \ \textcolor{comment}{\#\ comparing\ eps\ to\ pdf}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00359}00359\ \ \ \ \ \textcolor{keywordflow}{if}\ actual\_path[-\/7:-\/4]\ ==\ \textcolor{stringliteral}{'eps'}\ \textcolor{keywordflow}{and}\ expected\_path[-\/7:-\/4]\ ==\ \textcolor{stringliteral}{'pdf'}:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00360}00360\ \ \ \ \ \ \ \ \ aw,\ ah,\ ad\ =\ actual\_image.shape}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00361}00361\ \ \ \ \ \ \ \ \ ew,\ eh,\ ed\ =\ expected\_image.shape}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00362}00362\ \ \ \ \ \ \ \ \ actual\_image\ =\ actual\_image[int(aw\ /\ 2\ -\/\ ew\ /\ 2):int(}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00363}00363\ \ \ \ \ \ \ \ \ \ \ \ \ aw\ /\ 2\ +\ ew\ /\ 2),\ int(ah\ /\ 2\ -\/\ eh\ /\ 2):int(ah\ /\ 2\ +\ eh\ /\ 2)]}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00364}00364\ \ \ \ \ \textcolor{keywordflow}{return}\ actual\_image,\ expected\_image}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00365}00365\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00366}00366\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00367}\mbox{\hyperlink{namespacematplotlib_1_1testing_1_1compare_ac2f688a8c277596f89c6031a8c013b4e}{00367}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacematplotlib_1_1testing_1_1compare_ac2f688a8c277596f89c6031a8c013b4e}{calculate\_rms}}(expected\_image,\ actual\_image):}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00368}00368\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00369}00369\ \textcolor{stringliteral}{\ \ \ \ Calculate\ the\ per-\/pixel\ errors,\ then\ compute\ the\ root\ mean\ square\ error.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00370}00370\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00371}00371\ \ \ \ \ \textcolor{keywordflow}{if}\ expected\_image.shape\ !=\ actual\_image.shape:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00372}00372\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classmatplotlib_1_1testing_1_1exceptions_1_1ImageComparisonFailure}{ImageComparisonFailure}}(}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00373}00373\ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}Image\ sizes\ do\ not\ match\ expected\ size:\ \{expected\_image.shape\}\ "{}}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00374}00374\ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}actual\ size\ \{actual\_image.shape\}"{}})}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00375}00375\ \ \ \ \ \textcolor{comment}{\#\ Convert\ to\ float\ to\ avoid\ overflowing\ finite\ integer\ types.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00376}00376\ \ \ \ \ \textcolor{keywordflow}{return}\ np.sqrt(((expected\_image\ -\/\ actual\_image).astype(float)\ **\ 2).mean())}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00377}00377\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00378}00378\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00379}00379\ \textcolor{comment}{\#\ NOTE:\ compare\_image\ and\ save\_diff\_image\ assume\ that\ the\ image\ does\ not\ have}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00380}00380\ \textcolor{comment}{\#\ 16-\/bit\ depth,\ as\ Pillow\ converts\ these\ to\ RGB\ incorrectly.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00381}00381\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00382}00382\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00383}00383\ \textcolor{keyword}{def\ }\_load\_image(path):}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00384}00384\ \ \ \ \ img\ =\ Image.open(path)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00385}00385\ \ \ \ \ \textcolor{comment}{\#\ In\ an\ RGBA\ image,\ if\ the\ smallest\ value\ in\ the\ alpha\ channel\ is\ 255,\ all}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00386}00386\ \ \ \ \ \textcolor{comment}{\#\ values\ in\ it\ must\ be\ 255,\ meaning\ that\ the\ image\ is\ opaque.\ If\ so,}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00387}00387\ \ \ \ \ \textcolor{comment}{\#\ discard\ the\ alpha\ channel\ so\ that\ it\ may\ compare\ equal\ to\ an\ RGB\ image.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00388}00388\ \ \ \ \ \textcolor{keywordflow}{if}\ img.mode\ !=\ \textcolor{stringliteral}{"{}RGBA"{}}\ \textcolor{keywordflow}{or}\ img.getextrema()[3][0]\ ==\ 255:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00389}00389\ \ \ \ \ \ \ \ \ img\ =\ img.convert(\textcolor{stringliteral}{"{}RGB"{}})}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00390}00390\ \ \ \ \ \textcolor{keywordflow}{return}\ np.asarray(img)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00391}00391\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00392}00392\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00393}\mbox{\hyperlink{namespacematplotlib_1_1testing_1_1compare_ae50fcbb432e7f430dedfa648df51136f}{00393}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacematplotlib_1_1testing_1_1compare_ae50fcbb432e7f430dedfa648df51136f}{compare\_images}}(expected,\ actual,\ tol,\ in\_decorator=False):}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00394}00394\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00395}00395\ \textcolor{stringliteral}{\ \ \ \ Compare\ two\ "{}image"{}\ files\ checking\ differences\ within\ a\ tolerance.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00396}00396\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00397}00397\ \textcolor{stringliteral}{\ \ \ \ The\ two\ given\ filenames\ may\ point\ to\ files\ which\ are\ convertible\ to}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00398}00398\ \textcolor{stringliteral}{\ \ \ \ PNG\ via\ the\ \`{}.converter\`{}\ dictionary.\ The\ underlying\ RMS\ is\ calculated}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00399}00399\ \textcolor{stringliteral}{\ \ \ \ with\ the\ \`{}.calculate\_rms\`{}\ function.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00400}00400\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00401}00401\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00402}00402\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00403}00403\ \textcolor{stringliteral}{\ \ \ \ expected\ :\ str}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00404}00404\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ filename\ of\ the\ expected\ image.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00405}00405\ \textcolor{stringliteral}{\ \ \ \ actual\ :\ str}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00406}00406\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ filename\ of\ the\ actual\ image.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00407}00407\ \textcolor{stringliteral}{\ \ \ \ tol\ :\ float}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00408}00408\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ tolerance\ (a\ color\ value\ difference,\ where\ 255\ is\ the}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00409}00409\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ maximal\ difference).\ \ The\ test\ fails\ if\ the\ average\ pixel}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00410}00410\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ difference\ is\ greater\ than\ this\ value.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00411}00411\ \textcolor{stringliteral}{\ \ \ \ in\_decorator\ :\ bool}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00412}00412\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Determines\ the\ output\ format.\ If\ called\ from\ image\_comparison}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00413}00413\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ decorator,\ this\ should\ be\ True.\ (default=False)}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00414}00414\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00415}00415\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00416}00416\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00417}00417\ \textcolor{stringliteral}{\ \ \ \ None\ or\ dict\ or\ str}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00418}00418\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Return\ *None*\ if\ the\ images\ are\ equal\ within\ the\ given\ tolerance.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00419}00419\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00420}00420\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ the\ images\ differ,\ the\ return\ value\ depends\ on\ \ *in\_decorator*.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00421}00421\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ *in\_decorator*\ is\ true,\ a\ dict\ with\ the\ following\ entries\ is}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00422}00422\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ returned:}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00423}00423\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00424}00424\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ *rms*:\ The\ RMS\ of\ the\ image\ difference.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00425}00425\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ *expected*:\ The\ filename\ of\ the\ expected\ image.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00426}00426\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ *actual*:\ The\ filename\ of\ the\ actual\ image.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00427}00427\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ *diff\_image*:\ The\ filename\ of\ the\ difference\ image.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00428}00428\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ *tol*:\ The\ comparison\ tolerance.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00429}00429\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00430}00430\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Otherwise,\ a\ human-\/readable\ multi-\/line\ string\ representation\ of\ this}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00431}00431\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ information\ is\ returned.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00432}00432\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00433}00433\ \textcolor{stringliteral}{\ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00434}00434\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00435}00435\ \textcolor{stringliteral}{\ \ \ \ ::}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00436}00436\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00437}00437\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ img1\ =\ "{}./baseline/plot.png"{}}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00438}00438\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ img2\ =\ "{}./output/plot.png"{}}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00439}00439\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ compare\_images(img1,\ img2,\ 0.001)}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00440}00440\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00441}00441\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00442}00442\ \ \ \ \ actual\ =\ os.fspath(actual)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00443}00443\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ os.path.exists(actual):}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00444}00444\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classException}{Exception}}(f\textcolor{stringliteral}{"{}Output\ image\ \{actual\}\ does\ not\ exist."{}})}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00445}00445\ \ \ \ \ \textcolor{keywordflow}{if}\ os.stat(actual).st\_size\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00446}00446\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classException}{Exception}}(f\textcolor{stringliteral}{"{}Output\ image\ file\ \{actual\}\ is\ empty."{}})}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00447}00447\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00448}00448\ \ \ \ \ \textcolor{comment}{\#\ Convert\ the\ image\ to\ png}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00449}00449\ \ \ \ \ expected\ =\ os.fspath(expected)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00450}00450\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ os.path.exists(expected):}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00451}00451\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classOSError}{OSError}}(f\textcolor{stringliteral}{'Baseline\ image\ \{expected!r\}\ does\ not\ exist.'})}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00452}00452\ \ \ \ \ extension\ =\ expected.split(\textcolor{stringliteral}{'.'})[-\/1]}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00453}00453\ \ \ \ \ \textcolor{keywordflow}{if}\ extension\ !=\ \textcolor{stringliteral}{'png'}:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00454}00454\ \ \ \ \ \ \ \ \ actual\ =\ \mbox{\hyperlink{namespacematplotlib_1_1testing_1_1compare_aca3a263a625da9547cc7f27b26b53f64}{convert}}(actual,\ cache=\textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00455}00455\ \ \ \ \ \ \ \ \ expected\ =\ \mbox{\hyperlink{namespacematplotlib_1_1testing_1_1compare_aca3a263a625da9547cc7f27b26b53f64}{convert}}(expected,\ cache=\textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00456}00456\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00457}00457\ \ \ \ \ \textcolor{comment}{\#\ open\ the\ image\ files}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00458}00458\ \ \ \ \ expected\_image\ =\ \_load\_image(expected)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00459}00459\ \ \ \ \ actual\_image\ =\ \_load\_image(actual)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00460}00460\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00461}00461\ \ \ \ \ actual\_image,\ expected\_image\ =\ crop\_to\_same(}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00462}00462\ \ \ \ \ \ \ \ \ actual,\ actual\_image,\ expected,\ expected\_image)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00463}00463\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00464}00464\ \ \ \ \ diff\_image\ =\ \mbox{\hyperlink{namespacematplotlib_1_1testing_1_1compare_a351726a5273a3bf295f5c208044dada8}{make\_test\_filename}}(actual,\ \textcolor{stringliteral}{'failed-\/diff'})}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00465}00465\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00466}00466\ \ \ \ \ \textcolor{keywordflow}{if}\ tol\ <=\ 0:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00467}00467\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ np.array\_equal(expected\_image,\ actual\_image):}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00468}00468\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00469}00469\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00470}00470\ \ \ \ \ \textcolor{comment}{\#\ convert\ to\ signed\ integers,\ so\ that\ the\ images\ can\ be\ subtracted\ without}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00471}00471\ \ \ \ \ \textcolor{comment}{\#\ overflow}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00472}00472\ \ \ \ \ expected\_image\ =\ expected\_image.astype(np.int16)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00473}00473\ \ \ \ \ actual\_image\ =\ actual\_image.astype(np.int16)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00474}00474\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00475}00475\ \ \ \ \ rms\ =\ \mbox{\hyperlink{namespacematplotlib_1_1testing_1_1compare_ac2f688a8c277596f89c6031a8c013b4e}{calculate\_rms}}(expected\_image,\ actual\_image)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00476}00476\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00477}00477\ \ \ \ \ \textcolor{keywordflow}{if}\ rms\ <=\ tol:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00478}00478\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00479}00479\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00480}00480\ \ \ \ \ \mbox{\hyperlink{namespacematplotlib_1_1testing_1_1compare_afffec76b7c779c106ba0ba0ae8425d75}{save\_diff\_image}}(expected,\ actual,\ diff\_image)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00481}00481\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00482}00482\ \ \ \ \ results\ =\ dict(rms=rms,\ expected=str(expected),}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00483}00483\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ actual=str(actual),\ diff=str(diff\_image),\ tol=tol)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00484}00484\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00485}00485\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ in\_decorator:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00486}00486\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Then\ the\ results\ should\ be\ a\ string\ suitable\ for\ stdout.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00487}00487\ \ \ \ \ \ \ \ \ template\ =\ [\textcolor{stringliteral}{'Error:\ Image\ files\ did\ not\ match.'},}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00488}00488\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'RMS\ Value:\ \{rms\}'},}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00489}00489\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'Expected:\ \ \(\backslash\)n\ \ \ \ \{expected\}'},}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00490}00490\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'Actual:\ \ \ \ \(\backslash\)n\ \ \ \ \{actual\}'},}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00491}00491\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'Difference:\(\backslash\)n\ \ \ \ \{diff\}'},}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00492}00492\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'Tolerance:\ \(\backslash\)n\ \ \ \ \{tol\}'},\ ]}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00493}00493\ \ \ \ \ \ \ \ \ results\ =\ \textcolor{stringliteral}{'\(\backslash\)n\ \ '}.join([line.format(**results)\ \textcolor{keywordflow}{for}\ line\ \textcolor{keywordflow}{in}\ template])}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00494}00494\ \ \ \ \ \textcolor{keywordflow}{return}\ results}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00495}00495\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00496}00496\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00497}\mbox{\hyperlink{namespacematplotlib_1_1testing_1_1compare_afffec76b7c779c106ba0ba0ae8425d75}{00497}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacematplotlib_1_1testing_1_1compare_afffec76b7c779c106ba0ba0ae8425d75}{save\_diff\_image}}(expected,\ actual,\ output):}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00498}00498\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00499}00499\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00500}00500\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00501}00501\ \textcolor{stringliteral}{\ \ \ \ expected\ :\ str}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00502}00502\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ File\ path\ of\ expected\ image.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00503}00503\ \textcolor{stringliteral}{\ \ \ \ actual\ :\ str}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00504}00504\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ File\ path\ of\ actual\ image.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00505}00505\ \textcolor{stringliteral}{\ \ \ \ output\ :\ str}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00506}00506\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ File\ path\ to\ save\ difference\ image\ to.}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00507}00507\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00508}00508\ \ \ \ \ expected\_image\ =\ \_load\_image(expected)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00509}00509\ \ \ \ \ actual\_image\ =\ \_load\_image(actual)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00510}00510\ \ \ \ \ actual\_image,\ expected\_image\ =\ crop\_to\_same(}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00511}00511\ \ \ \ \ \ \ \ \ actual,\ actual\_image,\ expected,\ expected\_image)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00512}00512\ \ \ \ \ expected\_image\ =\ np.array(expected\_image,\ float)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00513}00513\ \ \ \ \ actual\_image\ =\ np.array(actual\_image,\ float)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00514}00514\ \ \ \ \ \textcolor{keywordflow}{if}\ expected\_image.shape\ !=\ actual\_image.shape:}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00515}00515\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classmatplotlib_1_1testing_1_1exceptions_1_1ImageComparisonFailure}{ImageComparisonFailure}}(}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00516}00516\ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}Image\ sizes\ do\ not\ match\ expected\ size:\ \{expected\_image.shape\}\ "{}}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00517}00517\ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}actual\ size\ \{actual\_image.shape\}"{}})}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00518}00518\ \ \ \ \ abs\_diff\ =\ np.abs(expected\_image\ -\/\ actual\_image)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00519}00519\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00520}00520\ \ \ \ \ \textcolor{comment}{\#\ expand\ differences\ in\ luminance\ domain}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00521}00521\ \ \ \ \ abs\_diff\ *=\ 10}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00522}00522\ \ \ \ \ abs\_diff\ =\ np.clip(abs\_diff,\ 0,\ 255).astype(np.uint8)}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00523}00523\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00524}00524\ \ \ \ \ \textcolor{keywordflow}{if}\ abs\_diff.shape[2]\ ==\ 4:\ \ \textcolor{comment}{\#\ Hard-\/code\ the\ alpha\ channel\ to\ fully\ solid}}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00525}00525\ \ \ \ \ \ \ \ \ abs\_diff[:,\ :,\ 3]\ =\ 255}
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00526}00526\ }
+\DoxyCodeLine{\Hypertarget{compare_8py_source_l00527}00527\ \ \ \ \ Image.fromarray(abs\_diff).save(output,\ format=\textcolor{stringliteral}{"{}png"{}})}
+
+\end{DoxyCode}

@@ -1,0 +1,296 @@
+\doxysection{reusable\+\_\+executor.\+py}
+\hypertarget{reusable__executor_8py_source}{}\label{reusable__executor_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/joblib/externals/loky/reusable\_executor.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/joblib/externals/loky/reusable\_executor.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00001}\mbox{\hyperlink{namespacejoblib_1_1externals_1_1loky_1_1reusable__executor}{00001}}\ }
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00006}00006\ \textcolor{keyword}{import}\ time}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00007}00007\ \textcolor{keyword}{import}\ warnings}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00008}00008\ \textcolor{keyword}{import}\ threading}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00009}00009\ \textcolor{keyword}{import}\ multiprocessing\ \textcolor{keyword}{as}\ mp}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00010}00010\ }
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00011}00011\ \textcolor{keyword}{from}\ .process\_executor\ \textcolor{keyword}{import}\ ProcessPoolExecutor,\ EXTRA\_QUEUED\_CALLS}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00012}00012\ \textcolor{keyword}{from}\ .backend.context\ \textcolor{keyword}{import}\ cpu\_count}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00013}00013\ \textcolor{keyword}{from}\ .backend\ \textcolor{keyword}{import}\ get\_context}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00014}00014\ }
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00015}00015\ \_\_all\_\_\ =\ [\textcolor{stringliteral}{"{}get\_reusable\_executor"{}}]}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00016}00016\ }
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00017}00017\ \textcolor{comment}{\#\ Singleton\ executor\ and\ id\ management}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00018}00018\ \_executor\_lock\ =\ threading.RLock()}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00019}00019\ \_next\_executor\_id\ =\ 0}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00020}00020\ \_executor\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00021}00021\ \_executor\_kwargs\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00022}00022\ }
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00023}00023\ }
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00024}\mbox{\hyperlink{namespacejoblib_1_1externals_1_1loky_1_1reusable__executor_a0ed2f1fc5503978cf5399cb4f5149f7f}{00024}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1externals_1_1loky_1_1reusable__executor_a0ed2f1fc5503978cf5399cb4f5149f7f}{\_get\_next\_executor\_id}}():}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00025}00025\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Ensure\ that\ each\ successive\ executor\ instance\ has\ a\ unique,\ monotonic\ id.}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00026}00026\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00027}00027\ \textcolor{stringliteral}{\ \ \ \ The\ purpose\ of\ this\ monotonic\ id\ is\ to\ help\ debug\ and\ test\ automated}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00028}00028\ \textcolor{stringliteral}{\ \ \ \ instance\ creation.}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00029}00029\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00030}00030\ \ \ \ \ \textcolor{keyword}{global}\ \_next\_executor\_id}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00031}00031\ \ \ \ \ \textcolor{keyword}{with}\ \_executor\_lock:}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00032}00032\ \ \ \ \ \ \ \ \ executor\_id\ =\ \_next\_executor\_id}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00033}00033\ \ \ \ \ \ \ \ \ \_next\_executor\_id\ +=\ 1}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00034}00034\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ executor\_id}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00035}00035\ }
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00036}00036\ }
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00037}\mbox{\hyperlink{namespacejoblib_1_1externals_1_1loky_1_1reusable__executor_aa0aad96abbac717e020eaf6c1841da65}{00037}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1externals_1_1loky_1_1reusable__executor_aa0aad96abbac717e020eaf6c1841da65}{get\_reusable\_executor}}(}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00038}00038\ \ \ \ \ max\_workers=None,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00039}00039\ \ \ \ \ context=None,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00040}00040\ \ \ \ \ timeout=10,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00041}00041\ \ \ \ \ kill\_workers=False,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00042}00042\ \ \ \ \ reuse="{}auto"{},}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00043}00043\ \ \ \ \ job\_reducers=None,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00044}00044\ \ \ \ \ result\_reducers=None,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00045}00045\ \ \ \ \ initializer=None,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00046}00046\ \ \ \ \ initargs=(),}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00047}00047\ \ \ \ \ env=\textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00048}00048\ ):}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00049}00049\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Return\ the\ current\ ReusableExectutor\ instance.}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00050}00050\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00051}00051\ \textcolor{stringliteral}{\ \ \ \ Start\ a\ new\ instance\ if\ it\ has\ not\ been\ started\ already\ or\ if\ the\ previous}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00052}00052\ \textcolor{stringliteral}{\ \ \ \ instance\ was\ left\ in\ a\ broken\ state.}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00053}00053\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00054}00054\ \textcolor{stringliteral}{\ \ \ \ If\ the\ previous\ instance\ does\ not\ have\ the\ requested\ number\ of\ workers,\ the}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00055}00055\ \textcolor{stringliteral}{\ \ \ \ executor\ is\ dynamically\ resized\ to\ adjust\ the\ number\ of\ workers\ prior\ to}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00056}00056\ \textcolor{stringliteral}{\ \ \ \ returning.}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00057}00057\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00058}00058\ \textcolor{stringliteral}{\ \ \ \ Reusing\ a\ singleton\ instance\ spares\ the\ overhead\ of\ starting\ new\ worker}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00059}00059\ \textcolor{stringliteral}{\ \ \ \ processes\ and\ importing\ common\ python\ packages\ each\ time.}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00060}00060\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00061}00061\ \textcolor{stringliteral}{\ \ \ \ \`{}\`{}max\_workers\`{}\`{}\ controls\ the\ maximum\ number\ of\ tasks\ that\ can\ be\ running\ in}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00062}00062\ \textcolor{stringliteral}{\ \ \ \ parallel\ in\ worker\ processes.\ By\ default\ this\ is\ set\ to\ the\ number\ of}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00063}00063\ \textcolor{stringliteral}{\ \ \ \ CPUs\ on\ the\ host.}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00064}00064\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00065}00065\ \textcolor{stringliteral}{\ \ \ \ Setting\ \`{}\`{}timeout\`{}\`{}\ (in\ seconds)\ makes\ idle\ workers\ automatically\ shutdown}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00066}00066\ \textcolor{stringliteral}{\ \ \ \ so\ as\ to\ release\ system\ resources.\ New\ workers\ are\ respawn\ upon\ submission}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00067}00067\ \textcolor{stringliteral}{\ \ \ \ of\ new\ tasks\ so\ that\ \`{}\`{}max\_workers\`{}\`{}\ are\ available\ to\ accept\ the\ newly}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00068}00068\ \textcolor{stringliteral}{\ \ \ \ submitted\ tasks.\ Setting\ \`{}\`{}timeout\`{}\`{}\ to\ around\ 100\ times\ the\ time\ required}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00069}00069\ \textcolor{stringliteral}{\ \ \ \ to\ spawn\ new\ processes\ and\ import\ packages\ in\ them\ (on\ the\ order\ of\ 100ms)}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00070}00070\ \textcolor{stringliteral}{\ \ \ \ ensures\ that\ the\ overhead\ of\ spawning\ workers\ is\ negligible.}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00071}00071\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00072}00072\ \textcolor{stringliteral}{\ \ \ \ Setting\ \`{}\`{}kill\_workers=True\`{}\`{}\ makes\ it\ possible\ to\ forcibly\ interrupt}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00073}00073\ \textcolor{stringliteral}{\ \ \ \ previously\ spawned\ jobs\ to\ get\ a\ new\ instance\ of\ the\ reusable\ executor}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00074}00074\ \textcolor{stringliteral}{\ \ \ \ with\ new\ constructor\ argument\ values.}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00075}00075\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00076}00076\ \textcolor{stringliteral}{\ \ \ \ The\ \`{}\`{}job\_reducers\`{}\`{}\ and\ \`{}\`{}result\_reducers\`{}\`{}\ are\ used\ to\ customize\ the}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00077}00077\ \textcolor{stringliteral}{\ \ \ \ pickling\ of\ tasks\ and\ results\ send\ to\ the\ executor.}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00078}00078\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00079}00079\ \textcolor{stringliteral}{\ \ \ \ When\ provided,\ the\ \`{}\`{}initializer\`{}\`{}\ is\ run\ first\ in\ newly\ spawned}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00080}00080\ \textcolor{stringliteral}{\ \ \ \ processes\ with\ argument\ \`{}\`{}initargs\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00081}00081\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00082}00082\ \textcolor{stringliteral}{\ \ \ \ The\ environment\ variable\ in\ the\ child\ process\ are\ a\ copy\ of\ the\ values\ in}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00083}00083\ \textcolor{stringliteral}{\ \ \ \ the\ main\ process.\ One\ can\ provide\ a\ dict\ \`{}\`{}\{ENV:\ VAL\}\`{}\`{}\ where\ \`{}\`{}ENV\`{}\`{}\ and}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00084}00084\ \textcolor{stringliteral}{\ \ \ \ \`{}\`{}VAL\`{}\`{}\ are\ string\ literals\ to\ overwrite\ the\ environment\ variable\ \`{}\`{}ENV\`{}\`{}}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00085}00085\ \textcolor{stringliteral}{\ \ \ \ in\ the\ child\ processes\ to\ value\ \`{}\`{}VAL\`{}\`{}.\ The\ environment\ variables\ are\ set}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00086}00086\ \textcolor{stringliteral}{\ \ \ \ in\ the\ children\ before\ any\ module\ is\ loaded.\ This\ only\ works\ with\ the}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00087}00087\ \textcolor{stringliteral}{\ \ \ \ \`{}\`{}loky\`{}\`{}\ context.}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00088}00088\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00089}00089\ \ \ \ \ \_executor,\ \_\ =\ \_ReusablePoolExecutor.get\_reusable\_executor(}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00090}00090\ \ \ \ \ \ \ \ \ max\_workers=max\_workers,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00091}00091\ \ \ \ \ \ \ \ \ context=context,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00092}00092\ \ \ \ \ \ \ \ \ timeout=timeout,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00093}00093\ \ \ \ \ \ \ \ \ kill\_workers=kill\_workers,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00094}00094\ \ \ \ \ \ \ \ \ reuse=reuse,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00095}00095\ \ \ \ \ \ \ \ \ job\_reducers=job\_reducers,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00096}00096\ \ \ \ \ \ \ \ \ result\_reducers=result\_reducers,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00097}00097\ \ \ \ \ \ \ \ \ initializer=initializer,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00098}00098\ \ \ \ \ \ \ \ \ initargs=initargs,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00099}00099\ \ \ \ \ \ \ \ \ env=env,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00100}00100\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00101}00101\ \ \ \ \ \textcolor{keywordflow}{return}\ \_executor}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00102}00102\ }
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00103}00103\ }
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00104}\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1reusable__executor_1_1__ReusablePoolExecutor}{00104}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1reusable__executor_1_1__ReusablePoolExecutor}{\_ReusablePoolExecutor}}(\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1process__executor_1_1ProcessPoolExecutor}{ProcessPoolExecutor}}):}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00105}00105\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00106}00106\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00107}00107\ \ \ \ \ \ \ \ \ submit\_resize\_lock,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00108}00108\ \ \ \ \ \ \ \ \ max\_workers=None,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00109}00109\ \ \ \ \ \ \ \ \ context=None,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00110}00110\ \ \ \ \ \ \ \ \ timeout=None,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00111}00111\ \ \ \ \ \ \ \ \ executor\_id=0,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00112}00112\ \ \ \ \ \ \ \ \ job\_reducers=None,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00113}00113\ \ \ \ \ \ \ \ \ result\_reducers=None,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00114}00114\ \ \ \ \ \ \ \ \ initializer=None,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00115}00115\ \ \ \ \ \ \ \ \ initargs=(),}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00116}00116\ \ \ \ \ \ \ \ \ env=\textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00117}00117\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00118}00118\ \ \ \ \ \ \ \ \ super().\_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00119}00119\ \ \ \ \ \ \ \ \ \ \ \ \ max\_workers=max\_workers,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00120}00120\ \ \ \ \ \ \ \ \ \ \ \ \ context=context,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00121}00121\ \ \ \ \ \ \ \ \ \ \ \ \ timeout=timeout,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00122}00122\ \ \ \ \ \ \ \ \ \ \ \ \ job\_reducers=job\_reducers,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00123}00123\ \ \ \ \ \ \ \ \ \ \ \ \ result\_reducers=result\_reducers,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00124}00124\ \ \ \ \ \ \ \ \ \ \ \ \ initializer=initializer,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00125}00125\ \ \ \ \ \ \ \ \ \ \ \ \ initargs=initargs,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00126}00126\ \ \ \ \ \ \ \ \ \ \ \ \ env=env,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00127}00127\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00128}00128\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1reusable__executor_1_1__ReusablePoolExecutor_aa85f72c9e43f4e116ceb433063a722c4}{executor\_id}}\ =\ executor\_id}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00129}00129\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1reusable__executor_1_1__ReusablePoolExecutor_a52e5631469dcf6f73514faf47280f138}{\_submit\_resize\_lock}}\ =\ submit\_resize\_lock}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00130}00130\ }
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00131}00131\ \ \ \ \ \textcolor{preprocessor}{@classmethod}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00132}00132\ \ \ \ \ \textcolor{keyword}{def\ }get\_reusable\_executor(}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00133}00133\ \ \ \ \ \ \ \ \ cls,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00134}00134\ \ \ \ \ \ \ \ \ max\_workers=None,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00135}00135\ \ \ \ \ \ \ \ \ context=None,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00136}00136\ \ \ \ \ \ \ \ \ timeout=10,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00137}00137\ \ \ \ \ \ \ \ \ kill\_workers=False,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00138}00138\ \ \ \ \ \ \ \ \ reuse="{}auto"{},}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00139}00139\ \ \ \ \ \ \ \ \ job\_reducers=None,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00140}00140\ \ \ \ \ \ \ \ \ result\_reducers=None,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00141}00141\ \ \ \ \ \ \ \ \ initializer=None,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00142}00142\ \ \ \ \ \ \ \ \ initargs=(),}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00143}00143\ \ \ \ \ \ \ \ \ env=\textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00144}00144\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00145}00145\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ \_executor\_lock:}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00146}00146\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{global}\ \_executor,\ \_executor\_kwargs}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00147}00147\ \ \ \ \ \ \ \ \ \ \ \ \ executor\ =\ \_executor}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00148}00148\ }
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00149}00149\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ max\_workers\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00150}00150\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ reuse\ \textcolor{keywordflow}{is}\ \textcolor{keyword}{True}\ \textcolor{keywordflow}{and}\ executor\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00151}00151\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ max\_workers\ =\ executor.\_max\_workers}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00152}00152\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00153}00153\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ max\_workers\ =\ cpu\_count()}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00154}00154\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ max\_workers\ <=\ 0:}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00155}00155\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00156}00156\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}max\_workers\ must\ be\ greater\ than\ 0,\ got\ \{max\_workers\}."{}}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00157}00157\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00158}00158\ }
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00159}00159\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(context,\ str):}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00160}00160\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ context\ =\ get\_context(context)}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00161}00161\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ context\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{and}\ context.get\_start\_method()\ ==\ \textcolor{stringliteral}{"{}fork"{}}:}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00162}00162\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00163}00163\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Cannot\ use\ reusable\ executor\ with\ the\ 'fork'\ context"{}}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00164}00164\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00165}00165\ }
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00166}00166\ \ \ \ \ \ \ \ \ \ \ \ \ kwargs\ =\ dict(}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00167}00167\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ context=context,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00168}00168\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ timeout=timeout,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00169}00169\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ job\_reducers=job\_reducers,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00170}00170\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ result\_reducers=result\_reducers,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00171}00171\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ initializer=initializer,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00172}00172\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ initargs=initargs,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00173}00173\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ env=env,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00174}00174\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00175}00175\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ executor\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00176}00176\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ is\_reused\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00177}00177\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ mp.util.debug(}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00178}00178\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}Create\ a\ executor\ with\ max\_workers=\{max\_workers\}."{}}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00179}00179\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00180}00180\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ executor\_id\ =\ \mbox{\hyperlink{namespacejoblib_1_1externals_1_1loky_1_1reusable__executor_a0ed2f1fc5503978cf5399cb4f5149f7f}{\_get\_next\_executor\_id}}()}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00181}00181\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_executor\_kwargs\ =\ kwargs}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00182}00182\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_executor\ =\ executor\ =\ cls(}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00183}00183\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_executor\_lock,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00184}00184\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ max\_workers=max\_workers,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00185}00185\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ executor\_id=executor\_id,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00186}00186\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ **kwargs,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00187}00187\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00188}00188\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00189}00189\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ reuse\ ==\ \textcolor{stringliteral}{"{}auto"{}}:}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00190}00190\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ reuse\ =\ kwargs\ ==\ \_executor\_kwargs}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00191}00191\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00192}00192\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ executor.\_flags.broken}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00193}00193\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{or}\ executor.\_flags.shutdown}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00194}00194\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{or}\ \textcolor{keywordflow}{not}\ reuse}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00195}00195\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{or}\ executor.queue\_size\ <\ max\_workers}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00196}00196\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00197}00197\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ executor.\_flags.broken:}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00198}00198\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ reason\ =\ \textcolor{stringliteral}{"{}broken"{}}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00199}00199\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ executor.\_flags.shutdown:}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00200}00200\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ reason\ =\ \textcolor{stringliteral}{"{}shutdown"{}}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00201}00201\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ executor.queue\_size\ <\ max\_workers:}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00202}00202\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Do\ not\ reuse\ the\ executor\ if\ the\ queue\ size\ is\ too}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00203}00203\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ small\ as\ this\ would\ lead\ to\ limited\ parallelism.}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00204}00204\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ reason\ =\ \textcolor{stringliteral}{"{}queue\ size\ is\ too\ small"{}}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00205}00205\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00206}00206\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ reason\ =\ \textcolor{stringliteral}{"{}arguments\ have\ changed"{}}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00207}00207\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ mp.util.debug(}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00208}00208\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Creating\ a\ new\ executor\ with\ max\_workers="{}}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00209}00209\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\{max\_workers\}\ as\ the\ previous\ instance\ cannot\ be\ "{}}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00210}00210\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}reused\ (\{reason\})."{}}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00211}00211\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00212}00212\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ executor.shutdown(wait=\textcolor{keyword}{True},\ kill\_workers=kill\_workers)}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00213}00213\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_executor\ =\ executor\ =\ \_executor\_kwargs\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00214}00214\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Recursive\ call\ to\ build\ a\ new\ instance}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00215}00215\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ cls.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1reusable__executor_1_1__ReusablePoolExecutor_aedefc1df3345d4e93d8f14593a0c7979}{get\_reusable\_executor}}(}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00216}00216\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ max\_workers=max\_workers,\ **kwargs}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00217}00217\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00218}00218\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00219}00219\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ mp.util.debug(}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00220}00220\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Reusing\ existing\ executor\ with\ "{}}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00221}00221\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}max\_workers=\{executor.\_max\_workers\}."{}}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00222}00222\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00223}00223\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ is\_reused\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00224}00224\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ executor.\_resize(max\_workers)}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00225}00225\ }
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00226}00226\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ executor,\ is\_reused}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00227}00227\ }
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00228}00228\ \ \ \ \ \textcolor{keyword}{def\ }submit(self,\ fn,\ *args,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00229}00229\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1reusable__executor_1_1__ReusablePoolExecutor_a52e5631469dcf6f73514faf47280f138}{\_submit\_resize\_lock}}:}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00230}00230\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ super().submit(fn,\ *args,\ **kwargs)}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00231}00231\ }
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00232}00232\ \ \ \ \ \textcolor{keyword}{def\ }\_resize(self,\ max\_workers):}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00233}00233\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1reusable__executor_1_1__ReusablePoolExecutor_a52e5631469dcf6f73514faf47280f138}{\_submit\_resize\_lock}}:}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00234}00234\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ max\_workers\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00235}00235\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}Trying\ to\ resize\ with\ max\_workers=None"{}})}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00236}00236\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ max\_workers\ ==\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1process__executor_1_1ProcessPoolExecutor_a9360c1738ca13793836add634625d1c1}{\_max\_workers}}:}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00237}00237\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00238}00238\ }
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00239}00239\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1process__executor_1_1ProcessPoolExecutor_a0fae172d982520774091d5b8cf220699}{\_executor\_manager\_thread}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00240}00240\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ If\ the\ executor\_manager\_thread\ has\ not\ been\ started}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00241}00241\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ then\ no\ processes\ have\ been\ spawned\ and\ we\ can\ just}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00242}00242\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ update\ \_max\_workers\ and\ return}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00243}00243\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1process__executor_1_1ProcessPoolExecutor_a9360c1738ca13793836add634625d1c1}{\_max\_workers}}\ =\ max\_workers}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00244}00244\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00245}00245\ }
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00246}00246\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1reusable__executor_1_1__ReusablePoolExecutor_a2ffd93c5e96f9aff32c1d3d4ca68ce4c}{\_wait\_job\_completion}}()}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00247}00247\ }
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00248}00248\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Some\ process\ might\ have\ returned\ due\ to\ timeout\ so\ check\ how\ many}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00249}00249\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ children\ are\ still\ alive.\ Use\ the\ \_process\_management\_lock\ to}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00250}00250\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ ensure\ that\ no\ process\ are\ spawned\ or\ timeout\ during\ the\ resize.}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00251}00251\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1process__executor_1_1ProcessPoolExecutor_a7159dfda64a345735cf6d07d68befa3a}{\_processes\_management\_lock}}:}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00252}00252\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ processes\ =\ list(self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1process__executor_1_1ProcessPoolExecutor_ab00a56f1ca1f19f11cf984e83ea111c6}{\_processes}}.values())}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00253}00253\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ nb\_children\_alive\ =\ sum(p.is\_alive()\ \textcolor{keywordflow}{for}\ p\ \textcolor{keywordflow}{in}\ processes)}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00254}00254\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1process__executor_1_1ProcessPoolExecutor_a9360c1738ca13793836add634625d1c1}{\_max\_workers}}\ =\ max\_workers}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00255}00255\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ \_\ \textcolor{keywordflow}{in}\ range(max\_workers,\ nb\_children\_alive):}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00256}00256\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1process__executor_1_1ProcessPoolExecutor_a8206d652b82625a3cdaef3a5b1e16421}{\_call\_queue}}.put(\textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00257}00257\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{while}\ (}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00258}00258\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ len(self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1process__executor_1_1ProcessPoolExecutor_ab00a56f1ca1f19f11cf984e83ea111c6}{\_processes}})\ >\ max\_workers\ \textcolor{keywordflow}{and}\ \textcolor{keywordflow}{not}\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1process__executor_1_1ProcessPoolExecutor_af223fd65f186d99ab03c569da45ba8ee}{\_flags}}.broken}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00259}00259\ \ \ \ \ \ \ \ \ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00260}00260\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ time.sleep(1e-\/3)}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00261}00261\ }
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00262}00262\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1process__executor_1_1ProcessPoolExecutor_a6c41994c1be19c1a02b94e0a20104766}{\_adjust\_process\_count}}()}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00263}00263\ \ \ \ \ \ \ \ \ \ \ \ \ processes\ =\ list(self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1process__executor_1_1ProcessPoolExecutor_ab00a56f1ca1f19f11cf984e83ea111c6}{\_processes}}.values())}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00264}00264\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{while}\ \textcolor{keywordflow}{not}\ all(p.is\_alive()\ \textcolor{keywordflow}{for}\ p\ \textcolor{keywordflow}{in}\ processes):}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00265}00265\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ time.sleep(1e-\/3)}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00266}00266\ }
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00267}\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1reusable__executor_1_1__ReusablePoolExecutor_a2ffd93c5e96f9aff32c1d3d4ca68ce4c}{00267}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1reusable__executor_1_1__ReusablePoolExecutor_a2ffd93c5e96f9aff32c1d3d4ca68ce4c}{\_wait\_job\_completion}}(self):}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00268}00268\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Wait\ for\ the\ cache\ to\ be\ empty\ before\ resizing\ the\ pool."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00269}00269\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Issue\ a\ warning\ to\ the\ user\ about\ the\ bad\ effect\ of\ this\ usage.}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00270}00270\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1process__executor_1_1ProcessPoolExecutor_a69d14150e5f979d79aa1fd8da935ddc9}{\_pending\_work\_items}}:}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00271}00271\ \ \ \ \ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00272}00272\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Trying\ to\ resize\ an\ executor\ with\ running\ jobs:\ "{}}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00273}00273\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}waiting\ for\ jobs\ completion\ before\ resizing."{}},}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00274}00274\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ UserWarning,}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00275}00275\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00276}00276\ \ \ \ \ \ \ \ \ \ \ \ \ mp.util.debug(}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00277}00277\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}Executor\ \{self.executor\_id\}\ waiting\ for\ jobs\ completion\ "{}}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00278}00278\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}before\ resizing"{}}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00279}00279\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00280}00280\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Wait\ for\ the\ completion\ of\ the\ jobs}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00281}00281\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{while}\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1process__executor_1_1ProcessPoolExecutor_a69d14150e5f979d79aa1fd8da935ddc9}{\_pending\_work\_items}}:}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00282}00282\ \ \ \ \ \ \ \ \ \ \ \ \ time.sleep(1e-\/3)}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00283}00283\ }
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00284}00284\ \ \ \ \ \textcolor{keyword}{def\ }\_setup\_queues(self,\ job\_reducers,\ result\_reducers):}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00285}00285\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ As\ this\ executor\ can\ be\ resized,\ use\ a\ large\ queue\ size\ to\ avoid}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00286}00286\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ underestimating\ capacity\ and\ introducing\ overhead}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00287}00287\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Also\ handle\ the\ case\ where\ the\ user\ set\ max\_workers\ to\ a\ value\ larger}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00288}00288\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ than\ cpu\_count(),\ to\ avoid\ limiting\ the\ number\ of\ parallel\ jobs.}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00289}00289\ }
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00290}00290\ \ \ \ \ \ \ \ \ min\_queue\_size\ =\ max(cpu\_count(),\ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1process__executor_1_1ProcessPoolExecutor_a9360c1738ca13793836add634625d1c1}{\_max\_workers}})}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00291}00291\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1reusable__executor_1_1__ReusablePoolExecutor_a38106836259a0c6206a6842aa3323cea}{queue\_size}}\ =\ 2\ *\ min\_queue\_size\ +\ EXTRA\_QUEUED\_CALLS}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00292}00292\ \ \ \ \ \ \ \ \ super().\_setup\_queues(}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00293}00293\ \ \ \ \ \ \ \ \ \ \ \ \ job\_reducers,\ result\_reducers,\ queue\_size=self.\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1reusable__executor_1_1__ReusablePoolExecutor_a38106836259a0c6206a6842aa3323cea}{queue\_size}}}
+\DoxyCodeLine{\Hypertarget{reusable__executor_8py_source_l00294}00294\ \ \ \ \ \ \ \ \ )}
+
+\end{DoxyCode}

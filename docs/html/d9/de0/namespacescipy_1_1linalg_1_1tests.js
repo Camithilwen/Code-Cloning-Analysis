@@ -1,0 +1,26 @@
+var namespacescipy_1_1linalg_1_1tests =
+[
+    [ "test_basic", "d6/d2d/namespacescipy_1_1linalg_1_1tests_1_1test__basic.html", "d6/d2d/namespacescipy_1_1linalg_1_1tests_1_1test__basic" ],
+    [ "test_blas", "d0/dea/namespacescipy_1_1linalg_1_1tests_1_1test__blas.html", "d0/dea/namespacescipy_1_1linalg_1_1tests_1_1test__blas" ],
+    [ "test_cython_blas", "de/d5a/namespacescipy_1_1linalg_1_1tests_1_1test__cython__blas.html", "de/d5a/namespacescipy_1_1linalg_1_1tests_1_1test__cython__blas" ],
+    [ "test_cython_lapack", "db/de0/namespacescipy_1_1linalg_1_1tests_1_1test__cython__lapack.html", "db/de0/namespacescipy_1_1linalg_1_1tests_1_1test__cython__lapack" ],
+    [ "test_cythonized_array_utils", "d2/daa/namespacescipy_1_1linalg_1_1tests_1_1test__cythonized__array__utils.html", null ],
+    [ "test_decomp", "d3/d01/namespacescipy_1_1linalg_1_1tests_1_1test__decomp.html", "d3/d01/namespacescipy_1_1linalg_1_1tests_1_1test__decomp" ],
+    [ "test_decomp_cholesky", "dd/dab/namespacescipy_1_1linalg_1_1tests_1_1test__decomp__cholesky.html", "dd/dab/namespacescipy_1_1linalg_1_1tests_1_1test__decomp__cholesky" ],
+    [ "test_decomp_cossin", "d6/d6b/namespacescipy_1_1linalg_1_1tests_1_1test__decomp__cossin.html", null ],
+    [ "test_decomp_ldl", "d8/de0/namespacescipy_1_1linalg_1_1tests_1_1test__decomp__ldl.html", null ],
+    [ "test_decomp_lu", "d5/d44/namespacescipy_1_1linalg_1_1tests_1_1test__decomp__lu.html", "d5/d44/namespacescipy_1_1linalg_1_1tests_1_1test__decomp__lu" ],
+    [ "test_decomp_polar", "d1/db7/namespacescipy_1_1linalg_1_1tests_1_1test__decomp__polar.html", null ],
+    [ "test_decomp_update", "d2/dd3/namespacescipy_1_1linalg_1_1tests_1_1test__decomp__update.html", "d2/dd3/namespacescipy_1_1linalg_1_1tests_1_1test__decomp__update" ],
+    [ "test_fblas", "d5/d63/namespacescipy_1_1linalg_1_1tests_1_1test__fblas.html", "d5/d63/namespacescipy_1_1linalg_1_1tests_1_1test__fblas" ],
+    [ "test_interpolative", "d0/d21/namespacescipy_1_1linalg_1_1tests_1_1test__interpolative.html", "d0/d21/namespacescipy_1_1linalg_1_1tests_1_1test__interpolative" ],
+    [ "test_lapack", "d7/dfd/namespacescipy_1_1linalg_1_1tests_1_1test__lapack.html", "d7/dfd/namespacescipy_1_1linalg_1_1tests_1_1test__lapack" ],
+    [ "test_matfuncs", "db/d75/namespacescipy_1_1linalg_1_1tests_1_1test__matfuncs.html", "db/d75/namespacescipy_1_1linalg_1_1tests_1_1test__matfuncs" ],
+    [ "test_matmul_toeplitz", "d2/da5/namespacescipy_1_1linalg_1_1tests_1_1test__matmul__toeplitz.html", "d2/da5/namespacescipy_1_1linalg_1_1tests_1_1test__matmul__toeplitz" ],
+    [ "test_misc", "da/d56/namespacescipy_1_1linalg_1_1tests_1_1test__misc.html", null ],
+    [ "test_procrustes", "d5/d29/namespacescipy_1_1linalg_1_1tests_1_1test__procrustes.html", null ],
+    [ "test_sketches", "da/d72/namespacescipy_1_1linalg_1_1tests_1_1test__sketches.html", "da/d72/namespacescipy_1_1linalg_1_1tests_1_1test__sketches" ],
+    [ "test_solve_toeplitz", "dc/da6/namespacescipy_1_1linalg_1_1tests_1_1test__solve__toeplitz.html", null ],
+    [ "test_solvers", "d4/d68/namespacescipy_1_1linalg_1_1tests_1_1test__solvers.html", "d4/d68/namespacescipy_1_1linalg_1_1tests_1_1test__solvers" ],
+    [ "test_special_matrices", "d7/d47/namespacescipy_1_1linalg_1_1tests_1_1test__special__matrices.html", "d7/d47/namespacescipy_1_1linalg_1_1tests_1_1test__special__matrices" ]
+];

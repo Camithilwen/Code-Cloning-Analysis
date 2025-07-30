@@ -1,0 +1,880 @@
+\doxysection{\+\_\+robust\+\_\+covariance.\+py}
+\hypertarget{__robust__covariance_8py_source}{}\label{__robust__covariance_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/sklearn/covariance/\_robust\_covariance.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/sklearn/covariance/\_robust\_covariance.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00001}\mbox{\hyperlink{namespacesklearn_1_1covariance_1_1__robust__covariance}{00001}}\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00002}00002\ \textcolor{stringliteral}{Robust\ location\ and\ covariance\ estimators.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00003}00003\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00004}00004\ \textcolor{stringliteral}{Here\ are\ implemented\ estimators\ that\ are\ resistant\ to\ outliers.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00005}00005\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00006}00006\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00007}00007\ }
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00008}00008\ \textcolor{comment}{\#\ Authors:\ The\ scikit-\/learn\ developers}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00009}00009\ \textcolor{comment}{\#\ SPDX-\/License-\/Identifier:\ BSD-\/3-\/Clause}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00010}00010\ }
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00011}00011\ \textcolor{keyword}{import}\ warnings}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00012}00012\ \textcolor{keyword}{from}\ numbers\ \textcolor{keyword}{import}\ Integral,\ Real}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00013}00013\ }
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00014}00014\ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00015}00015\ \textcolor{keyword}{from}\ scipy\ \textcolor{keyword}{import}\ linalg}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00016}00016\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacescipy_1_1stats}{scipy.stats}}\ \textcolor{keyword}{import}\ chi2}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00017}00017\ }
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00018}00018\ \textcolor{keyword}{from}\ ..base\ \textcolor{keyword}{import}\ \_fit\_context}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00019}00019\ \textcolor{keyword}{from}\ ..utils\ \textcolor{keyword}{import}\ check\_array,\ check\_random\_state}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00020}00020\ \textcolor{keyword}{from}\ ..utils.\_param\_validation\ \textcolor{keyword}{import}\ Interval}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00021}00021\ \textcolor{keyword}{from}\ ..utils.extmath\ \textcolor{keyword}{import}\ fast\_logdet}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00022}00022\ \textcolor{keyword}{from}\ ..utils.validation\ \textcolor{keyword}{import}\ validate\_data}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00023}00023\ \textcolor{keyword}{from}\ .\_empirical\_covariance\ \textcolor{keyword}{import}\ EmpiricalCovariance,\ empirical\_covariance}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00024}00024\ }
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00025}00025\ }
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00026}00026\ \textcolor{comment}{\#\ Minimum\ Covariance\ Determinant}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00027}00027\ \textcolor{comment}{\#\ \ \ Implementing\ of\ an\ algorithm\ by\ Rousseeuw\ \&\ Van\ Driessen\ described\ in}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00028}00028\ \textcolor{comment}{\#\ \ \ (A\ Fast\ Algorithm\ for\ the\ Minimum\ Covariance\ Determinant\ Estimator,}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00029}00029\ \textcolor{comment}{\#\ \ \ 1999,\ American\ Statistical\ Association\ and\ the\ American\ Society}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00030}00030\ \textcolor{comment}{\#\ \ \ for\ Quality,\ TECHNOMETRICS)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00031}00031\ \textcolor{comment}{\#\ XXX\ Is\ this\ really\ a\ public\ function?\ It's\ not\ listed\ in\ the\ docs\ or}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00032}00032\ \textcolor{comment}{\#\ exported\ by\ sklearn.covariance.\ Deprecate?}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00033}\mbox{\hyperlink{namespacesklearn_1_1covariance_1_1__robust__covariance_aa2e54f478677261289bcf40c2693b24f}{00033}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1covariance_1_1__robust__covariance_aa2e54f478677261289bcf40c2693b24f}{c\_step}}(}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00034}00034\ \ \ \ \ X,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00035}00035\ \ \ \ \ n\_support,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00036}00036\ \ \ \ \ remaining\_iterations=30,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00037}00037\ \ \ \ \ initial\_estimates=None,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00038}00038\ \ \ \ \ verbose=False,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00039}00039\ \ \ \ \ cov\_computation\_method=empirical\_covariance,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00040}00040\ \ \ \ \ random\_state=None,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00041}00041\ ):}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00042}00042\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}C\_step\ procedure\ described\ in\ [Rouseeuw1984]\_\ aiming\ at\ computing\ MCD.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00043}00043\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00044}00044\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00045}00045\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00046}00046\ \textcolor{stringliteral}{\ \ \ \ X\ :\ array-\/like\ of\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00047}00047\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Data\ set\ in\ which\ we\ look\ for\ the\ n\_support\ observations\ whose}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00048}00048\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ scatter\ matrix\ has\ minimum\ determinant.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00049}00049\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00050}00050\ \textcolor{stringliteral}{\ \ \ \ n\_support\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00051}00051\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ observations\ to\ compute\ the\ robust\ estimates\ of\ location}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00052}00052\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ and\ covariance\ from.\ This\ parameter\ must\ be\ greater\ than}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00053}00053\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}n\_samples\ /\ 2\`{}.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00054}00054\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00055}00055\ \textcolor{stringliteral}{\ \ \ \ remaining\_iterations\ :\ int,\ default=30}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00056}00056\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ iterations\ to\ perform.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00057}00057\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ According\ to\ [Rouseeuw1999]\_,\ two\ iterations\ are\ sufficient\ to\ get}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00058}00058\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ close\ to\ the\ minimum,\ and\ we\ never\ need\ more\ than\ 30\ to\ reach}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00059}00059\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ convergence.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00060}00060\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00061}00061\ \textcolor{stringliteral}{\ \ \ \ initial\_estimates\ :\ tuple\ of\ shape\ (2,),\ default=None}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00062}00062\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Initial\ estimates\ of\ location\ and\ shape\ from\ which\ to\ run\ the\ c\_step}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00063}00063\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ procedure:}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00064}00064\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ initial\_estimates[0]:\ an\ initial\ location\ estimate}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00065}00065\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ initial\_estimates[1]:\ an\ initial\ covariance\ estimate}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00066}00066\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00067}00067\ \textcolor{stringliteral}{\ \ \ \ verbose\ :\ bool,\ default=False}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00068}00068\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Verbose\ mode.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00069}00069\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00070}00070\ \textcolor{stringliteral}{\ \ \ \ cov\_computation\_method\ :\ callable,\ \(\backslash\)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00071}00071\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ default=:func:\`{}sklearn.covariance.empirical\_covariance\`{}}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00072}00072\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ function\ which\ will\ be\ used\ to\ compute\ the\ covariance.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00073}00073\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Must\ return\ array\ of\ shape\ (n\_features,\ n\_features).}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00074}00074\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00075}00075\ \textcolor{stringliteral}{\ \ \ \ random\_state\ :\ int,\ RandomState\ instance\ or\ None,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00076}00076\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Determines\ the\ pseudo\ random\ number\ generator\ for\ shuffling\ the\ data.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00077}00077\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Pass\ an\ int\ for\ reproducible\ results\ across\ multiple\ function\ calls.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00078}00078\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ See\ :term:\`{}Glossary\ <random\_state>\`{}.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00079}00079\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00080}00080\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00081}00081\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00082}00082\ \textcolor{stringliteral}{\ \ \ \ location\ :\ ndarray\ of\ shape\ (n\_features,)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00083}00083\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Robust\ location\ estimates.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00084}00084\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00085}00085\ \textcolor{stringliteral}{\ \ \ \ covariance\ :\ ndarray\ of\ shape\ (n\_features,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00086}00086\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Robust\ covariance\ estimates.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00087}00087\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00088}00088\ \textcolor{stringliteral}{\ \ \ \ support\ :\ ndarray\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00089}00089\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ A\ mask\ for\ the\ \`{}n\_support\`{}\ observations\ whose\ scatter\ matrix\ has}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00090}00090\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ minimum\ determinant.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00091}00091\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00092}00092\ \textcolor{stringliteral}{\ \ \ \ References}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00093}00093\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00094}00094\ \textcolor{stringliteral}{\ \ \ \ ..\ [Rouseeuw1999]\ A\ Fast\ Algorithm\ for\ the\ Minimum\ Covariance\ Determinant}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00095}00095\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Estimator,\ 1999,\ American\ Statistical\ Association\ and\ the\ American}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00096}00096\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Society\ for\ Quality,\ TECHNOMETRICS}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00097}00097\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00098}00098\ \ \ \ \ X\ =\ np.asarray(X)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00099}00099\ \ \ \ \ random\_state\ =\ check\_random\_state(random\_state)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00100}00100\ \ \ \ \ \textcolor{keywordflow}{return}\ \_c\_step(}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00101}00101\ \ \ \ \ \ \ \ \ X,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00102}00102\ \ \ \ \ \ \ \ \ n\_support,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00103}00103\ \ \ \ \ \ \ \ \ remaining\_iterations=remaining\_iterations,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00104}00104\ \ \ \ \ \ \ \ \ initial\_estimates=initial\_estimates,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00105}00105\ \ \ \ \ \ \ \ \ verbose=verbose,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00106}00106\ \ \ \ \ \ \ \ \ cov\_computation\_method=cov\_computation\_method,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00107}00107\ \ \ \ \ \ \ \ \ random\_state=random\_state,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00108}00108\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00109}00109\ }
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00110}00110\ }
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00111}00111\ \textcolor{keyword}{def\ }\_c\_step(}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00112}00112\ \ \ \ \ X,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00113}00113\ \ \ \ \ n\_support,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00114}00114\ \ \ \ \ random\_state,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00115}00115\ \ \ \ \ remaining\_iterations=30,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00116}00116\ \ \ \ \ initial\_estimates=None,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00117}00117\ \ \ \ \ verbose=False,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00118}00118\ \ \ \ \ cov\_computation\_method=empirical\_covariance,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00119}00119\ ):}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00120}00120\ \ \ \ \ n\_samples,\ n\_features\ =\ X.shape}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00121}00121\ \ \ \ \ dist\ =\ np.inf}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00122}00122\ }
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00123}00123\ \ \ \ \ \textcolor{comment}{\#\ Initialisation}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00124}00124\ \ \ \ \ \textcolor{keywordflow}{if}\ initial\_estimates\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00125}00125\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ compute\ initial\ robust\ estimates\ from\ a\ random\ subset}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00126}00126\ \ \ \ \ \ \ \ \ support\_indices\ =\ random\_state.permutation(n\_samples)[:n\_support]}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00127}00127\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00128}00128\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ get\ initial\ robust\ estimates\ from\ the\ function\ parameters}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00129}00129\ \ \ \ \ \ \ \ \ location\ =\ initial\_estimates[0]}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00130}00130\ \ \ \ \ \ \ \ \ covariance\ =\ initial\_estimates[1]}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00131}00131\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ run\ a\ special\ iteration\ for\ that\ case\ (to\ get\ an\ initial\ support\_indices)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00132}00132\ \ \ \ \ \ \ \ \ precision\ =\ linalg.pinvh(covariance)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00133}00133\ \ \ \ \ \ \ \ \ X\_centered\ =\ X\ -\/\ location}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00134}00134\ \ \ \ \ \ \ \ \ dist\ =\ (np.dot(X\_centered,\ precision)\ *\ X\_centered).sum(1)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00135}00135\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ compute\ new\ estimates}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00136}00136\ \ \ \ \ \ \ \ \ support\_indices\ =\ np.argpartition(dist,\ n\_support\ -\/\ 1)[:n\_support]}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00137}00137\ }
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00138}00138\ \ \ \ \ X\_support\ =\ X[support\_indices]}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00139}00139\ \ \ \ \ location\ =\ X\_support.mean(0)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00140}00140\ \ \ \ \ covariance\ =\ cov\_computation\_method(X\_support)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00141}00141\ }
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00142}00142\ \ \ \ \ \textcolor{comment}{\#\ Iterative\ procedure\ for\ Minimum\ Covariance\ Determinant\ computation}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00143}00143\ \ \ \ \ det\ =\ fast\_logdet(covariance)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00144}00144\ \ \ \ \ \textcolor{comment}{\#\ If\ the\ data\ already\ has\ singular\ covariance,\ calculate\ the\ precision,}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00145}00145\ \ \ \ \ \textcolor{comment}{\#\ as\ the\ loop\ below\ will\ not\ be\ entered.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00146}00146\ \ \ \ \ \textcolor{keywordflow}{if}\ np.isinf(det):}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00147}00147\ \ \ \ \ \ \ \ \ precision\ =\ linalg.pinvh(covariance)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00148}00148\ }
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00149}00149\ \ \ \ \ previous\_det\ =\ np.inf}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00150}00150\ \ \ \ \ \textcolor{keywordflow}{while}\ det\ <\ previous\_det\ \textcolor{keywordflow}{and}\ remaining\_iterations\ >\ 0\ \textcolor{keywordflow}{and}\ \textcolor{keywordflow}{not}\ np.isinf(det):}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00151}00151\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ save\ old\ estimates\ values}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00152}00152\ \ \ \ \ \ \ \ \ previous\_location\ =\ location}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00153}00153\ \ \ \ \ \ \ \ \ previous\_covariance\ =\ covariance}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00154}00154\ \ \ \ \ \ \ \ \ previous\_det\ =\ det}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00155}00155\ \ \ \ \ \ \ \ \ previous\_support\_indices\ =\ support\_indices}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00156}00156\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ compute\ a\ new\ support\_indices\ from\ the\ full\ data\ set\ mahalanobis\ distances}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00157}00157\ \ \ \ \ \ \ \ \ precision\ =\ linalg.pinvh(covariance)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00158}00158\ \ \ \ \ \ \ \ \ X\_centered\ =\ X\ -\/\ location}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00159}00159\ \ \ \ \ \ \ \ \ dist\ =\ (np.dot(X\_centered,\ precision)\ *\ X\_centered).sum(axis=1)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00160}00160\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ compute\ new\ estimates}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00161}00161\ \ \ \ \ \ \ \ \ support\_indices\ =\ np.argpartition(dist,\ n\_support\ -\/\ 1)[:n\_support]}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00162}00162\ \ \ \ \ \ \ \ \ X\_support\ =\ X[support\_indices]}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00163}00163\ \ \ \ \ \ \ \ \ location\ =\ X\_support.mean(axis=0)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00164}00164\ \ \ \ \ \ \ \ \ covariance\ =\ cov\_computation\_method(X\_support)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00165}00165\ \ \ \ \ \ \ \ \ det\ =\ fast\_logdet(covariance)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00166}00166\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ update\ remaining\ iterations\ for\ early\ stopping}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00167}00167\ \ \ \ \ \ \ \ \ remaining\_iterations\ -\/=\ 1}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00168}00168\ }
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00169}00169\ \ \ \ \ previous\_dist\ =\ dist}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00170}00170\ \ \ \ \ dist\ =\ (np.dot(X\ -\/\ location,\ precision)\ *\ (X\ -\/\ location)).sum(axis=1)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00171}00171\ \ \ \ \ \textcolor{comment}{\#\ Check\ if\ best\ fit\ already\ found\ (det\ =>\ 0,\ logdet\ =>\ -\/inf)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00172}00172\ \ \ \ \ \textcolor{keywordflow}{if}\ np.isinf(det):}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00173}00173\ \ \ \ \ \ \ \ \ results\ =\ location,\ covariance,\ det,\ support\_indices,\ dist}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00174}00174\ \ \ \ \ \textcolor{comment}{\#\ Check\ convergence}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00175}00175\ \ \ \ \ \textcolor{keywordflow}{if}\ np.allclose(det,\ previous\_det):}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00176}00176\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ c\_step\ procedure\ converged}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00177}00177\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ verbose:}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00178}00178\ \ \ \ \ \ \ \ \ \ \ \ \ print(}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00179}00179\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Optimal\ couple\ (location,\ covariance)\ found\ before"{}}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00180}00180\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ ending\ iterations\ (\%d\ left)"{}}\ \%\ (remaining\_iterations)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00181}00181\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00182}00182\ \ \ \ \ \ \ \ \ results\ =\ location,\ covariance,\ det,\ support\_indices,\ dist}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00183}00183\ \ \ \ \ \textcolor{keywordflow}{elif}\ det\ >\ previous\_det:}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00184}00184\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ determinant\ has\ increased\ (should\ not\ happen)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00185}00185\ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00186}00186\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Determinant\ has\ increased;\ this\ should\ not\ happen:\ "{}}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00187}00187\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}log(det)\ >\ log(previous\_det)\ (\%.15f\ >\ \%.15f).\ "{}}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00188}00188\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}You\ may\ want\ to\ try\ with\ a\ higher\ value\ of\ "{}}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00189}00189\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}support\_fraction\ (current\ value:\ \%.3f)."{}}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00190}00190\ \ \ \ \ \ \ \ \ \ \ \ \ \%\ (det,\ previous\_det,\ n\_support\ /\ n\_samples),}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00191}00191\ \ \ \ \ \ \ \ \ \ \ \ \ RuntimeWarning,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00192}00192\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00193}00193\ \ \ \ \ \ \ \ \ results\ =\ (}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00194}00194\ \ \ \ \ \ \ \ \ \ \ \ \ previous\_location,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00195}00195\ \ \ \ \ \ \ \ \ \ \ \ \ previous\_covariance,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00196}00196\ \ \ \ \ \ \ \ \ \ \ \ \ previous\_det,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00197}00197\ \ \ \ \ \ \ \ \ \ \ \ \ previous\_support\_indices,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00198}00198\ \ \ \ \ \ \ \ \ \ \ \ \ previous\_dist,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00199}00199\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00200}00200\ }
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00201}00201\ \ \ \ \ \textcolor{comment}{\#\ Check\ early\ stopping}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00202}00202\ \ \ \ \ \textcolor{keywordflow}{if}\ remaining\_iterations\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00203}00203\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ verbose:}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00204}00204\ \ \ \ \ \ \ \ \ \ \ \ \ print(\textcolor{stringliteral}{"{}Maximum\ number\ of\ iterations\ reached"{}})}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00205}00205\ \ \ \ \ \ \ \ \ results\ =\ location,\ covariance,\ det,\ support\_indices,\ dist}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00206}00206\ }
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00207}00207\ \ \ \ \ location,\ covariance,\ det,\ support\_indices,\ dist\ =\ results}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00208}00208\ \ \ \ \ \textcolor{comment}{\#\ Convert\ from\ list\ of\ indices\ to\ boolean\ mask.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00209}00209\ \ \ \ \ support\ =\ np.bincount(support\_indices,\ minlength=n\_samples).astype(bool)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00210}00210\ \ \ \ \ \textcolor{keywordflow}{return}\ location,\ covariance,\ det,\ support,\ dist}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00211}00211\ }
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00212}00212\ }
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00213}\mbox{\hyperlink{namespacesklearn_1_1covariance_1_1__robust__covariance_ac23a32f73d65cd327ff1bb126f0cadfa}{00213}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1covariance_1_1__robust__covariance_ac23a32f73d65cd327ff1bb126f0cadfa}{select\_candidates}}(}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00214}00214\ \ \ \ \ X,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00215}00215\ \ \ \ \ n\_support,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00216}00216\ \ \ \ \ n\_trials,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00217}00217\ \ \ \ \ select=1,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00218}00218\ \ \ \ \ n\_iter=30,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00219}00219\ \ \ \ \ verbose=False,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00220}00220\ \ \ \ \ cov\_computation\_method=empirical\_covariance,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00221}00221\ \ \ \ \ random\_state=None,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00222}00222\ ):}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00223}00223\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Finds\ the\ best\ pure\ subset\ of\ observations\ to\ compute\ MCD\ from\ it.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00224}00224\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00225}00225\ \textcolor{stringliteral}{\ \ \ \ The\ purpose\ of\ this\ function\ is\ to\ find\ the\ best\ sets\ of\ n\_support}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00226}00226\ \textcolor{stringliteral}{\ \ \ \ observations\ with\ respect\ to\ a\ minimization\ of\ their\ covariance}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00227}00227\ \textcolor{stringliteral}{\ \ \ \ matrix\ determinant.\ Equivalently,\ it\ removes\ n\_samples-\/n\_support}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00228}00228\ \textcolor{stringliteral}{\ \ \ \ observations\ to\ construct\ what\ we\ call\ a\ pure\ data\ set\ (i.e.\ not}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00229}00229\ \textcolor{stringliteral}{\ \ \ \ containing\ outliers).\ The\ list\ of\ the\ observations\ of\ the\ pure}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00230}00230\ \textcolor{stringliteral}{\ \ \ \ data\ set\ is\ referred\ to\ as\ the\ \`{}support\`{}.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00231}00231\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00232}00232\ \textcolor{stringliteral}{\ \ \ \ Starting\ from\ a\ random\ support,\ the\ pure\ data\ set\ is\ found\ by\ the}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00233}00233\ \textcolor{stringliteral}{\ \ \ \ c\_step\ procedure\ introduced\ by\ Rousseeuw\ and\ Van\ Driessen\ in}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00234}00234\ \textcolor{stringliteral}{\ \ \ \ [RV]\_.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00235}00235\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00236}00236\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00237}00237\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00238}00238\ \textcolor{stringliteral}{\ \ \ \ X\ :\ array-\/like\ of\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00239}00239\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Data\ (sub)set\ in\ which\ we\ look\ for\ the\ n\_support\ purest\ observations.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00240}00240\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00241}00241\ \textcolor{stringliteral}{\ \ \ \ n\_support\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00242}00242\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ number\ of\ samples\ the\ pure\ data\ set\ must\ contain.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00243}00243\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ This\ parameter\ must\ be\ in\ the\ range\ \`{}[(n\ +\ p\ +\ 1)/2]\ <\ n\_support\ <\ n\`{}.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00244}00244\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00245}00245\ \textcolor{stringliteral}{\ \ \ \ n\_trials\ :\ int\ or\ tuple\ of\ shape\ (2,)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00246}00246\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ different\ initial\ sets\ of\ observations\ from\ which\ to}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00247}00247\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ run\ the\ algorithm.\ This\ parameter\ should\ be\ a\ strictly\ positive}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00248}00248\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ integer.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00249}00249\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Instead\ of\ giving\ a\ number\ of\ trials\ to\ perform,\ one\ can\ provide\ a}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00250}00250\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ list\ of\ initial\ estimates\ that\ will\ be\ used\ to\ iteratively\ run}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00251}00251\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ c\_step\ procedures.\ In\ this\ case:}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00252}00252\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ n\_trials[0]:\ array-\/like,\ shape\ (n\_trials,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00253}00253\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ is\ the\ list\ of\ \`{}n\_trials\`{}\ initial\ location\ estimates}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00254}00254\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ n\_trials[1]:\ array-\/like,\ shape\ (n\_trials,\ n\_features,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00255}00255\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ is\ the\ list\ of\ \`{}n\_trials\`{}\ initial\ covariances\ estimates}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00256}00256\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00257}00257\ \textcolor{stringliteral}{\ \ \ \ select\ :\ int,\ default=1}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00258}00258\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ best\ candidates\ results\ to\ return.\ This\ parameter\ must\ be}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00259}00259\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ a\ strictly\ positive\ integer.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00260}00260\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00261}00261\ \textcolor{stringliteral}{\ \ \ \ n\_iter\ :\ int,\ default=30}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00262}00262\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Maximum\ number\ of\ iterations\ for\ the\ c\_step\ procedure.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00263}00263\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ (2\ is\ enough\ to\ be\ close\ to\ the\ final\ solution.\ "{}Never"{}\ exceeds\ 20).}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00264}00264\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ This\ parameter\ must\ be\ a\ strictly\ positive\ integer.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00265}00265\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00266}00266\ \textcolor{stringliteral}{\ \ \ \ verbose\ :\ bool,\ default=False}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00267}00267\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Control\ the\ output\ verbosity.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00268}00268\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00269}00269\ \textcolor{stringliteral}{\ \ \ \ cov\_computation\_method\ :\ callable,\ \(\backslash\)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00270}00270\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ default=:func:\`{}sklearn.covariance.empirical\_covariance\`{}}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00271}00271\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ function\ which\ will\ be\ used\ to\ compute\ the\ covariance.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00272}00272\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Must\ return\ an\ array\ of\ shape\ (n\_features,\ n\_features).}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00273}00273\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00274}00274\ \textcolor{stringliteral}{\ \ \ \ random\_state\ :\ int,\ RandomState\ instance\ or\ None,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00275}00275\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Determines\ the\ pseudo\ random\ number\ generator\ for\ shuffling\ the\ data.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00276}00276\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Pass\ an\ int\ for\ reproducible\ results\ across\ multiple\ function\ calls.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00277}00277\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ See\ :term:\`{}Glossary\ <random\_state>\`{}.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00278}00278\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00279}00279\ \textcolor{stringliteral}{\ \ \ \ See\ Also}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00280}00280\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00281}00281\ \textcolor{stringliteral}{\ \ \ \ c\_step}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00282}00282\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00283}00283\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00284}00284\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00285}00285\ \textcolor{stringliteral}{\ \ \ \ best\_locations\ :\ ndarray\ of\ shape\ (select,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00286}00286\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ \`{}select\`{}\ location\ estimates\ computed\ from\ the\ \`{}select\`{}\ best}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00287}00287\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ supports\ found\ in\ the\ data\ set\ (\`{}X\`{}).}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00288}00288\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00289}00289\ \textcolor{stringliteral}{\ \ \ \ best\_covariances\ :\ ndarray\ of\ shape\ (select,\ n\_features,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00290}00290\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ \`{}select\`{}\ covariance\ estimates\ computed\ from\ the\ \`{}select\`{}}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00291}00291\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ best\ supports\ found\ in\ the\ data\ set\ (\`{}X\`{}).}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00292}00292\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00293}00293\ \textcolor{stringliteral}{\ \ \ \ best\_supports\ :\ ndarray\ of\ shape\ (select,\ n\_samples)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00294}00294\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ \`{}select\`{}\ best\ supports\ found\ in\ the\ data\ set\ (\`{}X\`{}).}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00295}00295\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00296}00296\ \textcolor{stringliteral}{\ \ \ \ References}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00297}00297\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00298}00298\ \textcolor{stringliteral}{\ \ \ \ ..\ [RV]\ A\ Fast\ Algorithm\ for\ the\ Minimum\ Covariance\ Determinant}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00299}00299\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Estimator,\ 1999,\ American\ Statistical\ Association\ and\ the\ American}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00300}00300\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Society\ for\ Quality,\ TECHNOMETRICS}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00301}00301\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00302}00302\ \ \ \ \ random\_state\ =\ check\_random\_state(random\_state)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00303}00303\ }
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00304}00304\ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(n\_trials,\ Integral):}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00305}00305\ \ \ \ \ \ \ \ \ run\_from\_estimates\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00306}00306\ \ \ \ \ \textcolor{keywordflow}{elif}\ isinstance(n\_trials,\ tuple):}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00307}00307\ \ \ \ \ \ \ \ \ run\_from\_estimates\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00308}00308\ \ \ \ \ \ \ \ \ estimates\_list\ =\ n\_trials}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00309}00309\ \ \ \ \ \ \ \ \ n\_trials\ =\ estimates\_list[0].shape[0]}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00310}00310\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00311}00311\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classTypeError}{TypeError}}(}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00312}00312\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Invalid\ 'n\_trials'\ parameter,\ expected\ tuple\ or\ \ integer,\ got\ \%s\ (\%s)"{}}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00313}00313\ \ \ \ \ \ \ \ \ \ \ \ \ \%\ (n\_trials,\ type(n\_trials))}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00314}00314\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00315}00315\ }
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00316}00316\ \ \ \ \ \textcolor{comment}{\#\ compute\ \`{}n\_trials`\ location\ and\ shape\ estimates\ candidates\ in\ the\ subset}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00317}00317\ \ \ \ \ all\_estimates\ =\ []}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00318}00318\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ run\_from\_estimates:}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00319}00319\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ perform\ \`{}n\_trials`\ computations\ from\ random\ initial\ supports}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00320}00320\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ j\ \textcolor{keywordflow}{in}\ range(n\_trials):}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00321}00321\ \ \ \ \ \ \ \ \ \ \ \ \ all\_estimates.append(}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00322}00322\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_c\_step(}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00323}00323\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ X,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00324}00324\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ n\_support,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00325}00325\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ remaining\_iterations=n\_iter,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00326}00326\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ verbose=verbose,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00327}00327\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ cov\_computation\_method=cov\_computation\_method,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00328}00328\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ random\_state=random\_state,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00329}00329\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00330}00330\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00331}00331\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00332}00332\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ perform\ computations\ from\ every\ given\ initial\ estimates}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00333}00333\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ j\ \textcolor{keywordflow}{in}\ range(n\_trials):}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00334}00334\ \ \ \ \ \ \ \ \ \ \ \ \ initial\_estimates\ =\ (estimates\_list[0][j],\ estimates\_list[1][j])}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00335}00335\ \ \ \ \ \ \ \ \ \ \ \ \ all\_estimates.append(}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00336}00336\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_c\_step(}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00337}00337\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ X,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00338}00338\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ n\_support,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00339}00339\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ remaining\_iterations=n\_iter,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00340}00340\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ initial\_estimates=initial\_estimates,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00341}00341\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ verbose=verbose,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00342}00342\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ cov\_computation\_method=cov\_computation\_method,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00343}00343\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ random\_state=random\_state,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00344}00344\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00345}00345\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00346}00346\ \ \ \ \ all\_locs\_sub,\ all\_covs\_sub,\ all\_dets\_sub,\ all\_supports\_sub,\ all\_ds\_sub\ =\ zip(}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00347}00347\ \ \ \ \ \ \ \ \ *all\_estimates}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00348}00348\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00349}00349\ \ \ \ \ \textcolor{comment}{\#\ find\ the\ \`{}n\_best`\ best\ results\ among\ the\ \`{}n\_trials`\ ones}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00350}00350\ \ \ \ \ index\_best\ =\ np.argsort(all\_dets\_sub)[:select]}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00351}00351\ \ \ \ \ best\_locations\ =\ np.asarray(all\_locs\_sub)[index\_best]}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00352}00352\ \ \ \ \ best\_covariances\ =\ np.asarray(all\_covs\_sub)[index\_best]}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00353}00353\ \ \ \ \ best\_supports\ =\ np.asarray(all\_supports\_sub)[index\_best]}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00354}00354\ \ \ \ \ best\_ds\ =\ np.asarray(all\_ds\_sub)[index\_best]}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00355}00355\ }
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00356}00356\ \ \ \ \ \textcolor{keywordflow}{return}\ best\_locations,\ best\_covariances,\ best\_supports,\ best\_ds}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00357}00357\ }
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00358}00358\ }
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00359}\mbox{\hyperlink{namespacesklearn_1_1covariance_1_1__robust__covariance_a92e74469768bec87dc8bc997e45840a2}{00359}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1covariance_1_1__robust__covariance_a92e74469768bec87dc8bc997e45840a2}{fast\_mcd}}(}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00360}00360\ \ \ \ \ X,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00361}00361\ \ \ \ \ support\_fraction=None,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00362}00362\ \ \ \ \ cov\_computation\_method=empirical\_covariance,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00363}00363\ \ \ \ \ random\_state=None,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00364}00364\ ):}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00365}00365\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Estimate\ the\ Minimum\ Covariance\ Determinant\ matrix.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00366}00366\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00367}00367\ \textcolor{stringliteral}{\ \ \ \ Read\ more\ in\ the\ :ref:\`{}User\ Guide\ <robust\_covariance>\`{}.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00368}00368\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00369}00369\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00370}00370\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00371}00371\ \textcolor{stringliteral}{\ \ \ \ X\ :\ array-\/like\ of\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00372}00372\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ data\ matrix,\ with\ p\ features\ and\ n\ samples.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00373}00373\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00374}00374\ \textcolor{stringliteral}{\ \ \ \ support\_fraction\ :\ float,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00375}00375\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ proportion\ of\ points\ to\ be\ included\ in\ the\ support\ of\ the\ raw}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00376}00376\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ MCD\ estimate.\ Default\ is\ \`{}None\`{},\ which\ implies\ that\ the\ minimum}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00377}00377\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ value\ of\ \`{}support\_fraction\`{}\ will\ be\ used\ within\ the\ algorithm:}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00378}00378\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}(n\_samples\ +\ n\_features\ +\ 1)\ /\ 2\ *\ n\_samples\`{}.\ This\ parameter\ must\ be}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00379}00379\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ in\ the\ range\ (0,\ 1).}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00380}00380\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00381}00381\ \textcolor{stringliteral}{\ \ \ \ cov\_computation\_method\ :\ callable,\ \(\backslash\)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00382}00382\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ default=:func:\`{}sklearn.covariance.empirical\_covariance\`{}}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00383}00383\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ function\ which\ will\ be\ used\ to\ compute\ the\ covariance.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00384}00384\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Must\ return\ an\ array\ of\ shape\ (n\_features,\ n\_features).}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00385}00385\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00386}00386\ \textcolor{stringliteral}{\ \ \ \ random\_state\ :\ int,\ RandomState\ instance\ or\ None,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00387}00387\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Determines\ the\ pseudo\ random\ number\ generator\ for\ shuffling\ the\ data.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00388}00388\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Pass\ an\ int\ for\ reproducible\ results\ across\ multiple\ function\ calls.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00389}00389\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ See\ :term:\`{}Glossary\ <random\_state>\`{}.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00390}00390\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00391}00391\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00392}00392\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00393}00393\ \textcolor{stringliteral}{\ \ \ \ location\ :\ ndarray\ of\ shape\ (n\_features,)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00394}00394\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Robust\ location\ of\ the\ data.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00395}00395\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00396}00396\ \textcolor{stringliteral}{\ \ \ \ covariance\ :\ ndarray\ of\ shape\ (n\_features,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00397}00397\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Robust\ covariance\ of\ the\ features.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00398}00398\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00399}00399\ \textcolor{stringliteral}{\ \ \ \ support\ :\ ndarray\ of\ shape\ (n\_samples,),\ dtype=bool}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00400}00400\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ A\ mask\ of\ the\ observations\ that\ have\ been\ used\ to\ compute}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00401}00401\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ robust\ location\ and\ covariance\ estimates\ of\ the\ data\ set.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00402}00402\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00403}00403\ \textcolor{stringliteral}{\ \ \ \ Notes}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00404}00404\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00405}00405\ \textcolor{stringliteral}{\ \ \ \ The\ FastMCD\ algorithm\ has\ been\ introduced\ by\ Rousseuw\ and\ Van\ Driessen}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00406}00406\ \textcolor{stringliteral}{\ \ \ \ in\ "{}A\ Fast\ Algorithm\ for\ the\ Minimum\ Covariance\ Determinant\ Estimator,}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00407}00407\ \textcolor{stringliteral}{\ \ \ \ 1999,\ American\ Statistical\ Association\ and\ the\ American\ Society}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00408}00408\ \textcolor{stringliteral}{\ \ \ \ for\ Quality,\ TECHNOMETRICS"{}.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00409}00409\ \textcolor{stringliteral}{\ \ \ \ The\ principle\ is\ to\ compute\ robust\ estimates\ and\ random\ subsets\ before}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00410}00410\ \textcolor{stringliteral}{\ \ \ \ pooling\ them\ into\ a\ larger\ subsets,\ and\ finally\ into\ the\ full\ data\ set.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00411}00411\ \textcolor{stringliteral}{\ \ \ \ Depending\ on\ the\ size\ of\ the\ initial\ sample,\ we\ have\ one,\ two\ or\ three}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00412}00412\ \textcolor{stringliteral}{\ \ \ \ such\ computation\ levels.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00413}00413\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00414}00414\ \textcolor{stringliteral}{\ \ \ \ Note\ that\ only\ raw\ estimates\ are\ returned.\ If\ one\ is\ interested\ in}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00415}00415\ \textcolor{stringliteral}{\ \ \ \ the\ correction\ and\ reweighting\ steps\ described\ in\ [RouseeuwVan]\_,}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00416}00416\ \textcolor{stringliteral}{\ \ \ \ see\ the\ MinCovDet\ object.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00417}00417\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00418}00418\ \textcolor{stringliteral}{\ \ \ \ References}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00419}00419\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00420}00420\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00421}00421\ \textcolor{stringliteral}{\ \ \ \ ..\ [RouseeuwVan]\ A\ Fast\ Algorithm\ for\ the\ Minimum\ Covariance}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00422}00422\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Determinant\ Estimator,\ 1999,\ American\ Statistical\ Association}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00423}00423\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ and\ the\ American\ Society\ for\ Quality,\ TECHNOMETRICS}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00424}00424\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00425}00425\ \textcolor{stringliteral}{\ \ \ \ ..\ [Butler1993]\ R.\ W.\ Butler,\ P.\ L.\ Davies\ and\ M.\ Jhun,}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00426}00426\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Asymptotics\ For\ The\ Minimum\ Covariance\ Determinant\ Estimator,}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00427}00427\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ Annals\ of\ Statistics,\ 1993,\ Vol.\ 21,\ No.\ 3,\ 1385-\/1400}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00428}00428\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00429}00429\ \ \ \ \ random\_state\ =\ check\_random\_state(random\_state)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00430}00430\ }
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00431}00431\ \ \ \ \ X\ =\ check\_array(X,\ ensure\_min\_samples=2,\ estimator=\textcolor{stringliteral}{"{}fast\_mcd"{}})}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00432}00432\ \ \ \ \ n\_samples,\ n\_features\ =\ X.shape}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00433}00433\ }
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00434}00434\ \ \ \ \ \textcolor{comment}{\#\ minimum\ breakdown\ value}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00435}00435\ \ \ \ \ \textcolor{keywordflow}{if}\ support\_fraction\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00436}00436\ \ \ \ \ \ \ \ \ n\_support\ =\ min(int(np.ceil(0.5\ *\ (n\_samples\ +\ n\_features\ +\ 1))),\ n\_samples)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00437}00437\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00438}00438\ \ \ \ \ \ \ \ \ n\_support\ =\ int(support\_fraction\ *\ n\_samples)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00439}00439\ }
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00440}00440\ \ \ \ \ \textcolor{comment}{\#\ 1-\/dimensional\ case\ quick\ computation}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00441}00441\ \ \ \ \ \textcolor{comment}{\#\ (Rousseeuw,\ P.\ J.\ and\ Leroy,\ A.\ M.\ (2005)\ References,\ in\ Robust}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00442}00442\ \ \ \ \ \textcolor{comment}{\#\ \ Regression\ and\ Outlier\ Detection,\ John\ Wiley\ \&\ Sons,\ chapter\ 4)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00443}00443\ \ \ \ \ \textcolor{keywordflow}{if}\ n\_features\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00444}00444\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ n\_support\ <\ n\_samples:}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00445}00445\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ find\ the\ sample\ shortest\ halves}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00446}00446\ \ \ \ \ \ \ \ \ \ \ \ \ X\_sorted\ =\ np.sort(np.ravel(X))}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00447}00447\ \ \ \ \ \ \ \ \ \ \ \ \ diff\ =\ X\_sorted[n\_support:]\ -\/\ X\_sorted[:\ (n\_samples\ -\/\ n\_support)]}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00448}00448\ \ \ \ \ \ \ \ \ \ \ \ \ halves\_start\ =\ np.where(diff\ ==\ np.min(diff))[0]}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00449}00449\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ take\ the\ middle\ points'\ mean\ to\ get\ the\ robust\ location\ estimate}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00450}00450\ \ \ \ \ \ \ \ \ \ \ \ \ location\ =\ (}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00451}00451\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ 0.5}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00452}00452\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ *\ (X\_sorted[n\_support\ +\ halves\_start]\ +\ X\_sorted[halves\_start]).mean()}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00453}00453\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00454}00454\ \ \ \ \ \ \ \ \ \ \ \ \ support\ =\ np.zeros(n\_samples,\ dtype=bool)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00455}00455\ \ \ \ \ \ \ \ \ \ \ \ \ X\_centered\ =\ X\ -\/\ location}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00456}00456\ \ \ \ \ \ \ \ \ \ \ \ \ support[np.argsort(np.abs(X\_centered),\ 0)[:n\_support]]\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00457}00457\ \ \ \ \ \ \ \ \ \ \ \ \ covariance\ =\ np.asarray([[np.var(X[support])]])}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00458}00458\ \ \ \ \ \ \ \ \ \ \ \ \ location\ =\ np.array([location])}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00459}00459\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ get\ precision\ matrix\ in\ an\ optimized\ way}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00460}00460\ \ \ \ \ \ \ \ \ \ \ \ \ precision\ =\ linalg.pinvh(covariance)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00461}00461\ \ \ \ \ \ \ \ \ \ \ \ \ dist\ =\ (np.dot(X\_centered,\ precision)\ *\ (X\_centered)).sum(axis=1)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00462}00462\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00463}00463\ \ \ \ \ \ \ \ \ \ \ \ \ support\ =\ np.ones(n\_samples,\ dtype=bool)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00464}00464\ \ \ \ \ \ \ \ \ \ \ \ \ covariance\ =\ np.asarray([[np.var(X)]])}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00465}00465\ \ \ \ \ \ \ \ \ \ \ \ \ location\ =\ np.asarray([np.mean(X)])}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00466}00466\ \ \ \ \ \ \ \ \ \ \ \ \ X\_centered\ =\ X\ -\/\ location}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00467}00467\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ get\ precision\ matrix\ in\ an\ optimized\ way}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00468}00468\ \ \ \ \ \ \ \ \ \ \ \ \ precision\ =\ linalg.pinvh(covariance)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00469}00469\ \ \ \ \ \ \ \ \ \ \ \ \ dist\ =\ (np.dot(X\_centered,\ precision)\ *\ (X\_centered)).sum(axis=1)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00470}00470\ \ \ \ \ \textcolor{comment}{\#\ Starting\ FastMCD\ algorithm\ for\ p-\/dimensional\ case}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00471}00471\ \ \ \ \ \textcolor{keywordflow}{if}\ (n\_samples\ >\ 500)\ \textcolor{keywordflow}{and}\ (n\_features\ >\ 1):}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00472}00472\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ 1.\ Find\ candidate\ supports\ on\ subsets}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00473}00473\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ a.\ split\ the\ set\ in\ subsets\ of\ size\ \string~\ 300}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00474}00474\ \ \ \ \ \ \ \ \ n\_subsets\ =\ n\_samples\ //\ 300}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00475}00475\ \ \ \ \ \ \ \ \ n\_samples\_subsets\ =\ n\_samples\ //\ n\_subsets}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00476}00476\ \ \ \ \ \ \ \ \ samples\_shuffle\ =\ random\_state.permutation(n\_samples)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00477}00477\ \ \ \ \ \ \ \ \ h\_subset\ =\ int(np.ceil(n\_samples\_subsets\ *\ (n\_support\ /\ float(n\_samples))))}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00478}00478\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ b.\ perform\ a\ total\ of\ 500\ trials}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00479}00479\ \ \ \ \ \ \ \ \ n\_trials\_tot\ =\ 500}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00480}00480\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ c.\ select\ 10\ best\ (location,\ covariance)\ for\ each\ subset}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00481}00481\ \ \ \ \ \ \ \ \ n\_best\_sub\ =\ 10}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00482}00482\ \ \ \ \ \ \ \ \ n\_trials\ =\ max(10,\ n\_trials\_tot\ //\ n\_subsets)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00483}00483\ \ \ \ \ \ \ \ \ n\_best\_tot\ =\ n\_subsets\ *\ n\_best\_sub}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00484}00484\ \ \ \ \ \ \ \ \ all\_best\_locations\ =\ np.zeros((n\_best\_tot,\ n\_features))}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00485}00485\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00486}00486\ \ \ \ \ \ \ \ \ \ \ \ \ all\_best\_covariances\ =\ np.zeros((n\_best\_tot,\ n\_features,\ n\_features))}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00487}00487\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ MemoryError:}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00488}00488\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ above\ is\ too\ big.\ Let's\ try\ with\ something\ much\ small}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00489}00489\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ (and\ less\ optimal)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00490}00490\ \ \ \ \ \ \ \ \ \ \ \ \ n\_best\_tot\ =\ 10}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00491}00491\ \ \ \ \ \ \ \ \ \ \ \ \ all\_best\_covariances\ =\ np.zeros((n\_best\_tot,\ n\_features,\ n\_features))}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00492}00492\ \ \ \ \ \ \ \ \ \ \ \ \ n\_best\_sub\ =\ 2}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00493}00493\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(n\_subsets):}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00494}00494\ \ \ \ \ \ \ \ \ \ \ \ \ low\_bound\ =\ i\ *\ n\_samples\_subsets}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00495}00495\ \ \ \ \ \ \ \ \ \ \ \ \ high\_bound\ =\ low\_bound\ +\ n\_samples\_subsets}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00496}00496\ \ \ \ \ \ \ \ \ \ \ \ \ current\_subset\ =\ X[samples\_shuffle[low\_bound:high\_bound]]}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00497}00497\ \ \ \ \ \ \ \ \ \ \ \ \ best\_locations\_sub,\ best\_covariances\_sub,\ \_,\ \_\ =\ \mbox{\hyperlink{namespacesklearn_1_1covariance_1_1__robust__covariance_ac23a32f73d65cd327ff1bb126f0cadfa}{select\_candidates}}(}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00498}00498\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ current\_subset,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00499}00499\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ h\_subset,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00500}00500\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ n\_trials,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00501}00501\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ select=n\_best\_sub,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00502}00502\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ n\_iter=2,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00503}00503\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ cov\_computation\_method=cov\_computation\_method,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00504}00504\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ random\_state=random\_state,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00505}00505\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00506}00506\ \ \ \ \ \ \ \ \ \ \ \ \ subset\_slice\ =\ np.arange(i\ *\ n\_best\_sub,\ (i\ +\ 1)\ *\ n\_best\_sub)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00507}00507\ \ \ \ \ \ \ \ \ \ \ \ \ all\_best\_locations[subset\_slice]\ =\ best\_locations\_sub}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00508}00508\ \ \ \ \ \ \ \ \ \ \ \ \ all\_best\_covariances[subset\_slice]\ =\ best\_covariances\_sub}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00509}00509\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ 2.\ Pool\ the\ candidate\ supports\ into\ a\ merged\ set}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00510}00510\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ (possibly\ the\ full\ dataset)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00511}00511\ \ \ \ \ \ \ \ \ n\_samples\_merged\ =\ min(1500,\ n\_samples)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00512}00512\ \ \ \ \ \ \ \ \ h\_merged\ =\ int(np.ceil(n\_samples\_merged\ *\ (n\_support\ /\ float(n\_samples))))}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00513}00513\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ n\_samples\ >\ 1500:}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00514}00514\ \ \ \ \ \ \ \ \ \ \ \ \ n\_best\_merged\ =\ 10}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00515}00515\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00516}00516\ \ \ \ \ \ \ \ \ \ \ \ \ n\_best\_merged\ =\ 1}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00517}00517\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ find\ the\ best\ couples\ (location,\ covariance)\ on\ the\ merged\ set}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00518}00518\ \ \ \ \ \ \ \ \ selection\ =\ random\_state.permutation(n\_samples)[:n\_samples\_merged]}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00519}00519\ \ \ \ \ \ \ \ \ locations\_merged,\ covariances\_merged,\ supports\_merged,\ d\ =\ \mbox{\hyperlink{namespacesklearn_1_1covariance_1_1__robust__covariance_ac23a32f73d65cd327ff1bb126f0cadfa}{select\_candidates}}(}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00520}00520\ \ \ \ \ \ \ \ \ \ \ \ \ X[selection],}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00521}00521\ \ \ \ \ \ \ \ \ \ \ \ \ h\_merged,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00522}00522\ \ \ \ \ \ \ \ \ \ \ \ \ n\_trials=(all\_best\_locations,\ all\_best\_covariances),}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00523}00523\ \ \ \ \ \ \ \ \ \ \ \ \ select=n\_best\_merged,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00524}00524\ \ \ \ \ \ \ \ \ \ \ \ \ cov\_computation\_method=cov\_computation\_method,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00525}00525\ \ \ \ \ \ \ \ \ \ \ \ \ random\_state=random\_state,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00526}00526\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00527}00527\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ 3.\ Finally\ get\ the\ overall\ best\ (locations,\ covariance)\ couple}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00528}00528\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ n\_samples\ <\ 1500:}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00529}00529\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ directly\ get\ the\ best\ couple\ (location,\ covariance)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00530}00530\ \ \ \ \ \ \ \ \ \ \ \ \ location\ =\ locations\_merged[0]}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00531}00531\ \ \ \ \ \ \ \ \ \ \ \ \ covariance\ =\ covariances\_merged[0]}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00532}00532\ \ \ \ \ \ \ \ \ \ \ \ \ support\ =\ np.zeros(n\_samples,\ dtype=bool)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00533}00533\ \ \ \ \ \ \ \ \ \ \ \ \ dist\ =\ np.zeros(n\_samples)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00534}00534\ \ \ \ \ \ \ \ \ \ \ \ \ support[selection]\ =\ supports\_merged[0]}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00535}00535\ \ \ \ \ \ \ \ \ \ \ \ \ dist[selection]\ =\ d[0]}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00536}00536\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00537}00537\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ select\ the\ best\ couple\ on\ the\ full\ dataset}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00538}00538\ \ \ \ \ \ \ \ \ \ \ \ \ locations\_full,\ covariances\_full,\ supports\_full,\ d\ =\ \mbox{\hyperlink{namespacesklearn_1_1covariance_1_1__robust__covariance_ac23a32f73d65cd327ff1bb126f0cadfa}{select\_candidates}}(}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00539}00539\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ X,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00540}00540\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ n\_support,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00541}00541\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ n\_trials=(locations\_merged,\ covariances\_merged),}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00542}00542\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ select=1,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00543}00543\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ cov\_computation\_method=cov\_computation\_method,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00544}00544\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ random\_state=random\_state,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00545}00545\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00546}00546\ \ \ \ \ \ \ \ \ \ \ \ \ location\ =\ locations\_full[0]}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00547}00547\ \ \ \ \ \ \ \ \ \ \ \ \ covariance\ =\ covariances\_full[0]}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00548}00548\ \ \ \ \ \ \ \ \ \ \ \ \ support\ =\ supports\_full[0]}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00549}00549\ \ \ \ \ \ \ \ \ \ \ \ \ dist\ =\ d[0]}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00550}00550\ \ \ \ \ \textcolor{keywordflow}{elif}\ n\_features\ >\ 1:}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00551}00551\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ 1.\ Find\ the\ 10\ best\ couples\ (location,\ covariance)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00552}00552\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ considering\ two\ iterations}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00553}00553\ \ \ \ \ \ \ \ \ n\_trials\ =\ 30}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00554}00554\ \ \ \ \ \ \ \ \ n\_best\ =\ 10}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00555}00555\ \ \ \ \ \ \ \ \ locations\_best,\ covariances\_best,\ \_,\ \_\ =\ \mbox{\hyperlink{namespacesklearn_1_1covariance_1_1__robust__covariance_ac23a32f73d65cd327ff1bb126f0cadfa}{select\_candidates}}(}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00556}00556\ \ \ \ \ \ \ \ \ \ \ \ \ X,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00557}00557\ \ \ \ \ \ \ \ \ \ \ \ \ n\_support,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00558}00558\ \ \ \ \ \ \ \ \ \ \ \ \ n\_trials=n\_trials,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00559}00559\ \ \ \ \ \ \ \ \ \ \ \ \ select=n\_best,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00560}00560\ \ \ \ \ \ \ \ \ \ \ \ \ n\_iter=2,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00561}00561\ \ \ \ \ \ \ \ \ \ \ \ \ cov\_computation\_method=cov\_computation\_method,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00562}00562\ \ \ \ \ \ \ \ \ \ \ \ \ random\_state=random\_state,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00563}00563\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00564}00564\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ 2.\ Select\ the\ best\ couple\ on\ the\ full\ dataset\ amongst\ the\ 10}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00565}00565\ \ \ \ \ \ \ \ \ locations\_full,\ covariances\_full,\ supports\_full,\ d\ =\ \mbox{\hyperlink{namespacesklearn_1_1covariance_1_1__robust__covariance_ac23a32f73d65cd327ff1bb126f0cadfa}{select\_candidates}}(}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00566}00566\ \ \ \ \ \ \ \ \ \ \ \ \ X,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00567}00567\ \ \ \ \ \ \ \ \ \ \ \ \ n\_support,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00568}00568\ \ \ \ \ \ \ \ \ \ \ \ \ n\_trials=(locations\_best,\ covariances\_best),}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00569}00569\ \ \ \ \ \ \ \ \ \ \ \ \ select=1,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00570}00570\ \ \ \ \ \ \ \ \ \ \ \ \ cov\_computation\_method=cov\_computation\_method,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00571}00571\ \ \ \ \ \ \ \ \ \ \ \ \ random\_state=random\_state,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00572}00572\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00573}00573\ \ \ \ \ \ \ \ \ location\ =\ locations\_full[0]}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00574}00574\ \ \ \ \ \ \ \ \ covariance\ =\ covariances\_full[0]}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00575}00575\ \ \ \ \ \ \ \ \ support\ =\ supports\_full[0]}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00576}00576\ \ \ \ \ \ \ \ \ dist\ =\ d[0]}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00577}00577\ }
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00578}00578\ \ \ \ \ \textcolor{keywordflow}{return}\ location,\ covariance,\ support,\ dist}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00579}00579\ }
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00580}00580\ }
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00581}\mbox{\hyperlink{classsklearn_1_1covariance_1_1__robust__covariance_1_1MinCovDet}{00581}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classsklearn_1_1covariance_1_1__robust__covariance_1_1MinCovDet}{MinCovDet}}(\mbox{\hyperlink{classsklearn_1_1covariance_1_1__empirical__covariance_1_1EmpiricalCovariance}{EmpiricalCovariance}}):}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00582}00582\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Minimum\ Covariance\ Determinant\ (MCD):\ robust\ estimator\ of\ covariance.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00583}00583\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00584}00584\ \textcolor{stringliteral}{\ \ \ \ The\ Minimum\ Covariance\ Determinant\ covariance\ estimator\ is\ to\ be\ applied}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00585}00585\ \textcolor{stringliteral}{\ \ \ \ on\ Gaussian-\/distributed\ data,\ but\ could\ still\ be\ relevant\ on\ data}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00586}00586\ \textcolor{stringliteral}{\ \ \ \ drawn\ from\ a\ unimodal,\ symmetric\ distribution.\ It\ is\ not\ meant\ to\ be\ used}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00587}00587\ \textcolor{stringliteral}{\ \ \ \ with\ multi-\/modal\ data\ (the\ algorithm\ used\ to\ fit\ a\ MinCovDet\ object\ is}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00588}00588\ \textcolor{stringliteral}{\ \ \ \ likely\ to\ fail\ in\ such\ a\ case).}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00589}00589\ \textcolor{stringliteral}{\ \ \ \ One\ should\ consider\ projection\ pursuit\ methods\ to\ deal\ with\ multi-\/modal}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00590}00590\ \textcolor{stringliteral}{\ \ \ \ datasets.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00591}00591\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00592}00592\ \textcolor{stringliteral}{\ \ \ \ Read\ more\ in\ the\ :ref:\`{}User\ Guide\ <robust\_covariance>\`{}.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00593}00593\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00594}00594\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00595}00595\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00596}00596\ \textcolor{stringliteral}{\ \ \ \ store\_precision\ :\ bool,\ default=True}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00597}00597\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Specify\ if\ the\ estimated\ precision\ is\ stored.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00598}00598\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00599}00599\ \textcolor{stringliteral}{\ \ \ \ assume\_centered\ :\ bool,\ default=False}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00600}00600\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ True,\ the\ support\ of\ the\ robust\ location\ and\ the\ covariance}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00601}00601\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ estimates\ is\ computed,\ and\ a\ covariance\ estimate\ is\ recomputed\ from}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00602}00602\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ it,\ without\ centering\ the\ data.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00603}00603\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Useful\ to\ work\ with\ data\ whose\ mean\ is\ significantly\ equal\ to}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00604}00604\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ zero\ but\ is\ not\ exactly\ zero.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00605}00605\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ False,\ the\ robust\ location\ and\ covariance\ are\ directly\ computed}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00606}00606\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ with\ the\ FastMCD\ algorithm\ without\ additional\ treatment.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00607}00607\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00608}00608\ \textcolor{stringliteral}{\ \ \ \ support\_fraction\ :\ float,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00609}00609\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ proportion\ of\ points\ to\ be\ included\ in\ the\ support\ of\ the\ raw}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00610}00610\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ MCD\ estimate.\ Default\ is\ None,\ which\ implies\ that\ the\ minimum}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00611}00611\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ value\ of\ support\_fraction\ will\ be\ used\ within\ the\ algorithm:}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00612}00612\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}(n\_samples\ +\ n\_features\ +\ 1)\ /\ 2\ *\ n\_samples\`{}.\ The\ parameter\ must\ be}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00613}00613\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ in\ the\ range\ (0,\ 1].}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00614}00614\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00615}00615\ \textcolor{stringliteral}{\ \ \ \ random\_state\ :\ int,\ RandomState\ instance\ or\ None,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00616}00616\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Determines\ the\ pseudo\ random\ number\ generator\ for\ shuffling\ the\ data.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00617}00617\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Pass\ an\ int\ for\ reproducible\ results\ across\ multiple\ function\ calls.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00618}00618\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ See\ :term:\`{}Glossary\ <random\_state>\`{}.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00619}00619\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00620}00620\ \textcolor{stringliteral}{\ \ \ \ Attributes}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00621}00621\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00622}00622\ \textcolor{stringliteral}{\ \ \ \ raw\_location\_\ :\ ndarray\ of\ shape\ (n\_features,)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00623}00623\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ raw\ robust\ estimated\ location\ before\ correction\ and\ re-\/weighting.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00624}00624\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00625}00625\ \textcolor{stringliteral}{\ \ \ \ raw\_covariance\_\ :\ ndarray\ of\ shape\ (n\_features,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00626}00626\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ raw\ robust\ estimated\ covariance\ before\ correction\ and\ re-\/weighting.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00627}00627\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00628}00628\ \textcolor{stringliteral}{\ \ \ \ raw\_support\_\ :\ ndarray\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00629}00629\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ A\ mask\ of\ the\ observations\ that\ have\ been\ used\ to\ compute}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00630}00630\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ raw\ robust\ estimates\ of\ location\ and\ shape,\ before\ correction}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00631}00631\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ and\ re-\/weighting.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00632}00632\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00633}00633\ \textcolor{stringliteral}{\ \ \ \ location\_\ :\ ndarray\ of\ shape\ (n\_features,)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00634}00634\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Estimated\ robust\ location.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00635}00635\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00636}00636\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ For\ an\ example\ of\ comparing\ raw\ robust\ estimates\ with}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00637}00637\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ true\ location\ and\ covariance,\ refer\ to}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00638}00638\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :ref:\`{}sphx\_glr\_auto\_examples\_covariance\_plot\_robust\_vs\_empirical\_covariance.py\`{}.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00639}00639\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00640}00640\ \textcolor{stringliteral}{\ \ \ \ covariance\_\ :\ ndarray\ of\ shape\ (n\_features,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00641}00641\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Estimated\ robust\ covariance\ matrix.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00642}00642\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00643}00643\ \textcolor{stringliteral}{\ \ \ \ precision\_\ :\ ndarray\ of\ shape\ (n\_features,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00644}00644\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Estimated\ pseudo\ inverse\ matrix.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00645}00645\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ (stored\ only\ if\ store\_precision\ is\ True)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00646}00646\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00647}00647\ \textcolor{stringliteral}{\ \ \ \ support\_\ :\ ndarray\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00648}00648\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ A\ mask\ of\ the\ observations\ that\ have\ been\ used\ to\ compute}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00649}00649\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ robust\ estimates\ of\ location\ and\ shape.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00650}00650\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00651}00651\ \textcolor{stringliteral}{\ \ \ \ dist\_\ :\ ndarray\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00652}00652\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Mahalanobis\ distances\ of\ the\ training\ set\ (on\ which\ :meth:\`{}fit\`{}\ is}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00653}00653\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ called)\ observations.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00654}00654\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00655}00655\ \textcolor{stringliteral}{\ \ \ \ n\_features\_in\_\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00656}00656\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ features\ seen\ during\ :term:\`{}fit\`{}.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00657}00657\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00658}00658\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 0.24}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00659}00659\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00660}00660\ \textcolor{stringliteral}{\ \ \ \ feature\_names\_in\_\ :\ ndarray\ of\ shape\ (\`{}n\_features\_in\_\`{},)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00661}00661\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Names\ of\ features\ seen\ during\ :term:\`{}fit\`{}.\ Defined\ only\ when\ \`{}X\`{}}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00662}00662\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ has\ feature\ names\ that\ are\ all\ strings.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00663}00663\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00664}00664\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 1.0}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00665}00665\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00666}00666\ \textcolor{stringliteral}{\ \ \ \ See\ Also}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00667}00667\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00668}00668\ \textcolor{stringliteral}{\ \ \ \ EllipticEnvelope\ :\ An\ object\ for\ detecting\ outliers\ in}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00669}00669\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ a\ Gaussian\ distributed\ dataset.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00670}00670\ \textcolor{stringliteral}{\ \ \ \ EmpiricalCovariance\ :\ Maximum\ likelihood\ covariance\ estimator.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00671}00671\ \textcolor{stringliteral}{\ \ \ \ GraphicalLasso\ :\ Sparse\ inverse\ covariance\ estimation}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00672}00672\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ with\ an\ l1-\/penalized\ estimator.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00673}00673\ \textcolor{stringliteral}{\ \ \ \ GraphicalLassoCV\ :\ Sparse\ inverse\ covariance\ with\ cross-\/validated}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00674}00674\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ choice\ of\ the\ l1\ penalty.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00675}00675\ \textcolor{stringliteral}{\ \ \ \ LedoitWolf\ :\ LedoitWolf\ Estimator.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00676}00676\ \textcolor{stringliteral}{\ \ \ \ OAS\ :\ Oracle\ Approximating\ Shrinkage\ Estimator.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00677}00677\ \textcolor{stringliteral}{\ \ \ \ ShrunkCovariance\ :\ Covariance\ estimator\ with\ shrinkage.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00678}00678\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00679}00679\ \textcolor{stringliteral}{\ \ \ \ References}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00680}00680\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00681}00681\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00682}00682\ \textcolor{stringliteral}{\ \ \ \ ..\ [Rouseeuw1984]\ P.\ J.\ Rousseeuw.\ Least\ median\ of\ squares\ regression.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00683}00683\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ J.\ Am\ Stat\ Ass,\ 79:871,\ 1984.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00684}00684\ \textcolor{stringliteral}{\ \ \ \ ..\ [Rousseeuw]\ A\ Fast\ Algorithm\ for\ the\ Minimum\ Covariance\ Determinant}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00685}00685\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Estimator,\ 1999,\ American\ Statistical\ Association\ and\ the\ American}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00686}00686\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Society\ for\ Quality,\ TECHNOMETRICS}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00687}00687\ \textcolor{stringliteral}{\ \ \ \ ..\ [ButlerDavies]\ R.\ W.\ Butler,\ P.\ L.\ Davies\ and\ M.\ Jhun,}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00688}00688\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Asymptotics\ For\ The\ Minimum\ Covariance\ Determinant\ Estimator,}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00689}00689\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ Annals\ of\ Statistics,\ 1993,\ Vol.\ 21,\ No.\ 3,\ 1385-\/1400}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00690}00690\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00691}00691\ \textcolor{stringliteral}{\ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00692}00692\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00693}00693\ \textcolor{stringliteral}{\ \ \ \ >>>\ import\ numpy\ as\ np}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00694}00694\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.covariance\ import\ MinCovDet}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00695}00695\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.datasets\ import\ make\_gaussian\_quantiles}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00696}00696\ \textcolor{stringliteral}{\ \ \ \ >>>\ real\_cov\ =\ np.array([[.8,\ .3],}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00697}00697\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ [.3,\ .4]])}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00698}00698\ \textcolor{stringliteral}{\ \ \ \ >>>\ rng\ =\ np.random.RandomState(0)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00699}00699\ \textcolor{stringliteral}{\ \ \ \ >>>\ X\ =\ rng.multivariate\_normal(mean=[0,\ 0],}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00700}00700\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ cov=real\_cov,}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00701}00701\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ size=500)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00702}00702\ \textcolor{stringliteral}{\ \ \ \ >>>\ cov\ =\ MinCovDet(random\_state=0).fit(X)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00703}00703\ \textcolor{stringliteral}{\ \ \ \ >>>\ cov.covariance\_}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00704}00704\ \textcolor{stringliteral}{\ \ \ \ array([[0.7411,\ 0.2535],}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00705}00705\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ [0.2535,\ 0.3053]])}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00706}00706\ \textcolor{stringliteral}{\ \ \ \ >>>\ cov.location\_}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00707}00707\ \textcolor{stringliteral}{\ \ \ \ array([0.0813\ ,\ 0.0427])}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00708}00708\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00709}00709\ }
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00710}00710\ \ \ \ \ \_parameter\_constraints:\ dict\ =\ \{}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00711}00711\ \ \ \ \ \ \ \ \ **EmpiricalCovariance.\_parameter\_constraints,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00712}00712\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}support\_fraction"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Real,\ 0,\ 1,\ closed=\textcolor{stringliteral}{"{}right"{}}),\ \textcolor{keywordtype}{None}],}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00713}00713\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}random\_state"{}}:\ [\textcolor{stringliteral}{"{}random\_state"{}}],}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00714}00714\ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00715}00715\ \ \ \ \ \_nonrobust\_covariance\ =\ staticmethod(empirical\_covariance)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00716}00716\ }
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00717}00717\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00718}00718\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00719}00719\ \ \ \ \ \ \ \ \ *,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00720}00720\ \ \ \ \ \ \ \ \ store\_precision=True,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00721}00721\ \ \ \ \ \ \ \ \ assume\_centered=False,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00722}00722\ \ \ \ \ \ \ \ \ support\_fraction=None,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00723}00723\ \ \ \ \ \ \ \ \ random\_state=None,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00724}00724\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00725}00725\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1covariance_1_1__empirical__covariance_1_1EmpiricalCovariance_a2df6cdd305dd8bc9e19cab0dfcd2e3fe}{store\_precision}}\ =\ store\_precision}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00726}00726\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1covariance_1_1__empirical__covariance_1_1EmpiricalCovariance_a1c20c540cc625978e6fdcec642201491}{assume\_centered}}\ =\ assume\_centered}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00727}00727\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1covariance_1_1__robust__covariance_1_1MinCovDet_a51f794c8a9a960b5921d866fecfcda57}{support\_fraction}}\ =\ support\_fraction}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00728}00728\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1covariance_1_1__robust__covariance_1_1MinCovDet_ab1903668c29108000eae55f33c9761e2}{random\_state}}\ =\ random\_state}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00729}00729\ }
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00730}00730\ \ \ \ \ \textcolor{preprocessor}{@\_fit\_context(prefer\_skip\_nested\_validation=True)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00731}\mbox{\hyperlink{classsklearn_1_1covariance_1_1__robust__covariance_1_1MinCovDet_a0afdd763393ab70ace388880b43572c4}{00731}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1covariance_1_1__robust__covariance_1_1MinCovDet_a0afdd763393ab70ace388880b43572c4}{fit}}(self,\ X,\ y=None):}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00732}00732\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Fit\ a\ Minimum\ Covariance\ Determinant\ with\ the\ FastMCD\ algorithm.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00733}00733\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00734}00734\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00735}00735\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00736}00736\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\ :\ array-\/like\ of\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00737}00737\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Training\ data,\ where\ \`{}n\_samples\`{}\ is\ the\ number\ of\ samples}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00738}00738\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ and\ \`{}n\_features\`{}\ is\ the\ number\ of\ features.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00739}00739\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00740}00740\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ y\ :\ Ignored}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00741}00741\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Not\ used,\ present\ for\ API\ consistency\ by\ convention.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00742}00742\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00743}00743\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00744}00744\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00745}00745\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ self\ :\ object}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00746}00746\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Returns\ the\ instance\ itself.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00747}00747\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00748}00748\ \ \ \ \ \ \ \ \ X\ =\ validate\_data(self,\ X,\ ensure\_min\_samples=2,\ estimator=\textcolor{stringliteral}{"{}MinCovDet"{}})}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00749}00749\ \ \ \ \ \ \ \ \ random\_state\ =\ check\_random\_state(self.\mbox{\hyperlink{classsklearn_1_1covariance_1_1__robust__covariance_1_1MinCovDet_ab1903668c29108000eae55f33c9761e2}{random\_state}})}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00750}00750\ \ \ \ \ \ \ \ \ n\_samples,\ n\_features\ =\ X.shape}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00751}00751\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ check\ that\ the\ empirical\ covariance\ is\ full\ rank}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00752}00752\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (linalg.svdvals(np.dot(X.T,\ X))\ >\ 1e-\/8).sum()\ !=\ n\_features:}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00753}00753\ \ \ \ \ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00754}00754\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}The\ covariance\ matrix\ associated\ to\ your\ dataset\ is\ not\ full\ rank"{}}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00755}00755\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00756}00756\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ compute\ and\ store\ raw\ estimates}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00757}00757\ \ \ \ \ \ \ \ \ raw\_location,\ raw\_covariance,\ raw\_support,\ raw\_dist\ =\ \mbox{\hyperlink{namespacesklearn_1_1covariance_1_1__robust__covariance_a92e74469768bec87dc8bc997e45840a2}{fast\_mcd}}(}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00758}00758\ \ \ \ \ \ \ \ \ \ \ \ \ X,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00759}00759\ \ \ \ \ \ \ \ \ \ \ \ \ support\_fraction=self.\mbox{\hyperlink{classsklearn_1_1covariance_1_1__robust__covariance_1_1MinCovDet_a51f794c8a9a960b5921d866fecfcda57}{support\_fraction}},}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00760}00760\ \ \ \ \ \ \ \ \ \ \ \ \ cov\_computation\_method=self.\mbox{\hyperlink{classsklearn_1_1covariance_1_1__robust__covariance_1_1MinCovDet_ae7ac0384939b1ab47364ea2c4ee8baef}{\_nonrobust\_covariance}},}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00761}00761\ \ \ \ \ \ \ \ \ \ \ \ \ random\_state=random\_state,}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00762}00762\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00763}00763\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1covariance_1_1__empirical__covariance_1_1EmpiricalCovariance_a1c20c540cc625978e6fdcec642201491}{assume\_centered}}:}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00764}00764\ \ \ \ \ \ \ \ \ \ \ \ \ raw\_location\ =\ np.zeros(n\_features)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00765}00765\ \ \ \ \ \ \ \ \ \ \ \ \ raw\_covariance\ =\ self.\mbox{\hyperlink{classsklearn_1_1covariance_1_1__robust__covariance_1_1MinCovDet_ae7ac0384939b1ab47364ea2c4ee8baef}{\_nonrobust\_covariance}}(}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00766}00766\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ X[raw\_support],\ assume\_centered=\textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00767}00767\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00768}00768\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ get\ precision\ matrix\ in\ an\ optimized\ way}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00769}00769\ \ \ \ \ \ \ \ \ \ \ \ \ precision\ =\ linalg.pinvh(raw\_covariance)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00770}00770\ \ \ \ \ \ \ \ \ \ \ \ \ raw\_dist\ =\ np.sum(np.dot(X,\ precision)\ *\ X,\ 1)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00771}00771\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1covariance_1_1__robust__covariance_1_1MinCovDet_a3b1c0a5f9850a6a052e826d81eabb772}{raw\_location\_}}\ =\ raw\_location}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00772}00772\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1covariance_1_1__robust__covariance_1_1MinCovDet_a81d49c2eab252e9c9b42aa111989745d}{raw\_covariance\_}}\ =\ raw\_covariance}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00773}00773\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1covariance_1_1__robust__covariance_1_1MinCovDet_aa911bf1a9ff4762616e51855188d6802}{raw\_support\_}}\ =\ raw\_support}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00774}00774\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1covariance_1_1__empirical__covariance_1_1EmpiricalCovariance_a38ca35917129b3b35c5bf63c8371f1d1}{location\_}}\ =\ raw\_location}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00775}00775\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1covariance_1_1__robust__covariance_1_1MinCovDet_a3e928ae811b3c7142f266deccb7eece7}{support\_}}\ =\ raw\_support}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00776}00776\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1covariance_1_1__robust__covariance_1_1MinCovDet_ac45c00fc99ad4ab01df79798c6f3e71c}{dist\_}}\ =\ raw\_dist}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00777}00777\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ obtain\ consistency\ at\ normal\ models}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00778}00778\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1covariance_1_1__robust__covariance_1_1MinCovDet_a71c18343cfdd1bf7b19ef3c15813396e}{correct\_covariance}}(X)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00779}00779\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ re-\/weight\ estimator}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00780}00780\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1covariance_1_1__robust__covariance_1_1MinCovDet_a0ec288227683ba559dd30eb81f5d7103}{reweight\_covariance}}(X)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00781}00781\ }
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00782}00782\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00783}00783\ }
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00784}\mbox{\hyperlink{classsklearn_1_1covariance_1_1__robust__covariance_1_1MinCovDet_a71c18343cfdd1bf7b19ef3c15813396e}{00784}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1covariance_1_1__robust__covariance_1_1MinCovDet_a71c18343cfdd1bf7b19ef3c15813396e}{correct\_covariance}}(self,\ data):}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00785}00785\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Apply\ a\ correction\ to\ raw\ Minimum\ Covariance\ Determinant\ estimates.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00786}00786\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00787}00787\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Correction\ using\ the\ empirical\ correction\ factor\ suggested}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00788}00788\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ by\ Rousseeuw\ and\ Van\ Driessen\ in\ [RVD]\_.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00789}00789\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00790}00790\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00791}00791\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00792}00792\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ data\ :\ array-\/like\ of\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00793}00793\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ data\ matrix,\ with\ p\ features\ and\ n\ samples.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00794}00794\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ data\ set\ must\ be\ the\ one\ which\ was\ used\ to\ compute}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00795}00795\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ the\ raw\ estimates.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00796}00796\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00797}00797\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00798}00798\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00799}00799\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ covariance\_corrected\ :\ ndarray\ of\ shape\ (n\_features,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00800}00800\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Corrected\ robust\ covariance\ estimate.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00801}00801\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00802}00802\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ References}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00803}00803\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00804}00804\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00805}00805\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ [RVD]\ A\ Fast\ Algorithm\ for\ the\ Minimum\ Covariance}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00806}00806\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Determinant\ Estimator,\ 1999,\ American\ Statistical\ Association}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00807}00807\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ and\ the\ American\ Society\ for\ Quality,\ TECHNOMETRICS}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00808}00808\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00809}00809\ }
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00810}00810\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Check\ that\ the\ covariance\ of\ the\ support\ data\ is\ not\ equal\ to\ 0.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00811}00811\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Otherwise\ self.dist\_\ =\ 0\ and\ thus\ correction\ =\ 0.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00812}00812\ \ \ \ \ \ \ \ \ n\_samples\ =\ len(self.\mbox{\hyperlink{classsklearn_1_1covariance_1_1__robust__covariance_1_1MinCovDet_ac45c00fc99ad4ab01df79798c6f3e71c}{dist\_}})}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00813}00813\ \ \ \ \ \ \ \ \ n\_support\ =\ np.sum(self.\mbox{\hyperlink{classsklearn_1_1covariance_1_1__robust__covariance_1_1MinCovDet_a3e928ae811b3c7142f266deccb7eece7}{support\_}})}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00814}00814\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ n\_support\ <\ n\_samples\ \textcolor{keywordflow}{and}\ np.allclose(self.\mbox{\hyperlink{classsklearn_1_1covariance_1_1__robust__covariance_1_1MinCovDet_a81d49c2eab252e9c9b42aa111989745d}{raw\_covariance\_}},\ 0):}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00815}00815\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00816}00816\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}The\ covariance\ matrix\ of\ the\ support\ data\ "{}}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00817}00817\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}is\ equal\ to\ 0,\ try\ to\ increase\ support\_fraction"{}}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00818}00818\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00819}00819\ \ \ \ \ \ \ \ \ correction\ =\ np.median(self.\mbox{\hyperlink{classsklearn_1_1covariance_1_1__robust__covariance_1_1MinCovDet_ac45c00fc99ad4ab01df79798c6f3e71c}{dist\_}})\ /\ chi2(data.shape[1]).isf(0.5)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00820}00820\ \ \ \ \ \ \ \ \ covariance\_corrected\ =\ self.\mbox{\hyperlink{classsklearn_1_1covariance_1_1__robust__covariance_1_1MinCovDet_a81d49c2eab252e9c9b42aa111989745d}{raw\_covariance\_}}\ *\ correction}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00821}00821\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1covariance_1_1__robust__covariance_1_1MinCovDet_ac45c00fc99ad4ab01df79798c6f3e71c}{dist\_}}\ /=\ correction}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00822}00822\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ covariance\_corrected}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00823}00823\ }
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00824}\mbox{\hyperlink{classsklearn_1_1covariance_1_1__robust__covariance_1_1MinCovDet_a0ec288227683ba559dd30eb81f5d7103}{00824}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1covariance_1_1__robust__covariance_1_1MinCovDet_a0ec288227683ba559dd30eb81f5d7103}{reweight\_covariance}}(self,\ data):}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00825}00825\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Re-\/weight\ raw\ Minimum\ Covariance\ Determinant\ estimates.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00826}00826\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00827}00827\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Re-\/weight\ observations\ using\ Rousseeuw's\ method\ (equivalent\ to}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00828}00828\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ deleting\ outlying\ observations\ from\ the\ data\ set\ before}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00829}00829\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ computing\ location\ and\ covariance\ estimates)\ described}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00830}00830\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ in\ [RVDriessen]\_.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00831}00831\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00832}00832\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00833}00833\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00834}00834\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ data\ :\ array-\/like\ of\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00835}00835\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ data\ matrix,\ with\ p\ features\ and\ n\ samples.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00836}00836\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ data\ set\ must\ be\ the\ one\ which\ was\ used\ to\ compute}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00837}00837\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ the\ raw\ estimates.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00838}00838\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00839}00839\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00840}00840\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00841}00841\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ location\_reweighted\ :\ ndarray\ of\ shape\ (n\_features,)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00842}00842\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Re-\/weighted\ robust\ location\ estimate.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00843}00843\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00844}00844\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ covariance\_reweighted\ :\ ndarray\ of\ shape\ (n\_features,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00845}00845\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Re-\/weighted\ robust\ covariance\ estimate.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00846}00846\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00847}00847\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ support\_reweighted\ :\ ndarray\ of\ shape\ (n\_samples,),\ dtype=bool}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00848}00848\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ A\ mask\ of\ the\ observations\ that\ have\ been\ used\ to\ compute}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00849}00849\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ the\ re-\/weighted\ robust\ location\ and\ covariance\ estimates.}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00850}00850\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00851}00851\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ References}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00852}00852\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00853}00853\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00854}00854\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ [RVDriessen]\ A\ Fast\ Algorithm\ for\ the\ Minimum\ Covariance}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00855}00855\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Determinant\ Estimator,\ 1999,\ American\ Statistical\ Association}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00856}00856\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ and\ the\ American\ Society\ for\ Quality,\ TECHNOMETRICS}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00857}00857\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00858}00858\ \ \ \ \ \ \ \ \ n\_samples,\ n\_features\ =\ data.shape}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00859}00859\ \ \ \ \ \ \ \ \ mask\ =\ self.\mbox{\hyperlink{classsklearn_1_1covariance_1_1__robust__covariance_1_1MinCovDet_ac45c00fc99ad4ab01df79798c6f3e71c}{dist\_}}\ <\ chi2(n\_features).isf(0.025)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00860}00860\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1covariance_1_1__empirical__covariance_1_1EmpiricalCovariance_a1c20c540cc625978e6fdcec642201491}{assume\_centered}}:}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00861}00861\ \ \ \ \ \ \ \ \ \ \ \ \ location\_reweighted\ =\ np.zeros(n\_features)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00862}00862\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00863}00863\ \ \ \ \ \ \ \ \ \ \ \ \ location\_reweighted\ =\ data[mask].mean(0)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00864}00864\ \ \ \ \ \ \ \ \ covariance\_reweighted\ =\ self.\mbox{\hyperlink{classsklearn_1_1covariance_1_1__robust__covariance_1_1MinCovDet_ae7ac0384939b1ab47364ea2c4ee8baef}{\_nonrobust\_covariance}}(}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00865}00865\ \ \ \ \ \ \ \ \ \ \ \ \ data[mask],\ assume\_centered=self.\mbox{\hyperlink{classsklearn_1_1covariance_1_1__empirical__covariance_1_1EmpiricalCovariance_a1c20c540cc625978e6fdcec642201491}{assume\_centered}}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00866}00866\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00867}00867\ \ \ \ \ \ \ \ \ support\_reweighted\ =\ np.zeros(n\_samples,\ dtype=bool)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00868}00868\ \ \ \ \ \ \ \ \ support\_reweighted[mask]\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00869}00869\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1covariance_1_1__empirical__covariance_1_1EmpiricalCovariance_a113636c1cadaf32bf5d17d77e30dd115}{\_set\_covariance}}(covariance\_reweighted)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00870}00870\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1covariance_1_1__empirical__covariance_1_1EmpiricalCovariance_a38ca35917129b3b35c5bf63c8371f1d1}{location\_}}\ =\ location\_reweighted}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00871}00871\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1covariance_1_1__robust__covariance_1_1MinCovDet_a3e928ae811b3c7142f266deccb7eece7}{support\_}}\ =\ support\_reweighted}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00872}00872\ \ \ \ \ \ \ \ \ X\_centered\ =\ data\ -\/\ self.\mbox{\hyperlink{classsklearn_1_1covariance_1_1__empirical__covariance_1_1EmpiricalCovariance_a38ca35917129b3b35c5bf63c8371f1d1}{location\_}}}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00873}00873\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1covariance_1_1__robust__covariance_1_1MinCovDet_ac45c00fc99ad4ab01df79798c6f3e71c}{dist\_}}\ =\ np.sum(np.dot(X\_centered,\ self.\mbox{\hyperlink{classsklearn_1_1covariance_1_1__empirical__covariance_1_1EmpiricalCovariance_a758af2adeb97b9348f725d3186b0e2c4}{get\_precision}}())\ *\ X\_centered,\ 1)}
+\DoxyCodeLine{\Hypertarget{__robust__covariance_8py_source_l00874}00874\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ location\_reweighted,\ covariance\_reweighted,\ support\_reweighted}
+
+\end{DoxyCode}

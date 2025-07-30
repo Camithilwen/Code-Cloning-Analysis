@@ -1,0 +1,585 @@
+\doxysection{\+\_\+mean\+\_\+shift.\+py}
+\hypertarget{__mean__shift_8py_source}{}\label{__mean__shift_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/sklearn/cluster/\_mean\_shift.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/sklearn/cluster/\_mean\_shift.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00001}\mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__mean__shift}{00001}}\ \textcolor{stringliteral}{"{}"{}"{}Mean\ shift\ clustering\ algorithm.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00002}00002\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00003}00003\ \textcolor{stringliteral}{Mean\ shift\ clustering\ aims\ to\ discover\ *blobs*\ in\ a\ smooth\ density\ of}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00004}00004\ \textcolor{stringliteral}{samples.\ It\ is\ a\ centroid\ based\ algorithm,\ which\ works\ by\ updating\ candidates}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00005}00005\ \textcolor{stringliteral}{for\ centroids\ to\ be\ the\ mean\ of\ the\ points\ within\ a\ given\ region.\ These}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00006}00006\ \textcolor{stringliteral}{candidates\ are\ then\ filtered\ in\ a\ post-\/processing\ stage\ to\ eliminate}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00007}00007\ \textcolor{stringliteral}{near-\/duplicates\ to\ form\ the\ final\ set\ of\ centroids.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00008}00008\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00009}00009\ \textcolor{stringliteral}{Seeding\ is\ performed\ using\ a\ binning\ technique\ for\ scalability.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00010}00010\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00011}00011\ }
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00012}00012\ \textcolor{comment}{\#\ Authors:\ The\ scikit-\/learn\ developers}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00013}00013\ \textcolor{comment}{\#\ SPDX-\/License-\/Identifier:\ BSD-\/3-\/Clause}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00014}00014\ }
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00015}00015\ \textcolor{keyword}{import}\ warnings}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00016}00016\ \textcolor{keyword}{from}\ collections\ \textcolor{keyword}{import}\ defaultdict}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00017}00017\ \textcolor{keyword}{from}\ numbers\ \textcolor{keyword}{import}\ Integral,\ Real}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00018}00018\ }
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00019}00019\ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00020}00020\ }
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00021}00021\ \textcolor{keyword}{from}\ ..\_config\ \textcolor{keyword}{import}\ config\_context}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00022}00022\ \textcolor{keyword}{from}\ ..base\ \textcolor{keyword}{import}\ BaseEstimator,\ ClusterMixin,\ \_fit\_context}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00023}00023\ \textcolor{keyword}{from}\ ..metrics.pairwise\ \textcolor{keyword}{import}\ pairwise\_distances\_argmin}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00024}00024\ \textcolor{keyword}{from}\ ..neighbors\ \textcolor{keyword}{import}\ NearestNeighbors}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00025}00025\ \textcolor{keyword}{from}\ ..utils\ \textcolor{keyword}{import}\ check\_array,\ check\_random\_state,\ gen\_batches}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00026}00026\ \textcolor{keyword}{from}\ ..utils.\_param\_validation\ \textcolor{keyword}{import}\ Interval,\ validate\_params}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00027}00027\ \textcolor{keyword}{from}\ ..utils.parallel\ \textcolor{keyword}{import}\ Parallel,\ delayed}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00028}00028\ \textcolor{keyword}{from}\ ..utils.validation\ \textcolor{keyword}{import}\ check\_is\_fitted,\ validate\_data}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00029}00029\ }
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00030}00030\ }
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00031}00031\ \textcolor{preprocessor}{@validate\_params}(}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00032}00032\ \ \ \ \ \{}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00033}00033\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}X"{}}:\ [\textcolor{stringliteral}{"{}array-\/like"{}}],}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00034}00034\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}quantile"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Real,\ 0,\ 1,\ closed=\textcolor{stringliteral}{"{}both"{}})],}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00035}00035\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}n\_samples"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Integral,\ 1,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}}),\ \textcolor{keywordtype}{None}],}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00036}00036\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}random\_state"{}}:\ [\textcolor{stringliteral}{"{}random\_state"{}}],}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00037}00037\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}n\_jobs"{}}:\ [Integral,\ \textcolor{keywordtype}{None}],}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00038}00038\ \ \ \ \ \},}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00039}00039\ \ \ \ \ prefer\_skip\_nested\_validation=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00040}00040\ )}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00041}\mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__mean__shift_aa396c123d7b49f098be135c97da18c62}{00041}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__mean__shift_aa396c123d7b49f098be135c97da18c62}{estimate\_bandwidth}}(X,\ *,\ quantile=0.3,\ n\_samples=None,\ random\_state=0,\ n\_jobs=None):}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00042}00042\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Estimate\ the\ bandwidth\ to\ use\ with\ the\ mean-\/shift\ algorithm.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00043}00043\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00044}00044\ \textcolor{stringliteral}{\ \ \ \ This\ function\ takes\ time\ at\ least\ quadratic\ in\ \`{}n\_samples\`{}.\ For\ large}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00045}00045\ \textcolor{stringliteral}{\ \ \ \ datasets,\ it\ is\ wise\ to\ subsample\ by\ setting\ \`{}n\_samples\`{}.\ Alternatively,}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00046}00046\ \textcolor{stringliteral}{\ \ \ \ the\ parameter\ \`{}bandwidth\`{}\ can\ be\ set\ to\ a\ small\ value\ without\ estimating}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00047}00047\ \textcolor{stringliteral}{\ \ \ \ it.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00048}00048\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00049}00049\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00050}00050\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00051}00051\ \textcolor{stringliteral}{\ \ \ \ X\ :\ array-\/like\ of\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00052}00052\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Input\ points.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00053}00053\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00054}00054\ \textcolor{stringliteral}{\ \ \ \ quantile\ :\ float,\ default=0.3}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00055}00055\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Should\ be\ between\ [0,\ 1]}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00056}00056\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 0.5\ means\ that\ the\ median\ of\ all\ pairwise\ distances\ is\ used.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00057}00057\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00058}00058\ \textcolor{stringliteral}{\ \ \ \ n\_samples\ :\ int,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00059}00059\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ number\ of\ samples\ to\ use.\ If\ not\ given,\ all\ samples\ are\ used.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00060}00060\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00061}00061\ \textcolor{stringliteral}{\ \ \ \ random\_state\ :\ int,\ RandomState\ instance,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00062}00062\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ generator\ used\ to\ randomly\ select\ the\ samples\ from\ input\ points}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00063}00063\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ for\ bandwidth\ estimation.\ Use\ an\ int\ to\ make\ the\ randomness}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00064}00064\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ deterministic.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00065}00065\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ See\ :term:\`{}Glossary\ <random\_state>\`{}.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00066}00066\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00067}00067\ \textcolor{stringliteral}{\ \ \ \ n\_jobs\ :\ int,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00068}00068\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ number\ of\ parallel\ jobs\ to\ run\ for\ neighbors\ search.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00069}00069\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}None\`{}\`{}\ means\ 1\ unless\ in\ a\ :obj:\`{}joblib.parallel\_backend\`{}\ context.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00070}00070\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}-\/1\`{}\`{}\ means\ using\ all\ processors.\ See\ :term:\`{}Glossary\ <n\_jobs>\`{}}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00071}00071\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ for\ more\ details.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00072}00072\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00073}00073\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00074}00074\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00075}00075\ \textcolor{stringliteral}{\ \ \ \ bandwidth\ :\ float}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00076}00076\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ bandwidth\ parameter.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00077}00077\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00078}00078\ \textcolor{stringliteral}{\ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00079}00079\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00080}00080\ \textcolor{stringliteral}{\ \ \ \ >>>\ import\ numpy\ as\ np}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00081}00081\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.cluster\ import\ estimate\_bandwidth}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00082}00082\ \textcolor{stringliteral}{\ \ \ \ >>>\ X\ =\ np.array([[1,\ 1],\ [2,\ 1],\ [1,\ 0],}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00083}00083\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ [4,\ 7],\ [3,\ 5],\ [3,\ 6]])}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00084}00084\ \textcolor{stringliteral}{\ \ \ \ >>>\ estimate\_bandwidth(X,\ quantile=0.5)}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00085}00085\ \textcolor{stringliteral}{\ \ \ \ np.float64(1.61)}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00086}00086\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00087}00087\ \ \ \ \ X\ =\ check\_array(X)}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00088}00088\ }
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00089}00089\ \ \ \ \ random\_state\ =\ check\_random\_state(random\_state)}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00090}00090\ \ \ \ \ \textcolor{keywordflow}{if}\ n\_samples\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00091}00091\ \ \ \ \ \ \ \ \ idx\ =\ random\_state.permutation(X.shape[0])[:n\_samples]}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00092}00092\ \ \ \ \ \ \ \ \ X\ =\ X[idx]}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00093}00093\ \ \ \ \ n\_neighbors\ =\ int(X.shape[0]\ *\ quantile)}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00094}00094\ \ \ \ \ \textcolor{keywordflow}{if}\ n\_neighbors\ <\ 1:\ \ \textcolor{comment}{\#\ cannot\ fit\ NearestNeighbors\ with\ n\_neighbors\ =\ 0}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00095}00095\ \ \ \ \ \ \ \ \ n\_neighbors\ =\ 1}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00096}00096\ \ \ \ \ nbrs\ =\ \mbox{\hyperlink{classsklearn_1_1neighbors_1_1__unsupervised_1_1NearestNeighbors}{NearestNeighbors}}(n\_neighbors=n\_neighbors,\ n\_jobs=n\_jobs)}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00097}00097\ \ \ \ \ nbrs.fit(X)}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00098}00098\ }
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00099}00099\ \ \ \ \ bandwidth\ =\ 0.0}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00100}00100\ \ \ \ \ \textcolor{keywordflow}{for}\ batch\ \textcolor{keywordflow}{in}\ gen\_batches(len(X),\ 500):}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00101}00101\ \ \ \ \ \ \ \ \ d,\ \_\ =\ nbrs.kneighbors(X[batch,\ :],\ return\_distance=\textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00102}00102\ \ \ \ \ \ \ \ \ bandwidth\ +=\ np.max(d,\ axis=1).sum()}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00103}00103\ }
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00104}00104\ \ \ \ \ \textcolor{keywordflow}{return}\ bandwidth\ /\ X.shape[0]}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00105}00105\ }
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00106}00106\ }
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00107}00107\ \textcolor{comment}{\#\ separate\ function\ for\ each\ seed's\ iterative\ loop}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00108}00108\ \textcolor{keyword}{def\ }\_mean\_shift\_single\_seed(my\_mean,\ X,\ nbrs,\ max\_iter):}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00109}00109\ \ \ \ \ \textcolor{comment}{\#\ For\ each\ seed,\ climb\ gradient\ until\ convergence\ or\ max\_iter}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00110}00110\ \ \ \ \ bandwidth\ =\ nbrs.get\_params()[\textcolor{stringliteral}{"{}radius"{}}]}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00111}00111\ \ \ \ \ stop\_thresh\ =\ 1e-\/3\ *\ bandwidth\ \ \textcolor{comment}{\#\ when\ mean\ has\ converged}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00112}00112\ \ \ \ \ completed\_iterations\ =\ 0}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00113}00113\ \ \ \ \ \textcolor{keywordflow}{while}\ \textcolor{keyword}{True}:}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00114}00114\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Find\ mean\ of\ points\ within\ bandwidth}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00115}00115\ \ \ \ \ \ \ \ \ i\_nbrs\ =\ nbrs.radius\_neighbors([my\_mean],\ bandwidth,\ return\_distance=\textcolor{keyword}{False})[0]}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00116}00116\ \ \ \ \ \ \ \ \ points\_within\ =\ X[i\_nbrs]}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00117}00117\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(points\_within)\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00118}00118\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}\ \ \textcolor{comment}{\#\ Depending\ on\ seeding\ strategy\ this\ condition\ may\ occur}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00119}00119\ \ \ \ \ \ \ \ \ my\_old\_mean\ =\ my\_mean\ \ \textcolor{comment}{\#\ save\ the\ old\ mean}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00120}00120\ \ \ \ \ \ \ \ \ my\_mean\ =\ np.mean(points\_within,\ axis=0)}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00121}00121\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ If\ converged\ or\ at\ max\_iter,\ adds\ the\ cluster}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00122}00122\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00123}00123\ \ \ \ \ \ \ \ \ \ \ \ \ np.linalg.norm(my\_mean\ -\/\ my\_old\_mean)\ <=\ stop\_thresh}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00124}00124\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{or}\ completed\_iterations\ ==\ max\_iter}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00125}00125\ \ \ \ \ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00126}00126\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00127}00127\ \ \ \ \ \ \ \ \ completed\_iterations\ +=\ 1}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00128}00128\ \ \ \ \ \textcolor{keywordflow}{return}\ tuple(my\_mean),\ len(points\_within),\ completed\_iterations}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00129}00129\ }
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00130}00130\ }
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00131}00131\ \textcolor{preprocessor}{@validate\_params}(}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00132}00132\ \ \ \ \ \{\textcolor{stringliteral}{"{}X"{}}:\ [\textcolor{stringliteral}{"{}array-\/like"{}}]\},}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00133}00133\ \ \ \ \ prefer\_skip\_nested\_validation=\textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00134}00134\ )}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00135}\mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__mean__shift_a8f30247b1adf25b605867080a0916011}{00135}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__mean__shift_a8f30247b1adf25b605867080a0916011}{mean\_shift}}(}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00136}00136\ \ \ \ \ X,}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00137}00137\ \ \ \ \ *,}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00138}00138\ \ \ \ \ bandwidth=None,}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00139}00139\ \ \ \ \ seeds=None,}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00140}00140\ \ \ \ \ bin\_seeding=False,}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00141}00141\ \ \ \ \ min\_bin\_freq=1,}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00142}00142\ \ \ \ \ cluster\_all=True,}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00143}00143\ \ \ \ \ max\_iter=300,}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00144}00144\ \ \ \ \ n\_jobs=None,}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00145}00145\ ):}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00146}00146\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Perform\ mean\ shift\ clustering\ of\ data\ using\ a\ flat\ kernel.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00147}00147\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00148}00148\ \textcolor{stringliteral}{\ \ \ \ Read\ more\ in\ the\ :ref:\`{}User\ Guide\ <mean\_shift>\`{}.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00149}00149\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00150}00150\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00151}00151\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00152}00152\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00153}00153\ \textcolor{stringliteral}{\ \ \ \ X\ :\ array-\/like\ of\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00154}00154\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Input\ data.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00155}00155\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00156}00156\ \textcolor{stringliteral}{\ \ \ \ bandwidth\ :\ float,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00157}00157\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Kernel\ bandwidth.\ If\ not\ None,\ must\ be\ in\ the\ range\ [0,\ +inf).}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00158}00158\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00159}00159\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ None,\ the\ bandwidth\ is\ determined\ using\ a\ heuristic\ based\ on}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00160}00160\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ median\ of\ all\ pairwise\ distances.\ This\ will\ take\ quadratic\ time\ in}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00161}00161\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ number\ of\ samples.\ The\ sklearn.cluster.estimate\_bandwidth\ function}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00162}00162\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ can\ be\ used\ to\ do\ this\ more\ efficiently.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00163}00163\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00164}00164\ \textcolor{stringliteral}{\ \ \ \ seeds\ :\ array-\/like\ of\ shape\ (n\_seeds,\ n\_features)\ or\ None}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00165}00165\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Point\ used\ as\ initial\ kernel\ locations.\ If\ None\ and\ bin\_seeding=False,}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00166}00166\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ each\ data\ point\ is\ used\ as\ a\ seed.\ If\ None\ and\ bin\_seeding=True,}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00167}00167\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ see\ bin\_seeding.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00168}00168\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00169}00169\ \textcolor{stringliteral}{\ \ \ \ bin\_seeding\ :\ bool,\ default=False}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00170}00170\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ true,\ initial\ kernel\ locations\ are\ not\ locations\ of\ all}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00171}00171\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ points,\ but\ rather\ the\ location\ of\ the\ discretized\ version\ of}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00172}00172\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ points,\ where\ points\ are\ binned\ onto\ a\ grid\ whose\ coarseness}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00173}00173\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ corresponds\ to\ the\ bandwidth.\ Setting\ this\ option\ to\ True\ will\ speed}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00174}00174\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ up\ the\ algorithm\ because\ fewer\ seeds\ will\ be\ initialized.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00175}00175\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Ignored\ if\ seeds\ argument\ is\ not\ None.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00176}00176\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00177}00177\ \textcolor{stringliteral}{\ \ \ \ min\_bin\_freq\ :\ int,\ default=1}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00178}00178\ \textcolor{stringliteral}{\ \ \ \ \ \ \ To\ speed\ up\ the\ algorithm,\ accept\ only\ those\ bins\ with\ at\ least}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00179}00179\ \textcolor{stringliteral}{\ \ \ \ \ \ \ min\_bin\_freq\ points\ as\ seeds.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00180}00180\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00181}00181\ \textcolor{stringliteral}{\ \ \ \ cluster\_all\ :\ bool,\ default=True}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00182}00182\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ true,\ then\ all\ points\ are\ clustered,\ even\ those\ orphans\ that\ are}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00183}00183\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ not\ within\ any\ kernel.\ Orphans\ are\ assigned\ to\ the\ nearest\ kernel.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00184}00184\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ false,\ then\ orphans\ are\ given\ cluster\ label\ -\/1.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00185}00185\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00186}00186\ \textcolor{stringliteral}{\ \ \ \ max\_iter\ :\ int,\ default=300}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00187}00187\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Maximum\ number\ of\ iterations,\ per\ seed\ point\ before\ the\ clustering}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00188}00188\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ operation\ terminates\ (for\ that\ seed\ point),\ if\ has\ not\ converged\ yet.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00189}00189\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00190}00190\ \textcolor{stringliteral}{\ \ \ \ n\_jobs\ :\ int,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00191}00191\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ number\ of\ jobs\ to\ use\ for\ the\ computation.\ The\ following\ tasks\ benefit}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00192}00192\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ from\ the\ parallelization:}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00193}00193\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00194}00194\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ The\ search\ of\ nearest\ neighbors\ for\ bandwidth\ estimation\ and\ label}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00195}00195\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ assignments.\ See\ the\ details\ in\ the\ docstring\ of\ the}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00196}00196\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \`{}\`{}NearestNeighbors\`{}\`{}\ class.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00197}00197\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ Hill-\/climbing\ optimization\ for\ all\ seeds.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00198}00198\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00199}00199\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ See\ :term:\`{}Glossary\ <n\_jobs>\`{}\ for\ more\ details.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00200}00200\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00201}00201\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}None\`{}\`{}\ means\ 1\ unless\ in\ a\ :obj:\`{}joblib.parallel\_backend\`{}\ context.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00202}00202\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}-\/1\`{}\`{}\ means\ using\ all\ processors.\ See\ :term:\`{}Glossary\ <n\_jobs>\`{}}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00203}00203\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ for\ more\ details.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00204}00204\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00205}00205\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 0.17}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00206}00206\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ Parallel\ Execution\ using\ *n\_jobs*.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00207}00207\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00208}00208\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00209}00209\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00210}00210\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00211}00211\ \textcolor{stringliteral}{\ \ \ \ cluster\_centers\ :\ ndarray\ of\ shape\ (n\_clusters,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00212}00212\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Coordinates\ of\ cluster\ centers.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00213}00213\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00214}00214\ \textcolor{stringliteral}{\ \ \ \ labels\ :\ ndarray\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00215}00215\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Cluster\ labels\ for\ each\ point.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00216}00216\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00217}00217\ \textcolor{stringliteral}{\ \ \ \ Notes}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00218}00218\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00219}00219\ \textcolor{stringliteral}{\ \ \ \ For\ a\ usage\ example,\ see}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00220}00220\ \textcolor{stringliteral}{\ \ \ \ :ref:\`{}sphx\_glr\_auto\_examples\_cluster\_plot\_mean\_shift.py\`{}.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00221}00221\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00222}00222\ \textcolor{stringliteral}{\ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00223}00223\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00224}00224\ \textcolor{stringliteral}{\ \ \ \ >>>\ import\ numpy\ as\ np}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00225}00225\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.cluster\ import\ mean\_shift}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00226}00226\ \textcolor{stringliteral}{\ \ \ \ >>>\ X\ =\ np.array([[1,\ 1],\ [2,\ 1],\ [1,\ 0],}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00227}00227\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ [4,\ 7],\ [3,\ 5],\ [3,\ 6]])}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00228}00228\ \textcolor{stringliteral}{\ \ \ \ >>>\ cluster\_centers,\ labels\ =\ mean\_shift(X,\ bandwidth=2)}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00229}00229\ \textcolor{stringliteral}{\ \ \ \ >>>\ cluster\_centers}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00230}00230\ \textcolor{stringliteral}{\ \ \ \ array([[3.33,\ 6.\ \ \ \ \ ],}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00231}00231\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ [1.33,\ 0.66]])}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00232}00232\ \textcolor{stringliteral}{\ \ \ \ >>>\ labels}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00233}00233\ \textcolor{stringliteral}{\ \ \ \ array([1,\ 1,\ 1,\ 0,\ 0,\ 0])}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00234}00234\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00235}00235\ \ \ \ \ model\ =\ \mbox{\hyperlink{classsklearn_1_1cluster_1_1__mean__shift_1_1MeanShift}{MeanShift}}(}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00236}00236\ \ \ \ \ \ \ \ \ bandwidth=bandwidth,}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00237}00237\ \ \ \ \ \ \ \ \ seeds=seeds,}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00238}00238\ \ \ \ \ \ \ \ \ min\_bin\_freq=min\_bin\_freq,}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00239}00239\ \ \ \ \ \ \ \ \ bin\_seeding=bin\_seeding,}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00240}00240\ \ \ \ \ \ \ \ \ cluster\_all=cluster\_all,}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00241}00241\ \ \ \ \ \ \ \ \ n\_jobs=n\_jobs,}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00242}00242\ \ \ \ \ \ \ \ \ max\_iter=max\_iter,}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00243}00243\ \ \ \ \ ).fit(X)}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00244}00244\ \ \ \ \ \textcolor{keywordflow}{return}\ model.cluster\_centers\_,\ model.labels\_}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00245}00245\ }
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00246}00246\ }
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00247}\mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__mean__shift_a0d24a14a2a17c4ff00fbaf79c31fea96}{00247}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__mean__shift_a0d24a14a2a17c4ff00fbaf79c31fea96}{get\_bin\_seeds}}(X,\ bin\_size,\ min\_bin\_freq=1):}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00248}00248\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Find\ seeds\ for\ mean\_shift.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00249}00249\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00250}00250\ \textcolor{stringliteral}{\ \ \ \ Finds\ seeds\ by\ first\ binning\ data\ onto\ a\ grid\ whose\ lines\ are}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00251}00251\ \textcolor{stringliteral}{\ \ \ \ spaced\ bin\_size\ apart,\ and\ then\ choosing\ those\ bins\ with\ at\ least}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00252}00252\ \textcolor{stringliteral}{\ \ \ \ min\_bin\_freq\ points.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00253}00253\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00254}00254\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00255}00255\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00256}00256\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00257}00257\ \textcolor{stringliteral}{\ \ \ \ X\ :\ array-\/like\ of\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00258}00258\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Input\ points,\ the\ same\ points\ that\ will\ be\ used\ in\ mean\_shift.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00259}00259\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00260}00260\ \textcolor{stringliteral}{\ \ \ \ bin\_size\ :\ float}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00261}00261\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Controls\ the\ coarseness\ of\ the\ binning.\ Smaller\ values\ lead}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00262}00262\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ to\ more\ seeding\ (which\ is\ computationally\ more\ expensive).\ If\ you're}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00263}00263\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ not\ sure\ how\ to\ set\ this,\ set\ it\ to\ the\ value\ of\ the\ bandwidth\ used}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00264}00264\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ in\ clustering.mean\_shift.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00265}00265\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00266}00266\ \textcolor{stringliteral}{\ \ \ \ min\_bin\_freq\ :\ int,\ default=1}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00267}00267\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Only\ bins\ with\ at\ least\ min\_bin\_freq\ will\ be\ selected\ as\ seeds.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00268}00268\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Raising\ this\ value\ decreases\ the\ number\ of\ seeds\ found,\ which}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00269}00269\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ makes\ mean\_shift\ computationally\ cheaper.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00270}00270\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00271}00271\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00272}00272\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00273}00273\ \textcolor{stringliteral}{\ \ \ \ bin\_seeds\ :\ array-\/like\ of\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00274}00274\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Points\ used\ as\ initial\ kernel\ positions\ in\ clustering.mean\_shift.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00275}00275\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00276}00276\ \ \ \ \ \textcolor{keywordflow}{if}\ bin\_size\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00277}00277\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ X}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00278}00278\ }
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00279}00279\ \ \ \ \ \textcolor{comment}{\#\ Bin\ points}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00280}00280\ \ \ \ \ bin\_sizes\ =\ defaultdict(int)}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00281}00281\ \ \ \ \ \textcolor{keywordflow}{for}\ point\ \textcolor{keywordflow}{in}\ X:}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00282}00282\ \ \ \ \ \ \ \ \ binned\_point\ =\ np.round(point\ /\ bin\_size)}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00283}00283\ \ \ \ \ \ \ \ \ bin\_sizes[tuple(binned\_point)]\ +=\ 1}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00284}00284\ }
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00285}00285\ \ \ \ \ \textcolor{comment}{\#\ Select\ only\ those\ bins\ as\ seeds\ which\ have\ enough\ members}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00286}00286\ \ \ \ \ bin\_seeds\ =\ np.array(}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00287}00287\ \ \ \ \ \ \ \ \ [point\ \textcolor{keywordflow}{for}\ point,\ freq\ \textcolor{keywordflow}{in}\ bin\_sizes.items()\ \textcolor{keywordflow}{if}\ freq\ >=\ min\_bin\_freq],}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00288}00288\ \ \ \ \ \ \ \ \ dtype=np.float32,}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00289}00289\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00290}00290\ \ \ \ \ \textcolor{keywordflow}{if}\ len(bin\_seeds)\ ==\ len(X):}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00291}00291\ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00292}00292\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Binning\ data\ failed\ with\ provided\ bin\_size=\%f,\ using\ data\ points\ as\ seeds."{}}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00293}00293\ \ \ \ \ \ \ \ \ \ \ \ \ \%\ bin\_size}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00294}00294\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00295}00295\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ X}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00296}00296\ \ \ \ \ bin\_seeds\ =\ bin\_seeds\ *\ bin\_size}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00297}00297\ \ \ \ \ \textcolor{keywordflow}{return}\ bin\_seeds}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00298}00298\ }
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00299}00299\ }
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00300}\mbox{\hyperlink{classsklearn_1_1cluster_1_1__mean__shift_1_1MeanShift}{00300}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classsklearn_1_1cluster_1_1__mean__shift_1_1MeanShift}{MeanShift}}(\mbox{\hyperlink{classsklearn_1_1base_1_1ClusterMixin}{ClusterMixin}},\ \mbox{\hyperlink{classsklearn_1_1base_1_1BaseEstimator}{BaseEstimator}}):}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00301}00301\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Mean\ shift\ clustering\ using\ a\ flat\ kernel.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00302}00302\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00303}00303\ \textcolor{stringliteral}{\ \ \ \ Mean\ shift\ clustering\ aims\ to\ discover\ "{}blobs"{}\ in\ a\ smooth\ density\ of}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00304}00304\ \textcolor{stringliteral}{\ \ \ \ samples.\ It\ is\ a\ centroid-\/based\ algorithm,\ which\ works\ by\ updating}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00305}00305\ \textcolor{stringliteral}{\ \ \ \ candidates\ for\ centroids\ to\ be\ the\ mean\ of\ the\ points\ within\ a\ given}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00306}00306\ \textcolor{stringliteral}{\ \ \ \ region.\ These\ candidates\ are\ then\ filtered\ in\ a\ post-\/processing\ stage\ to}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00307}00307\ \textcolor{stringliteral}{\ \ \ \ eliminate\ near-\/duplicates\ to\ form\ the\ final\ set\ of\ centroids.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00308}00308\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00309}00309\ \textcolor{stringliteral}{\ \ \ \ Seeding\ is\ performed\ using\ a\ binning\ technique\ for\ scalability.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00310}00310\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00311}00311\ \textcolor{stringliteral}{\ \ \ \ For\ an\ example\ of\ how\ to\ use\ MeanShift\ clustering,\ refer\ to:}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00312}00312\ \textcolor{stringliteral}{\ \ \ \ :ref:\`{}sphx\_glr\_auto\_examples\_cluster\_plot\_mean\_shift.py\`{}.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00313}00313\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00314}00314\ \textcolor{stringliteral}{\ \ \ \ Read\ more\ in\ the\ :ref:\`{}User\ Guide\ <mean\_shift>\`{}.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00315}00315\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00316}00316\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00317}00317\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00318}00318\ \textcolor{stringliteral}{\ \ \ \ bandwidth\ :\ float,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00319}00319\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Bandwidth\ used\ in\ the\ flat\ kernel.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00320}00320\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00321}00321\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ not\ given,\ the\ bandwidth\ is\ estimated\ using}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00322}00322\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ sklearn.cluster.estimate\_bandwidth;\ see\ the\ documentation\ for\ that}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00323}00323\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ function\ for\ hints\ on\ scalability\ (see\ also\ the\ Notes,\ below).}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00324}00324\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00325}00325\ \textcolor{stringliteral}{\ \ \ \ seeds\ :\ array-\/like\ of\ shape\ (n\_samples,\ n\_features),\ default=None}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00326}00326\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Seeds\ used\ to\ initialize\ kernels.\ If\ not\ set,}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00327}00327\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ seeds\ are\ calculated\ by\ clustering.get\_bin\_seeds}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00328}00328\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ with\ bandwidth\ as\ the\ grid\ size\ and\ default\ values\ for}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00329}00329\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ other\ parameters.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00330}00330\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00331}00331\ \textcolor{stringliteral}{\ \ \ \ bin\_seeding\ :\ bool,\ default=False}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00332}00332\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ true,\ initial\ kernel\ locations\ are\ not\ locations\ of\ all}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00333}00333\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ points,\ but\ rather\ the\ location\ of\ the\ discretized\ version\ of}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00334}00334\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ points,\ where\ points\ are\ binned\ onto\ a\ grid\ whose\ coarseness}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00335}00335\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ corresponds\ to\ the\ bandwidth.\ Setting\ this\ option\ to\ True\ will\ speed}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00336}00336\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ up\ the\ algorithm\ because\ fewer\ seeds\ will\ be\ initialized.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00337}00337\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ default\ value\ is\ False.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00338}00338\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Ignored\ if\ seeds\ argument\ is\ not\ None.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00339}00339\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00340}00340\ \textcolor{stringliteral}{\ \ \ \ min\_bin\_freq\ :\ int,\ default=1}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00341}00341\ \textcolor{stringliteral}{\ \ \ \ \ \ \ To\ speed\ up\ the\ algorithm,\ accept\ only\ those\ bins\ with\ at\ least}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00342}00342\ \textcolor{stringliteral}{\ \ \ \ \ \ \ min\_bin\_freq\ points\ as\ seeds.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00343}00343\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00344}00344\ \textcolor{stringliteral}{\ \ \ \ cluster\_all\ :\ bool,\ default=True}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00345}00345\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ true,\ then\ all\ points\ are\ clustered,\ even\ those\ orphans\ that\ are}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00346}00346\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ not\ within\ any\ kernel.\ Orphans\ are\ assigned\ to\ the\ nearest\ kernel.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00347}00347\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ false,\ then\ orphans\ are\ given\ cluster\ label\ -\/1.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00348}00348\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00349}00349\ \textcolor{stringliteral}{\ \ \ \ n\_jobs\ :\ int,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00350}00350\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ number\ of\ jobs\ to\ use\ for\ the\ computation.\ The\ following\ tasks\ benefit}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00351}00351\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ from\ the\ parallelization:}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00352}00352\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00353}00353\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ The\ search\ of\ nearest\ neighbors\ for\ bandwidth\ estimation\ and\ label}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00354}00354\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ assignments.\ See\ the\ details\ in\ the\ docstring\ of\ the}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00355}00355\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \`{}\`{}NearestNeighbors\`{}\`{}\ class.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00356}00356\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ Hill-\/climbing\ optimization\ for\ all\ seeds.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00357}00357\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00358}00358\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ See\ :term:\`{}Glossary\ <n\_jobs>\`{}\ for\ more\ details.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00359}00359\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00360}00360\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}None\`{}\`{}\ means\ 1\ unless\ in\ a\ :obj:\`{}joblib.parallel\_backend\`{}\ context.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00361}00361\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}-\/1\`{}\`{}\ means\ using\ all\ processors.\ See\ :term:\`{}Glossary\ <n\_jobs>\`{}}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00362}00362\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ for\ more\ details.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00363}00363\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00364}00364\ \textcolor{stringliteral}{\ \ \ \ max\_iter\ :\ int,\ default=300}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00365}00365\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Maximum\ number\ of\ iterations,\ per\ seed\ point\ before\ the\ clustering}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00366}00366\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ operation\ terminates\ (for\ that\ seed\ point),\ if\ has\ not\ converged\ yet.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00367}00367\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00368}00368\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 0.22}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00369}00369\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00370}00370\ \textcolor{stringliteral}{\ \ \ \ Attributes}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00371}00371\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00372}00372\ \textcolor{stringliteral}{\ \ \ \ cluster\_centers\_\ :\ ndarray\ of\ shape\ (n\_clusters,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00373}00373\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Coordinates\ of\ cluster\ centers.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00374}00374\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00375}00375\ \textcolor{stringliteral}{\ \ \ \ labels\_\ :\ ndarray\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00376}00376\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Labels\ of\ each\ point.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00377}00377\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00378}00378\ \textcolor{stringliteral}{\ \ \ \ n\_iter\_\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00379}00379\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Maximum\ number\ of\ iterations\ performed\ on\ each\ seed.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00380}00380\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00381}00381\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 0.22}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00382}00382\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00383}00383\ \textcolor{stringliteral}{\ \ \ \ n\_features\_in\_\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00384}00384\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ features\ seen\ during\ :term:\`{}fit\`{}.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00385}00385\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00386}00386\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 0.24}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00387}00387\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00388}00388\ \textcolor{stringliteral}{\ \ \ \ feature\_names\_in\_\ :\ ndarray\ of\ shape\ (\`{}n\_features\_in\_\`{},)}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00389}00389\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Names\ of\ features\ seen\ during\ :term:\`{}fit\`{}.\ Defined\ only\ when\ \`{}X\`{}}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00390}00390\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ has\ feature\ names\ that\ are\ all\ strings.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00391}00391\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00392}00392\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 1.0}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00393}00393\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00394}00394\ \textcolor{stringliteral}{\ \ \ \ See\ Also}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00395}00395\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00396}00396\ \textcolor{stringliteral}{\ \ \ \ KMeans\ :\ K-\/Means\ clustering.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00397}00397\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00398}00398\ \textcolor{stringliteral}{\ \ \ \ Notes}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00399}00399\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00400}00400\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00401}00401\ \textcolor{stringliteral}{\ \ \ \ Scalability:}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00402}00402\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00403}00403\ \textcolor{stringliteral}{\ \ \ \ Because\ this\ implementation\ uses\ a\ flat\ kernel\ and}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00404}00404\ \textcolor{stringliteral}{\ \ \ \ a\ Ball\ Tree\ to\ look\ up\ members\ of\ each\ kernel,\ the\ complexity\ will\ tend}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00405}00405\ \textcolor{stringliteral}{\ \ \ \ towards\ O(T*n*log(n))\ in\ lower\ dimensions,\ with\ n\ the\ number\ of\ samples}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00406}00406\ \textcolor{stringliteral}{\ \ \ \ and\ T\ the\ number\ of\ points.\ In\ higher\ dimensions\ the\ complexity\ will}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00407}00407\ \textcolor{stringliteral}{\ \ \ \ tend\ towards\ O(T*n\string^2).}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00408}00408\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00409}00409\ \textcolor{stringliteral}{\ \ \ \ Scalability\ can\ be\ boosted\ by\ using\ fewer\ seeds,\ for\ example\ by\ using}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00410}00410\ \textcolor{stringliteral}{\ \ \ \ a\ higher\ value\ of\ min\_bin\_freq\ in\ the\ get\_bin\_seeds\ function.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00411}00411\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00412}00412\ \textcolor{stringliteral}{\ \ \ \ Note\ that\ the\ estimate\_bandwidth\ function\ is\ much\ less\ scalable\ than\ the}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00413}00413\ \textcolor{stringliteral}{\ \ \ \ mean\ shift\ algorithm\ and\ will\ be\ the\ bottleneck\ if\ it\ is\ used.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00414}00414\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00415}00415\ \textcolor{stringliteral}{\ \ \ \ References}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00416}00416\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00417}00417\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00418}00418\ \textcolor{stringliteral}{\ \ \ \ Dorin\ Comaniciu\ and\ Peter\ Meer,\ "{}Mean\ Shift:\ A\ robust\ approach\ toward}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00419}00419\ \textcolor{stringliteral}{\ \ \ \ feature\ space\ analysis"{}.\ IEEE\ Transactions\ on\ Pattern\ Analysis\ and}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00420}00420\ \textcolor{stringliteral}{\ \ \ \ Machine\ Intelligence.\ 2002.\ pp.\ 603-\/619.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00421}00421\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00422}00422\ \textcolor{stringliteral}{\ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00423}00423\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00424}00424\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.cluster\ import\ MeanShift}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00425}00425\ \textcolor{stringliteral}{\ \ \ \ >>>\ import\ numpy\ as\ np}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00426}00426\ \textcolor{stringliteral}{\ \ \ \ >>>\ X\ =\ np.array([[1,\ 1],\ [2,\ 1],\ [1,\ 0],}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00427}00427\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ [4,\ 7],\ [3,\ 5],\ [3,\ 6]])}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00428}00428\ \textcolor{stringliteral}{\ \ \ \ >>>\ clustering\ =\ MeanShift(bandwidth=2).fit(X)}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00429}00429\ \textcolor{stringliteral}{\ \ \ \ >>>\ clustering.labels\_}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00430}00430\ \textcolor{stringliteral}{\ \ \ \ array([1,\ 1,\ 1,\ 0,\ 0,\ 0])}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00431}00431\ \textcolor{stringliteral}{\ \ \ \ >>>\ clustering.predict([[0,\ 0],\ [5,\ 5]])}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00432}00432\ \textcolor{stringliteral}{\ \ \ \ array([1,\ 0])}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00433}00433\ \textcolor{stringliteral}{\ \ \ \ >>>\ clustering}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00434}00434\ \textcolor{stringliteral}{\ \ \ \ MeanShift(bandwidth=2)}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00435}00435\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00436}00436\ \textcolor{stringliteral}{\ \ \ \ For\ a\ comparison\ of\ Mean\ Shift\ clustering\ with\ other\ clustering\ algorithms,\ see}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00437}00437\ \textcolor{stringliteral}{\ \ \ \ :ref:\`{}sphx\_glr\_auto\_examples\_cluster\_plot\_cluster\_comparison.py\`{}}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00438}00438\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00439}00439\ }
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00440}00440\ \ \ \ \ \_parameter\_constraints:\ dict\ =\ \{}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00441}00441\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}bandwidth"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Real,\ 0,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}neither"{}}),\ \textcolor{keywordtype}{None}],}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00442}00442\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}seeds"{}}:\ [\textcolor{stringliteral}{"{}array-\/like"{}},\ \textcolor{keywordtype}{None}],}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00443}00443\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}bin\_seeding"{}}:\ [\textcolor{stringliteral}{"{}boolean"{}}],}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00444}00444\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}min\_bin\_freq"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Integral,\ 1,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}})],}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00445}00445\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}cluster\_all"{}}:\ [\textcolor{stringliteral}{"{}boolean"{}}],}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00446}00446\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}n\_jobs"{}}:\ [Integral,\ \textcolor{keywordtype}{None}],}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00447}00447\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}max\_iter"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Integral,\ 0,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}})],}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00448}00448\ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00449}00449\ }
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00450}00450\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00451}00451\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00452}00452\ \ \ \ \ \ \ \ \ *,}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00453}00453\ \ \ \ \ \ \ \ \ bandwidth=None,}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00454}00454\ \ \ \ \ \ \ \ \ seeds=None,}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00455}00455\ \ \ \ \ \ \ \ \ bin\_seeding=False,}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00456}00456\ \ \ \ \ \ \ \ \ min\_bin\_freq=1,}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00457}00457\ \ \ \ \ \ \ \ \ cluster\_all=True,}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00458}00458\ \ \ \ \ \ \ \ \ n\_jobs=None,}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00459}00459\ \ \ \ \ \ \ \ \ max\_iter=300,}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00460}00460\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00461}00461\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__mean__shift_1_1MeanShift_af89c3dc2f466a5877e3df788a0b1a174}{bandwidth}}\ =\ bandwidth}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00462}00462\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__mean__shift_1_1MeanShift_a990e719f7989f77f58606ddaadde7fc0}{seeds}}\ =\ seeds}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00463}00463\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__mean__shift_1_1MeanShift_ab13469856e8df708a84ed40de8a355ff}{bin\_seeding}}\ =\ bin\_seeding}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00464}00464\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__mean__shift_1_1MeanShift_ae7111d08636ee5f7beac703a4de938c2}{cluster\_all}}\ =\ cluster\_all}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00465}00465\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__mean__shift_1_1MeanShift_a3d34e8c3260390dfbca2367e4201e349}{min\_bin\_freq}}\ =\ min\_bin\_freq}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00466}00466\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__mean__shift_1_1MeanShift_afe58913435ab9c0d3d34a893be58c413}{n\_jobs}}\ =\ n\_jobs}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00467}00467\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__mean__shift_1_1MeanShift_a28d75fd083a06603515adfd7d48ec84f}{max\_iter}}\ =\ max\_iter}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00468}00468\ }
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00469}00469\ \ \ \ \ \textcolor{preprocessor}{@\_fit\_context(prefer\_skip\_nested\_validation=True)}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00470}\mbox{\hyperlink{classsklearn_1_1cluster_1_1__mean__shift_1_1MeanShift_a69f183fcf850f9978708aba2d9dab093}{00470}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1cluster_1_1__mean__shift_1_1MeanShift_a69f183fcf850f9978708aba2d9dab093}{fit}}(self,\ X,\ y=None):}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00471}00471\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Perform\ clustering.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00472}00472\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00473}00473\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00474}00474\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00475}00475\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\ :\ array-\/like\ of\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00476}00476\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Samples\ to\ cluster.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00477}00477\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00478}00478\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ y\ :\ Ignored}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00479}00479\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Not\ used,\ present\ for\ API\ consistency\ by\ convention.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00480}00480\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00481}00481\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00482}00482\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00483}00483\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ self\ :\ object}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00484}00484\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ Fitted\ instance.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00485}00485\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00486}00486\ \ \ \ \ \ \ \ \ X\ =\ validate\_data(self,\ X)}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00487}00487\ \ \ \ \ \ \ \ \ bandwidth\ =\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__mean__shift_1_1MeanShift_af89c3dc2f466a5877e3df788a0b1a174}{bandwidth}}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00488}00488\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ bandwidth\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00489}00489\ \ \ \ \ \ \ \ \ \ \ \ \ bandwidth\ =\ \mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__mean__shift_aa396c123d7b49f098be135c97da18c62}{estimate\_bandwidth}}(X,\ n\_jobs=self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__mean__shift_1_1MeanShift_afe58913435ab9c0d3d34a893be58c413}{n\_jobs}})}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00490}00490\ }
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00491}00491\ \ \ \ \ \ \ \ \ seeds\ =\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__mean__shift_1_1MeanShift_a990e719f7989f77f58606ddaadde7fc0}{seeds}}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00492}00492\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ seeds\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00493}00493\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__mean__shift_1_1MeanShift_ab13469856e8df708a84ed40de8a355ff}{bin\_seeding}}:}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00494}00494\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ seeds\ =\ \mbox{\hyperlink{namespacesklearn_1_1cluster_1_1__mean__shift_a0d24a14a2a17c4ff00fbaf79c31fea96}{get\_bin\_seeds}}(X,\ bandwidth,\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__mean__shift_1_1MeanShift_a3d34e8c3260390dfbca2367e4201e349}{min\_bin\_freq}})}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00495}00495\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00496}00496\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ seeds\ =\ X}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00497}00497\ \ \ \ \ \ \ \ \ n\_samples,\ n\_features\ =\ X.shape}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00498}00498\ \ \ \ \ \ \ \ \ center\_intensity\_dict\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00499}00499\ }
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00500}00500\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ We\ use\ n\_jobs=1\ because\ this\ will\ be\ used\ in\ nested\ calls\ under}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00501}00501\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ parallel\ calls\ to\ \_mean\_shift\_single\_seed\ so\ there\ is\ no\ need\ for}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00502}00502\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ for\ further\ parallelism.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00503}00503\ \ \ \ \ \ \ \ \ nbrs\ =\ \mbox{\hyperlink{classsklearn_1_1neighbors_1_1__unsupervised_1_1NearestNeighbors}{NearestNeighbors}}(radius=bandwidth,\ n\_jobs=1).\mbox{\hyperlink{classsklearn_1_1cluster_1_1__mean__shift_1_1MeanShift_a69f183fcf850f9978708aba2d9dab093}{fit}}(X)}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00504}00504\ }
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00505}00505\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ execute\ iterations\ on\ all\ seeds\ in\ parallel}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00506}00506\ \ \ \ \ \ \ \ \ all\_res\ =\ \mbox{\hyperlink{classsklearn_1_1utils_1_1parallel_1_1Parallel}{Parallel}}(n\_jobs=self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__mean__shift_1_1MeanShift_afe58913435ab9c0d3d34a893be58c413}{n\_jobs}})(}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00507}00507\ \ \ \ \ \ \ \ \ \ \ \ \ delayed(\_mean\_shift\_single\_seed)(seed,\ X,\ nbrs,\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__mean__shift_1_1MeanShift_a28d75fd083a06603515adfd7d48ec84f}{max\_iter}})}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00508}00508\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ seed\ \textcolor{keywordflow}{in}\ seeds}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00509}00509\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00510}00510\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ copy\ results\ in\ a\ dictionary}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00511}00511\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(len(seeds)):}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00512}00512\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ all\_res[i][1]:\ \ \textcolor{comment}{\#\ i.e.\ len(points\_within)\ >\ 0}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00513}00513\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ center\_intensity\_dict[all\_res[i][0]]\ =\ all\_res[i][1]}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00514}00514\ }
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00515}00515\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__mean__shift_1_1MeanShift_a519ed80580ba46cf0044bb14daa4cf49}{n\_iter\_}}\ =\ max([x[2]\ \textcolor{keywordflow}{for}\ x\ \textcolor{keywordflow}{in}\ all\_res])}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00516}00516\ }
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00517}00517\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ center\_intensity\_dict:}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00518}00518\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ nothing\ near\ seeds}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00519}00519\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00520}00520\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}No\ point\ was\ within\ bandwidth=\%f\ of\ any\ seed.\ Try\ a\ different\ seeding"{}}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00521}00521\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ strategy\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ or\ increase\ the\ bandwidth."{}}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00522}00522\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \%\ bandwidth}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00523}00523\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00524}00524\ }
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00525}00525\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ POST\ PROCESSING:\ remove\ near\ duplicate\ points}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00526}00526\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ If\ the\ distance\ between\ two\ kernels\ is\ less\ than\ the\ bandwidth,}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00527}00527\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ then\ we\ have\ to\ remove\ one\ because\ it\ is\ a\ duplicate.\ Remove\ the}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00528}00528\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ one\ with\ fewer\ points.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00529}00529\ }
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00530}00530\ \ \ \ \ \ \ \ \ sorted\_by\_intensity\ =\ sorted(}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00531}00531\ \ \ \ \ \ \ \ \ \ \ \ \ center\_intensity\_dict.items(),}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00532}00532\ \ \ \ \ \ \ \ \ \ \ \ \ key=\textcolor{keyword}{lambda}\ tup:\ (tup[1],\ tup[0]),}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00533}00533\ \ \ \ \ \ \ \ \ \ \ \ \ reverse=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00534}00534\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00535}00535\ \ \ \ \ \ \ \ \ sorted\_centers\ =\ np.array([tup[0]\ \textcolor{keywordflow}{for}\ tup\ \textcolor{keywordflow}{in}\ sorted\_by\_intensity])}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00536}00536\ \ \ \ \ \ \ \ \ unique\ =\ np.ones(len(sorted\_centers),\ dtype=bool)}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00537}00537\ \ \ \ \ \ \ \ \ nbrs\ =\ \mbox{\hyperlink{classsklearn_1_1neighbors_1_1__unsupervised_1_1NearestNeighbors}{NearestNeighbors}}(radius=bandwidth,\ n\_jobs=self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__mean__shift_1_1MeanShift_afe58913435ab9c0d3d34a893be58c413}{n\_jobs}}).\mbox{\hyperlink{classsklearn_1_1cluster_1_1__mean__shift_1_1MeanShift_a69f183fcf850f9978708aba2d9dab093}{fit}}(}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00538}00538\ \ \ \ \ \ \ \ \ \ \ \ \ sorted\_centers}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00539}00539\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00540}00540\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ i,\ center\ \textcolor{keywordflow}{in}\ enumerate(sorted\_centers):}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00541}00541\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ unique[i]:}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00542}00542\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ neighbor\_idxs\ =\ nbrs.radius\_neighbors([center],\ return\_distance=\textcolor{keyword}{False})[}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00543}00543\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ 0}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00544}00544\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ]}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00545}00545\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ unique[neighbor\_idxs]\ =\ 0}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00546}00546\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ unique[i]\ =\ 1\ \ \textcolor{comment}{\#\ leave\ the\ current\ point\ as\ unique}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00547}00547\ \ \ \ \ \ \ \ \ cluster\_centers\ =\ sorted\_centers[unique]}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00548}00548\ }
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00549}00549\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ ASSIGN\ LABELS:\ a\ point\ belongs\ to\ the\ cluster\ that\ it\ is\ closest\ to}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00550}00550\ \ \ \ \ \ \ \ \ nbrs\ =\ \mbox{\hyperlink{classsklearn_1_1neighbors_1_1__unsupervised_1_1NearestNeighbors}{NearestNeighbors}}(n\_neighbors=1,\ n\_jobs=self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__mean__shift_1_1MeanShift_afe58913435ab9c0d3d34a893be58c413}{n\_jobs}}).\mbox{\hyperlink{classsklearn_1_1cluster_1_1__mean__shift_1_1MeanShift_a69f183fcf850f9978708aba2d9dab093}{fit}}(cluster\_centers)}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00551}00551\ \ \ \ \ \ \ \ \ labels\ =\ np.zeros(n\_samples,\ dtype=int)}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00552}00552\ \ \ \ \ \ \ \ \ distances,\ idxs\ =\ nbrs.kneighbors(X)}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00553}00553\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__mean__shift_1_1MeanShift_ae7111d08636ee5f7beac703a4de938c2}{cluster\_all}}:}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00554}00554\ \ \ \ \ \ \ \ \ \ \ \ \ labels\ =\ idxs.flatten()}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00555}00555\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00556}00556\ \ \ \ \ \ \ \ \ \ \ \ \ labels.fill(-\/1)}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00557}00557\ \ \ \ \ \ \ \ \ \ \ \ \ bool\_selector\ =\ distances.flatten()\ <=\ bandwidth}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00558}00558\ \ \ \ \ \ \ \ \ \ \ \ \ labels[bool\_selector]\ =\ idxs.flatten()[bool\_selector]}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00559}00559\ }
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00560}00560\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__mean__shift_1_1MeanShift_a371efcc0380e330df99ea56be1882619}{cluster\_centers\_}},\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__mean__shift_1_1MeanShift_a40b1e81af6dcb272d56f7c2f3f9807d1}{labels\_}}\ =\ cluster\_centers,\ labels}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00561}00561\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00562}00562\ }
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00563}\mbox{\hyperlink{classsklearn_1_1cluster_1_1__mean__shift_1_1MeanShift_afbe06db19a9f841021d7fbfc1324e01d}{00563}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1cluster_1_1__mean__shift_1_1MeanShift_afbe06db19a9f841021d7fbfc1324e01d}{predict}}(self,\ X):}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00564}00564\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Predict\ the\ closest\ cluster\ each\ sample\ in\ X\ belongs\ to.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00565}00565\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00566}00566\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00567}00567\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00568}00568\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\ :\ array-\/like\ of\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00569}00569\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ New\ data\ to\ predict.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00570}00570\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00571}00571\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00572}00572\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00573}00573\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ labels\ :\ ndarray\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00574}00574\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Index\ of\ the\ cluster\ each\ sample\ belongs\ to.}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00575}00575\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00576}00576\ \ \ \ \ \ \ \ \ check\_is\_fitted(self)}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00577}00577\ \ \ \ \ \ \ \ \ X\ =\ validate\_data(self,\ X,\ reset=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00578}00578\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ config\_context(assume\_finite=\textcolor{keyword}{True}):}
+\DoxyCodeLine{\Hypertarget{__mean__shift_8py_source_l00579}00579\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ pairwise\_distances\_argmin(X,\ self.\mbox{\hyperlink{classsklearn_1_1cluster_1_1__mean__shift_1_1MeanShift_a371efcc0380e330df99ea56be1882619}{cluster\_centers\_}})}
+
+\end{DoxyCode}

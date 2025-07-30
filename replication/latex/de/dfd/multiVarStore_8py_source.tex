@@ -1,0 +1,259 @@
+\doxysection{multi\+Var\+Store.\+py}
+\hypertarget{multiVarStore_8py_source}{}\label{multiVarStore_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/fontTools/varLib/multiVarStore.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/fontTools/varLib/multiVarStore.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00001}\mbox{\hyperlink{namespacefontTools_1_1varLib_1_1multiVarStore}{00001}}\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1misc_1_1roundTools}{fontTools.misc.roundTools}}\ \textcolor{keyword}{import}\ noRound,\ otRound}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00002}00002\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1misc_1_1intTools}{fontTools.misc.intTools}}\ \textcolor{keyword}{import}\ bit\_count}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00003}00003\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1misc_1_1vector}{fontTools.misc.vector}}\ \textcolor{keyword}{import}\ Vector}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00004}00004\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1ttLib_1_1tables}{fontTools.ttLib.tables}}\ \textcolor{keyword}{import}\ otTables\ \textcolor{keyword}{as}\ ot}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00005}00005\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1varLib_1_1models}{fontTools.varLib.models}}\ \textcolor{keyword}{import}\ supportScalar}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00006}00006\ \textcolor{keyword}{import}\ \mbox{\hyperlink{namespacefontTools_1_1varLib_1_1varStore}{fontTools.varLib.varStore}}\ \ \textcolor{comment}{\#\ For\ monkey-\/patching}}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00007}00007\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1varLib_1_1builder}{fontTools.varLib.builder}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00008}00008\ \ \ \ \ buildVarRegionList,}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00009}00009\ \ \ \ \ buildSparseVarRegionList,}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00010}00010\ \ \ \ \ buildSparseVarRegion,}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00011}00011\ \ \ \ \ buildMultiVarStore,}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00012}00012\ \ \ \ \ buildMultiVarData,}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00013}00013\ )}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00014}00014\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1misc_1_1iterTools}{fontTools.misc.iterTools}}\ \textcolor{keyword}{import}\ batched}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00015}00015\ \textcolor{keyword}{from}\ functools\ \textcolor{keyword}{import}\ partial}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00016}00016\ \textcolor{keyword}{from}\ collections\ \textcolor{keyword}{import}\ defaultdict}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00017}00017\ \textcolor{keyword}{from}\ heapq\ \textcolor{keyword}{import}\ heappush,\ heappop}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00018}00018\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00019}00019\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00020}00020\ NO\_VARIATION\_INDEX\ =\ ot.NO\_VARIATION\_INDEX}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00021}00021\ ot.MultiVarStore.NO\_VARIATION\_INDEX\ =\ NO\_VARIATION\_INDEX}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00022}00022\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00023}00023\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00024}00024\ \textcolor{keyword}{def\ }\_getLocationKey(loc):}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00025}00025\ \ \ \ \ \textcolor{keywordflow}{return}\ tuple(sorted(loc.items(),\ key=\textcolor{keyword}{lambda}\ kv:\ kv[0]))}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00026}00026\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00027}00027\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00028}\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder}{00028}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder}{OnlineMultiVarStoreBuilder}}(object):}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00029}00029\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ axisTags):}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00030}00030\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_a0a7c1543ca95fb395f202330886307c7}{\_axisTags}}\ =\ axisTags}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00031}00031\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_ac8ea063b4cd6a7d095241bc0d6558415}{\_regionMap}}\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00032}00032\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_acca99154d7938f3babf46951cac31b3e}{\_regionList}}\ =\ buildSparseVarRegionList([],\ axisTags)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00033}00033\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_a172554e6ce32a43f302b6a1e65f19f41}{\_store}}\ =\ buildMultiVarStore(self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_acca99154d7938f3babf46951cac31b3e}{\_regionList}},\ [])}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00034}00034\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_a4745d43d1a468afe37254e2b0e0e4469}{\_data}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00035}00035\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_ab2fa95f56ebda33580e5450ab0c7e4a9}{\_model}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00036}00036\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_a94dff803d9b0045a5f54b7170f52e233}{\_supports}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00037}00037\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_afb7b06f091895c8aa4fb6a0a9345b892}{\_varDataIndices}}\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00038}00038\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_ab86f5fc054d7a0235b679c69b5b11af0}{\_varDataCaches}}\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00039}00039\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_a599ec75a49925fd12fd719eb143ac4b3}{\_cache}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00040}00040\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00041}00041\ \ \ \ \ \textcolor{keyword}{def\ }setModel(self,\ model):}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00042}00042\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_a583a4ada54ce39e20a4ada4c9818025b}{setSupports}}(model.supports)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00043}00043\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_ab2fa95f56ebda33580e5450ab0c7e4a9}{\_model}}\ =\ model}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00044}00044\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00045}00045\ \ \ \ \ \textcolor{keyword}{def\ }setSupports(self,\ supports):}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00046}00046\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_ab2fa95f56ebda33580e5450ab0c7e4a9}{\_model}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00047}00047\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_a94dff803d9b0045a5f54b7170f52e233}{\_supports}}\ =\ list(supports)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00048}00048\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_a94dff803d9b0045a5f54b7170f52e233}{\_supports}}[0]:}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00049}00049\ \ \ \ \ \ \ \ \ \ \ \ \ del\ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_a94dff803d9b0045a5f54b7170f52e233}{\_supports}}[0]\ \ \textcolor{comment}{\#\ Drop\ base\ master\ support}}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00050}00050\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_a599ec75a49925fd12fd719eb143ac4b3}{\_cache}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00051}00051\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_a4745d43d1a468afe37254e2b0e0e4469}{\_data}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00052}00052\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00053}00053\ \ \ \ \ \textcolor{keyword}{def\ }finish(self):}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00054}00054\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_acca99154d7938f3babf46951cac31b3e}{\_regionList}}.RegionCount\ =\ len(self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_acca99154d7938f3babf46951cac31b3e}{\_regionList}}.Region)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00055}00055\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_a172554e6ce32a43f302b6a1e65f19f41}{\_store}}.MultiVarDataCount\ =\ len(self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_a172554e6ce32a43f302b6a1e65f19f41}{\_store}}.MultiVarData)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00056}00056\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_a172554e6ce32a43f302b6a1e65f19f41}{\_store}}}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00057}00057\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00058}00058\ \ \ \ \ \textcolor{keyword}{def\ }\_add\_MultiVarData(self):}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00059}00059\ \ \ \ \ \ \ \ \ regionMap\ =\ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_ac8ea063b4cd6a7d095241bc0d6558415}{\_regionMap}}}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00060}00060\ \ \ \ \ \ \ \ \ regionList\ =\ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_acca99154d7938f3babf46951cac31b3e}{\_regionList}}}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00061}00061\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00062}00062\ \ \ \ \ \ \ \ \ regions\ =\ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_a94dff803d9b0045a5f54b7170f52e233}{\_supports}}}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00063}00063\ \ \ \ \ \ \ \ \ regionIndices\ =\ []}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00064}00064\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ region\ \textcolor{keywordflow}{in}\ regions:}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00065}00065\ \ \ \ \ \ \ \ \ \ \ \ \ key\ =\ \_getLocationKey(region)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00066}00066\ \ \ \ \ \ \ \ \ \ \ \ \ idx\ =\ regionMap.get(key)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00067}00067\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ idx\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00068}00068\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ varRegion\ =\ buildSparseVarRegion(region,\ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_a0a7c1543ca95fb395f202330886307c7}{\_axisTags}})}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00069}00069\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ idx\ =\ regionMap[key]\ =\ len(regionList.Region)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00070}00070\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ regionList.Region.append(varRegion)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00071}00071\ \ \ \ \ \ \ \ \ \ \ \ \ regionIndices.append(idx)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00072}00072\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00073}00073\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Check\ if\ we\ have\ one\ already...}}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00074}00074\ \ \ \ \ \ \ \ \ key\ =\ tuple(regionIndices)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00075}00075\ \ \ \ \ \ \ \ \ varDataIdx\ =\ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_afb7b06f091895c8aa4fb6a0a9345b892}{\_varDataIndices}}.get(key)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00076}00076\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ varDataIdx\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00077}00077\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_a473a32340c6b80c0b7d47c110e9338ad}{\_outer}}\ =\ varDataIdx}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00078}00078\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_a4745d43d1a468afe37254e2b0e0e4469}{\_data}}\ =\ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_a172554e6ce32a43f302b6a1e65f19f41}{\_store}}.MultiVarData[varDataIdx]}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00079}00079\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_a599ec75a49925fd12fd719eb143ac4b3}{\_cache}}\ =\ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_ab86f5fc054d7a0235b679c69b5b11af0}{\_varDataCaches}}[key]}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00080}00080\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_a4745d43d1a468afe37254e2b0e0e4469}{\_data}}.Item)\ ==\ 0xFFFF:}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00081}00081\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ This\ is\ full.\ \ Need\ new\ one.}}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00082}00082\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ varDataIdx\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00083}00083\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00084}00084\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ varDataIdx\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00085}00085\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_a4745d43d1a468afe37254e2b0e0e4469}{\_data}}\ =\ buildMultiVarData(regionIndices,\ [])}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00086}00086\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_a473a32340c6b80c0b7d47c110e9338ad}{\_outer}}\ =\ len(self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_a172554e6ce32a43f302b6a1e65f19f41}{\_store}}.MultiVarData)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00087}00087\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_a172554e6ce32a43f302b6a1e65f19f41}{\_store}}.MultiVarData.append(self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_a4745d43d1a468afe37254e2b0e0e4469}{\_data}})}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00088}00088\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_afb7b06f091895c8aa4fb6a0a9345b892}{\_varDataIndices}}[key]\ =\ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_a473a32340c6b80c0b7d47c110e9338ad}{\_outer}}}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00089}00089\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ key\ \textcolor{keywordflow}{not}\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_ab86f5fc054d7a0235b679c69b5b11af0}{\_varDataCaches}}:}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00090}00090\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_ab86f5fc054d7a0235b679c69b5b11af0}{\_varDataCaches}}[key]\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00091}00091\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_a599ec75a49925fd12fd719eb143ac4b3}{\_cache}}\ =\ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_ab86f5fc054d7a0235b679c69b5b11af0}{\_varDataCaches}}[key]}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00092}00092\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00093}00093\ \ \ \ \ \textcolor{keyword}{def\ }storeMasters(self,\ master\_values,\ *,\ round=round):}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00094}00094\ \ \ \ \ \ \ \ \ deltas\ =\ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_ab2fa95f56ebda33580e5450ab0c7e4a9}{\_model}}.getDeltas(master\_values,\ round=round)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00095}00095\ \ \ \ \ \ \ \ \ base\ =\ deltas.pop(0)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00096}00096\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ base,\ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_aff196d040b722c5df5a32e3dbc1b7f61}{storeDeltas}}(deltas,\ round=noRound)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00097}00097\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00098}00098\ \ \ \ \ \textcolor{keyword}{def\ }storeDeltas(self,\ deltas,\ *,\ round=round):}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00099}00099\ \ \ \ \ \ \ \ \ deltas\ =\ tuple(round(d)\ \textcolor{keywordflow}{for}\ d\ \textcolor{keywordflow}{in}\ deltas)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00100}00100\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00101}00101\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ any(deltas):}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00102}00102\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ NO\_VARIATION\_INDEX}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00103}00103\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00104}00104\ \ \ \ \ \ \ \ \ deltas\_tuple\ =\ tuple(tuple(d)\ \textcolor{keywordflow}{for}\ d\ \textcolor{keywordflow}{in}\ deltas)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00105}00105\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00106}00106\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_a4745d43d1a468afe37254e2b0e0e4469}{\_data}}:}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00107}00107\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_a4f597d4a7004bd25f08514a85eae74ed}{\_add\_MultiVarData}}()}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00108}00108\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00109}00109\ \ \ \ \ \ \ \ \ varIdx\ =\ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_a599ec75a49925fd12fd719eb143ac4b3}{\_cache}}.get(deltas\_tuple)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00110}00110\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ varIdx\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00111}00111\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ varIdx}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00112}00112\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00113}00113\ \ \ \ \ \ \ \ \ inner\ =\ len(self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_a4745d43d1a468afe37254e2b0e0e4469}{\_data}}.Item)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00114}00114\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ inner\ ==\ 0xFFFF:}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00115}00115\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Full\ array.\ Start\ new\ one.}}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00116}00116\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_a4f597d4a7004bd25f08514a85eae74ed}{\_add\_MultiVarData}}()}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00117}00117\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_aff196d040b722c5df5a32e3dbc1b7f61}{storeDeltas}}(deltas,\ round=noRound)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00118}00118\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_a4745d43d1a468afe37254e2b0e0e4469}{\_data}}.addItem(deltas,\ round=noRound)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00119}00119\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00120}00120\ \ \ \ \ \ \ \ \ varIdx\ =\ (self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_a473a32340c6b80c0b7d47c110e9338ad}{\_outer}}\ <<\ 16)\ +\ inner}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00121}00121\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1OnlineMultiVarStoreBuilder_a599ec75a49925fd12fd719eb143ac4b3}{\_cache}}[deltas\_tuple]\ =\ varIdx}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00122}00122\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ varIdx}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00123}00123\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00124}00124\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00125}00125\ \textcolor{keyword}{def\ }MultiVarData\_addItem(self,\ deltas,\ *,\ round=round):}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00126}00126\ \ \ \ \ deltas\ =\ tuple(round(d)\ \textcolor{keywordflow}{for}\ d\ \textcolor{keywordflow}{in}\ deltas)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00127}00127\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00128}00128\ \ \ \ \ \textcolor{keyword}{assert}\ len(deltas)\ ==\ self.VarRegionCount}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00129}00129\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00130}00130\ \ \ \ \ values\ =\ []}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00131}00131\ \ \ \ \ \textcolor{keywordflow}{for}\ d\ \textcolor{keywordflow}{in}\ deltas:}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00132}00132\ \ \ \ \ \ \ \ \ values.extend(d)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00133}00133\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00134}00134\ \ \ \ \ self.Item.append(values)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00135}00135\ \ \ \ \ self.ItemCount\ =\ len(self.Item)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00136}00136\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00137}00137\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00138}00138\ ot.MultiVarData.addItem\ =\ MultiVarData\_addItem}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00139}00139\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00140}00140\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00141}00141\ \textcolor{keyword}{def\ }SparseVarRegion\_get\_support(self,\ fvar\_axes):}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00142}00142\ \ \ \ \ \textcolor{keywordflow}{return}\ \{}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00143}00143\ \ \ \ \ \ \ \ \ fvar\_axes[reg.AxisIndex].axisTag:\ (reg.StartCoord,\ reg.PeakCoord,\ reg.EndCoord)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00144}00144\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ reg\ \textcolor{keywordflow}{in}\ self.SparseVarRegionAxis}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00145}00145\ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00146}00146\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00147}00147\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00148}00148\ ot.SparseVarRegion.get\_support\ =\ SparseVarRegion\_get\_support}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00149}00149\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00150}00150\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00151}00151\ \textcolor{keyword}{def\ }MultiVarStore\_\_\_bool\_\_(self):}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00152}00152\ \ \ \ \ \textcolor{keywordflow}{return}\ bool(self.MultiVarData)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00153}00153\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00154}00154\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00155}00155\ ot.MultiVarStore.\_\_bool\_\_\ =\ MultiVarStore\_\_\_bool\_\_}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00156}00156\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00157}00157\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00158}\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1MultiVarStoreInstancer}{00158}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1MultiVarStoreInstancer}{MultiVarStoreInstancer}}(object):}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00159}00159\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ multivarstore,\ fvar\_axes,\ location=\{\}):}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00160}00160\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1MultiVarStoreInstancer_a99f634a7ae68b497b02350cb3dfcb540}{fvar\_axes}}\ =\ fvar\_axes}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00161}00161\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ multivarstore\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{or}\ multivarstore.Format\ ==\ 1}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00162}00162\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1MultiVarStoreInstancer_ae2552c145ff00d8ecb73eb76cf257d47}{\_varData}}\ =\ multivarstore.MultiVarData\ \textcolor{keywordflow}{if}\ multivarstore\ \textcolor{keywordflow}{else}\ []}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00163}00163\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1MultiVarStoreInstancer_aaa8b79da8e79815fc855e9b5ae63f5cf}{\_regions}}\ =\ (}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00164}00164\ \ \ \ \ \ \ \ \ \ \ \ \ multivarstore.SparseVarRegionList.Region\ \textcolor{keywordflow}{if}\ multivarstore\ \textcolor{keywordflow}{else}\ []}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00165}00165\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00166}00166\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1MultiVarStoreInstancer_a3e87a4e71eb2b3bb57200a9aa54e90d1}{setLocation}}(location)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00167}00167\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00168}00168\ \ \ \ \ \textcolor{keyword}{def\ }setLocation(self,\ location):}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00169}00169\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1MultiVarStoreInstancer_a27f1571e5fd9bf8ea40a9442f24d6402}{location}}\ =\ dict(location)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00170}00170\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1MultiVarStoreInstancer_a4bcf428bd24087a5f07a6978eddc4ccf}{\_clearCaches}}()}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00171}00171\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00172}00172\ \ \ \ \ \textcolor{keyword}{def\ }\_clearCaches(self):}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00173}00173\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1MultiVarStoreInstancer_aa7e04065ebf731e453d369e53a0a7de3}{\_scalars}}\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00174}00174\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00175}00175\ \ \ \ \ \textcolor{keyword}{def\ }\_getScalar(self,\ regionIdx):}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00176}00176\ \ \ \ \ \ \ \ \ scalar\ =\ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1MultiVarStoreInstancer_aa7e04065ebf731e453d369e53a0a7de3}{\_scalars}}.get(regionIdx)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00177}00177\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ scalar\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00178}00178\ \ \ \ \ \ \ \ \ \ \ \ \ support\ =\ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1MultiVarStoreInstancer_aaa8b79da8e79815fc855e9b5ae63f5cf}{\_regions}}[regionIdx].get\_support(self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1MultiVarStoreInstancer_a99f634a7ae68b497b02350cb3dfcb540}{fvar\_axes}})}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00179}00179\ \ \ \ \ \ \ \ \ \ \ \ \ scalar\ =\ supportScalar(self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1MultiVarStoreInstancer_a27f1571e5fd9bf8ea40a9442f24d6402}{location}},\ support)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00180}00180\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1MultiVarStoreInstancer_aa7e04065ebf731e453d369e53a0a7de3}{\_scalars}}[regionIdx]\ =\ scalar}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00181}00181\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ scalar}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00182}00182\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00183}00183\ \ \ \ \ \textcolor{preprocessor}{@staticmethod}}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00184}00184\ \ \ \ \ \textcolor{keyword}{def\ }interpolateFromDeltasAndScalars(deltas,\ scalars):}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00185}00185\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ deltas:}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00186}00186\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classfontTools_1_1misc_1_1vector_1_1Vector}{Vector}}([])}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00187}00187\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ len(deltas)\ \%\ len(scalars)\ ==\ 0,\ (len(deltas),\ len(scalars))}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00188}00188\ \ \ \ \ \ \ \ \ m\ =\ len(deltas)\ //\ len(scalars)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00189}00189\ \ \ \ \ \ \ \ \ delta\ =\ \mbox{\hyperlink{classfontTools_1_1misc_1_1vector_1_1Vector}{Vector}}([0]\ *\ m)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00190}00190\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ d,\ s\ \textcolor{keywordflow}{in}\ zip(batched(deltas,\ m),\ scalars):}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00191}00191\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ s:}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00192}00192\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00193}00193\ \ \ \ \ \ \ \ \ \ \ \ \ delta\ +=\ \mbox{\hyperlink{classfontTools_1_1misc_1_1vector_1_1Vector}{Vector}}(d)\ *\ s}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00194}00194\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ delta}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00195}00195\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00196}00196\ \ \ \ \ \textcolor{keyword}{def\ }\_\_getitem\_\_(self,\ varidx):}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00197}00197\ \ \ \ \ \ \ \ \ major,\ minor\ =\ varidx\ >>\ 16,\ varidx\ \&\ 0xFFFF}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00198}00198\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ varidx\ ==\ NO\_VARIATION\_INDEX:}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00199}00199\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classfontTools_1_1misc_1_1vector_1_1Vector}{Vector}}([])}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00200}00200\ \ \ \ \ \ \ \ \ varData\ =\ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1MultiVarStoreInstancer_ae2552c145ff00d8ecb73eb76cf257d47}{\_varData}}}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00201}00201\ \ \ \ \ \ \ \ \ scalars\ =\ [self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1MultiVarStoreInstancer_a2b9b58cbfa2dfc30cec34778eac0cede}{\_getScalar}}(ri)\ \textcolor{keywordflow}{for}\ ri\ \textcolor{keywordflow}{in}\ varData[major].VarRegionIndex]}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00202}00202\ \ \ \ \ \ \ \ \ deltas\ =\ varData[major].Item[minor]}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00203}00203\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1MultiVarStoreInstancer_af90667937da1994c9bd1a99f752c9482}{interpolateFromDeltasAndScalars}}(deltas,\ scalars)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00204}00204\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00205}00205\ \ \ \ \ \textcolor{keyword}{def\ }interpolateFromDeltas(self,\ varDataIndex,\ deltas):}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00206}00206\ \ \ \ \ \ \ \ \ varData\ =\ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1MultiVarStoreInstancer_ae2552c145ff00d8ecb73eb76cf257d47}{\_varData}}}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00207}00207\ \ \ \ \ \ \ \ \ scalars\ =\ [self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1MultiVarStoreInstancer_a2b9b58cbfa2dfc30cec34778eac0cede}{\_getScalar}}(ri)\ \textcolor{keywordflow}{for}\ ri\ \textcolor{keywordflow}{in}\ varData[varDataIndex].VarRegionIndex]}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00208}00208\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classfontTools_1_1varLib_1_1multiVarStore_1_1MultiVarStoreInstancer_af90667937da1994c9bd1a99f752c9482}{interpolateFromDeltasAndScalars}}(deltas,\ scalars)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00209}00209\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00210}00210\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00211}00211\ \textcolor{keyword}{def\ }MultiVarStore\_subset\_varidxes(self,\ varIdxes):}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00212}00212\ \ \ \ \ \textcolor{keywordflow}{return}\ ot.VarStore.subset\_varidxes(self,\ varIdxes,\ VarData=\textcolor{stringliteral}{"{}MultiVarData"{}})}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00213}00213\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00214}00214\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00215}00215\ \textcolor{keyword}{def\ }MultiVarStore\_prune\_regions(self):}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00216}00216\ \ \ \ \ \textcolor{keywordflow}{return}\ ot.VarStore.prune\_regions(}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00217}00217\ \ \ \ \ \ \ \ \ self,\ VarData=\textcolor{stringliteral}{"{}MultiVarData"{}},\ VarRegionList=\textcolor{stringliteral}{"{}SparseVarRegionList"{}}}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00218}00218\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00219}00219\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00220}00220\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00221}00221\ ot.MultiVarStore.prune\_regions\ =\ MultiVarStore\_prune\_regions}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00222}00222\ ot.MultiVarStore.subset\_varidxes\ =\ MultiVarStore\_subset\_varidxes}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00223}00223\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00224}00224\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00225}00225\ \textcolor{keyword}{def\ }MultiVarStore\_get\_supports(self,\ major,\ fvarAxes):}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00226}00226\ \ \ \ \ supports\ =\ []}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00227}00227\ \ \ \ \ varData\ =\ self.MultiVarData[major]}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00228}00228\ \ \ \ \ \textcolor{keywordflow}{for}\ regionIdx\ \textcolor{keywordflow}{in}\ varData.VarRegionIndex:}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00229}00229\ \ \ \ \ \ \ \ \ region\ =\ self.SparseVarRegionList.Region[regionIdx]}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00230}00230\ \ \ \ \ \ \ \ \ support\ =\ region.get\_support(fvarAxes)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00231}00231\ \ \ \ \ \ \ \ \ supports.append(support)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00232}00232\ \ \ \ \ \textcolor{keywordflow}{return}\ supports}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00233}00233\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00234}00234\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00235}00235\ ot.MultiVarStore.get\_supports\ =\ MultiVarStore\_get\_supports}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00236}00236\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00237}00237\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00238}00238\ \textcolor{keyword}{def\ }VARC\_collect\_varidxes(self,\ varidxes):}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00239}00239\ \ \ \ \ \textcolor{keywordflow}{for}\ glyph\ \textcolor{keywordflow}{in}\ self.VarCompositeGlyphs.VarCompositeGlyph:}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00240}00240\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ component\ \textcolor{keywordflow}{in}\ glyph.components:}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00241}00241\ \ \ \ \ \ \ \ \ \ \ \ \ varidxes.add(component.axisValuesVarIndex)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00242}00242\ \ \ \ \ \ \ \ \ \ \ \ \ varidxes.add(component.transformVarIndex)}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00243}00243\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00244}00244\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00245}00245\ \textcolor{keyword}{def\ }VARC\_remap\_varidxes(self,\ varidxes\_map):}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00246}00246\ \ \ \ \ \textcolor{keywordflow}{for}\ glyph\ \textcolor{keywordflow}{in}\ self.VarCompositeGlyphs.VarCompositeGlyph:}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00247}00247\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ component\ \textcolor{keywordflow}{in}\ glyph.components:}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00248}00248\ \ \ \ \ \ \ \ \ \ \ \ \ component.axisValuesVarIndex\ =\ varidxes\_map[component.axisValuesVarIndex]}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00249}00249\ \ \ \ \ \ \ \ \ \ \ \ \ component.transformVarIndex\ =\ varidxes\_map[component.transformVarIndex]}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00250}00250\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00251}00251\ }
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00252}00252\ ot.VARC.collect\_varidxes\ =\ VARC\_collect\_varidxes}
+\DoxyCodeLine{\Hypertarget{multiVarStore_8py_source_l00253}00253\ ot.VARC.remap\_varidxes\ =\ VARC\_remap\_varidxes}
+
+\end{DoxyCode}

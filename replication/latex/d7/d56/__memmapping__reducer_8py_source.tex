@@ -1,0 +1,720 @@
+\doxysection{\+\_\+memmapping\+\_\+reducer.\+py}
+\hypertarget{__memmapping__reducer_8py_source}{}\label{__memmapping__reducer_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/joblib/\_memmapping\_reducer.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/joblib/\_memmapping\_reducer.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00001}\mbox{\hyperlink{namespacejoblib_1_1__memmapping__reducer}{00001}}\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00002}00002\ \textcolor{stringliteral}{Reducer\ using\ memory\ mapping\ for\ numpy\ arrays}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00003}00003\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00004}00004\ \textcolor{comment}{\#\ Author:\ Thomas\ Moreau\ <thomas.moreau.2010@gmail.com>}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00005}00005\ \textcolor{comment}{\#\ Copyright:\ 2017,\ Thomas\ Moreau}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00006}00006\ \textcolor{comment}{\#\ License:\ BSD\ 3\ clause}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00007}00007\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00008}00008\ \textcolor{keyword}{import}\ atexit}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00009}00009\ \textcolor{keyword}{import}\ errno}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00010}00010\ \textcolor{keyword}{import}\ os}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00011}00011\ \textcolor{keyword}{import}\ stat}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00012}00012\ \textcolor{keyword}{import}\ tempfile}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00013}00013\ \textcolor{keyword}{import}\ threading}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00014}00014\ \textcolor{keyword}{import}\ time}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00015}00015\ \textcolor{keyword}{import}\ warnings}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00016}00016\ \textcolor{keyword}{import}\ weakref}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00017}00017\ \textcolor{keyword}{from}\ mmap\ \textcolor{keyword}{import}\ mmap}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00018}00018\ \textcolor{keyword}{from}\ multiprocessing\ \textcolor{keyword}{import}\ util}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00019}00019\ \textcolor{keyword}{from}\ pickle\ \textcolor{keyword}{import}\ HIGHEST\_PROTOCOL,\ PicklingError,\ dumps,\ loads,\ whichmodule}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00020}00020\ \textcolor{keyword}{from}\ uuid\ \textcolor{keyword}{import}\ uuid4}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00021}00021\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00022}00022\ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00023}00023\ \ \ \ \ WindowsError}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00024}00024\ \textcolor{keywordflow}{except}\ NameError:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00025}00025\ \ \ \ \ WindowsError\ =\ type(\textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00026}00026\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00027}00027\ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00028}00028\ \ \ \ \ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00029}00029\ \ \ \ \ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacenumpy_1_1lib_1_1stride__tricks}{numpy.lib.stride\_tricks}}\ \textcolor{keyword}{import}\ as\_strided}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00030}00030\ \textcolor{keywordflow}{except}\ ImportError:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00031}00031\ \ \ \ \ np\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00032}00032\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00033}00033\ \textcolor{keyword}{from}\ .backports\ \textcolor{keyword}{import}\ make\_memmap}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00034}00034\ \textcolor{keyword}{from}\ .disk\ \textcolor{keyword}{import}\ delete\_folder}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00035}00035\ \textcolor{keyword}{from}\ .externals.loky.backend\ \textcolor{keyword}{import}\ resource\_tracker}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00036}00036\ \textcolor{keyword}{from}\ .numpy\_pickle\ \textcolor{keyword}{import}\ dump,\ load,\ load\_temporary\_memmap}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00037}00037\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00038}00038\ \textcolor{comment}{\#\ Some\ system\ have\ a\ ramdisk\ mounted\ by\ default,\ we\ can\ use\ it\ instead\ of\ /tmp}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00039}00039\ \textcolor{comment}{\#\ as\ the\ default\ folder\ to\ dump\ big\ arrays\ to\ share\ with\ subprocesses.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00040}00040\ SYSTEM\_SHARED\_MEM\_FS\ =\ \textcolor{stringliteral}{"{}/dev/shm"{}}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00041}00041\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00042}00042\ \textcolor{comment}{\#\ Minimal\ number\ of\ bytes\ available\ on\ SYSTEM\_SHARED\_MEM\_FS\ to\ consider\ using}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00043}00043\ \textcolor{comment}{\#\ it\ as\ the\ default\ folder\ to\ dump\ big\ arrays\ to\ share\ with\ subprocesses.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00044}00044\ SYSTEM\_SHARED\_MEM\_FS\_MIN\_SIZE\ =\ int(2e9)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00045}00045\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00046}00046\ \textcolor{comment}{\#\ Folder\ and\ file\ permissions\ to\ chmod\ temporary\ files\ generated\ by\ the}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00047}00047\ \textcolor{comment}{\#\ memmapping\ pool.\ Only\ the\ owner\ of\ the\ Python\ process\ can\ access\ the}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00048}00048\ \textcolor{comment}{\#\ temporary\ files\ and\ folder.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00049}00049\ FOLDER\_PERMISSIONS\ =\ stat.S\_IRUSR\ |\ stat.S\_IWUSR\ |\ stat.S\_IXUSR}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00050}00050\ FILE\_PERMISSIONS\ =\ stat.S\_IRUSR\ |\ stat.S\_IWUSR}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00051}00051\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00052}00052\ \textcolor{comment}{\#\ Set\ used\ in\ joblib\ workers,\ referencing\ the\ filenames\ of\ temporary\ memmaps}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00053}00053\ \textcolor{comment}{\#\ created\ by\ joblib\ to\ speed\ up\ data\ communication.\ In\ child\ processes,\ we\ add}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00054}00054\ \textcolor{comment}{\#\ a\ finalizer\ to\ these\ memmaps\ that\ sends\ a\ maybe\_unlink\ call\ to\ the}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00055}00055\ \textcolor{comment}{\#\ resource\_tracker,\ in\ order\ to\ free\ main\ memory\ as\ fast\ as\ possible.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00056}00056\ JOBLIB\_MMAPS\ =\ set()}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00057}00057\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00058}00058\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00059}00059\ \textcolor{keyword}{def\ }\_log\_and\_unlink(filename):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00060}00060\ \ \ \ \ \textcolor{keyword}{from}\ .externals.loky.backend.resource\_tracker\ \textcolor{keyword}{import}\ \_resource\_tracker}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00061}00061\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00062}00062\ \ \ \ \ util.debug(}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00063}00063\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}[FINALIZER\ CALL]\ object\ mapping\ to\ \{\}\ about\ to\ be\ deleted,"{}}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00064}00064\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ decrementing\ the\ refcount\ of\ the\ file\ (pid:\ \{\})"{}}.format(}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00065}00065\ \ \ \ \ \ \ \ \ \ \ \ \ os.path.basename(filename),\ os.getpid()}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00066}00066\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00067}00067\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00068}00068\ \ \ \ \ \_resource\_tracker.maybe\_unlink(filename,\ \textcolor{stringliteral}{"{}file"{}})}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00069}00069\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00070}00070\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00071}00071\ \textcolor{keyword}{def\ }add\_maybe\_unlink\_finalizer(memmap):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00072}00072\ \ \ \ \ util.debug(}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00073}00073\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}[FINALIZER\ ADD]\ adding\ finalizer\ to\ \{\}\ (id\ \{\},\ filename\ \{\},\ pid\ \ \{\})"{}}.format(}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00074}00074\ \ \ \ \ \ \ \ \ \ \ \ \ type(memmap),\ id(memmap),\ os.path.basename(memmap.filename),\ os.getpid()}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00075}00075\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00076}00076\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00077}00077\ \ \ \ \ weakref.finalize(memmap,\ \_log\_and\_unlink,\ memmap.filename)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00078}00078\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00079}00079\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00080}\mbox{\hyperlink{namespacejoblib_1_1__memmapping__reducer_a10e16f9624e43f471b87629b6f14b2d1}{00080}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1__memmapping__reducer_a10e16f9624e43f471b87629b6f14b2d1}{unlink\_file}}(filename):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00081}00081\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Wrapper\ around\ os.unlink\ with\ a\ retry\ mechanism.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00082}00082\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00083}00083\ \textcolor{stringliteral}{\ \ \ \ The\ retry\ mechanism\ has\ been\ implemented\ primarily\ to\ overcome\ a\ race}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00084}00084\ \textcolor{stringliteral}{\ \ \ \ condition\ happening\ during\ the\ finalizer\ of\ a\ np.memmap:\ when\ a\ process}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00085}00085\ \textcolor{stringliteral}{\ \ \ \ holding\ the\ last\ reference\ to\ a\ mmap-\/backed\ np.memmap/np.array\ is\ about\ to}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00086}00086\ \textcolor{stringliteral}{\ \ \ \ delete\ this\ array\ (and\ close\ the\ reference),\ it\ sends\ a\ maybe\_unlink}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00087}00087\ \textcolor{stringliteral}{\ \ \ \ request\ to\ the\ resource\_tracker.\ This\ request\ can\ be\ processed\ faster\ than}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00088}00088\ \textcolor{stringliteral}{\ \ \ \ it\ takes\ for\ the\ last\ reference\ of\ the\ memmap\ to\ be\ closed,\ yielding\ (on}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00089}00089\ \textcolor{stringliteral}{\ \ \ \ Windows)\ a\ PermissionError\ in\ the\ resource\_tracker\ loop.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00090}00090\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00091}00091\ \ \ \ \ NUM\_RETRIES\ =\ 10}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00092}00092\ \ \ \ \ \textcolor{keywordflow}{for}\ retry\_no\ \textcolor{keywordflow}{in}\ range(1,\ NUM\_RETRIES\ +\ 1):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00093}00093\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00094}00094\ \ \ \ \ \ \ \ \ \ \ \ \ os.unlink(filename)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00095}00095\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00096}00096\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ PermissionError:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00097}00097\ \ \ \ \ \ \ \ \ \ \ \ \ util.debug(}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00098}00098\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}[ResourceTracker]\ tried\ to\ unlink\ \{\},\ got\ PermissionError"{}}.format(}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00099}00099\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ filename}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00100}00100\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00101}00101\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00102}00102\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ retry\_no\ ==\ NUM\_RETRIES:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00103}00103\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00104}00104\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00105}00105\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ time.sleep(0.2)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00106}00106\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ FileNotFoundError:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00107}00107\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ In\ case\ of\ a\ race\ condition\ when\ deleting\ the\ temporary\ folder,}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00108}00108\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ avoid\ noisy\ FileNotFoundError\ exception\ in\ the\ resource\ tracker.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00109}00109\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{pass}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00110}00110\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00111}00111\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00112}00112\ resource\_tracker.\_CLEANUP\_FUNCS[\textcolor{stringliteral}{"{}file"{}}]\ =\ unlink\_file}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00113}00113\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00114}00114\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00115}\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1__WeakArrayKeyMap}{00115}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1__WeakArrayKeyMap}{\_WeakArrayKeyMap}}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00116}00116\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}A\ variant\ of\ weakref.WeakKeyDictionary\ for\ unhashable\ numpy\ arrays.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00117}00117\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00118}00118\ \textcolor{stringliteral}{\ \ \ \ This\ datastructure\ will\ be\ used\ with\ numpy\ arrays\ as\ obj\ keys,\ therefore\ we}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00119}00119\ \textcolor{stringliteral}{\ \ \ \ do\ not\ use\ the\ \_\_get\_\_\ /\ \_\_set\_\_\ methods\ to\ avoid\ any\ conflict\ with\ the}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00120}00120\ \textcolor{stringliteral}{\ \ \ \ numpy\ fancy\ indexing\ syntax.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00121}00121\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00122}00122\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00123}00123\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00124}00124\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1__WeakArrayKeyMap_ada60f0a80248d49453587f905ede9cf2}{\_data}}\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00125}00125\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00126}00126\ \ \ \ \ \textcolor{keyword}{def\ }get(self,\ obj):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00127}00127\ \ \ \ \ \ \ \ \ ref,\ val\ =\ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1__WeakArrayKeyMap_ada60f0a80248d49453587f905ede9cf2}{\_data}}[id(obj)]}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00128}00128\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ ref()\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ obj:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00129}00129\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ In\ case\ of\ race\ condition\ with\ on\_destroy:\ could\ never\ be}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00130}00130\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ triggered\ by\ the\ joblib\ tests\ with\ CPython.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00131}00131\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classKeyError}{KeyError}}(obj)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00132}00132\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ val}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00133}00133\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00134}00134\ \ \ \ \ \textcolor{keyword}{def\ }set(self,\ obj,\ value):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00135}00135\ \ \ \ \ \ \ \ \ key\ =\ id(obj)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00136}00136\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00137}00137\ \ \ \ \ \ \ \ \ \ \ \ \ ref,\ \_\ =\ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1__WeakArrayKeyMap_ada60f0a80248d49453587f905ede9cf2}{\_data}}[key]}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00138}00138\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ ref()\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ obj:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00139}00139\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ In\ case\ of\ race\ condition\ with\ on\_destroy:\ could\ never\ be}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00140}00140\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ triggered\ by\ the\ joblib\ tests\ with\ CPython.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00141}00141\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classKeyError}{KeyError}}(obj)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00142}00142\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ KeyError:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00143}00143\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Insert\ the\ new\ entry\ in\ the\ mapping\ along\ with\ a\ weakref}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00144}00144\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ callback\ to\ automatically\ delete\ the\ entry\ from\ the\ mapping}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00145}00145\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ as\ soon\ as\ the\ object\ used\ as\ key\ is\ garbage\ collected.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00146}00146\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }on\_destroy(\_):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00147}00147\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ del\ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1__WeakArrayKeyMap_ada60f0a80248d49453587f905ede9cf2}{\_data}}[key]}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00148}00148\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00149}00149\ \ \ \ \ \ \ \ \ \ \ \ \ ref\ =\ weakref.ref(obj,\ on\_destroy)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00150}00150\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1__WeakArrayKeyMap_ada60f0a80248d49453587f905ede9cf2}{\_data}}[key]\ =\ ref,\ value}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00151}00151\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00152}00152\ \ \ \ \ \textcolor{keyword}{def\ }\_\_getstate\_\_(self):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00153}00153\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ PicklingError(\textcolor{stringliteral}{"{}\_WeakArrayKeyMap\ is\ not\ pickleable"{}})}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00154}00154\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00155}00155\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00156}00156\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00158}00158\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00159}00159\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00160}\mbox{\hyperlink{namespacejoblib_1_1__memmapping__reducer_a81b67f9be4646b309a09f467785046da}{00160}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1__memmapping__reducer_a81b67f9be4646b309a09f467785046da}{\_get\_backing\_memmap}}(a):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00161}00161\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Recursively\ look\ up\ the\ original\ np.memmap\ instance\ base\ if\ any."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00162}00162\ \ \ \ \ b\ =\ getattr(a,\ \textcolor{stringliteral}{"{}base"{}},\ \textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00163}00163\ \ \ \ \ \textcolor{keywordflow}{if}\ b\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00164}00164\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ TODO:\ check\ scipy\ sparse\ datastructure\ if\ scipy\ is\ installed}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00165}00165\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ a\ nor\ its\ descendants\ do\ not\ have\ a\ memmap\ base}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00166}00166\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00167}00167\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00168}00168\ \ \ \ \ \textcolor{keywordflow}{elif}\ isinstance(b,\ mmap):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00169}00169\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ a\ is\ already\ a\ real\ memmap\ instance.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00170}00170\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ a}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00171}00171\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00172}00172\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00173}00173\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Recursive\ exploration\ of\ the\ base\ ancestry}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00174}00174\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{namespacejoblib_1_1__memmapping__reducer_a81b67f9be4646b309a09f467785046da}{\_get\_backing\_memmap}}(b)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00175}00175\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00176}00176\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00177}\mbox{\hyperlink{namespacejoblib_1_1__memmapping__reducer_a7edc40b47e36e2c810d2654fa7481801}{00177}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1__memmapping__reducer_a7edc40b47e36e2c810d2654fa7481801}{\_get\_temp\_dir}}(pool\_folder\_name,\ temp\_folder=None):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00178}00178\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Get\ the\ full\ path\ to\ a\ subfolder\ inside\ the\ temporary\ folder.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00179}00179\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00180}00180\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00181}00181\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00182}00182\ \textcolor{stringliteral}{\ \ \ \ pool\_folder\_name\ :\ str}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00183}00183\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Sub-\/folder\ name\ used\ for\ the\ serialization\ of\ a\ pool\ instance.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00184}00184\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00185}00185\ \textcolor{stringliteral}{\ \ \ \ temp\_folder:\ str,\ optional}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00186}00186\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Folder\ to\ be\ used\ by\ the\ pool\ for\ memmapping\ large\ arrays}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00187}00187\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ for\ sharing\ memory\ with\ worker\ processes.\ If\ None,\ this\ will\ try\ in}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00188}00188\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ order:}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00189}00189\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00190}00190\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ a\ folder\ pointed\ by\ the\ JOBLIB\_TEMP\_FOLDER\ environment}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00191}00191\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ variable,}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00192}00192\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ /dev/shm\ if\ the\ folder\ exists\ and\ is\ writable:\ this\ is\ a}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00193}00193\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ RAMdisk\ filesystem\ available\ by\ default\ on\ modern\ Linux}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00194}00194\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ distributions,}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00195}00195\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ the\ default\ system\ temporary\ folder\ that\ can\ be}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00196}00196\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ overridden\ with\ TMP,\ TMPDIR\ or\ TEMP\ environment}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00197}00197\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ variables,\ typically\ /tmp\ under\ Unix\ operating\ systems.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00198}00198\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00199}00199\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00200}00200\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00201}00201\ \textcolor{stringliteral}{\ \ \ \ pool\_folder\ :\ str}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00202}00202\ \textcolor{stringliteral}{\ \ \ \ \ \ \ full\ path\ to\ the\ temporary\ folder}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00203}00203\ \textcolor{stringliteral}{\ \ \ \ use\_shared\_mem\ :\ bool}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00204}00204\ \textcolor{stringliteral}{\ \ \ \ \ \ \ whether\ the\ temporary\ folder\ is\ written\ to\ the\ system\ shared\ memory}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00205}00205\ \textcolor{stringliteral}{\ \ \ \ \ \ \ folder\ or\ some\ other\ temporary\ folder.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00206}00206\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00207}00207\ \ \ \ \ use\_shared\_mem\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00208}00208\ \ \ \ \ \textcolor{keywordflow}{if}\ temp\_folder\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00209}00209\ \ \ \ \ \ \ \ \ temp\_folder\ =\ os.environ.get(\textcolor{stringliteral}{"{}JOBLIB\_TEMP\_FOLDER"{}},\ \textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00210}00210\ \ \ \ \ \textcolor{keywordflow}{if}\ temp\_folder\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00211}00211\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ os.path.exists(SYSTEM\_SHARED\_MEM\_FS)\ \textcolor{keywordflow}{and}\ hasattr(os,\ \textcolor{stringliteral}{"{}statvfs"{}}):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00212}00212\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00213}00213\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ shm\_stats\ =\ os.statvfs(SYSTEM\_SHARED\_MEM\_FS)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00214}00214\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ available\_nbytes\ =\ shm\_stats.f\_bsize\ *\ shm\_stats.f\_bavail}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00215}00215\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ available\_nbytes\ >\ SYSTEM\_SHARED\_MEM\_FS\_MIN\_SIZE:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00216}00216\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Try\ to\ see\ if\ we\ have\ write\ access\ to\ the\ shared\ mem}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00217}00217\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ folder\ only\ if\ it\ is\ reasonably\ large\ (that\ is\ 2GB\ or}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00218}00218\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ more).}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00219}00219\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ temp\_folder\ =\ SYSTEM\_SHARED\_MEM\_FS}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00220}00220\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ pool\_folder\ =\ os.path.join(temp\_folder,\ pool\_folder\_name)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00221}00221\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ os.path.exists(pool\_folder):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00222}00222\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ os.makedirs(pool\_folder)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00223}00223\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ use\_shared\_mem\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00224}00224\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ (IOError,\ OSError):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00225}00225\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Missing\ rights\ in\ the\ /dev/shm\ partition,\ fallback\ to\ regular}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00226}00226\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ temp\ folder.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00227}00227\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ temp\_folder\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00228}00228\ \ \ \ \ \textcolor{keywordflow}{if}\ temp\_folder\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00229}00229\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Fallback\ to\ the\ default\ tmp\ folder,\ typically\ /tmp}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00230}00230\ \ \ \ \ \ \ \ \ temp\_folder\ =\ tempfile.gettempdir()}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00231}00231\ \ \ \ \ temp\_folder\ =\ os.path.abspath(os.path.expanduser(temp\_folder))}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00232}00232\ \ \ \ \ pool\_folder\ =\ os.path.join(temp\_folder,\ pool\_folder\_name)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00233}00233\ \ \ \ \ \textcolor{keywordflow}{return}\ pool\_folder,\ use\_shared\_mem}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00234}00234\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00235}00235\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00236}\mbox{\hyperlink{namespacejoblib_1_1__memmapping__reducer_a67b25b7a0b7f3d0da9a92f98ad5940fe}{00236}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1__memmapping__reducer_a67b25b7a0b7f3d0da9a92f98ad5940fe}{has\_shareable\_memory}}(a):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00237}00237\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Return\ True\ if\ a\ is\ backed\ by\ some\ mmap\ buffer\ directly\ or\ not."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00238}00238\ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{namespacejoblib_1_1__memmapping__reducer_a81b67f9be4646b309a09f467785046da}{\_get\_backing\_memmap}}(a)\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00239}00239\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00240}00240\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00241}\mbox{\hyperlink{namespacejoblib_1_1__memmapping__reducer_a22a187e9a5ac418086c638e92008d882}{00241}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1__memmapping__reducer_a22a187e9a5ac418086c638e92008d882}{\_strided\_from\_memmap}}(}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00242}00242\ \ \ \ \ filename,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00243}00243\ \ \ \ \ dtype,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00244}00244\ \ \ \ \ mode,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00245}00245\ \ \ \ \ offset,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00246}00246\ \ \ \ \ order,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00247}00247\ \ \ \ \ shape,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00248}00248\ \ \ \ \ strides,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00249}00249\ \ \ \ \ total\_buffer\_len,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00250}00250\ \ \ \ \ unlink\_on\_gc\_collect,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00251}00251\ ):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00252}00252\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Reconstruct\ an\ array\ view\ on\ a\ memory\ mapped\ file."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00253}00253\ \ \ \ \ \textcolor{keywordflow}{if}\ mode\ ==\ \textcolor{stringliteral}{"{}w+"{}}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00254}00254\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Do\ not\ zero\ the\ original\ data\ when\ unpickling}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00255}00255\ \ \ \ \ \ \ \ \ mode\ =\ \textcolor{stringliteral}{"{}r+"{}}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00256}00256\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00257}00257\ \ \ \ \ \textcolor{keywordflow}{if}\ strides\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00258}00258\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Simple,\ contiguous\ memmap}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00259}00259\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ make\_memmap(}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00260}00260\ \ \ \ \ \ \ \ \ \ \ \ \ filename,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00261}00261\ \ \ \ \ \ \ \ \ \ \ \ \ dtype=dtype,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00262}00262\ \ \ \ \ \ \ \ \ \ \ \ \ shape=shape,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00263}00263\ \ \ \ \ \ \ \ \ \ \ \ \ mode=mode,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00264}00264\ \ \ \ \ \ \ \ \ \ \ \ \ offset=offset,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00265}00265\ \ \ \ \ \ \ \ \ \ \ \ \ order=order,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00266}00266\ \ \ \ \ \ \ \ \ \ \ \ \ unlink\_on\_gc\_collect=unlink\_on\_gc\_collect,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00267}00267\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00268}00268\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00269}00269\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ For\ non-\/contiguous\ data,\ memmap\ the\ total\ enclosing\ buffer\ and\ then}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00270}00270\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ extract\ the\ non-\/contiguous\ view\ with\ the\ stride-\/tricks\ API}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00271}00271\ \ \ \ \ \ \ \ \ base\ =\ make\_memmap(}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00272}00272\ \ \ \ \ \ \ \ \ \ \ \ \ filename,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00273}00273\ \ \ \ \ \ \ \ \ \ \ \ \ dtype=dtype,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00274}00274\ \ \ \ \ \ \ \ \ \ \ \ \ shape=total\_buffer\_len,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00275}00275\ \ \ \ \ \ \ \ \ \ \ \ \ offset=offset,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00276}00276\ \ \ \ \ \ \ \ \ \ \ \ \ mode=mode,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00277}00277\ \ \ \ \ \ \ \ \ \ \ \ \ order=order,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00278}00278\ \ \ \ \ \ \ \ \ \ \ \ \ unlink\_on\_gc\_collect=unlink\_on\_gc\_collect,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00279}00279\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00280}00280\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ as\_strided(base,\ shape=shape,\ strides=strides)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00281}00281\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00282}00282\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00283}\mbox{\hyperlink{namespacejoblib_1_1__memmapping__reducer_a5d41c5b9603f6b900534a7329db13d33}{00283}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1__memmapping__reducer_a5d41c5b9603f6b900534a7329db13d33}{\_reduce\_memmap\_backed}}(a,\ m):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00284}00284\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Pickling\ reduction\ for\ memmap\ backed\ arrays.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00285}00285\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00286}00286\ \textcolor{stringliteral}{\ \ \ \ a\ is\ expected\ to\ be\ an\ instance\ of\ np.ndarray\ (or\ np.memmap)}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00287}00287\ \textcolor{stringliteral}{\ \ \ \ m\ is\ expected\ to\ be\ an\ instance\ of\ np.memmap\ on\ the\ top\ of\ the\ \`{}\`{}base\`{}\`{}}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00288}00288\ \textcolor{stringliteral}{\ \ \ \ attribute\ ancestry\ of\ a.\ \`{}\`{}m.base\`{}\`{}\ should\ be\ the\ real\ python\ mmap\ object.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00289}00289\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00290}00290\ \ \ \ \ \textcolor{comment}{\#\ offset\ that\ comes\ from\ the\ striding\ differences\ between\ a\ and\ m}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00291}00291\ \ \ \ \ util.debug(}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00292}00292\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}[MEMMAP\ REDUCE]\ reducing\ a\ memmap-\/backed\ array\ (shape,\ \{\},\ pid:\ \{\})"{}}.format(}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00293}00293\ \ \ \ \ \ \ \ \ \ \ \ \ a.shape,\ os.getpid()}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00294}00294\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00295}00295\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00296}00296\ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00297}00297\ \ \ \ \ \ \ \ \ \textcolor{keyword}{from}\ numpy.lib.array\_utils\ \textcolor{keyword}{import}\ byte\_bounds}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00298}00298\ \ \ \ \ \textcolor{keywordflow}{except}\ (ModuleNotFoundError,\ ImportError):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00299}00299\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Backward-\/compat\ for\ numpy\ <\ 2.0}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00300}00300\ \ \ \ \ \ \ \ \ \textcolor{keyword}{from}\ numpy\ \textcolor{keyword}{import}\ byte\_bounds}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00301}00301\ \ \ \ \ a\_start,\ a\_end\ =\ byte\_bounds(a)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00302}00302\ \ \ \ \ m\_start\ =\ byte\_bounds(m)[0]}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00303}00303\ \ \ \ \ offset\ =\ a\_start\ -\/\ m\_start}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00304}00304\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00305}00305\ \ \ \ \ \textcolor{comment}{\#\ offset\ from\ the\ backing\ memmap}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00306}00306\ \ \ \ \ offset\ +=\ m.offset}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00307}00307\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00308}00308\ \ \ \ \ \textcolor{comment}{\#\ 1D\ arrays\ are\ both\ F\ and\ C\ contiguous,\ so\ only\ set\ the\ flag\ in}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00309}00309\ \ \ \ \ \textcolor{comment}{\#\ higher\ dimensions.\ See\ https://github.com/joblib/joblib/pull/1704.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00310}00310\ \ \ \ \ \textcolor{keywordflow}{if}\ m.ndim\ >\ 1\ \textcolor{keywordflow}{and}\ m.flags[\textcolor{stringliteral}{"{}F\_CONTIGUOUS"{}}]:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00311}00311\ \ \ \ \ \ \ \ \ order\ =\ \textcolor{stringliteral}{"{}F"{}}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00312}00312\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00313}00313\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ backing\ memmap\ buffer\ is\ necessarily\ contiguous\ hence\ C\ if\ not}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00314}00314\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Fortran}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00315}00315\ \ \ \ \ \ \ \ \ order\ =\ \textcolor{stringliteral}{"{}C"{}}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00316}00316\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00317}00317\ \ \ \ \ \textcolor{keywordflow}{if}\ a.flags[\textcolor{stringliteral}{"{}F\_CONTIGUOUS"{}}]\ \textcolor{keywordflow}{or}\ a.flags[\textcolor{stringliteral}{"{}C\_CONTIGUOUS"{}}]:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00318}00318\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ If\ the\ array\ is\ a\ contiguous\ view,\ no\ need\ to\ pass\ the\ strides}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00319}00319\ \ \ \ \ \ \ \ \ strides\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00320}00320\ \ \ \ \ \ \ \ \ total\_buffer\_len\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00321}00321\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00322}00322\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Compute\ the\ total\ number\ of\ items\ to\ map\ from\ which\ the\ strided}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00323}00323\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ view\ will\ be\ extracted.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00324}00324\ \ \ \ \ \ \ \ \ strides\ =\ a.strides}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00325}00325\ \ \ \ \ \ \ \ \ total\_buffer\_len\ =\ (a\_end\ -\/\ a\_start)\ //\ a.itemsize}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00326}00326\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00327}00327\ \ \ \ \ \textcolor{keywordflow}{return}\ (}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00328}00328\ \ \ \ \ \ \ \ \ \_strided\_from\_memmap,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00329}00329\ \ \ \ \ \ \ \ \ (}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00330}00330\ \ \ \ \ \ \ \ \ \ \ \ \ m.filename,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00331}00331\ \ \ \ \ \ \ \ \ \ \ \ \ a.dtype,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00332}00332\ \ \ \ \ \ \ \ \ \ \ \ \ m.mode,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00333}00333\ \ \ \ \ \ \ \ \ \ \ \ \ offset,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00334}00334\ \ \ \ \ \ \ \ \ \ \ \ \ order,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00335}00335\ \ \ \ \ \ \ \ \ \ \ \ \ a.shape,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00336}00336\ \ \ \ \ \ \ \ \ \ \ \ \ strides,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00337}00337\ \ \ \ \ \ \ \ \ \ \ \ \ total\_buffer\_len,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00338}00338\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00339}00339\ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00340}00340\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00341}00341\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00342}00342\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00343}\mbox{\hyperlink{namespacejoblib_1_1__memmapping__reducer_a1b6ea6868d3e312563b0c0525ad8667b}{00343}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1__memmapping__reducer_a1b6ea6868d3e312563b0c0525ad8667b}{reduce\_array\_memmap\_backward}}(a):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00344}00344\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}reduce\ a\ np.array\ or\ a\ np.memmap\ from\ a\ child\ process"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00345}00345\ \ \ \ \ m\ =\ \mbox{\hyperlink{namespacejoblib_1_1__memmapping__reducer_a81b67f9be4646b309a09f467785046da}{\_get\_backing\_memmap}}(a)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00346}00346\ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(m,\ np.memmap)\ \textcolor{keywordflow}{and}\ m.filename\ \textcolor{keywordflow}{not}\ \textcolor{keywordflow}{in}\ JOBLIB\_MMAPS:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00347}00347\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ if\ a\ is\ backed\ by\ a\ memmaped\ file,\ reconstruct\ a\ using\ the}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00348}00348\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ memmaped\ file.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00349}00349\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{namespacejoblib_1_1__memmapping__reducer_a5d41c5b9603f6b900534a7329db13d33}{\_reduce\_memmap\_backed}}(a,\ m)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00350}00350\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00351}00351\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ a\ is\ either\ a\ regular\ (not\ memmap-\/backed)\ numpy\ array,\ or\ an\ array}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00352}00352\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ backed\ by\ a\ shared\ temporary\ file\ created\ by\ joblib.\ In\ the\ latter}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00353}00353\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ case,\ in\ order\ to\ limit\ the\ lifespan\ of\ these\ temporary\ files,\ we}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00354}00354\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ serialize\ the\ memmap\ as\ a\ regular\ numpy\ array,\ and\ decref\ the}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00355}00355\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ file\ backing\ the\ memmap\ (done\ implicitly\ in\ a\ previously\ registered}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00356}00356\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ finalizer,\ see\ \`{}\`{}unlink\_on\_gc\_collect``\ for\ more\ details)}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00357}00357\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ (loads,\ (dumps(np.asarray(a),\ protocol=HIGHEST\_PROTOCOL),))}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00358}00358\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00359}00359\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00360}\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1ArrayMemmapForwardReducer}{00360}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1ArrayMemmapForwardReducer}{ArrayMemmapForwardReducer}}(object):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00361}00361\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Reducer\ callable\ to\ dump\ large\ arrays\ to\ memmap\ files.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00362}00362\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00363}00363\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00364}00364\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00365}00365\ \textcolor{stringliteral}{\ \ \ \ max\_nbytes:\ int}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00366}00366\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Threshold\ to\ trigger\ memmapping\ of\ large\ arrays\ to\ files\ created}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00367}00367\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ a\ folder.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00368}00368\ \textcolor{stringliteral}{\ \ \ \ temp\_folder\_resolver:\ callable}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00369}00369\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ An\ callable\ in\ charge\ of\ resolving\ a\ temporary\ folder\ name\ where\ files}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00370}00370\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ for\ backing\ memmapped\ arrays\ are\ created.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00371}00371\ \textcolor{stringliteral}{\ \ \ \ mmap\_mode:\ 'r',\ 'r+'\ or\ 'c'}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00372}00372\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Mode\ for\ the\ created\ memmap\ datastructure.\ See\ the\ documentation\ of}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00373}00373\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ numpy.memmap\ for\ more\ details.\ Note:\ 'w+'\ is\ coerced\ to\ 'r+'}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00374}00374\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ automatically\ to\ avoid\ zeroing\ the\ data\ on\ unpickling.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00375}00375\ \textcolor{stringliteral}{\ \ \ \ verbose:\ int,\ optional,\ 0\ by\ default}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00376}00376\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ verbose\ >\ 0,\ memmap\ creations\ are\ logged.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00377}00377\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ verbose\ >\ 1,\ both\ memmap\ creations,\ reuse\ and\ array\ pickling\ are}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00378}00378\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ logged.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00379}00379\ \textcolor{stringliteral}{\ \ \ \ prewarm:\ bool,\ optional,\ False\ by\ default.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00380}00380\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Force\ a\ read\ on\ newly\ memmapped\ array\ to\ make\ sure\ that\ OS\ pre-\/cache\ it}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00381}00381\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ memory.\ This\ can\ be\ useful\ to\ avoid\ concurrent\ disk\ access\ when\ the}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00382}00382\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ same\ data\ array\ is\ passed\ to\ different\ worker\ processes.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00383}00383\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00384}00384\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00385}00385\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00386}00386\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00387}00387\ \ \ \ \ \ \ \ \ max\_nbytes,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00388}00388\ \ \ \ \ \ \ \ \ temp\_folder\_resolver,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00389}00389\ \ \ \ \ \ \ \ \ mmap\_mode,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00390}00390\ \ \ \ \ \ \ \ \ unlink\_on\_gc\_collect,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00391}00391\ \ \ \ \ \ \ \ \ verbose=0,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00392}00392\ \ \ \ \ \ \ \ \ prewarm=True,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00393}00393\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00394}00394\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1ArrayMemmapForwardReducer_a23886af73df0825e8848cee5aebbe501}{\_max\_nbytes}}\ =\ max\_nbytes}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00395}00395\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1ArrayMemmapForwardReducer_a816d40a63842657f89c962c902e84571}{\_temp\_folder\_resolver}}\ =\ temp\_folder\_resolver}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00396}00396\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1ArrayMemmapForwardReducer_a058c3a31707c02fced643dace0da4f42}{\_mmap\_mode}}\ =\ mmap\_mode}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00397}00397\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1ArrayMemmapForwardReducer_ae56f861c61c9fb014690dbb22a7c13ac}{verbose}}\ =\ int(verbose)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00398}00398\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ prewarm\ ==\ \textcolor{stringliteral}{"{}auto"{}}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00399}00399\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1ArrayMemmapForwardReducer_aeed5eb5f8ba8113373c22051c7c26ab4}{\_prewarm}}\ =\ \textcolor{keywordflow}{not}\ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1ArrayMemmapForwardReducer_ac3348f8a6f5b0802b4f49e568339ebf5}{\_temp\_folder}}.startswith(SYSTEM\_SHARED\_MEM\_FS)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00400}00400\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00401}00401\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1ArrayMemmapForwardReducer_aeed5eb5f8ba8113373c22051c7c26ab4}{\_prewarm}}\ =\ prewarm}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00402}00402\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1ArrayMemmapForwardReducer_aeed5eb5f8ba8113373c22051c7c26ab4}{\_prewarm}}\ =\ prewarm}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00403}00403\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1ArrayMemmapForwardReducer_ae9bf3598ed86c5e7babec68321f21394}{\_memmaped\_arrays}}\ =\ \mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1__WeakArrayKeyMap}{\_WeakArrayKeyMap}}()}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00404}00404\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1ArrayMemmapForwardReducer_ac8f74beabf0e33b0d6d0aa52752f437a}{\_temporary\_memmaped\_filenames}}\ =\ set()}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00405}00405\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1ArrayMemmapForwardReducer_a5ea2346659e54051aa5612a1bb1a3158}{\_unlink\_on\_gc\_collect}}\ =\ unlink\_on\_gc\_collect}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00406}00406\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00407}00407\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00408}00408\ \ \ \ \ \textcolor{keyword}{def\ }\_temp\_folder(self):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00409}00409\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1ArrayMemmapForwardReducer_a816d40a63842657f89c962c902e84571}{\_temp\_folder\_resolver}}()}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00410}00410\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00411}00411\ \ \ \ \ \textcolor{keyword}{def\ }\_\_reduce\_\_(self):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00412}00412\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ ArrayMemmapForwardReducer\ is\ passed\ to\ the\ children\ processes:\ it}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00413}00413\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ needs\ to\ be\ pickled\ but\ the\ \_WeakArrayKeyMap\ need\ to\ be\ skipped\ as}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00414}00414\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ it's\ only\ guaranteed\ to\ be\ consistent\ with\ the\ parent\ process\ memory}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00415}00415\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ garbage\ collection.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00416}00416\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Although\ this\ reducer\ is\ pickled,\ it\ is\ not\ needed\ in\ its\ destination}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00417}00417\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ process\ (child\ processes),\ as\ we\ only\ use\ this\ reducer\ to\ send}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00418}00418\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ memmaps\ from\ the\ parent\ process\ to\ the\ children\ processes.\ For\ this}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00419}00419\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ reason,\ we\ can\ afford\ skipping\ the\ resolver,\ (which\ would\ otherwise}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00420}00420\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ be\ unpicklable),\ and\ pass\ it\ as\ None\ instead.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00421}00421\ \ \ \ \ \ \ \ \ args\ =\ (self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1ArrayMemmapForwardReducer_a23886af73df0825e8848cee5aebbe501}{\_max\_nbytes}},\ \textcolor{keywordtype}{None},\ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1ArrayMemmapForwardReducer_a058c3a31707c02fced643dace0da4f42}{\_mmap\_mode}},\ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1ArrayMemmapForwardReducer_a5ea2346659e54051aa5612a1bb1a3158}{\_unlink\_on\_gc\_collect}})}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00422}00422\ \ \ \ \ \ \ \ \ kwargs\ =\ \{}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00423}00423\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}verbose"{}}:\ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1ArrayMemmapForwardReducer_ae56f861c61c9fb014690dbb22a7c13ac}{verbose}},}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00424}00424\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}prewarm"{}}:\ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1ArrayMemmapForwardReducer_aeed5eb5f8ba8113373c22051c7c26ab4}{\_prewarm}},}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00425}00425\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00426}00426\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ ArrayMemmapForwardReducer,\ args,\ kwargs}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00427}00427\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00428}00428\ \ \ \ \ \textcolor{keyword}{def\ }\_\_call\_\_(self,\ a):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00429}00429\ \ \ \ \ \ \ \ \ m\ =\ \mbox{\hyperlink{namespacejoblib_1_1__memmapping__reducer_a81b67f9be4646b309a09f467785046da}{\_get\_backing\_memmap}}(a)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00430}00430\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ m\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{and}\ isinstance(m,\ np.memmap):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00431}00431\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ a\ is\ already\ backed\ by\ a\ memmap\ file,\ let's\ reuse\ it\ directly}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00432}00432\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{namespacejoblib_1_1__memmapping__reducer_a5d41c5b9603f6b900534a7329db13d33}{\_reduce\_memmap\_backed}}(a,\ m)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00433}00433\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00434}00434\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00435}00435\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{not}\ a.dtype.hasobject}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00436}00436\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}\ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1ArrayMemmapForwardReducer_a23886af73df0825e8848cee5aebbe501}{\_max\_nbytes}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00437}00437\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}\ a.nbytes\ >\ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1ArrayMemmapForwardReducer_a23886af73df0825e8848cee5aebbe501}{\_max\_nbytes}}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00438}00438\ \ \ \ \ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00439}00439\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ check\ that\ the\ folder\ exists\ (lazily\ create\ the\ pool\ temp\ folder}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00440}00440\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ if\ required)}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00441}00441\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00442}00442\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ os.makedirs(self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1ArrayMemmapForwardReducer_ac3348f8a6f5b0802b4f49e568339ebf5}{\_temp\_folder}})}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00443}00443\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ os.chmod(self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1ArrayMemmapForwardReducer_ac3348f8a6f5b0802b4f49e568339ebf5}{\_temp\_folder}},\ FOLDER\_PERMISSIONS)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00444}00444\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ OSError\ \textcolor{keyword}{as}\ e:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00445}00445\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ e.errno\ !=\ errno.EEXIST:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00446}00446\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ e}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00447}00447\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00448}00448\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00449}00449\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ basename\ =\ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1ArrayMemmapForwardReducer_ae9bf3598ed86c5e7babec68321f21394}{\_memmaped\_arrays}}.get(a)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00450}00450\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ KeyError:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00451}00451\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Generate\ a\ new\ unique\ random\ filename.\ The\ process\ and\ thread}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00452}00452\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ ids\ are\ only\ useful\ for\ debugging\ purpose\ and\ to\ make\ it}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00453}00453\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ easier\ to\ cleanup\ orphaned\ files\ in\ case\ of\ hard\ process}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00454}00454\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ kill\ (e.g.\ by\ "{}kill\ -\/9"{}\ or\ segfault).}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00455}00455\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ basename\ =\ \textcolor{stringliteral}{"{}\{\}-\/\{\}-\/\{\}.pkl"{}}.format(}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00456}00456\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ os.getpid(),\ id(threading.current\_thread()),\ uuid4().hex}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00457}00457\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00458}00458\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1ArrayMemmapForwardReducer_ae9bf3598ed86c5e7babec68321f21394}{\_memmaped\_arrays}}.set(a,\ basename)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00459}00459\ \ \ \ \ \ \ \ \ \ \ \ \ filename\ =\ os.path.join(self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1ArrayMemmapForwardReducer_ac3348f8a6f5b0802b4f49e568339ebf5}{\_temp\_folder}},\ basename)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00460}00460\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00461}00461\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ In\ case\ the\ same\ array\ with\ the\ same\ content\ is\ passed\ several}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00462}00462\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ times\ to\ the\ pool\ subprocess\ children,\ serialize\ it\ only\ once}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00463}00463\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00464}00464\ \ \ \ \ \ \ \ \ \ \ \ \ is\_new\_memmap\ =\ filename\ \textcolor{keywordflow}{not}\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1ArrayMemmapForwardReducer_ac8f74beabf0e33b0d6d0aa52752f437a}{\_temporary\_memmaped\_filenames}}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00465}00465\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00466}00466\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ add\ the\ memmap\ to\ the\ list\ of\ temporary\ memmaps\ created\ by\ joblib}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00467}00467\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1ArrayMemmapForwardReducer_ac8f74beabf0e33b0d6d0aa52752f437a}{\_temporary\_memmaped\_filenames}}.add(filename)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00468}00468\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00469}00469\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1ArrayMemmapForwardReducer_a5ea2346659e54051aa5612a1bb1a3158}{\_unlink\_on\_gc\_collect}}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00470}00470\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Bump\ reference\ count\ of\ the\ memmap\ by\ 1\ to\ account\ for}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00471}00471\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ shared\ usage\ of\ the\ memmap\ by\ a\ child\ process.\ The}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00472}00472\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ corresponding\ decref\ call\ will\ be\ executed\ upon\ calling}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00473}00473\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ resource\_tracker.maybe\_unlink,\ registered\ as\ a\ finalizer\ in}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00474}00474\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ the\ child.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00475}00475\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ the\ incref/decref\ calls\ here\ are\ only\ possible\ when\ the\ child}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00476}00476\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ and\ the\ parent\ share\ the\ same\ resource\_tracker.\ It\ is\ not\ the}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00477}00477\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ case\ for\ the\ multiprocessing\ backend,\ but\ it\ does\ not\ matter}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00478}00478\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ because\ unlinking\ a\ memmap\ from\ a\ child\ process\ is\ only}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00479}00479\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ useful\ to\ control\ the\ memory\ usage\ of\ long-\/lasting\ child}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00480}00480\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ processes,\ while\ the\ multiprocessing-\/based\ pools\ terminate}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00481}00481\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ their\ workers\ at\ the\ end\ of\ a\ map()\ call.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00482}00482\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ resource\_tracker.register(filename,\ \textcolor{stringliteral}{"{}file"{}})}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00483}00483\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00484}00484\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ is\_new\_memmap:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00485}00485\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Incref\ each\ temporary\ memmap\ created\ by\ joblib\ one\ extra}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00486}00486\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ time.\ \ This\ means\ that\ these\ memmaps\ will\ only\ be\ deleted}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00487}00487\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ once\ an\ extra\ maybe\_unlink()\ is\ called,\ which\ is\ done\ once}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00488}00488\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ all\ the\ jobs\ have\ completed\ (or\ been\ canceled)\ in\ the}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00489}00489\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Parallel.\_terminate\_backend()\ method.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00490}00490\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ resource\_tracker.register(filename,\ \textcolor{stringliteral}{"{}file"{}})}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00491}00491\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00492}00492\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ os.path.exists(filename):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00493}00493\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ util.debug(}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00494}00494\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}[ARRAY\ DUMP]\ Pickling\ new\ array\ (shape=\{\},\ dtype=\{\})\ "{}}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00495}00495\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}creating\ a\ new\ memmap\ at\ \{\}"{}}.format(a.shape,\ a.dtype,\ filename)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00496}00496\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00497}00497\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ dumped\_filename\ \textcolor{keywordflow}{in}\ dump(a,\ filename):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00498}00498\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ os.chmod(dumped\_filename,\ FILE\_PERMISSIONS)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00499}00499\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00500}00500\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1ArrayMemmapForwardReducer_aeed5eb5f8ba8113373c22051c7c26ab4}{\_prewarm}}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00501}00501\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Warm\ up\ the\ data\ by\ accessing\ it.\ This\ operation\ ensures}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00502}00502\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ that\ the\ disk\ access\ required\ to\ create\ the\ memmapping}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00503}00503\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ file\ are\ performed\ in\ the\ reducing\ process\ and\ avoids}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00504}00504\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ concurrent\ memmap\ creation\ in\ multiple\ children}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00505}00505\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ processes.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00506}00506\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ load(filename,\ mmap\_mode=self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1ArrayMemmapForwardReducer_a058c3a31707c02fced643dace0da4f42}{\_mmap\_mode}}).max()}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00507}00507\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00508}00508\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00509}00509\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ util.debug(}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00510}00510\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}[ARRAY\ DUMP]\ Pickling\ known\ array\ (shape=\{\},\ dtype=\{\})\ "{}}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00511}00511\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}reusing\ memmap\ file:\ \{\}"{}}.format(}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00512}00512\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ a.shape,\ a.dtype,\ os.path.basename(filename)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00513}00513\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00514}00514\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00515}00515\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00516}00516\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ worker\ process\ will\ use\ joblib.load\ to\ memmap\ the\ data}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00517}00517\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ (}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00518}00518\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ load\_temporary\_memmap,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00519}00519\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (filename,\ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1ArrayMemmapForwardReducer_a058c3a31707c02fced643dace0da4f42}{\_mmap\_mode}},\ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1ArrayMemmapForwardReducer_a5ea2346659e54051aa5612a1bb1a3158}{\_unlink\_on\_gc\_collect}}),}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00520}00520\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00521}00521\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00522}00522\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ do\ not\ convert\ a\ into\ memmap,\ let\ pickler\ do\ its\ usual\ copy\ with}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00523}00523\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ the\ default\ system\ pickler}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00524}00524\ \ \ \ \ \ \ \ \ \ \ \ \ util.debug(}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00525}00525\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}[ARRAY\ DUMP]\ Pickling\ array\ (NO\ MEMMAPPING)\ (shape=\{\},\ "{}}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00526}00526\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ dtype=\{\})."{}}.format(a.shape,\ a.dtype)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00527}00527\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00528}00528\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ (loads,\ (dumps(a,\ protocol=HIGHEST\_PROTOCOL),))}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00529}00529\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00530}00530\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00531}\mbox{\hyperlink{namespacejoblib_1_1__memmapping__reducer_aa614e6065e308f8586d1d71d557ea82b}{00531}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1__memmapping__reducer_aa614e6065e308f8586d1d71d557ea82b}{get\_memmapping\_reducers}}(}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00532}00532\ \ \ \ \ forward\_reducers=None,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00533}00533\ \ \ \ \ backward\_reducers=None,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00534}00534\ \ \ \ \ temp\_folder\_resolver=None,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00535}00535\ \ \ \ \ max\_nbytes=1e6,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00536}00536\ \ \ \ \ mmap\_mode="{}r"{},}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00537}00537\ \ \ \ \ verbose=0,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00538}00538\ \ \ \ \ prewarm=False,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00539}00539\ \ \ \ \ unlink\_on\_gc\_collect=True,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00540}00540\ \ \ \ \ **kwargs,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00541}00541\ ):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00542}00542\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Construct\ a\ pair\ of\ memmapping\ reducer\ linked\ to\ a\ tmpdir.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00543}00543\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00544}00544\ \textcolor{stringliteral}{\ \ \ \ This\ function\ manage\ the\ creation\ and\ the\ clean\ up\ of\ the\ temporary\ folders}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00545}00545\ \textcolor{stringliteral}{\ \ \ \ underlying\ the\ memory\ maps\ and\ should\ be\ use\ to\ get\ the\ reducers\ necessary}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00546}00546\ \textcolor{stringliteral}{\ \ \ \ to\ construct\ joblib\ pool\ or\ executor.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00547}00547\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00548}00548\ \ \ \ \ \textcolor{keywordflow}{if}\ forward\_reducers\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00549}00549\ \ \ \ \ \ \ \ \ forward\_reducers\ =\ dict()}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00550}00550\ \ \ \ \ \textcolor{keywordflow}{if}\ backward\_reducers\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00551}00551\ \ \ \ \ \ \ \ \ backward\_reducers\ =\ dict()}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00552}00552\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00553}00553\ \ \ \ \ \textcolor{keywordflow}{if}\ np\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00554}00554\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Register\ smart\ numpy.ndarray\ reducers\ that\ detects\ memmap\ backed}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00555}00555\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ arrays\ and\ that\ is\ also\ able\ to\ dump\ to\ memmap\ large\ in-\/memory}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00556}00556\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ arrays\ over\ the\ max\_nbytes\ threshold}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00557}00557\ \ \ \ \ \ \ \ \ forward\_reduce\_ndarray\ =\ \mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1ArrayMemmapForwardReducer}{ArrayMemmapForwardReducer}}(}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00558}00558\ \ \ \ \ \ \ \ \ \ \ \ \ max\_nbytes,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00559}00559\ \ \ \ \ \ \ \ \ \ \ \ \ temp\_folder\_resolver,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00560}00560\ \ \ \ \ \ \ \ \ \ \ \ \ mmap\_mode,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00561}00561\ \ \ \ \ \ \ \ \ \ \ \ \ unlink\_on\_gc\_collect,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00562}00562\ \ \ \ \ \ \ \ \ \ \ \ \ verbose,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00563}00563\ \ \ \ \ \ \ \ \ \ \ \ \ prewarm=prewarm,}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00564}00564\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00565}00565\ \ \ \ \ \ \ \ \ forward\_reducers[np.ndarray]\ =\ forward\_reduce\_ndarray}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00566}00566\ \ \ \ \ \ \ \ \ forward\_reducers[np.memmap]\ =\ forward\_reduce\_ndarray}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00567}00567\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00568}00568\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Communication\ from\ child\ process\ to\ the\ parent\ process\ always}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00569}00569\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ pickles\ in-\/memory\ numpy.ndarray\ without\ dumping\ them\ as\ memmap}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00570}00570\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ to\ avoid\ confusing\ the\ caller\ and\ make\ it\ tricky\ to\ collect\ the}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00571}00571\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ temporary\ folder}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00572}00572\ \ \ \ \ \ \ \ \ backward\_reducers[np.ndarray]\ =\ reduce\_array\_memmap\_backward}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00573}00573\ \ \ \ \ \ \ \ \ backward\_reducers[np.memmap]\ =\ reduce\_array\_memmap\_backward}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00574}00574\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00575}00575\ \ \ \ \ \textcolor{keywordflow}{return}\ forward\_reducers,\ backward\_reducers}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00576}00576\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00577}00577\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00578}\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1TemporaryResourcesManager}{00578}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1TemporaryResourcesManager}{TemporaryResourcesManager}}(object):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00579}00579\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Stateful\ object\ able\ to\ manage\ temporary\ folder\ and\ pickles}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00580}00580\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00581}00581\ \textcolor{stringliteral}{\ \ \ \ It\ exposes:}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00582}00582\ \textcolor{stringliteral}{\ \ \ \ -\/\ a\ per-\/context\ folder\ name\ resolving\ API\ that\ memmap-\/based\ reducers\ will}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00583}00583\ \textcolor{stringliteral}{\ \ \ \ \ \ rely\ on\ to\ know\ where\ to\ pickle\ the\ temporary\ memmaps}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00584}00584\ \textcolor{stringliteral}{\ \ \ \ -\/\ a\ temporary\ file/folder\ management\ API\ that\ internally\ uses\ the}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00585}00585\ \textcolor{stringliteral}{\ \ \ \ \ \ resource\_tracker.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00586}00586\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00587}00587\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00588}00588\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ temp\_folder\_root=None,\ context\_id=None):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00589}00589\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1TemporaryResourcesManager_af14d5e3bf22dc624eef10a710a55b8f5}{\_current\_temp\_folder}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00590}00590\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1TemporaryResourcesManager_a8ba6322c2f77ebcfcf96e5220bd3eb3a}{\_temp\_folder\_root}}\ =\ temp\_folder\_root}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00591}00591\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1TemporaryResourcesManager_aa36a6f5ee50aebe938cc1239ac319c1a}{\_use\_shared\_mem}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00592}00592\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1TemporaryResourcesManager_a40c14d0e136bc650d430124fdda69426}{\_cached\_temp\_folders}}\ =\ dict()}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00593}00593\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1TemporaryResourcesManager_a98a65f40b0c8f9c43d47524fe7101e7d}{\_id}}\ =\ uuid4().hex}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00594}00594\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1TemporaryResourcesManager_a638852e53ddff5555a5dceb25e5c0e83}{\_finalizers}}\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00595}00595\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ context\_id\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00596}00596\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ It\ would\ be\ safer\ to\ not\ assign\ a\ default\ context\ id\ (less\ silent}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00597}00597\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ bugs),\ but\ doing\ this\ while\ maintaining\ backward\ compatibility}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00598}00598\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ with\ the\ previous,\ context-\/unaware\ version\ get\_memmaping\_executor}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00599}00599\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ exposes\ too\ many\ low-\/level\ details.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00600}00600\ \ \ \ \ \ \ \ \ \ \ \ \ context\_id\ =\ uuid4().hex}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00601}00601\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1TemporaryResourcesManager_a169888d21e35008d161db8ea88e3d58e}{set\_current\_context}}(context\_id)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00602}00602\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00603}00603\ \ \ \ \ \textcolor{keyword}{def\ }set\_current\_context(self,\ context\_id):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00604}00604\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1TemporaryResourcesManager_a5f9d042843e715234bdd595ff9a8c0a1}{\_current\_context\_id}}\ =\ context\_id}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00605}00605\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1TemporaryResourcesManager_a231df9a3edfc2633200d33dd96978937}{register\_new\_context}}(context\_id)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00606}00606\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00607}00607\ \ \ \ \ \textcolor{keyword}{def\ }register\_new\_context(self,\ context\_id):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00608}00608\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Prepare\ a\ sub-\/folder\ name\ specific\ to\ a\ context\ (usually\ a\ unique\ id}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00609}00609\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ generated\ by\ each\ instance\ of\ the\ Parallel\ class).\ Do\ not\ create\ in}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00610}00610\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ advance\ to\ spare\ FS\ write\ access\ if\ no\ array\ is\ to\ be\ dumped).}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00611}00611\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ context\_id\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1TemporaryResourcesManager_a40c14d0e136bc650d430124fdda69426}{\_cached\_temp\_folders}}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00612}00612\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00613}00613\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00614}00614\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ During\ its\ lifecycle,\ one\ Parallel\ object\ can\ have\ several}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00615}00615\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ executors\ associated\ to\ it\ (for\ instance,\ if\ a\ loky\ worker\ raises}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00616}00616\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ an\ exception,\ joblib\ shutdowns\ the\ executor\ and\ instantly}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00617}00617\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ recreates\ a\ new\ one\ before\ raising\ the\ error\ -\/\ see}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00618}00618\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \`{}\`{}ensure\_ready``.\ \ Because\ we\ don't\ want\ two\ executors\ tied\ to}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00619}00619\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ the\ same\ Parallel\ object\ (and\ thus\ the\ same\ context\ id)\ to}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00620}00620\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ register/use/delete\ the\ same\ folder,\ we\ also\ add\ an\ id\ specific}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00621}00621\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ to\ the\ current\ Manager\ (and\ thus\ specific\ to\ its\ associated}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00622}00622\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ executor)\ to\ the\ folder\ name.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00623}00623\ \ \ \ \ \ \ \ \ \ \ \ \ new\_folder\_name\ =\ \textcolor{stringliteral}{"{}joblib\_memmapping\_folder\_\{\}\_\{\}\_\{\}"{}}.format(}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00624}00624\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ os.getpid(),\ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1TemporaryResourcesManager_a98a65f40b0c8f9c43d47524fe7101e7d}{\_id}},\ context\_id}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00625}00625\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00626}00626\ \ \ \ \ \ \ \ \ \ \ \ \ new\_folder\_path,\ \_\ =\ \mbox{\hyperlink{namespacejoblib_1_1__memmapping__reducer_a7edc40b47e36e2c810d2654fa7481801}{\_get\_temp\_dir}}(new\_folder\_name,\ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1TemporaryResourcesManager_a8ba6322c2f77ebcfcf96e5220bd3eb3a}{\_temp\_folder\_root}})}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00627}00627\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1TemporaryResourcesManager_ad6c3fd276faf3335e5d552cf09b9beee}{register\_folder\_finalizer}}(new\_folder\_path,\ context\_id)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00628}00628\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1TemporaryResourcesManager_a40c14d0e136bc650d430124fdda69426}{\_cached\_temp\_folders}}[context\_id]\ =\ new\_folder\_path}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00629}00629\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00630}\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1TemporaryResourcesManager_aa48598306640cdebf5121f41edf5246f}{00630}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1TemporaryResourcesManager_aa48598306640cdebf5121f41edf5246f}{resolve\_temp\_folder\_name}}(self):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00631}00631\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Return\ a\ folder\ name\ specific\ to\ the\ currently\ activated\ context"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00632}00632\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1TemporaryResourcesManager_a40c14d0e136bc650d430124fdda69426}{\_cached\_temp\_folders}}[self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1TemporaryResourcesManager_a5f9d042843e715234bdd595ff9a8c0a1}{\_current\_context\_id}}]}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00633}00633\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00634}00634\ \ \ \ \ \textcolor{comment}{\#\ resource\ management\ API}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00635}00635\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00636}00636\ \ \ \ \ \textcolor{keyword}{def\ }register\_folder\_finalizer(self,\ pool\_subfolder,\ context\_id):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00637}00637\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Register\ the\ garbage\ collector\ at\ program\ exit\ in\ case\ caller\ forgets}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00638}00638\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ to\ call\ terminate\ explicitly:\ note\ we\ do\ not\ pass\ any\ reference\ to}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00639}00639\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ ensure\ that\ this\ callback\ won't\ prevent\ garbage\ collection\ of}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00640}00640\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ parallel\ instance\ and\ related\ file\ handler\ resources\ such\ as\ POSIX}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00641}00641\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ semaphores\ and\ pipes}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00642}00642\ \ \ \ \ \ \ \ \ pool\_module\_name\ =\ whichmodule(delete\_folder,\ \textcolor{stringliteral}{"{}delete\_folder"{}})}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00643}00643\ \ \ \ \ \ \ \ \ resource\_tracker.register(pool\_subfolder,\ \textcolor{stringliteral}{"{}folder"{}})}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00644}00644\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00645}00645\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }\_cleanup():}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00646}00646\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ In\ some\ cases\ the\ Python\ runtime\ seems\ to\ set\ delete\_folder\ to}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00647}00647\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ None\ just\ before\ exiting\ when\ accessing\ the\ delete\_folder}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00648}00648\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ function\ from\ the\ closure\ namespace.\ So\ instead\ we\ reimport}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00649}00649\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ the\ delete\_folder\ function\ explicitly.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00650}00650\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ https://github.com/joblib/joblib/issues/328}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00651}00651\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ We\ cannot\ just\ use\ from\ 'joblib.pool\ import\ delete\_folder'}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00652}00652\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ because\ joblib\ should\ only\ use\ relative\ imports\ to\ allow}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00653}00653\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ easy\ vendoring.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00654}00654\ \ \ \ \ \ \ \ \ \ \ \ \ delete\_folder\ =\ \_\_import\_\_(}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00655}00655\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ pool\_module\_name,\ fromlist=[\textcolor{stringliteral}{"{}delete\_folder"{}}]}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00656}00656\ \ \ \ \ \ \ \ \ \ \ \ \ ).delete\_folder}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00657}00657\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00658}00658\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ delete\_folder(pool\_subfolder,\ allow\_non\_empty=\textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00659}00659\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ resource\_tracker.unregister(pool\_subfolder,\ \textcolor{stringliteral}{"{}folder"{}})}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00660}00660\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ OSError:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00661}00661\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00662}00662\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Failed\ to\ delete\ temporary\ folder:\ \{\}"{}}.format(pool\_subfolder)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00663}00663\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00664}00664\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00665}00665\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1TemporaryResourcesManager_a638852e53ddff5555a5dceb25e5c0e83}{\_finalizers}}[context\_id]\ =\ atexit.register(\_cleanup)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00666}00666\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00667}\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1TemporaryResourcesManager_af4079a3dd9b544729250cb7b501ee507}{00667}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1TemporaryResourcesManager_af4079a3dd9b544729250cb7b501ee507}{\_clean\_temporary\_resources}}(}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00668}00668\ \ \ \ \ \ \ \ \ self,\ context\_id=None,\ force=False,\ allow\_non\_empty=False}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00669}00669\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00670}00670\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Clean\ temporary\ resources\ created\ by\ a\ process-\/based\ pool"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00671}00671\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ context\_id\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00672}00672\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Iterates\ over\ a\ copy\ of\ the\ cache\ keys\ to\ avoid\ Error\ due\ to}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00673}00673\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ iterating\ over\ a\ changing\ size\ dictionary.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00674}00674\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ context\_id\ \textcolor{keywordflow}{in}\ list(self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1TemporaryResourcesManager_a40c14d0e136bc650d430124fdda69426}{\_cached\_temp\_folders}}):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00675}00675\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1TemporaryResourcesManager_af4079a3dd9b544729250cb7b501ee507}{\_clean\_temporary\_resources}}(}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00676}00676\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ context\_id,\ force=force,\ allow\_non\_empty=allow\_non\_empty}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00677}00677\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00678}00678\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00679}00679\ \ \ \ \ \ \ \ \ \ \ \ \ temp\_folder\ =\ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1TemporaryResourcesManager_a40c14d0e136bc650d430124fdda69426}{\_cached\_temp\_folders}}.get(context\_id)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00680}00680\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ temp\_folder\ \textcolor{keywordflow}{and}\ os.path.exists(temp\_folder):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00681}00681\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ filename\ \textcolor{keywordflow}{in}\ os.listdir(temp\_folder):}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00682}00682\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ force:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00683}00683\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Some\ workers\ have\ failed\ and\ the\ ref\ counted\ might}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00684}00684\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ be\ off.\ The\ workers\ should\ have\ shut\ down\ by\ this}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00685}00685\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ time\ so\ forcefully\ clean\ up\ the\ files.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00686}00686\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ resource\_tracker.unregister(}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00687}00687\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ os.path.join(temp\_folder,\ filename),\ \textcolor{stringliteral}{"{}file"{}}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00688}00688\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00689}00689\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00690}00690\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ resource\_tracker.maybe\_unlink(}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00691}00691\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ os.path.join(temp\_folder,\ filename),\ \textcolor{stringliteral}{"{}file"{}}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00692}00692\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00693}00693\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00694}00694\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ When\ forcing\ clean-\/up,\ try\ to\ delete\ the\ folder\ even\ if\ some}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00695}00695\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ files\ are\ still\ in\ it.\ Otherwise,\ try\ to\ delete\ the\ folder}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00696}00696\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ allow\_non\_empty\ |=\ force}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00697}00697\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00698}00698\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Clean\ up\ the\ folder\ if\ possible,\ either\ if\ it\ is\ empty\ or}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00699}00699\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ if\ none\ of\ the\ files\ in\ it\ are\ in\ used\ and\ allow\_non\_empty.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00700}00700\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00701}00701\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ delete\_folder(temp\_folder,\ allow\_non\_empty=allow\_non\_empty)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00702}00702\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Forget\ the\ folder\ once\ it\ has\ been\ deleted}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00703}00703\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1TemporaryResourcesManager_a40c14d0e136bc650d430124fdda69426}{\_cached\_temp\_folders}}.pop(context\_id,\ \textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00704}00704\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ resource\_tracker.unregister(temp\_folder,\ \textcolor{stringliteral}{"{}folder"{}})}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00705}00705\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00706}00706\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Also\ cancel\ the\ finalizers\ \ that\ gets\ triggered\ at\ gc.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00707}00707\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ finalizer\ =\ self.\mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1TemporaryResourcesManager_a638852e53ddff5555a5dceb25e5c0e83}{\_finalizers}}.pop(context\_id,\ \textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00708}00708\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ finalizer\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00709}00709\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ atexit.unregister(finalizer)}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00710}00710\ }
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00711}00711\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ OSError:}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00712}00712\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Temporary\ folder\ cannot\ be\ deleted\ right\ now.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00713}00713\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ This\ folder\ will\ be\ cleaned\ up\ by\ an\ atexit}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00714}00714\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ finalizer\ registered\ by\ the\ memmapping\_reducer.}}
+\DoxyCodeLine{\Hypertarget{__memmapping__reducer_8py_source_l00715}00715\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{pass}}
+
+\end{DoxyCode}

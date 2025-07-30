@@ -1,0 +1,1166 @@
+\doxysection{\+\_\+openml.\+py}
+\hypertarget{__openml_8py_source}{}\label{__openml_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/sklearn/datasets/\_openml.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/sklearn/datasets/\_openml.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00001}\mbox{\hyperlink{namespacesklearn_1_1datasets_1_1__openml}{00001}}\ \textcolor{comment}{\#\ Authors:\ The\ scikit-\/learn\ developers}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00002}00002\ \textcolor{comment}{\#\ SPDX-\/License-\/Identifier:\ BSD-\/3-\/Clause}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00003}00003\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00004}00004\ \textcolor{keyword}{import}\ gzip}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00005}00005\ \textcolor{keyword}{import}\ hashlib}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00006}00006\ \textcolor{keyword}{import}\ json}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00007}00007\ \textcolor{keyword}{import}\ os}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00008}00008\ \textcolor{keyword}{import}\ shutil}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00009}00009\ \textcolor{keyword}{import}\ time}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00010}00010\ \textcolor{keyword}{from}\ contextlib\ \textcolor{keyword}{import}\ closing}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00011}00011\ \textcolor{keyword}{from}\ functools\ \textcolor{keyword}{import}\ wraps}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00012}00012\ \textcolor{keyword}{from}\ os.path\ \textcolor{keyword}{import}\ join}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00013}00013\ \textcolor{keyword}{from}\ tempfile\ \textcolor{keyword}{import}\ TemporaryDirectory}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00014}00014\ \textcolor{keyword}{from}\ typing\ \textcolor{keyword}{import}\ Any,\ Callable,\ Dict,\ List,\ Optional,\ Tuple,\ Union}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00015}00015\ \textcolor{keyword}{from}\ urllib.error\ \textcolor{keyword}{import}\ HTTPError,\ URLError}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00016}00016\ \textcolor{keyword}{from}\ urllib.parse\ \textcolor{keyword}{import}\ urlparse}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00017}00017\ \textcolor{keyword}{from}\ urllib.request\ \textcolor{keyword}{import}\ Request,\ urlopen}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00018}00018\ \textcolor{keyword}{from}\ warnings\ \textcolor{keyword}{import}\ warn}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00019}00019\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00020}00020\ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00021}00021\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00022}00022\ \textcolor{keyword}{from}\ ..utils\ \textcolor{keyword}{import}\ Bunch}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00023}00023\ \textcolor{keyword}{from}\ ..utils.\_optional\_dependencies\ \textcolor{keyword}{import}\ check\_pandas\_support}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00024}00024\ \textcolor{keyword}{from}\ ..utils.\_param\_validation\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00025}00025\ \ \ \ \ Integral,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00026}00026\ \ \ \ \ Interval,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00027}00027\ \ \ \ \ Real,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00028}00028\ \ \ \ \ StrOptions,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00029}00029\ \ \ \ \ validate\_params,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00030}00030\ )}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00031}00031\ \textcolor{keyword}{from}\ .\ \textcolor{keyword}{import}\ get\_data\_home}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00032}00032\ \textcolor{keyword}{from}\ .\_arff\_parser\ \textcolor{keyword}{import}\ load\_arff\_from\_gzip\_file}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00033}00033\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00034}00034\ \_\_all\_\_\ =\ [\textcolor{stringliteral}{"{}fetch\_openml"{}}]}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00035}00035\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00036}00036\ \_SEARCH\_NAME\ =\ \textcolor{stringliteral}{"{}https://api.openml.org/api/v1/json/data/list/data\_name/\{\}/limit/2"{}}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00037}00037\ \_DATA\_INFO\ =\ \textcolor{stringliteral}{"{}https://api.openml.org/api/v1/json/data/\{\}"{}}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00038}00038\ \_DATA\_FEATURES\ =\ \textcolor{stringliteral}{"{}https://api.openml.org/api/v1/json/data/features/\{\}"{}}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00039}00039\ \_DATA\_QUALITIES\ =\ \textcolor{stringliteral}{"{}https://api.openml.org/api/v1/json/data/qualities/\{\}"{}}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00040}00040\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00041}00041\ OpenmlQualitiesType\ =\ List[Dict[str,\ str]]}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00042}00042\ OpenmlFeaturesType\ =\ List[Dict[str,\ str]]}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00043}00043\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00044}00044\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00045}00045\ \textcolor{keyword}{def\ }\_get\_local\_path(openml\_path:\ str,\ data\_home:\ str)\ -\/>\ str:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00046}00046\ \ \ \ \ \textcolor{keywordflow}{return}\ os.path.join(data\_home,\ \textcolor{stringliteral}{"{}openml.org"{}},\ openml\_path\ +\ \textcolor{stringliteral}{"{}.gz"{}})}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00047}00047\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00048}00048\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00049}\mbox{\hyperlink{namespacesklearn_1_1datasets_1_1__openml_a711c3b79077d6d5eee29e271de9f00d5}{00049}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1datasets_1_1__openml_a711c3b79077d6d5eee29e271de9f00d5}{\_retry\_with\_clean\_cache}}(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00050}00050\ \ \ \ \ openml\_path:\ str,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00051}00051\ \ \ \ \ data\_home:\ Optional[str],}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00052}00052\ \ \ \ \ no\_retry\_exception:\ Optional[Exception]\ =\ \textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00053}00053\ )\ -\/>\ Callable:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00054}00054\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}If\ the\ first\ call\ to\ the\ decorated\ function\ fails,\ the\ local\ cached}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00055}00055\ \textcolor{stringliteral}{\ \ \ \ file\ is\ removed,\ and\ the\ function\ is\ called\ again.\ If\ \`{}\`{}data\_home\`{}\`{}\ is}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00056}00056\ \textcolor{stringliteral}{\ \ \ \ \`{}\`{}None\`{}\`{},\ then\ the\ function\ is\ called\ once.\ We\ can\ provide\ a\ specific}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00057}00057\ \textcolor{stringliteral}{\ \ \ \ exception\ to\ not\ retry\ on\ using\ \`{}no\_retry\_exception\`{}\ parameter.}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00058}00058\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00059}00059\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00060}00060\ \ \ \ \ \textcolor{keyword}{def\ }decorator(f):}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00061}00061\ \ \ \ \ \ \ \ \ \textcolor{preprocessor}{@wraps(f)}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00062}00062\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }wrapper(*args,\ **kw):}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00063}00063\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ data\_home\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00064}00064\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ f(*args,\ **kw)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00065}00065\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00066}00066\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ f(*args,\ **kw)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00067}00067\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ URLError:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00068}00068\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00069}00069\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ Exception\ \textcolor{keyword}{as}\ exc:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00070}00070\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ no\_retry\_exception\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{and}\ isinstance(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00071}00071\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ exc,\ no\_retry\_exception}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00072}00072\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00073}00073\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00074}00074\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ warn(\textcolor{stringliteral}{"{}Invalid\ cache,\ redownloading\ file"{}},\ RuntimeWarning)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00075}00075\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ local\_path\ =\ \_get\_local\_path(openml\_path,\ data\_home)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00076}00076\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ os.path.exists(local\_path):}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00077}00077\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ os.unlink(local\_path)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00078}00078\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ f(*args,\ **kw)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00079}00079\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00080}00080\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ wrapper}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00081}00081\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00082}00082\ \ \ \ \ \textcolor{keywordflow}{return}\ decorator}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00083}00083\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00084}00084\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00085}\mbox{\hyperlink{namespacesklearn_1_1datasets_1_1__openml_afdd050eadc5ca9871d6c29cce21acba5}{00085}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1datasets_1_1__openml_afdd050eadc5ca9871d6c29cce21acba5}{\_retry\_on\_network\_error}}(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00086}00086\ \ \ \ \ n\_retries:\ int\ =\ 3,\ delay:\ float\ =\ 1.0,\ url:\ str\ =\ \textcolor{stringliteral}{"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00087}00087\ )\ -\/>\ Callable:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00088}00088\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}If\ the\ function\ call\ results\ in\ a\ network\ error,\ call\ the\ function\ again}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00089}00089\ \textcolor{stringliteral}{\ \ \ \ up\ to\ \`{}\`{}n\_retries\`{}\`{}\ times\ with\ a\ \`{}\`{}delay\`{}\`{}\ between\ each\ call.\ If\ the\ error}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00090}00090\ \textcolor{stringliteral}{\ \ \ \ has\ a\ 412\ status\ code,\ don't\ call\ the\ function\ again\ as\ this\ is\ a\ specific}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00091}00091\ \textcolor{stringliteral}{\ \ \ \ OpenML\ error.}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00092}00092\ \textcolor{stringliteral}{\ \ \ \ The\ url\ parameter\ is\ used\ to\ give\ more\ information\ to\ the\ user\ about\ the}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00093}00093\ \textcolor{stringliteral}{\ \ \ \ error.}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00094}00094\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00095}00095\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00096}00096\ \ \ \ \ \textcolor{keyword}{def\ }decorator(f):}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00097}00097\ \ \ \ \ \ \ \ \ \textcolor{preprocessor}{@wraps(f)}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00098}00098\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }wrapper(*args,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00099}00099\ \ \ \ \ \ \ \ \ \ \ \ \ retry\_counter\ =\ n\_retries}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00100}00100\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{while}\ \textcolor{keyword}{True}:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00101}00101\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00102}00102\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ f(*args,\ **kwargs)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00103}00103\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ (URLError,\ TimeoutError)\ \textcolor{keyword}{as}\ e:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00104}00104\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ 412\ is\ a\ specific\ OpenML\ error\ code.}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00105}00105\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(e,\ HTTPError)\ \textcolor{keywordflow}{and}\ e.code\ ==\ 412:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00106}00106\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00107}00107\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ retry\_counter\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00108}00108\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00109}00109\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ warn(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00110}00110\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}A\ network\ error\ occurred\ while\ downloading\ \{url\}.\ Retrying..."{}}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00111}00111\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00112}00112\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ retry\_counter\ -\/=\ 1}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00113}00113\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ time.sleep(delay)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00114}00114\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00115}00115\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ wrapper}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00116}00116\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00117}00117\ \ \ \ \ \textcolor{keywordflow}{return}\ decorator}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00118}00118\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00119}00119\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00120}\mbox{\hyperlink{namespacesklearn_1_1datasets_1_1__openml_acbdc0edf32c08ce3150f224b122a111c}{00120}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1datasets_1_1__openml_acbdc0edf32c08ce3150f224b122a111c}{\_open\_openml\_url}}(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00121}00121\ \ \ \ \ url:\ str,\ data\_home:\ Optional[str],\ n\_retries:\ int\ =\ 3,\ delay:\ float\ =\ 1.0}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00122}00122\ ):}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00123}00123\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00124}00124\ \textcolor{stringliteral}{\ \ \ \ Returns\ a\ resource\ from\ OpenML.org.\ Caches\ it\ to\ data\_home\ if\ required.}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00125}00125\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00126}00126\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00127}00127\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00128}00128\ \textcolor{stringliteral}{\ \ \ \ url\ :\ str}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00129}00129\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ OpenML\ URL\ that\ will\ be\ downloaded\ and\ cached\ locally.\ The\ path\ component}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00130}00130\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ of\ the\ URL\ is\ used\ to\ replicate\ the\ tree\ structure\ as\ sub-\/folders\ of\ the\ local}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00131}00131\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ cache\ folder.}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00132}00132\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00133}00133\ \textcolor{stringliteral}{\ \ \ \ data\_home\ :\ str}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00134}00134\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Directory\ to\ which\ the\ files\ will\ be\ cached.\ If\ None,\ no\ caching\ will}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00135}00135\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ be\ applied.}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00136}00136\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00137}00137\ \textcolor{stringliteral}{\ \ \ \ n\_retries\ :\ int,\ default=3}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00138}00138\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ retries\ when\ HTTP\ errors\ are\ encountered.\ Error\ with\ status}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00139}00139\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ code\ 412\ won't\ be\ retried\ as\ they\ represent\ OpenML\ generic\ errors.}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00140}00140\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00141}00141\ \textcolor{stringliteral}{\ \ \ \ delay\ :\ float,\ default=1.0}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00142}00142\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ seconds\ between\ retries.}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00143}00143\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00144}00144\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00145}00145\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00146}00146\ \textcolor{stringliteral}{\ \ \ \ result\ :\ stream}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00147}00147\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ A\ stream\ to\ the\ OpenML\ resource.}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00148}00148\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00149}00149\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00150}00150\ \ \ \ \ \textcolor{keyword}{def\ }is\_gzip\_encoded(\_fsrc):}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00151}00151\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \_fsrc.info().get(\textcolor{stringliteral}{"{}Content-\/Encoding"{}},\ \textcolor{stringliteral}{"{}"{}})\ ==\ \textcolor{stringliteral}{"{}gzip"{}}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00152}00152\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00153}00153\ \ \ \ \ req\ =\ Request(url)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00154}00154\ \ \ \ \ req.add\_header(\textcolor{stringliteral}{"{}Accept-\/encoding"{}},\ \textcolor{stringliteral}{"{}gzip"{}})}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00155}00155\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00156}00156\ \ \ \ \ \textcolor{keywordflow}{if}\ data\_home\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00157}00157\ \ \ \ \ \ \ \ \ fsrc\ =\ \mbox{\hyperlink{namespacesklearn_1_1datasets_1_1__openml_afdd050eadc5ca9871d6c29cce21acba5}{\_retry\_on\_network\_error}}(n\_retries,\ delay,\ req.full\_url)(urlopen)(req)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00158}00158\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ is\_gzip\_encoded(fsrc):}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00159}00159\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ gzip.GzipFile(fileobj=fsrc,\ mode=\textcolor{stringliteral}{"{}rb"{}})}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00160}00160\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ fsrc}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00161}00161\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00162}00162\ \ \ \ \ openml\_path\ =\ urlparse(url).path.lstrip(\textcolor{stringliteral}{"{}/"{}})}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00163}00163\ \ \ \ \ local\_path\ =\ \_get\_local\_path(openml\_path,\ data\_home)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00164}00164\ \ \ \ \ dir\_name,\ file\_name\ =\ os.path.split(local\_path)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00165}00165\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ os.path.exists(local\_path):}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00166}00166\ \ \ \ \ \ \ \ \ os.makedirs(dir\_name,\ exist\_ok=\textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00167}00167\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00168}00168\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Create\ a\ tmpdir\ as\ a\ subfolder\ of\ dir\_name\ where\ the\ final\ file\ will}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00169}00169\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ be\ moved\ to\ if\ the\ download\ is\ successful.\ This\ guarantees\ that\ the}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00170}00170\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ renaming\ operation\ to\ the\ final\ location\ is\ atomic\ to\ ensure\ the}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00171}00171\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ concurrence\ safety\ of\ the\ dataset\ caching\ mechanism.}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00172}00172\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ TemporaryDirectory(dir=dir\_name)\ \textcolor{keyword}{as}\ tmpdir:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00173}00173\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ closing(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00174}00174\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{namespacesklearn_1_1datasets_1_1__openml_afdd050eadc5ca9871d6c29cce21acba5}{\_retry\_on\_network\_error}}(n\_retries,\ delay,\ req.full\_url)(urlopen)(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00175}00175\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ req}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00176}00176\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00177}00177\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )\ \textcolor{keyword}{as}\ fsrc:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00178}00178\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ opener:\ Callable}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00179}00179\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ is\_gzip\_encoded(fsrc):}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00180}00180\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ opener\ =\ open}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00181}00181\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00182}00182\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ opener\ =\ gzip.GzipFile}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00183}00183\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ opener(os.path.join(tmpdir,\ file\_name),\ \textcolor{stringliteral}{"{}wb"{}})\ \textcolor{keyword}{as}\ fdst:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00184}00184\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ shutil.copyfileobj(fsrc,\ fdst)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00185}00185\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ shutil.move(fdst.name,\ local\_path)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00186}00186\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ Exception:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00187}00187\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ os.path.exists(local\_path):}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00188}00188\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ os.unlink(local\_path)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00189}00189\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00190}00190\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00191}00191\ \ \ \ \ \textcolor{comment}{\#\ XXX:\ First\ time,\ decompression\ will\ not\ be\ necessary\ (by\ using\ fsrc),\ but}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00192}00192\ \ \ \ \ \textcolor{comment}{\#\ it\ will\ happen\ nonetheless}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00193}00193\ \ \ \ \ \textcolor{keywordflow}{return}\ gzip.GzipFile(local\_path,\ \textcolor{stringliteral}{"{}rb"{}})}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00194}00194\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00195}00195\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00196}\mbox{\hyperlink{classsklearn_1_1datasets_1_1__openml_1_1OpenMLError}{00196}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classsklearn_1_1datasets_1_1__openml_1_1OpenMLError}{OpenMLError}}(\mbox{\hyperlink{classValueError}{ValueError}}):}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00197}00197\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}HTTP\ 412\ is\ a\ specific\ OpenML\ error\ code,\ indicating\ a\ generic\ error"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00198}00198\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00199}00199\ \textcolor{stringliteral}{\ \ \ \ pass}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00200}00200\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00201}00201\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00202}\mbox{\hyperlink{namespacesklearn_1_1datasets_1_1__openml_a2c6376d187d77e461be2cbab26e05e9a}{00202}}\ \textcolor{stringliteral}{def\ \_get\_json\_content\_from\_openml\_api(}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00203}00203\ \textcolor{stringliteral}{\ \ \ \ url:\ str,}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00204}00204\ \textcolor{stringliteral}{\ \ \ \ error\_message:\ Optional[str],}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00205}00205\ \textcolor{stringliteral}{\ \ \ \ data\_home:\ Optional[str],}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00206}00206\ \textcolor{stringliteral}{\ \ \ \ n\_retries:\ int\ =\ 3,}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00207}00207\ \textcolor{stringliteral}{\ \ \ \ delay:\ float\ =\ 1.0,}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00208}00208\ \textcolor{stringliteral}{)\ -\/>\ Dict:}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00209}00209\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00210}00210\ \ \ \ \ Loads\ json\ data\ from\ the\ openml\ api.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00211}00211\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00212}00212\ \ \ \ \ Parameters}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00213}00213\ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00214}00214\ \ \ \ \ url\ :\ str}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00215}00215\ \ \ \ \ \ \ \ \ The\ URL\ to\ load\ from.\ Should\ be\ an\ official\ OpenML\ endpoint.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00216}00216\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00217}00217\ \ \ \ \ error\_message\ :\ str\ or\ None}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00218}00218\ \ \ \ \ \ \ \ \ The\ error\ message\ to\ raise\ if\ an\ acceptable\ OpenML\ error\ is\ thrown}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00219}00219\ \ \ \ \ \ \ \ \ (acceptable\ error\ is,\ e.g.,\ data\ id\ not\ found.\ Other\ errors,\ like\ 404's}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00220}00220\ \ \ \ \ \ \ \ \ will\ throw\ the\ native\ error\ message).}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00221}00221\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00222}00222\ \ \ \ \ data\_home\ :\ str\ or\ None}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00223}00223\ \ \ \ \ \ \ \ \ Location\ to\ cache\ the\ response.\ None\ if\ no\ cache\ is\ required.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00224}00224\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00225}00225\ \ \ \ \ n\_retries\ :\ int,\ default=3}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00226}00226\ \ \ \ \ \ \ \ \ Number\ of\ retries\ when\ HTTP\ errors\ are\ encountered.\ Error\ with\ status}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00227}00227\ \ \ \ \ \ \ \ \ code\ 412\ won't\ be\ retried\ as\ they\ represent\ OpenML\ generic\ errors.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00228}00228\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00229}00229\ \ \ \ \ delay\ :\ float,\ default=1.0}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00230}00230\ \ \ \ \ \ \ \ \ Number\ of\ seconds\ between\ retries.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00231}00231\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00232}00232\ \ \ \ \ Returns}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00233}00233\ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00234}00234\ \ \ \ \ json\_data\ :\ json}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00235}00235\ \ \ \ \ \ \ \ \ the\ json\ result\ from\ the\ OpenML\ server\ if\ the\ call\ was\ successful.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00236}00236\ \ \ \ \ \ \ \ \ An\ exception\ otherwise.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00237}00237\ \ \ \ \ "{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00238}00238\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00239}00239\ \ \ \ \ @\_retry\_with\_clean\_cache(url,\ data\_home=data\_home)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00240}00240\ \ \ \ \ def\ \_load\_json():}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00241}00241\ \ \ \ \ \ \ \ \ with\ closing(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00242}00242\ \ \ \ \ \ \ \ \ \ \ \ \ \_open\_openml\_url(url,\ data\_home,\ n\_retries=n\_retries,\ delay=delay)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00243}00243\ \ \ \ \ \ \ \ \ )\ as\ response:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00244}00244\ \ \ \ \ \ \ \ \ \ \ \ \ return\ json.loads(response.read().decode("{}utf-\/8"{}))}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00245}00245\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00246}00246\ \ \ \ \ try:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00247}00247\ \ \ \ \ \ \ \ \ return\ \_load\_json()}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00248}00248\ \ \ \ \ except\ HTTPError\ as\ error:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00249}00249\ \ \ \ \ \ \ \ \ \#\ 412\ is\ an\ OpenML\ specific\ error\ code,\ indicating\ a\ generic\ error}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00250}00250\ \ \ \ \ \ \ \ \ \#\ (e.g.,\ data\ not\ found)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00251}00251\ \ \ \ \ \ \ \ \ if\ error.code\ !=\ 412:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00252}00252\ \ \ \ \ \ \ \ \ \ \ \ \ raise\ error}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00253}00253\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00254}00254\ \ \ \ \ \#\ 412\ error,\ not\ in\ except\ for\ nicer\ traceback}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00255}00255\ \ \ \ \ raise\ OpenMLError(error\_message)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00256}00256\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00257}00257\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00258}\mbox{\hyperlink{namespacesklearn_1_1datasets_1_1__openml_ac921d2630047ae26451df4c29d816153}{00258}}\ def\ \_get\_data\_info\_by\_name(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00259}00259\ \ \ \ \ name:\ str,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00260}00260\ \ \ \ \ version:\ Union[int,\ str],}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00261}00261\ \ \ \ \ data\_home:\ Optional[str],}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00262}00262\ \ \ \ \ n\_retries:\ int\ =\ 3,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00263}00263\ \ \ \ \ delay:\ float\ =\ 1.0,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00264}00264\ ):}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00265}00265\ \ \ \ \ "{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00266}00266\ \ \ \ \ Utilizes\ the\ openml\ dataset\ listing\ api\ to\ find\ a\ dataset\ by}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00267}00267\ \ \ \ \ name/version}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00268}00268\ \ \ \ \ OpenML\ api\ function:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00269}00269\ \ \ \ \ https://www.openml.org/api\_docs\#!/data/get\_data\_list\_data\_name\_data\_name}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00270}00270\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00271}00271\ \ \ \ \ Parameters}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00272}00272\ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00273}00273\ \ \ \ \ name\ :\ str}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00274}00274\ \ \ \ \ \ \ \ \ name\ of\ the\ dataset}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00275}00275\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00276}00276\ \ \ \ \ version\ :\ int\ or\ str}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00277}00277\ \ \ \ \ \ \ \ \ If\ version\ is\ an\ integer,\ the\ exact\ name/version\ will\ be\ obtained\ from}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00278}00278\ \ \ \ \ \ \ \ \ OpenML.\ If\ version\ is\ a\ string\ (value:\ "{}active"{})\ it\ will\ take\ the\ first}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00279}00279\ \ \ \ \ \ \ \ \ version\ from\ OpenML\ that\ is\ annotated\ as\ active.\ Any\ other\ string}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00280}00280\ \ \ \ \ \ \ \ \ values\ except\ "{}active"{}\ are\ treated\ as\ integer.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00281}00281\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00282}00282\ \ \ \ \ data\_home\ :\ str\ or\ None}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00283}00283\ \ \ \ \ \ \ \ \ Location\ to\ cache\ the\ response.\ None\ if\ no\ cache\ is\ required.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00284}00284\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00285}00285\ \ \ \ \ n\_retries\ :\ int,\ default=3}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00286}00286\ \ \ \ \ \ \ \ \ Number\ of\ retries\ when\ HTTP\ errors\ are\ encountered.\ Error\ with\ status}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00287}00287\ \ \ \ \ \ \ \ \ code\ 412\ won't\ be\ retried\ as\ they\ represent\ OpenML\ generic\ errors.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00288}00288\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00289}00289\ \ \ \ \ delay\ :\ float,\ default=1.0}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00290}00290\ \ \ \ \ \ \ \ \ Number\ of\ seconds\ between\ retries.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00291}00291\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00292}00292\ \ \ \ \ Returns}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00293}00293\ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00294}00294\ \ \ \ \ first\_dataset\ :\ json}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00295}00295\ \ \ \ \ \ \ \ \ json\ representation\ of\ the\ first\ dataset\ object\ that\ adhired\ to\ the}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00296}00296\ \ \ \ \ \ \ \ \ search\ criteria}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00297}00297\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00298}00298\ \ \ \ \ "{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00299}00299\ \ \ \ \ if\ version\ ==\ "{}active"{}:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00300}00300\ \ \ \ \ \ \ \ \ \#\ situation\ in\ which\ we\ return\ the\ oldest\ active\ version}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00301}00301\ \ \ \ \ \ \ \ \ url\ =\ \_SEARCH\_NAME.format(name)\ +\ "{}/status/active/"{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00302}00302\ \ \ \ \ \ \ \ \ error\_msg\ =\ "{}No\ active\ dataset\ \{\}\ found."{}.format(name)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00303}00303\ \ \ \ \ \ \ \ \ json\_data\ =\ \_get\_json\_content\_from\_openml\_api(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00304}00304\ \ \ \ \ \ \ \ \ \ \ \ \ url,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00305}00305\ \ \ \ \ \ \ \ \ \ \ \ \ error\_msg,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00306}00306\ \ \ \ \ \ \ \ \ \ \ \ \ data\_home=data\_home,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00307}00307\ \ \ \ \ \ \ \ \ \ \ \ \ n\_retries=n\_retries,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00308}00308\ \ \ \ \ \ \ \ \ \ \ \ \ delay=delay,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00309}00309\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00310}00310\ \ \ \ \ \ \ \ \ res\ =\ json\_data["{}data"{}]["{}dataset"{}]}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00311}00311\ \ \ \ \ \ \ \ \ if\ len(res)\ >\ 1:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00312}00312\ \ \ \ \ \ \ \ \ \ \ \ \ first\_version\ =\ version\ =\ res[0]["{}version"{}]}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00313}00313\ \ \ \ \ \ \ \ \ \ \ \ \ warning\_msg\ =\ (}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00314}00314\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "{}Multiple\ active\ versions\ of\ the\ dataset\ matching\ the\ name"{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00315}00315\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f"{}\ \{name\}\ exist.\ Versions\ may\ be\ fundamentally\ different,\ "{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00316}00316\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f"{}returning\ version\ \{first\_version\}.\ "{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00317}00317\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "{}Available\ versions:\(\backslash\)n"{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00318}00318\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00319}00319\ \ \ \ \ \ \ \ \ \ \ \ \ for\ r\ in\ res:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00320}00320\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ warning\_msg\ +=\ f"{}-\/\ version\ \{r['version']\},\ status:\ \{r['status']\}\(\backslash\)n"{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00321}00321\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ warning\_msg\ +=\ (}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00322}00322\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f"{}\ \ url:\ https://www.openml.org/search?type=data\&id=\{r['did']\}\(\backslash\)n"{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00323}00323\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00324}00324\ \ \ \ \ \ \ \ \ \ \ \ \ warn(warning\_msg)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00325}00325\ \ \ \ \ \ \ \ \ return\ res[0]}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00326}00326\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00327}00327\ \ \ \ \ \#\ an\ integer\ version\ has\ been\ provided}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00328}00328\ \ \ \ \ url\ =\ (\_SEARCH\_NAME\ +\ "{}/data\_version/\{\}"{}).format(name,\ version)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00329}00329\ \ \ \ \ try:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00330}00330\ \ \ \ \ \ \ \ \ json\_data\ =\ \_get\_json\_content\_from\_openml\_api(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00331}00331\ \ \ \ \ \ \ \ \ \ \ \ \ url,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00332}00332\ \ \ \ \ \ \ \ \ \ \ \ \ error\_message=None,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00333}00333\ \ \ \ \ \ \ \ \ \ \ \ \ data\_home=data\_home,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00334}00334\ \ \ \ \ \ \ \ \ \ \ \ \ n\_retries=n\_retries,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00335}00335\ \ \ \ \ \ \ \ \ \ \ \ \ delay=delay,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00336}00336\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00337}00337\ \ \ \ \ except\ OpenMLError:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00338}00338\ \ \ \ \ \ \ \ \ \#\ we\ can\ do\ this\ in\ 1\ function\ call\ if\ OpenML\ does\ not\ require\ the}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00339}00339\ \ \ \ \ \ \ \ \ \#\ specification\ of\ the\ dataset\ status\ (i.e.,\ return\ datasets\ with\ a}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00340}00340\ \ \ \ \ \ \ \ \ \#\ given\ name\ /\ version\ regardless\ of\ active,\ deactivated,\ etc.\ )}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00341}00341\ \ \ \ \ \ \ \ \ \#\ TODO:\ feature\ request\ OpenML.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00342}00342\ \ \ \ \ \ \ \ \ url\ +=\ "{}/status/deactivated"{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00343}00343\ \ \ \ \ \ \ \ \ error\_msg\ =\ "{}Dataset\ \{\}\ with\ version\ \{\}\ not\ found."{}.format(name,\ version)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00344}00344\ \ \ \ \ \ \ \ \ json\_data\ =\ \_get\_json\_content\_from\_openml\_api(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00345}00345\ \ \ \ \ \ \ \ \ \ \ \ \ url,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00346}00346\ \ \ \ \ \ \ \ \ \ \ \ \ error\_msg,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00347}00347\ \ \ \ \ \ \ \ \ \ \ \ \ data\_home=data\_home,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00348}00348\ \ \ \ \ \ \ \ \ \ \ \ \ n\_retries=n\_retries,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00349}00349\ \ \ \ \ \ \ \ \ \ \ \ \ delay=delay,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00350}00350\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00351}00351\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00352}00352\ \ \ \ \ return\ json\_data["{}data"{}]["{}dataset"{}][0]}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00353}00353\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00354}00354\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00355}00355\ def\ \_get\_data\_description\_by\_id(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00356}00356\ \ \ \ \ data\_id:\ int,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00357}00357\ \ \ \ \ data\_home:\ Optional[str],}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00358}00358\ \ \ \ \ n\_retries:\ int\ =\ 3,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00359}00359\ \ \ \ \ delay:\ float\ =\ 1.0,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00360}00360\ )\ -\/>\ Dict[str,\ Any]:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00361}00361\ \ \ \ \ \#\ OpenML\ API\ function:\ https://www.openml.org/api\_docs\#!/data/get\_data\_id}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00362}00362\ \ \ \ \ url\ =\ \_DATA\_INFO.format(data\_id)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00363}00363\ \ \ \ \ error\_message\ =\ "{}Dataset\ with\ data\_id\ \{\}\ not\ found."{}.format(data\_id)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00364}00364\ \ \ \ \ json\_data\ =\ \_get\_json\_content\_from\_openml\_api(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00365}00365\ \ \ \ \ \ \ \ \ url,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00366}00366\ \ \ \ \ \ \ \ \ error\_message,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00367}00367\ \ \ \ \ \ \ \ \ data\_home=data\_home,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00368}00368\ \ \ \ \ \ \ \ \ n\_retries=n\_retries,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00369}00369\ \ \ \ \ \ \ \ \ delay=delay,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00370}00370\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00371}00371\ \ \ \ \ return\ json\_data["{}data\_set\_description"{}]}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00372}00372\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00373}00373\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00374}00374\ def\ \_get\_data\_features(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00375}00375\ \ \ \ \ data\_id:\ int,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00376}00376\ \ \ \ \ data\_home:\ Optional[str],}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00377}00377\ \ \ \ \ n\_retries:\ int\ =\ 3,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00378}00378\ \ \ \ \ delay:\ float\ =\ 1.0,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00379}00379\ )\ -\/>\ OpenmlFeaturesType:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00380}00380\ \ \ \ \ \#\ OpenML\ function:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00381}00381\ \ \ \ \ \#\ https://www.openml.org/api\_docs\#!/data/get\_data\_features\_id}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00382}00382\ \ \ \ \ url\ =\ \_DATA\_FEATURES.format(data\_id)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00383}00383\ \ \ \ \ error\_message\ =\ "{}Dataset\ with\ data\_id\ \{\}\ not\ found."{}.format(data\_id)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00384}00384\ \ \ \ \ json\_data\ =\ \_get\_json\_content\_from\_openml\_api(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00385}00385\ \ \ \ \ \ \ \ \ url,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00386}00386\ \ \ \ \ \ \ \ \ error\_message,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00387}00387\ \ \ \ \ \ \ \ \ data\_home=data\_home,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00388}00388\ \ \ \ \ \ \ \ \ n\_retries=n\_retries,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00389}00389\ \ \ \ \ \ \ \ \ delay=delay,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00390}00390\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00391}00391\ \ \ \ \ return\ json\_data["{}data\_features"{}]["{}feature"{}]}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00392}00392\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00393}00393\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00394}00394\ def\ \_get\_data\_qualities(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00395}00395\ \ \ \ \ data\_id:\ int,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00396}00396\ \ \ \ \ data\_home:\ Optional[str],}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00397}00397\ \ \ \ \ n\_retries:\ int\ =\ 3,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00398}00398\ \ \ \ \ delay:\ float\ =\ 1.0,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00399}00399\ )\ -\/>\ OpenmlQualitiesType:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00400}00400\ \ \ \ \ \#\ OpenML\ API\ function:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00401}00401\ \ \ \ \ \#\ https://www.openml.org/api\_docs\#!/data/get\_data\_qualities\_id}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00402}00402\ \ \ \ \ url\ =\ \_DATA\_QUALITIES.format(data\_id)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00403}00403\ \ \ \ \ error\_message\ =\ "{}Dataset\ with\ data\_id\ \{\}\ not\ found."{}.format(data\_id)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00404}00404\ \ \ \ \ json\_data\ =\ \_get\_json\_content\_from\_openml\_api(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00405}00405\ \ \ \ \ \ \ \ \ url,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00406}00406\ \ \ \ \ \ \ \ \ error\_message,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00407}00407\ \ \ \ \ \ \ \ \ data\_home=data\_home,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00408}00408\ \ \ \ \ \ \ \ \ n\_retries=n\_retries,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00409}00409\ \ \ \ \ \ \ \ \ delay=delay,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00410}00410\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00411}00411\ \ \ \ \ \#\ the\ qualities\ might\ not\ be\ available,\ but\ we\ still\ try\ to\ process}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00412}00412\ \ \ \ \ \#\ the\ data}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00413}00413\ \ \ \ \ return\ json\_data.get("{}data\_qualities"{},\ \{\}).get("{}quality"{},\ [])}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00414}00414\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00415}00415\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00416}\mbox{\hyperlink{namespacesklearn_1_1datasets_1_1__openml_a100bede58b7b39ca29991b8548b5fab9}{00416}}\ def\ \_get\_num\_samples(data\_qualities:\ OpenmlQualitiesType)\ -\/>\ int:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00417}00417\ \ \ \ \ "{}"{}"{}Get\ the\ number\ of\ samples\ from\ data\ qualities.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00418}00418\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00419}00419\ \ \ \ \ Parameters}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00420}00420\ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00421}00421\ \ \ \ \ data\_qualities\ :\ list\ of\ dict}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00422}00422\ \ \ \ \ \ \ \ \ Used\ to\ retrieve\ the\ number\ of\ instances\ (samples)\ in\ the\ dataset.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00423}00423\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00424}00424\ \ \ \ \ Returns}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00425}00425\ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00426}00426\ \ \ \ \ n\_samples\ :\ int}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00427}00427\ \ \ \ \ \ \ \ \ The\ number\ of\ samples\ in\ the\ dataset\ or\ -\/1\ if\ data\ qualities\ are}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00428}00428\ \ \ \ \ \ \ \ \ unavailable.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00429}00429\ \ \ \ \ "{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00430}00430\ \ \ \ \ \#\ If\ the\ data\ qualities\ are\ unavailable,\ we\ return\ -\/1}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00431}00431\ \ \ \ \ default\_n\_samples\ =\ -\/1}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00432}00432\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00433}00433\ \ \ \ \ qualities\ =\ \{d["{}name"{}]:\ d["{}value"{}]\ for\ d\ in\ data\_qualities\}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00434}00434\ \ \ \ \ return\ int(float(qualities.get("{}NumberOfInstances"{},\ default\_n\_samples)))}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00435}00435\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00436}00436\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00437}\mbox{\hyperlink{namespacesklearn_1_1datasets_1_1__openml_a88c50832e355381ade1e33511ce416f7}{00437}}\ def\ \_load\_arff\_response(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00438}00438\ \ \ \ \ url:\ str,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00439}00439\ \ \ \ \ data\_home:\ Optional[str],}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00440}00440\ \ \ \ \ parser:\ str,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00441}00441\ \ \ \ \ output\_type:\ str,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00442}00442\ \ \ \ \ openml\_columns\_info:\ dict,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00443}00443\ \ \ \ \ feature\_names\_to\_select:\ List[str],}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00444}00444\ \ \ \ \ target\_names\_to\_select:\ List[str],}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00445}00445\ \ \ \ \ shape:\ Optional[Tuple[int,\ int]],}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00446}00446\ \ \ \ \ md5\_checksum:\ str,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00447}00447\ \ \ \ \ n\_retries:\ int\ =\ 3,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00448}00448\ \ \ \ \ delay:\ float\ =\ 1.0,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00449}00449\ \ \ \ \ read\_csv\_kwargs:\ Optional[Dict]\ =\ None,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00450}00450\ ):}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00451}00451\ \ \ \ \ "{}"{}"{}Load\ the\ ARFF\ data\ associated\ with\ the\ OpenML\ URL.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00452}00452\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00453}00453\ \ \ \ \ In\ addition\ of\ loading\ the\ data,\ this\ function\ will\ also\ check\ the}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00454}00454\ \ \ \ \ integrity\ of\ the\ downloaded\ file\ from\ OpenML\ using\ MD5\ checksum.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00455}00455\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00456}00456\ \ \ \ \ Parameters}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00457}00457\ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00458}00458\ \ \ \ \ url\ :\ str}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00459}00459\ \ \ \ \ \ \ \ \ The\ URL\ of\ the\ ARFF\ file\ on\ OpenML.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00460}00460\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00461}00461\ \ \ \ \ data\_home\ :\ str}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00462}00462\ \ \ \ \ \ \ \ \ The\ location\ where\ to\ cache\ the\ data.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00463}00463\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00464}00464\ \ \ \ \ parser\ :\ \{"{}liac-\/arff"{},\ "{}pandas"{}\}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00465}00465\ \ \ \ \ \ \ \ \ The\ parser\ used\ to\ parse\ the\ ARFF\ file.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00466}00466\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00467}00467\ \ \ \ \ output\_type\ :\ \{"{}numpy"{},\ "{}pandas"{},\ "{}sparse"{}\}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00468}00468\ \ \ \ \ \ \ \ \ The\ type\ of\ the\ arrays\ that\ will\ be\ returned.\ The\ possibilities\ are:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00469}00469\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00470}00470\ \ \ \ \ \ \ \ \ -\/\ \`{}"{}numpy"{}\`{}:\ both\ \`{}X\`{}\ and\ \`{}y\`{}\ will\ be\ NumPy\ arrays;}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00471}00471\ \ \ \ \ \ \ \ \ -\/\ \`{}"{}sparse"{}\`{}:\ \`{}X\`{}\ will\ be\ sparse\ matrix\ and\ \`{}y\`{}\ will\ be\ a\ NumPy\ array;}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00472}00472\ \ \ \ \ \ \ \ \ -\/\ \`{}"{}pandas"{}\`{}:\ \`{}X\`{}\ will\ be\ a\ pandas\ DataFrame\ and\ \`{}y\`{}\ will\ be\ either\ a}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00473}00473\ \ \ \ \ \ \ \ \ \ \ pandas\ Series\ or\ DataFrame.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00474}00474\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00475}00475\ \ \ \ \ openml\_columns\_info\ :\ dict}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00476}00476\ \ \ \ \ \ \ \ \ The\ information\ provided\ by\ OpenML\ regarding\ the\ columns\ of\ the\ ARFF}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00477}00477\ \ \ \ \ \ \ \ \ file.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00478}00478\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00479}00479\ \ \ \ \ feature\_names\_to\_select\ :\ list\ of\ str}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00480}00480\ \ \ \ \ \ \ \ \ The\ list\ of\ the\ features\ to\ be\ selected.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00481}00481\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00482}00482\ \ \ \ \ target\_names\_to\_select\ :\ list\ of\ str}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00483}00483\ \ \ \ \ \ \ \ \ The\ list\ of\ the\ target\ variables\ to\ be\ selected.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00484}00484\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00485}00485\ \ \ \ \ shape\ :\ tuple\ or\ None}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00486}00486\ \ \ \ \ \ \ \ \ With\ \`{}parser="{}liac-\/arff"{}\`{},\ when\ using\ a\ generator\ to\ load\ the\ data,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00487}00487\ \ \ \ \ \ \ \ \ one\ needs\ to\ provide\ the\ shape\ of\ the\ data\ beforehand.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00488}00488\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00489}00489\ \ \ \ \ md5\_checksum\ :\ str}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00490}00490\ \ \ \ \ \ \ \ \ The\ MD5\ checksum\ provided\ by\ OpenML\ to\ check\ the\ data\ integrity.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00491}00491\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00492}00492\ \ \ \ \ n\_retries\ :\ int,\ default=3}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00493}00493\ \ \ \ \ \ \ \ \ The\ number\ of\ times\ to\ retry\ downloading\ the\ data\ if\ it\ fails.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00494}00494\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00495}00495\ \ \ \ \ delay\ :\ float,\ default=1.0}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00496}00496\ \ \ \ \ \ \ \ \ The\ delay\ between\ two\ consecutive\ downloads\ in\ seconds.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00497}00497\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00498}00498\ \ \ \ \ read\_csv\_kwargs\ :\ dict,\ default=None}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00499}00499\ \ \ \ \ \ \ \ \ Keyword\ arguments\ to\ pass\ to\ \`{}pandas.read\_csv\`{}\ when\ using\ the\ pandas\ parser.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00500}00500\ \ \ \ \ \ \ \ \ It\ allows\ to\ overwrite\ the\ default\ options.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00501}00501\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00502}00502\ \ \ \ \ \ \ \ \ ..\ versionadded::\ 1.3}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00503}00503\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00504}00504\ \ \ \ \ Returns}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00505}00505\ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00506}00506\ \ \ \ \ X\ :\ \{ndarray,\ sparse\ matrix,\ dataframe\}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00507}00507\ \ \ \ \ \ \ \ \ The\ data\ matrix.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00508}00508\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00509}00509\ \ \ \ \ y\ :\ \{ndarray,\ dataframe,\ series\}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00510}00510\ \ \ \ \ \ \ \ \ The\ target.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00511}00511\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00512}00512\ \ \ \ \ frame\ :\ dataframe\ or\ None}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00513}00513\ \ \ \ \ \ \ \ \ A\ dataframe\ containing\ both\ \`{}X\`{}\ and\ \`{}y\`{}.\ \`{}None\`{}\ if}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00514}00514\ \ \ \ \ \ \ \ \ \`{}output\_array\_type\ !=\ "{}pandas"{}\`{}.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00515}00515\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00516}00516\ \ \ \ \ categories\ :\ list\ of\ str\ or\ None}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00517}00517\ \ \ \ \ \ \ \ \ The\ names\ of\ the\ features\ that\ are\ categorical.\ \`{}None\`{}\ if}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00518}00518\ \ \ \ \ \ \ \ \ \`{}output\_array\_type\ ==\ "{}pandas"{}\`{}.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00519}00519\ \ \ \ \ "{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00520}00520\ \ \ \ \ gzip\_file\ =\ \_open\_openml\_url(url,\ data\_home,\ n\_retries=n\_retries,\ delay=delay)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00521}00521\ \ \ \ \ with\ closing(gzip\_file):}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00522}00522\ \ \ \ \ \ \ \ \ md5\ =\ hashlib.md5()}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00523}00523\ \ \ \ \ \ \ \ \ for\ chunk\ in\ iter(lambda:\ gzip\_file.read(4096),\ b"{}"{}):}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00524}00524\ \ \ \ \ \ \ \ \ \ \ \ \ md5.update(chunk)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00525}00525\ \ \ \ \ \ \ \ \ actual\_md5\_checksum\ =\ md5.hexdigest()}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00526}00526\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00527}00527\ \ \ \ \ if\ actual\_md5\_checksum\ !=\ md5\_checksum:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00528}00528\ \ \ \ \ \ \ \ \ raise\ ValueError(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00529}00529\ \ \ \ \ \ \ \ \ \ \ \ \ f"{}md5\ checksum\ of\ local\ file\ for\ \{url\}\ does\ not\ match\ description:\ "{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00530}00530\ \ \ \ \ \ \ \ \ \ \ \ \ f"{}expected:\ \{md5\_checksum\}\ but\ got\ \{actual\_md5\_checksum\}.\ "{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00531}00531\ \ \ \ \ \ \ \ \ \ \ \ \ "{}Downloaded\ file\ could\ have\ been\ modified\ /\ corrupted,\ clean\ cache\ "{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00532}00532\ \ \ \ \ \ \ \ \ \ \ \ \ "{}and\ retry..."{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00533}00533\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00534}00534\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00535}00535\ \ \ \ \ def\ \_open\_url\_and\_load\_gzip\_file(url,\ data\_home,\ n\_retries,\ delay,\ arff\_params):}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00536}00536\ \ \ \ \ \ \ \ \ gzip\_file\ =\ \_open\_openml\_url(url,\ data\_home,\ n\_retries=n\_retries,\ delay=delay)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00537}00537\ \ \ \ \ \ \ \ \ with\ closing(gzip\_file):}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00538}00538\ \ \ \ \ \ \ \ \ \ \ \ \ return\ load\_arff\_from\_gzip\_file(gzip\_file,\ **arff\_params)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00539}00539\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00540}00540\ \ \ \ \ arff\_params:\ Dict\ =\ dict(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00541}00541\ \ \ \ \ \ \ \ \ parser=parser,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00542}00542\ \ \ \ \ \ \ \ \ output\_type=output\_type,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00543}00543\ \ \ \ \ \ \ \ \ openml\_columns\_info=openml\_columns\_info,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00544}00544\ \ \ \ \ \ \ \ \ feature\_names\_to\_select=feature\_names\_to\_select,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00545}00545\ \ \ \ \ \ \ \ \ target\_names\_to\_select=target\_names\_to\_select,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00546}00546\ \ \ \ \ \ \ \ \ shape=shape,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00547}00547\ \ \ \ \ \ \ \ \ read\_csv\_kwargs=read\_csv\_kwargs\ or\ \{\},}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00548}00548\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00549}00549\ \ \ \ \ try:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00550}00550\ \ \ \ \ \ \ \ \ X,\ y,\ frame,\ categories\ =\ \_open\_url\_and\_load\_gzip\_file(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00551}00551\ \ \ \ \ \ \ \ \ \ \ \ \ url,\ data\_home,\ n\_retries,\ delay,\ arff\_params}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00552}00552\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00553}00553\ \ \ \ \ except\ Exception\ as\ exc:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00554}00554\ \ \ \ \ \ \ \ \ if\ parser\ !=\ "{}pandas"{}:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00555}00555\ \ \ \ \ \ \ \ \ \ \ \ \ raise}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00556}00556\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00557}00557\ \ \ \ \ \ \ \ \ from\ pandas.errors\ import\ ParserError}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00558}00558\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00559}00559\ \ \ \ \ \ \ \ \ if\ not\ isinstance(exc,\ ParserError):}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00560}00560\ \ \ \ \ \ \ \ \ \ \ \ \ raise}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00561}00561\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00562}00562\ \ \ \ \ \ \ \ \ \#\ A\ parsing\ error\ could\ come\ from\ providing\ the\ wrong\ quotechar}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00563}00563\ \ \ \ \ \ \ \ \ \#\ to\ pandas.\ By\ default,\ we\ use\ a\ double\ quote.\ Thus,\ we\ retry}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00564}00564\ \ \ \ \ \ \ \ \ \#\ with\ a\ single\ quote\ before\ to\ raise\ the\ error.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00565}00565\ \ \ \ \ \ \ \ \ arff\_params["{}read\_csv\_kwargs"{}].update(quotechar="{}'"{})}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00566}00566\ \ \ \ \ \ \ \ \ X,\ y,\ frame,\ categories\ =\ \_open\_url\_and\_load\_gzip\_file(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00567}00567\ \ \ \ \ \ \ \ \ \ \ \ \ url,\ data\_home,\ n\_retries,\ delay,\ arff\_params}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00568}00568\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00569}00569\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00570}00570\ \ \ \ \ return\ X,\ y,\ frame,\ categories}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00571}00571\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00572}00572\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00573}\mbox{\hyperlink{namespacesklearn_1_1datasets_1_1__openml_ab7546109f5c392f3d13be9d9d8ded561}{00573}}\ def\ \_download\_data\_to\_bunch(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00574}00574\ \ \ \ \ url:\ str,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00575}00575\ \ \ \ \ sparse:\ bool,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00576}00576\ \ \ \ \ data\_home:\ Optional[str],}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00577}00577\ \ \ \ \ *,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00578}00578\ \ \ \ \ as\_frame:\ bool,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00579}00579\ \ \ \ \ openml\_columns\_info:\ List[dict],}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00580}00580\ \ \ \ \ data\_columns:\ List[str],}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00581}00581\ \ \ \ \ target\_columns:\ List[str],}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00582}00582\ \ \ \ \ shape:\ Optional[Tuple[int,\ int]],}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00583}00583\ \ \ \ \ md5\_checksum:\ str,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00584}00584\ \ \ \ \ n\_retries:\ int\ =\ 3,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00585}00585\ \ \ \ \ delay:\ float\ =\ 1.0,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00586}00586\ \ \ \ \ parser:\ str,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00587}00587\ \ \ \ \ read\_csv\_kwargs:\ Optional[Dict]\ =\ None,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00588}00588\ ):}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00589}00589\ \ \ \ \ "{}"{}"{}Download\ ARFF\ data,\ load\ it\ to\ a\ specific\ container\ and\ create\ to\ Bunch.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00590}00590\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00591}00591\ \ \ \ \ This\ function\ has\ a\ mechanism\ to\ retry/cache/clean\ the\ data.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00592}00592\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00593}00593\ \ \ \ \ Parameters}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00594}00594\ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00595}00595\ \ \ \ \ url\ :\ str}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00596}00596\ \ \ \ \ \ \ \ \ The\ URL\ of\ the\ ARFF\ file\ on\ OpenML.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00597}00597\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00598}00598\ \ \ \ \ sparse\ :\ bool}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00599}00599\ \ \ \ \ \ \ \ \ Whether\ the\ dataset\ is\ expected\ to\ use\ the\ sparse\ ARFF\ format.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00600}00600\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00601}00601\ \ \ \ \ data\_home\ :\ str}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00602}00602\ \ \ \ \ \ \ \ \ The\ location\ where\ to\ cache\ the\ data.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00603}00603\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00604}00604\ \ \ \ \ as\_frame\ :\ bool}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00605}00605\ \ \ \ \ \ \ \ \ Whether\ or\ not\ to\ return\ the\ data\ into\ a\ pandas\ DataFrame.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00606}00606\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00607}00607\ \ \ \ \ openml\_columns\_info\ :\ list\ of\ dict}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00608}00608\ \ \ \ \ \ \ \ \ The\ information\ regarding\ the\ columns\ provided\ by\ OpenML\ for\ the}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00609}00609\ \ \ \ \ \ \ \ \ ARFF\ dataset.\ The\ information\ is\ stored\ as\ a\ list\ of\ dictionaries.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00610}00610\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00611}00611\ \ \ \ \ data\_columns\ :\ list\ of\ str}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00612}00612\ \ \ \ \ \ \ \ \ The\ list\ of\ the\ features\ to\ be\ selected.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00613}00613\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00614}00614\ \ \ \ \ target\_columns\ :\ list\ of\ str}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00615}00615\ \ \ \ \ \ \ \ \ The\ list\ of\ the\ target\ variables\ to\ be\ selected.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00616}00616\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00617}00617\ \ \ \ \ shape\ :\ tuple\ or\ None}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00618}00618\ \ \ \ \ \ \ \ \ With\ \`{}parser="{}liac-\/arff"{}\`{},\ when\ using\ a\ generator\ to\ load\ the\ data,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00619}00619\ \ \ \ \ \ \ \ \ one\ needs\ to\ provide\ the\ shape\ of\ the\ data\ beforehand.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00620}00620\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00621}00621\ \ \ \ \ md5\_checksum\ :\ str}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00622}00622\ \ \ \ \ \ \ \ \ The\ MD5\ checksum\ provided\ by\ OpenML\ to\ check\ the\ data\ integrity.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00623}00623\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00624}00624\ \ \ \ \ n\_retries\ :\ int,\ default=3}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00625}00625\ \ \ \ \ \ \ \ \ Number\ of\ retries\ when\ HTTP\ errors\ are\ encountered.\ Error\ with\ status}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00626}00626\ \ \ \ \ \ \ \ \ code\ 412\ won't\ be\ retried\ as\ they\ represent\ OpenML\ generic\ errors.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00627}00627\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00628}00628\ \ \ \ \ delay\ :\ float,\ default=1.0}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00629}00629\ \ \ \ \ \ \ \ \ Number\ of\ seconds\ between\ retries.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00630}00630\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00631}00631\ \ \ \ \ parser\ :\ \{"{}liac-\/arff"{},\ "{}pandas"{}\}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00632}00632\ \ \ \ \ \ \ \ \ The\ parser\ used\ to\ parse\ the\ ARFF\ file.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00633}00633\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00634}00634\ \ \ \ \ read\_csv\_kwargs\ :\ dict,\ default=None}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00635}00635\ \ \ \ \ \ \ \ \ Keyword\ arguments\ to\ pass\ to\ \`{}pandas.read\_csv\`{}\ when\ using\ the\ pandas\ parser.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00636}00636\ \ \ \ \ \ \ \ \ It\ allows\ to\ overwrite\ the\ default\ options.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00637}00637\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00638}00638\ \ \ \ \ \ \ \ \ ..\ versionadded::\ 1.3}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00639}00639\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00640}00640\ \ \ \ \ Returns}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00641}00641\ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00642}00642\ \ \ \ \ data\ :\ :class:\`{}\string~sklearn.utils.Bunch\`{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00643}00643\ \ \ \ \ \ \ \ \ Dictionary-\/like\ object,\ with\ the\ following\ attributes.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00644}00644\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00645}00645\ \ \ \ \ \ \ \ \ X\ :\ \{ndarray,\ sparse\ matrix,\ dataframe\}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00646}00646\ \ \ \ \ \ \ \ \ \ \ \ \ The\ data\ matrix.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00647}00647\ \ \ \ \ \ \ \ \ y\ :\ \{ndarray,\ dataframe,\ series\}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00648}00648\ \ \ \ \ \ \ \ \ \ \ \ \ The\ target.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00649}00649\ \ \ \ \ \ \ \ \ frame\ :\ dataframe\ or\ None}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00650}00650\ \ \ \ \ \ \ \ \ \ \ \ \ A\ dataframe\ containing\ both\ \`{}X\`{}\ and\ \`{}y\`{}.\ \`{}None\`{}\ if}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00651}00651\ \ \ \ \ \ \ \ \ \ \ \ \ \`{}output\_array\_type\ !=\ "{}pandas"{}\`{}.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00652}00652\ \ \ \ \ \ \ \ \ categories\ :\ list\ of\ str\ or\ None}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00653}00653\ \ \ \ \ \ \ \ \ \ \ \ \ The\ names\ of\ the\ features\ that\ are\ categorical.\ \`{}None\`{}\ if}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00654}00654\ \ \ \ \ \ \ \ \ \ \ \ \ \`{}output\_array\_type\ ==\ "{}pandas"{}\`{}.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00655}00655\ \ \ \ \ "{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00656}00656\ \ \ \ \ \#\ Prepare\ which\ columns\ and\ data\ types\ should\ be\ returned\ for\ the\ X\ and\ y}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00657}00657\ \ \ \ \ features\_dict\ =\ \{feature["{}name"{}]:\ feature\ for\ feature\ in\ openml\_columns\_info\}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00658}00658\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00659}00659\ \ \ \ \ if\ sparse:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00660}00660\ \ \ \ \ \ \ \ \ output\_type\ =\ "{}sparse"{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00661}00661\ \ \ \ \ elif\ as\_frame:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00662}00662\ \ \ \ \ \ \ \ \ output\_type\ =\ "{}pandas"{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00663}00663\ \ \ \ \ else:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00664}00664\ \ \ \ \ \ \ \ \ output\_type\ =\ "{}numpy"{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00665}00665\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00666}00666\ \ \ \ \ \#\ XXX:\ target\ columns\ should\ all\ be\ categorical\ or\ all\ numeric}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00667}00667\ \ \ \ \ \_verify\_target\_data\_type(features\_dict,\ target\_columns)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00668}00668\ \ \ \ \ for\ name\ in\ target\_columns:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00669}00669\ \ \ \ \ \ \ \ \ column\_info\ =\ features\_dict[name]}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00670}00670\ \ \ \ \ \ \ \ \ n\_missing\_values\ =\ int(column\_info["{}number\_of\_missing\_values"{}])}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00671}00671\ \ \ \ \ \ \ \ \ if\ n\_missing\_values\ >\ 0:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00672}00672\ \ \ \ \ \ \ \ \ \ \ \ \ raise\ ValueError(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00673}00673\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f"{}Target\ column\ '\{column\_info['name']\}'\ has\ \{n\_missing\_values\}\ missing\ "{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00674}00674\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "{}values.\ Missing\ values\ are\ not\ supported\ for\ target\ columns."{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00675}00675\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00676}00676\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00677}00677\ \ \ \ \ no\_retry\_exception\ =\ None}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00678}00678\ \ \ \ \ if\ parser\ ==\ "{}pandas"{}:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00679}00679\ \ \ \ \ \ \ \ \ \#\ If\ we\ get\ a\ ParserError\ with\ pandas,\ then\ we\ don't\ want\ to\ retry\ and\ we\ raise}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00680}00680\ \ \ \ \ \ \ \ \ \#\ early.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00681}00681\ \ \ \ \ \ \ \ \ from\ pandas.errors\ import\ ParserError}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00682}00682\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00683}00683\ \ \ \ \ \ \ \ \ no\_retry\_exception\ =\ ParserError}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00684}00684\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00685}00685\ \ \ \ \ X,\ y,\ frame,\ categories\ =\ \_retry\_with\_clean\_cache(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00686}00686\ \ \ \ \ \ \ \ \ url,\ data\_home,\ no\_retry\_exception}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00687}00687\ \ \ \ \ )(\_load\_arff\_response)(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00688}00688\ \ \ \ \ \ \ \ \ url,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00689}00689\ \ \ \ \ \ \ \ \ data\_home,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00690}00690\ \ \ \ \ \ \ \ \ parser=parser,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00691}00691\ \ \ \ \ \ \ \ \ output\_type=output\_type,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00692}00692\ \ \ \ \ \ \ \ \ openml\_columns\_info=features\_dict,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00693}00693\ \ \ \ \ \ \ \ \ feature\_names\_to\_select=data\_columns,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00694}00694\ \ \ \ \ \ \ \ \ target\_names\_to\_select=target\_columns,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00695}00695\ \ \ \ \ \ \ \ \ shape=shape,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00696}00696\ \ \ \ \ \ \ \ \ md5\_checksum=md5\_checksum,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00697}00697\ \ \ \ \ \ \ \ \ n\_retries=n\_retries,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00698}00698\ \ \ \ \ \ \ \ \ delay=delay,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00699}00699\ \ \ \ \ \ \ \ \ read\_csv\_kwargs=read\_csv\_kwargs,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00700}00700\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00701}00701\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00702}00702\ \ \ \ \ return\ Bunch(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00703}00703\ \ \ \ \ \ \ \ \ data=X,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00704}00704\ \ \ \ \ \ \ \ \ target=y,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00705}00705\ \ \ \ \ \ \ \ \ frame=frame,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00706}00706\ \ \ \ \ \ \ \ \ categories=categories,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00707}00707\ \ \ \ \ \ \ \ \ feature\_names=data\_columns,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00708}00708\ \ \ \ \ \ \ \ \ target\_names=target\_columns,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00709}00709\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00710}00710\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00711}00711\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00712}00712\ def\ \_verify\_target\_data\_type(features\_dict,\ target\_columns):}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00713}00713\ \ \ \ \ \#\ verifies\ the\ data\ type\ of\ the\ y\ array\ in\ case\ there\ are\ multiple\ targets}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00714}00714\ \ \ \ \ \#\ (throws\ an\ error\ if\ these\ targets\ do\ not\ comply\ with\ sklearn\ support)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00715}00715\ \ \ \ \ if\ not\ isinstance(target\_columns,\ list):}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00716}00716\ \ \ \ \ \ \ \ \ raise\ ValueError("{}target\_column\ should\ be\ list,\ got:\ \%s"{}\ \%\ type(target\_columns))}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00717}00717\ \ \ \ \ found\_types\ =\ set()}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00718}00718\ \ \ \ \ for\ target\_column\ in\ target\_columns:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00719}00719\ \ \ \ \ \ \ \ \ if\ target\_column\ not\ in\ features\_dict:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00720}00720\ \ \ \ \ \ \ \ \ \ \ \ \ raise\ KeyError(f"{}Could\ not\ find\ target\_column='\{target\_column\}'"{})}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00721}00721\ \ \ \ \ \ \ \ \ if\ features\_dict[target\_column]["{}data\_type"{}]\ ==\ "{}numeric"{}:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00722}00722\ \ \ \ \ \ \ \ \ \ \ \ \ found\_types.add(np.float64)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00723}00723\ \ \ \ \ \ \ \ \ else:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00724}00724\ \ \ \ \ \ \ \ \ \ \ \ \ found\_types.add(object)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00725}00725\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00726}00726\ \ \ \ \ \ \ \ \ \#\ note:\ we\ compare\ to\ a\ string,\ not\ boolean}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00727}00727\ \ \ \ \ \ \ \ \ if\ features\_dict[target\_column]["{}is\_ignore"{}]\ ==\ "{}true"{}:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00728}00728\ \ \ \ \ \ \ \ \ \ \ \ \ warn(f"{}target\_column='\{target\_column\}'\ has\ flag\ is\_ignore."{})}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00729}00729\ \ \ \ \ \ \ \ \ if\ features\_dict[target\_column]["{}is\_row\_identifier"{}]\ ==\ "{}true"{}:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00730}00730\ \ \ \ \ \ \ \ \ \ \ \ \ warn(f"{}target\_column='\{target\_column\}'\ has\ flag\ is\_row\_identifier."{})}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00731}00731\ \ \ \ \ if\ len(found\_types)\ >\ 1:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00732}00732\ \ \ \ \ \ \ \ \ raise\ ValueError(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00733}00733\ \ \ \ \ \ \ \ \ \ \ \ \ "{}Can\ only\ handle\ homogeneous\ multi-\/target\ datasets,\ "{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00734}00734\ \ \ \ \ \ \ \ \ \ \ \ \ "{}i.e.,\ all\ targets\ are\ either\ numeric\ or\ "{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00735}00735\ \ \ \ \ \ \ \ \ \ \ \ \ "{}categorical."{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00736}00736\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00737}00737\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00738}00738\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00739}00739\ def\ \_valid\_data\_column\_names(features\_list,\ target\_columns):}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00740}00740\ \ \ \ \ \#\ logic\ for\ determining\ on\ which\ columns\ can\ be\ learned.\ Note\ that\ from\ the}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00741}00741\ \ \ \ \ \#\ OpenML\ guide\ follows\ that\ columns\ that\ have\ the\ \`{}is\_row\_identifier\`{}\ or}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00742}00742\ \ \ \ \ \#\ \`{}is\_ignore\`{}\ flag,\ these\ can\ not\ be\ learned\ on.\ Also\ target\ columns\ are}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00743}00743\ \ \ \ \ \#\ excluded.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00744}00744\ \ \ \ \ valid\_data\_column\_names\ =\ []}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00745}00745\ \ \ \ \ for\ feature\ in\ features\_list:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00746}00746\ \ \ \ \ \ \ \ \ if\ (}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00747}00747\ \ \ \ \ \ \ \ \ \ \ \ \ feature["{}name"{}]\ not\ in\ target\_columns}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00748}00748\ \ \ \ \ \ \ \ \ \ \ \ \ and\ feature["{}is\_ignore"{}]\ !=\ "{}true"{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00749}00749\ \ \ \ \ \ \ \ \ \ \ \ \ and\ feature["{}is\_row\_identifier"{}]\ !=\ "{}true"{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00750}00750\ \ \ \ \ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00751}00751\ \ \ \ \ \ \ \ \ \ \ \ \ valid\_data\_column\_names.append(feature["{}name"{}])}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00752}00752\ \ \ \ \ return\ valid\_data\_column\_names}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00753}00753\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00754}00754\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00755}00755\ @validate\_params(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00756}00756\ \ \ \ \ \{}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00757}00757\ \ \ \ \ \ \ \ \ "{}name"{}:\ [str,\ None],}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00758}00758\ \ \ \ \ \ \ \ \ "{}version"{}:\ [Interval(Integral,\ 1,\ None,\ closed="{}left"{}),\ StrOptions(\{"{}active"{}\})],}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00759}00759\ \ \ \ \ \ \ \ \ "{}data\_id"{}:\ [Interval(Integral,\ 1,\ None,\ closed="{}left"{}),\ None],}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00760}00760\ \ \ \ \ \ \ \ \ "{}data\_home"{}:\ [str,\ os.PathLike,\ None],}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00761}00761\ \ \ \ \ \ \ \ \ "{}target\_column"{}:\ [str,\ list,\ None],}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00762}00762\ \ \ \ \ \ \ \ \ "{}cache"{}:\ [bool],}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00763}00763\ \ \ \ \ \ \ \ \ "{}return\_X\_y"{}:\ [bool],}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00764}00764\ \ \ \ \ \ \ \ \ "{}as\_frame"{}:\ [bool,\ StrOptions(\{"{}auto"{}\})],}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00765}00765\ \ \ \ \ \ \ \ \ "{}n\_retries"{}:\ [Interval(Integral,\ 1,\ None,\ closed="{}left"{})],}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00766}00766\ \ \ \ \ \ \ \ \ "{}delay"{}:\ [Interval(Real,\ 0.0,\ None,\ closed="{}neither"{})],}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00767}00767\ \ \ \ \ \ \ \ \ "{}parser"{}:\ [}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00768}00768\ \ \ \ \ \ \ \ \ \ \ \ \ StrOptions(\{"{}auto"{},\ "{}pandas"{},\ "{}liac-\/arff"{}\}),}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00769}00769\ \ \ \ \ \ \ \ \ ],}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00770}00770\ \ \ \ \ \ \ \ \ "{}read\_csv\_kwargs"{}:\ [dict,\ None],}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00771}00771\ \ \ \ \ \},}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00772}00772\ \ \ \ \ prefer\_skip\_nested\_validation=True,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00773}00773\ )}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00774}\mbox{\hyperlink{namespacesklearn_1_1datasets_1_1__openml_ab18023bcca35f6d3f625c79587298431}{00774}}\ def\ fetch\_openml(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00775}00775\ \ \ \ \ name:\ Optional[str]\ =\ None,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00776}00776\ \ \ \ \ *,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00777}00777\ \ \ \ \ version:\ Union[str,\ int]\ =\ "{}active"{},}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00778}00778\ \ \ \ \ data\_id:\ Optional[int]\ =\ None,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00779}00779\ \ \ \ \ data\_home:\ Optional[Union[str,\ os.PathLike]]\ =\ None,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00780}00780\ \ \ \ \ target\_column:\ Optional[Union[str,\ List]]\ =\ "{}default-\/target"{},}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00781}00781\ \ \ \ \ cache:\ bool\ =\ True,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00782}00782\ \ \ \ \ return\_X\_y:\ bool\ =\ False,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00783}00783\ \ \ \ \ as\_frame:\ Union[str,\ bool]\ =\ "{}auto"{},}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00784}00784\ \ \ \ \ n\_retries:\ int\ =\ 3,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00785}00785\ \ \ \ \ delay:\ float\ =\ 1.0,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00786}00786\ \ \ \ \ parser:\ str\ =\ "{}auto"{},}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00787}00787\ \ \ \ \ read\_csv\_kwargs:\ Optional[Dict]\ =\ None,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00788}00788\ ):}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00789}00789\ \ \ \ \ "{}"{}"{}Fetch\ dataset\ from\ openml\ by\ name\ or\ dataset\ id.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00790}00790\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00791}00791\ \ \ \ \ Datasets\ are\ uniquely\ identified\ by\ either\ an\ integer\ ID\ or\ by\ a}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00792}00792\ \ \ \ \ combination\ of\ name\ and\ version\ (i.e.\ there\ might\ be\ multiple}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00793}00793\ \ \ \ \ versions\ of\ the\ 'iris'\ dataset).\ Please\ give\ either\ name\ or\ data\_id}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00794}00794\ \ \ \ \ (not\ both).\ In\ case\ a\ name\ is\ given,\ a\ version\ can\ also\ be}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00795}00795\ \ \ \ \ provided.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00796}00796\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00797}00797\ \ \ \ \ Read\ more\ in\ the\ :ref:\`{}User\ Guide\ <openml>\`{}.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00798}00798\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00799}00799\ \ \ \ \ ..\ versionadded::\ 0.20}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00800}00800\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00801}00801\ \ \ \ \ ..\ note::\ EXPERIMENTAL}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00802}00802\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00803}00803\ \ \ \ \ \ \ \ \ The\ API\ is\ experimental\ (particularly\ the\ return\ value\ structure),}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00804}00804\ \ \ \ \ \ \ \ \ and\ might\ have\ small\ backward-\/incompatible\ changes\ without\ notice}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00805}00805\ \ \ \ \ \ \ \ \ or\ warning\ in\ future\ releases.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00806}00806\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00807}00807\ \ \ \ \ Parameters}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00808}00808\ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00809}00809\ \ \ \ \ name\ :\ str,\ default=None}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00810}00810\ \ \ \ \ \ \ \ \ String\ identifier\ of\ the\ dataset.\ Note\ that\ OpenML\ can\ have\ multiple}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00811}00811\ \ \ \ \ \ \ \ \ datasets\ with\ the\ same\ name.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00812}00812\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00813}00813\ \ \ \ \ version\ :\ int\ or\ 'active',\ default='active'}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00814}00814\ \ \ \ \ \ \ \ \ Version\ of\ the\ dataset.\ Can\ only\ be\ provided\ if\ also\ \`{}\`{}name\`{}\`{}\ is\ given.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00815}00815\ \ \ \ \ \ \ \ \ If\ 'active'\ the\ oldest\ version\ that's\ still\ active\ is\ used.\ Since}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00816}00816\ \ \ \ \ \ \ \ \ there\ may\ be\ more\ than\ one\ active\ version\ of\ a\ dataset,\ and\ those}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00817}00817\ \ \ \ \ \ \ \ \ versions\ may\ fundamentally\ be\ different\ from\ one\ another,\ setting\ an}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00818}00818\ \ \ \ \ \ \ \ \ exact\ version\ is\ highly\ recommended.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00819}00819\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00820}00820\ \ \ \ \ data\_id\ :\ int,\ default=None}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00821}00821\ \ \ \ \ \ \ \ \ OpenML\ ID\ of\ the\ dataset.\ The\ most\ specific\ way\ of\ retrieving\ a}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00822}00822\ \ \ \ \ \ \ \ \ dataset.\ If\ data\_id\ is\ not\ given,\ name\ (and\ potential\ version)\ are}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00823}00823\ \ \ \ \ \ \ \ \ used\ to\ obtain\ a\ dataset.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00824}00824\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00825}00825\ \ \ \ \ data\_home\ :\ str\ or\ path-\/like,\ default=None}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00826}00826\ \ \ \ \ \ \ \ \ Specify\ another\ download\ and\ cache\ folder\ for\ the\ data\ sets.\ By\ default}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00827}00827\ \ \ \ \ \ \ \ \ all\ scikit-\/learn\ data\ is\ stored\ in\ '\string~/scikit\_learn\_data'\ subfolders.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00828}00828\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00829}00829\ \ \ \ \ target\_column\ :\ str,\ list\ or\ None,\ default='default-\/target'}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00830}00830\ \ \ \ \ \ \ \ \ Specify\ the\ column\ name\ in\ the\ data\ to\ use\ as\ target.\ If}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00831}00831\ \ \ \ \ \ \ \ \ 'default-\/target',\ the\ standard\ target\ column\ a\ stored\ on\ the\ server}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00832}00832\ \ \ \ \ \ \ \ \ is\ used.\ If\ \`{}\`{}None\`{}\`{},\ all\ columns\ are\ returned\ as\ data\ and\ the}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00833}00833\ \ \ \ \ \ \ \ \ target\ is\ \`{}\`{}None\`{}\`{}.\ If\ list\ (of\ strings),\ all\ columns\ with\ these\ names}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00834}00834\ \ \ \ \ \ \ \ \ are\ returned\ as\ multi-\/target\ (Note:\ not\ all\ scikit-\/learn\ classifiers}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00835}00835\ \ \ \ \ \ \ \ \ can\ handle\ all\ types\ of\ multi-\/output\ combinations).}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00836}00836\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00837}00837\ \ \ \ \ cache\ :\ bool,\ default=True}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00838}00838\ \ \ \ \ \ \ \ \ Whether\ to\ cache\ the\ downloaded\ datasets\ into\ \`{}data\_home\`{}.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00839}00839\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00840}00840\ \ \ \ \ return\_X\_y\ :\ bool,\ default=False}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00841}00841\ \ \ \ \ \ \ \ \ If\ True,\ returns\ \`{}\`{}(data,\ target)\`{}\`{}\ instead\ of\ a\ Bunch\ object.\ See}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00842}00842\ \ \ \ \ \ \ \ \ below\ for\ more\ information\ about\ the\ \`{}data\`{}\ and\ \`{}target\`{}\ objects.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00843}00843\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00844}00844\ \ \ \ \ as\_frame\ :\ bool\ or\ 'auto',\ default='auto'}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00845}00845\ \ \ \ \ \ \ \ \ If\ True,\ the\ data\ is\ a\ pandas\ DataFrame\ including\ columns\ with}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00846}00846\ \ \ \ \ \ \ \ \ appropriate\ dtypes\ (numeric,\ string\ or\ categorical).\ The\ target\ is}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00847}00847\ \ \ \ \ \ \ \ \ a\ pandas\ DataFrame\ or\ Series\ depending\ on\ the\ number\ of\ target\_columns.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00848}00848\ \ \ \ \ \ \ \ \ The\ Bunch\ will\ contain\ a\ \`{}\`{}frame\`{}\`{}\ attribute\ with\ the\ target\ and\ the}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00849}00849\ \ \ \ \ \ \ \ \ data.\ If\ \`{}\`{}return\_X\_y\`{}\`{}\ is\ True,\ then\ \`{}\`{}(data,\ target)\`{}\`{}\ will\ be\ pandas}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00850}00850\ \ \ \ \ \ \ \ \ DataFrames\ or\ Series\ as\ describe\ above.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00851}00851\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00852}00852\ \ \ \ \ \ \ \ \ If\ \`{}as\_frame\`{}\ is\ 'auto',\ the\ data\ and\ target\ will\ be\ converted\ to}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00853}00853\ \ \ \ \ \ \ \ \ DataFrame\ or\ Series\ as\ if\ \`{}as\_frame\`{}\ is\ set\ to\ True,\ unless\ the\ dataset}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00854}00854\ \ \ \ \ \ \ \ \ is\ stored\ in\ sparse\ format.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00855}00855\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00856}00856\ \ \ \ \ \ \ \ \ If\ \`{}as\_frame\`{}\ is\ False,\ the\ data\ and\ target\ will\ be\ NumPy\ arrays\ and}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00857}00857\ \ \ \ \ \ \ \ \ the\ \`{}data\`{}\ will\ only\ contain\ numerical\ values\ when\ \`{}parser="{}liac-\/arff"{}\`{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00858}00858\ \ \ \ \ \ \ \ \ where\ the\ categories\ are\ provided\ in\ the\ attribute\ \`{}categories\`{}\ of\ the}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00859}00859\ \ \ \ \ \ \ \ \ \`{}Bunch\`{}\ instance.\ When\ \`{}parser="{}pandas"{}\`{},\ no\ ordinal\ encoding\ is\ made.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00860}00860\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00861}00861\ \ \ \ \ \ \ \ \ ..\ versionchanged::\ 0.24}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00862}00862\ \ \ \ \ \ \ \ \ \ \ \ The\ default\ value\ of\ \`{}as\_frame\`{}\ changed\ from\ \`{}False\`{}\ to\ \`{}'auto'\`{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00863}00863\ \ \ \ \ \ \ \ \ \ \ \ in\ 0.24.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00864}00864\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00865}00865\ \ \ \ \ n\_retries\ :\ int,\ default=3}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00866}00866\ \ \ \ \ \ \ \ \ Number\ of\ retries\ when\ HTTP\ errors\ or\ network\ timeouts\ are\ encountered.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00867}00867\ \ \ \ \ \ \ \ \ Error\ with\ status\ code\ 412\ won't\ be\ retried\ as\ they\ represent\ OpenML}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00868}00868\ \ \ \ \ \ \ \ \ generic\ errors.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00869}00869\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00870}00870\ \ \ \ \ delay\ :\ float,\ default=1.0}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00871}00871\ \ \ \ \ \ \ \ \ Number\ of\ seconds\ between\ retries.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00872}00872\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00873}00873\ \ \ \ \ parser\ :\ \{"{}auto"{},\ "{}pandas"{},\ "{}liac-\/arff"{}\},\ default="{}auto"{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00874}00874\ \ \ \ \ \ \ \ \ Parser\ used\ to\ load\ the\ ARFF\ file.\ Two\ parsers\ are\ implemented:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00875}00875\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00876}00876\ \ \ \ \ \ \ \ \ -\/\ \`{}"{}pandas"{}\`{}:\ this\ is\ the\ most\ efficient\ parser.\ However,\ it\ requires}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00877}00877\ \ \ \ \ \ \ \ \ \ \ pandas\ to\ be\ installed\ and\ can\ only\ open\ dense\ datasets.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00878}00878\ \ \ \ \ \ \ \ \ -\/\ \`{}"{}liac-\/arff"{}\`{}:\ this\ is\ a\ pure\ Python\ ARFF\ parser\ that\ is\ much\ less}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00879}00879\ \ \ \ \ \ \ \ \ \ \ memory-\/\ and\ CPU-\/efficient.\ It\ deals\ with\ sparse\ ARFF\ datasets.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00880}00880\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00881}00881\ \ \ \ \ \ \ \ \ If\ \`{}"{}auto"{}\`{},\ the\ parser\ is\ chosen\ automatically\ such\ that\ \`{}"{}liac-\/arff"{}\`{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00882}00882\ \ \ \ \ \ \ \ \ is\ selected\ for\ sparse\ ARFF\ datasets,\ otherwise\ \`{}"{}pandas"{}\`{}\ is\ selected.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00883}00883\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00884}00884\ \ \ \ \ \ \ \ \ ..\ versionadded::\ 1.2}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00885}00885\ \ \ \ \ \ \ \ \ ..\ versionchanged::\ 1.4}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00886}00886\ \ \ \ \ \ \ \ \ \ \ \ The\ default\ value\ of\ \`{}parser\`{}\ changes\ from\ \`{}"{}liac-\/arff"{}\`{}\ to}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00887}00887\ \ \ \ \ \ \ \ \ \ \ \ \`{}"{}auto"{}\`{}.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00888}00888\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00889}00889\ \ \ \ \ read\_csv\_kwargs\ :\ dict,\ default=None}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00890}00890\ \ \ \ \ \ \ \ \ Keyword\ arguments\ passed\ to\ :func:\`{}pandas.read\_csv\`{}\ when\ loading\ the\ data}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00891}00891\ \ \ \ \ \ \ \ \ from\ a\ ARFF\ file\ and\ using\ the\ pandas\ parser.\ It\ can\ allow\ to}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00892}00892\ \ \ \ \ \ \ \ \ overwrite\ some\ default\ parameters.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00893}00893\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00894}00894\ \ \ \ \ \ \ \ \ ..\ versionadded::\ 1.3}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00895}00895\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00896}00896\ \ \ \ \ Returns}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00897}00897\ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00898}00898\ \ \ \ \ data\ :\ :class:\`{}\string~sklearn.utils.Bunch\`{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00899}00899\ \ \ \ \ \ \ \ \ Dictionary-\/like\ object,\ with\ the\ following\ attributes.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00900}00900\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00901}00901\ \ \ \ \ \ \ \ \ data\ :\ np.array,\ scipy.sparse.csr\_matrix\ of\ floats,\ or\ pandas\ DataFrame}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00902}00902\ \ \ \ \ \ \ \ \ \ \ \ \ The\ feature\ matrix.\ Categorical\ features\ are\ encoded\ as\ ordinals.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00903}00903\ \ \ \ \ \ \ \ \ target\ :\ np.array,\ pandas\ Series\ or\ DataFrame}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00904}00904\ \ \ \ \ \ \ \ \ \ \ \ \ The\ regression\ target\ or\ classification\ labels,\ if\ applicable.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00905}00905\ \ \ \ \ \ \ \ \ \ \ \ \ Dtype\ is\ float\ if\ numeric,\ and\ object\ if\ categorical.\ If}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00906}00906\ \ \ \ \ \ \ \ \ \ \ \ \ \`{}\`{}as\_frame\`{}\`{}\ is\ True,\ \`{}\`{}target\`{}\`{}\ is\ a\ pandas\ object.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00907}00907\ \ \ \ \ \ \ \ \ DESCR\ :\ str}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00908}00908\ \ \ \ \ \ \ \ \ \ \ \ \ The\ full\ description\ of\ the\ dataset.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00909}00909\ \ \ \ \ \ \ \ \ feature\_names\ :\ list}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00910}00910\ \ \ \ \ \ \ \ \ \ \ \ \ The\ names\ of\ the\ dataset\ columns.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00911}00911\ \ \ \ \ \ \ \ \ target\_names:\ list}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00912}00912\ \ \ \ \ \ \ \ \ \ \ \ \ The\ names\ of\ the\ target\ columns.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00913}00913\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00914}00914\ \ \ \ \ \ \ \ \ ..\ versionadded::\ 0.22}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00915}00915\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00916}00916\ \ \ \ \ \ \ \ \ categories\ :\ dict\ or\ None}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00917}00917\ \ \ \ \ \ \ \ \ \ \ \ \ Maps\ each\ categorical\ feature\ name\ to\ a\ list\ of\ values,\ such}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00918}00918\ \ \ \ \ \ \ \ \ \ \ \ \ that\ the\ value\ encoded\ as\ i\ is\ ith\ in\ the\ list.\ If\ \`{}\`{}as\_frame\`{}\`{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00919}00919\ \ \ \ \ \ \ \ \ \ \ \ \ is\ True,\ this\ is\ None.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00920}00920\ \ \ \ \ \ \ \ \ details\ :\ dict}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00921}00921\ \ \ \ \ \ \ \ \ \ \ \ \ More\ metadata\ from\ OpenML.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00922}00922\ \ \ \ \ \ \ \ \ frame\ :\ pandas\ DataFrame}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00923}00923\ \ \ \ \ \ \ \ \ \ \ \ \ Only\ present\ when\ \`{}as\_frame=True\`{}.\ DataFrame\ with\ \`{}\`{}data\`{}\`{}\ and}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00924}00924\ \ \ \ \ \ \ \ \ \ \ \ \ \`{}\`{}target\`{}\`{}.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00925}00925\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00926}00926\ \ \ \ \ (data,\ target)\ :\ tuple\ if\ \`{}\`{}return\_X\_y\`{}\`{}\ is\ True}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00927}00927\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00928}00928\ \ \ \ \ \ \ \ \ ..\ note::\ EXPERIMENTAL}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00929}00929\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00930}00930\ \ \ \ \ \ \ \ \ \ \ \ \ This\ interface\ is\ **experimental**\ and\ subsequent\ releases\ may}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00931}00931\ \ \ \ \ \ \ \ \ \ \ \ \ change\ attributes\ without\ notice\ (although\ there\ should\ only\ be}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00932}00932\ \ \ \ \ \ \ \ \ \ \ \ \ minor\ changes\ to\ \`{}\`{}data\`{}\`{}\ and\ \`{}\`{}target\`{}\`{}).}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00933}00933\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00934}00934\ \ \ \ \ \ \ \ \ Missing\ values\ in\ the\ 'data'\ are\ represented\ as\ NaN's.\ Missing\ values}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00935}00935\ \ \ \ \ \ \ \ \ in\ 'target'\ are\ represented\ as\ NaN's\ (numerical\ target)\ or\ None}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00936}00936\ \ \ \ \ \ \ \ \ (categorical\ target).}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00937}00937\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00938}00938\ \ \ \ \ Notes}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00939}00939\ \ \ \ \ -\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00940}00940\ \ \ \ \ The\ \`{}"{}pandas"{}\`{}\ and\ \`{}"{}liac-\/arff"{}\`{}\ parsers\ can\ lead\ to\ different\ data\ types}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00941}00941\ \ \ \ \ in\ the\ output.\ The\ notable\ differences\ are\ the\ following:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00942}00942\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00943}00943\ \ \ \ \ -\/\ The\ \`{}"{}liac-\/arff"{}\`{}\ parser\ always\ encodes\ categorical\ features\ as\ \`{}str\`{}\ objects.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00944}00944\ \ \ \ \ \ \ To\ the\ contrary,\ the\ \`{}"{}pandas"{}\`{}\ parser\ instead\ infers\ the\ type\ while}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00945}00945\ \ \ \ \ \ \ reading\ and\ numerical\ categories\ will\ be\ casted\ into\ integers\ whenever}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00946}00946\ \ \ \ \ \ \ possible.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00947}00947\ \ \ \ \ -\/\ The\ \`{}"{}liac-\/arff"{}\`{}\ parser\ uses\ float64\ to\ encode\ numerical\ features}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00948}00948\ \ \ \ \ \ \ tagged\ as\ 'REAL'\ and\ 'NUMERICAL'\ in\ the\ metadata.\ The\ \`{}"{}pandas"{}\`{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00949}00949\ \ \ \ \ \ \ parser\ instead\ infers\ if\ these\ numerical\ features\ corresponds}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00950}00950\ \ \ \ \ \ \ to\ integers\ and\ uses\ panda's\ Integer\ extension\ dtype.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00951}00951\ \ \ \ \ -\/\ In\ particular,\ classification\ datasets\ with\ integer\ categories\ are}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00952}00952\ \ \ \ \ \ \ typically\ loaded\ as\ such\ \`{}(0,\ 1,\ ...)\`{}\ with\ the\ \`{}"{}pandas"{}\`{}\ parser\ while}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00953}00953\ \ \ \ \ \ \ \`{}"{}liac-\/arff"{}\`{}\ will\ force\ the\ use\ of\ string\ encoded\ class\ labels\ such\ as}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00954}00954\ \ \ \ \ \ \ \`{}"{}0"{}\`{},\ \`{}"{}1"{}\`{}\ and\ so\ on.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00955}00955\ \ \ \ \ -\/\ The\ \`{}"{}pandas"{}\`{}\ parser\ will\ not\ strip\ single\ quotes\ -\/\ i.e.\ \`{}'\`{}\ -\/\ from}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00956}00956\ \ \ \ \ \ \ string\ columns.\ For\ instance,\ a\ string\ \`{}'my\ string'\`{}\ will\ be\ kept\ as\ is}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00957}00957\ \ \ \ \ \ \ while\ the\ \`{}"{}liac-\/arff"{}\`{}\ parser\ will\ strip\ the\ single\ quotes.\ For}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00958}00958\ \ \ \ \ \ \ categorical\ columns,\ the\ single\ quotes\ are\ stripped\ from\ the\ values.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00959}00959\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00960}00960\ \ \ \ \ In\ addition,\ when\ \`{}as\_frame=False\`{}\ is\ used,\ the\ \`{}"{}liac-\/arff"{}\`{}\ parser}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00961}00961\ \ \ \ \ returns\ ordinally\ encoded\ data\ where\ the\ categories\ are\ provided\ in\ the}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00962}00962\ \ \ \ \ attribute\ \`{}categories\`{}\ of\ the\ \`{}Bunch\`{}\ instance.\ Instead,\ \`{}"{}pandas"{}\`{}\ returns}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00963}00963\ \ \ \ \ a\ NumPy\ array\ were\ the\ categories\ are\ not\ encoded.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00964}00964\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00965}00965\ \ \ \ \ Examples}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00966}00966\ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00967}00967\ \ \ \ \ >>>\ from\ sklearn.datasets\ import\ fetch\_openml}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00968}00968\ \ \ \ \ >>>\ adult\ =\ fetch\_openml("{}adult"{},\ version=2)\ \ \#\ doctest:\ +SKIP}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00969}00969\ \ \ \ \ >>>\ adult.frame.info()\ \ \#\ doctest:\ +SKIP}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00970}00970\ \ \ \ \ <class\ 'pandas.core.frame.DataFrame'>}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00971}00971\ \ \ \ \ RangeIndex:\ 48842\ entries,\ 0\ to\ 48841}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00972}00972\ \ \ \ \ Data\ columns\ (total\ 15\ columns):}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00973}00973\ \ \ \ \ \ \#\ \ \ Column\ \ \ \ \ \ \ \ \ \ Non-\/Null\ Count\ \ Dtype}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00974}00974\ \ \ \ \ -\/-\/-\/\ \ -\/-\/-\/-\/-\/-\/\ \ \ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/\ \ -\/-\/-\/-\/-\/}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00975}00975\ \ \ \ \ \ 0\ \ \ age\ \ \ \ \ \ \ \ \ \ \ \ \ 48842\ non-\/null\ \ int64}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00976}00976\ \ \ \ \ \ 1\ \ \ workclass\ \ \ \ \ \ \ 46043\ non-\/null\ \ category}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00977}00977\ \ \ \ \ \ 2\ \ \ fnlwgt\ \ \ \ \ \ \ \ \ \ 48842\ non-\/null\ \ int64}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00978}00978\ \ \ \ \ \ 3\ \ \ education\ \ \ \ \ \ \ 48842\ non-\/null\ \ category}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00979}00979\ \ \ \ \ \ 4\ \ \ education-\/num\ \ \ 48842\ non-\/null\ \ int64}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00980}00980\ \ \ \ \ \ 5\ \ \ marital-\/status\ \ 48842\ non-\/null\ \ category}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00981}00981\ \ \ \ \ \ 6\ \ \ occupation\ \ \ \ \ \ 46033\ non-\/null\ \ category}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00982}00982\ \ \ \ \ \ 7\ \ \ relationship\ \ \ \ 48842\ non-\/null\ \ category}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00983}00983\ \ \ \ \ \ 8\ \ \ race\ \ \ \ \ \ \ \ \ \ \ \ 48842\ non-\/null\ \ category}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00984}00984\ \ \ \ \ \ 9\ \ \ sex\ \ \ \ \ \ \ \ \ \ \ \ \ 48842\ non-\/null\ \ category}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00985}00985\ \ \ \ \ \ 10\ \ capital-\/gain\ \ \ \ 48842\ non-\/null\ \ int64}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00986}00986\ \ \ \ \ \ 11\ \ capital-\/loss\ \ \ \ 48842\ non-\/null\ \ int64}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00987}00987\ \ \ \ \ \ 12\ \ hours-\/per-\/week\ \ 48842\ non-\/null\ \ int64}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00988}00988\ \ \ \ \ \ 13\ \ native-\/country\ \ 47985\ non-\/null\ \ category}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00989}00989\ \ \ \ \ \ 14\ \ class\ \ \ \ \ \ \ \ \ \ \ 48842\ non-\/null\ \ category}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00990}00990\ \ \ \ \ dtypes:\ category(9),\ int64(6)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00991}00991\ \ \ \ \ memory\ usage:\ 2.7\ MB}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00992}00992\ \ \ \ \ "{}"{}"{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00993}00993\ \ \ \ \ if\ cache\ is\ False:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00994}00994\ \ \ \ \ \ \ \ \ \#\ no\ caching\ will\ be\ applied}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00995}00995\ \ \ \ \ \ \ \ \ data\_home\ =\ None}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00996}00996\ \ \ \ \ else:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00997}00997\ \ \ \ \ \ \ \ \ data\_home\ =\ get\_data\_home(data\_home=data\_home)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00998}00998\ \ \ \ \ \ \ \ \ data\_home\ =\ join(str(data\_home),\ "{}openml"{})}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l00999}00999\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01000}01000\ \ \ \ \ \#\ check\ valid\ function\ arguments.\ data\_id\ XOR\ (name,\ version)\ should\ be}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01001}01001\ \ \ \ \ \#\ provided}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01002}01002\ \ \ \ \ if\ name\ is\ not\ None:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01003}01003\ \ \ \ \ \ \ \ \ \#\ OpenML\ is\ case-\/insensitive,\ but\ the\ caching\ mechanism\ is\ not}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01004}01004\ \ \ \ \ \ \ \ \ \#\ convert\ all\ data\ names\ (str)\ to\ lower\ case}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01005}01005\ \ \ \ \ \ \ \ \ name\ =\ name.lower()}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01006}01006\ \ \ \ \ \ \ \ \ if\ data\_id\ is\ not\ None:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01007}01007\ \ \ \ \ \ \ \ \ \ \ \ \ raise\ ValueError(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01008}01008\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "{}Dataset\ data\_id=\{\}\ and\ name=\{\}\ passed,\ but\ you\ can\ only\ "{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01009}01009\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "{}specify\ a\ numeric\ data\_id\ or\ a\ name,\ not\ "{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01010}01010\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "{}both."{}.format(data\_id,\ name)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01011}01011\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01012}01012\ \ \ \ \ \ \ \ \ data\_info\ =\ \_get\_data\_info\_by\_name(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01013}01013\ \ \ \ \ \ \ \ \ \ \ \ \ name,\ version,\ data\_home,\ n\_retries=n\_retries,\ delay=delay}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01014}01014\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01015}01015\ \ \ \ \ \ \ \ \ data\_id\ =\ data\_info["{}did"{}]}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01016}01016\ \ \ \ \ elif\ data\_id\ is\ not\ None:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01017}01017\ \ \ \ \ \ \ \ \ \#\ from\ the\ previous\ if\ statement,\ it\ is\ given\ that\ name\ is\ None}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01018}01018\ \ \ \ \ \ \ \ \ if\ version\ !=\ "{}active"{}:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01019}01019\ \ \ \ \ \ \ \ \ \ \ \ \ raise\ ValueError(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01020}01020\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "{}Dataset\ data\_id=\{\}\ and\ version=\{\}\ passed,\ but\ you\ can\ only\ "{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01021}01021\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "{}specify\ a\ numeric\ data\_id\ or\ a\ version,\ not\ "{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01022}01022\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "{}both."{}.format(data\_id,\ version)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01023}01023\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01024}01024\ \ \ \ \ else:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01025}01025\ \ \ \ \ \ \ \ \ raise\ ValueError(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01026}01026\ \ \ \ \ \ \ \ \ \ \ \ \ "{}Neither\ name\ nor\ data\_id\ are\ provided.\ Please\ provide\ name\ or\ data\_id."{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01027}01027\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01028}01028\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01029}01029\ \ \ \ \ data\_description\ =\ \_get\_data\_description\_by\_id(data\_id,\ data\_home)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01030}01030\ \ \ \ \ if\ data\_description["{}status"{}]\ !=\ "{}active"{}:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01031}01031\ \ \ \ \ \ \ \ \ warn(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01032}01032\ \ \ \ \ \ \ \ \ \ \ \ \ "{}Version\ \{\}\ of\ dataset\ \{\}\ is\ inactive,\ meaning\ that\ issues\ have\ "{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01033}01033\ \ \ \ \ \ \ \ \ \ \ \ \ "{}been\ found\ in\ the\ dataset.\ Try\ using\ a\ newer\ version\ from\ "{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01034}01034\ \ \ \ \ \ \ \ \ \ \ \ \ "{}this\ URL:\ \{\}"{}.format(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01035}01035\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ data\_description["{}version"{}],}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01036}01036\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ data\_description["{}name"{}],}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01037}01037\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ data\_description["{}url"{}],}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01038}01038\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01039}01039\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01040}01040\ \ \ \ \ if\ "{}error"{}\ in\ data\_description:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01041}01041\ \ \ \ \ \ \ \ \ warn(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01042}01042\ \ \ \ \ \ \ \ \ \ \ \ \ "{}OpenML\ registered\ a\ problem\ with\ the\ dataset.\ It\ might\ be\ "{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01043}01043\ \ \ \ \ \ \ \ \ \ \ \ \ "{}unusable.\ Error:\ \{\}"{}.format(data\_description["{}error"{}])}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01044}01044\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01045}01045\ \ \ \ \ if\ "{}warning"{}\ in\ data\_description:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01046}01046\ \ \ \ \ \ \ \ \ warn(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01047}01047\ \ \ \ \ \ \ \ \ \ \ \ \ "{}OpenML\ raised\ a\ warning\ on\ the\ dataset.\ It\ might\ be\ "{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01048}01048\ \ \ \ \ \ \ \ \ \ \ \ \ "{}unusable.\ Warning:\ \{\}"{}.format(data\_description["{}warning"{}])}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01049}01049\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01050}01050\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01051}01051\ \ \ \ \ return\_sparse\ =\ data\_description["{}format"{}].lower()\ ==\ "{}sparse\_arff"{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01052}01052\ \ \ \ \ as\_frame\ =\ not\ return\_sparse\ if\ as\_frame\ ==\ "{}auto"{}\ else\ as\_frame}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01053}01053\ \ \ \ \ if\ parser\ ==\ "{}auto"{}:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01054}01054\ \ \ \ \ \ \ \ \ parser\_\ =\ "{}liac-\/arff"{}\ if\ return\_sparse\ else\ "{}pandas"{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01055}01055\ \ \ \ \ else:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01056}01056\ \ \ \ \ \ \ \ \ parser\_\ =\ parser}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01057}01057\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01058}01058\ \ \ \ \ if\ parser\_\ ==\ "{}pandas"{}:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01059}01059\ \ \ \ \ \ \ \ \ try:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01060}01060\ \ \ \ \ \ \ \ \ \ \ \ \ check\_pandas\_support("{}\`{}fetch\_openml\`{}"{})}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01061}01061\ \ \ \ \ \ \ \ \ except\ ImportError\ as\ exc:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01062}01062\ \ \ \ \ \ \ \ \ \ \ \ \ if\ as\_frame:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01063}01063\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ err\_msg\ =\ (}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01064}01064\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "{}Returning\ pandas\ objects\ requires\ pandas\ to\ be\ installed.\ "{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01065}01065\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "{}Alternatively,\ explicitly\ set\ \`{}as\_frame=False\`{}\ and\ "{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01066}01066\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "{}\`{}parser='liac-\/arff'\`{}."{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01067}01067\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01068}01068\ \ \ \ \ \ \ \ \ \ \ \ \ else:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01069}01069\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ err\_msg\ =\ (}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01070}01070\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f"{}Using\ \`{}parser=\{parser!r\}\`{}\ with\ dense\ data\ requires\ pandas\ to\ be\ "{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01071}01071\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "{}installed.\ Alternatively,\ explicitly\ set\ \`{}parser='liac-\/arff'\`{}."{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01072}01072\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01073}01073\ \ \ \ \ \ \ \ \ \ \ \ \ raise\ ImportError(err\_msg)\ from\ exc}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01074}01074\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01075}01075\ \ \ \ \ if\ return\_sparse:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01076}01076\ \ \ \ \ \ \ \ \ if\ as\_frame:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01077}01077\ \ \ \ \ \ \ \ \ \ \ \ \ raise\ ValueError(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01078}01078\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "{}Sparse\ ARFF\ datasets\ cannot\ be\ loaded\ with\ as\_frame=True.\ "{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01079}01079\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "{}Use\ as\_frame=False\ or\ as\_frame='auto'\ instead."{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01080}01080\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01081}01081\ \ \ \ \ \ \ \ \ if\ parser\_\ ==\ "{}pandas"{}:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01082}01082\ \ \ \ \ \ \ \ \ \ \ \ \ raise\ ValueError(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01083}01083\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f"{}Sparse\ ARFF\ datasets\ cannot\ be\ loaded\ with\ parser=\{parser!r\}.\ "{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01084}01084\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "{}Use\ parser='liac-\/arff'\ or\ parser='auto'\ instead."{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01085}01085\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01086}01086\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01087}01087\ \ \ \ \ \#\ download\ data\ features,\ meta-\/info\ about\ column\ types}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01088}01088\ \ \ \ \ features\_list\ =\ \_get\_data\_features(data\_id,\ data\_home)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01089}01089\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01090}01090\ \ \ \ \ if\ not\ as\_frame:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01091}01091\ \ \ \ \ \ \ \ \ for\ feature\ in\ features\_list:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01092}01092\ \ \ \ \ \ \ \ \ \ \ \ \ if\ "{}true"{}\ in\ (feature["{}is\_ignore"{}],\ feature["{}is\_row\_identifier"{}]):}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01093}01093\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ continue}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01094}01094\ \ \ \ \ \ \ \ \ \ \ \ \ if\ feature["{}data\_type"{}]\ ==\ "{}string"{}:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01095}01095\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ raise\ ValueError(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01096}01096\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "{}STRING\ attributes\ are\ not\ supported\ for\ "{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01097}01097\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "{}array\ representation.\ Try\ as\_frame=True"{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01098}01098\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01099}01099\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01100}01100\ \ \ \ \ if\ target\_column\ ==\ "{}default-\/target"{}:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01101}01101\ \ \ \ \ \ \ \ \ \#\ determines\ the\ default\ target\ based\ on\ the\ data\ feature\ results}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01102}01102\ \ \ \ \ \ \ \ \ \#\ (which\ is\ currently\ more\ reliable\ than\ the\ data\ description;}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01103}01103\ \ \ \ \ \ \ \ \ \#\ see\ issue:\ https://github.com/openml/OpenML/issues/768)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01104}01104\ \ \ \ \ \ \ \ \ target\_columns\ =\ [}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01105}01105\ \ \ \ \ \ \ \ \ \ \ \ \ feature["{}name"{}]}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01106}01106\ \ \ \ \ \ \ \ \ \ \ \ \ for\ feature\ in\ features\_list}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01107}01107\ \ \ \ \ \ \ \ \ \ \ \ \ if\ feature["{}is\_target"{}]\ ==\ "{}true"{}}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01108}01108\ \ \ \ \ \ \ \ \ ]}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01109}01109\ \ \ \ \ elif\ isinstance(target\_column,\ str):}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01110}01110\ \ \ \ \ \ \ \ \ \#\ for\ code-\/simplicity,\ make\ target\_column\ by\ default\ a\ list}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01111}01111\ \ \ \ \ \ \ \ \ target\_columns\ =\ [target\_column]}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01112}01112\ \ \ \ \ elif\ target\_column\ is\ None:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01113}01113\ \ \ \ \ \ \ \ \ target\_columns\ =\ []}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01114}01114\ \ \ \ \ else:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01115}01115\ \ \ \ \ \ \ \ \ \#\ target\_column\ already\ is\ of\ type\ list}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01116}01116\ \ \ \ \ \ \ \ \ target\_columns\ =\ target\_column}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01117}01117\ \ \ \ \ data\_columns\ =\ \_valid\_data\_column\_names(features\_list,\ target\_columns)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01118}01118\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01119}01119\ \ \ \ \ shape:\ Optional[Tuple[int,\ int]]}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01120}01120\ \ \ \ \ \#\ determine\ arff\ encoding\ to\ return}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01121}01121\ \ \ \ \ if\ not\ return\_sparse:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01122}01122\ \ \ \ \ \ \ \ \ \#\ The\ shape\ must\ include\ the\ ignored\ features\ to\ keep\ the\ right\ indexes}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01123}01123\ \ \ \ \ \ \ \ \ \#\ during\ the\ arff\ data\ conversion.}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01124}01124\ \ \ \ \ \ \ \ \ data\_qualities\ =\ \_get\_data\_qualities(data\_id,\ data\_home)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01125}01125\ \ \ \ \ \ \ \ \ shape\ =\ \_get\_num\_samples(data\_qualities),\ len(features\_list)}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01126}01126\ \ \ \ \ else:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01127}01127\ \ \ \ \ \ \ \ \ shape\ =\ None}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01128}01128\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01129}01129\ \ \ \ \ \#\ obtain\ the\ data}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01130}01130\ \ \ \ \ url\ =\ data\_description["{}url"{}]}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01131}01131\ \ \ \ \ bunch\ =\ \_download\_data\_to\_bunch(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01132}01132\ \ \ \ \ \ \ \ \ url,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01133}01133\ \ \ \ \ \ \ \ \ return\_sparse,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01134}01134\ \ \ \ \ \ \ \ \ data\_home,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01135}01135\ \ \ \ \ \ \ \ \ as\_frame=bool(as\_frame),}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01136}01136\ \ \ \ \ \ \ \ \ openml\_columns\_info=features\_list,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01137}01137\ \ \ \ \ \ \ \ \ shape=shape,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01138}01138\ \ \ \ \ \ \ \ \ target\_columns=target\_columns,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01139}01139\ \ \ \ \ \ \ \ \ data\_columns=data\_columns,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01140}01140\ \ \ \ \ \ \ \ \ md5\_checksum=data\_description["{}md5\_checksum"{}],}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01141}01141\ \ \ \ \ \ \ \ \ n\_retries=n\_retries,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01142}01142\ \ \ \ \ \ \ \ \ delay=delay,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01143}01143\ \ \ \ \ \ \ \ \ parser=parser\_,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01144}01144\ \ \ \ \ \ \ \ \ read\_csv\_kwargs=read\_csv\_kwargs,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01145}01145\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01146}01146\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01147}01147\ \ \ \ \ if\ return\_X\_y:}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01148}01148\ \ \ \ \ \ \ \ \ return\ bunch.data,\ bunch.target}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01149}01149\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01150}01150\ \ \ \ \ description\ =\ "{}\{\}\(\backslash\)n\(\backslash\)nDownloaded\ from\ openml.org."{}.format(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01151}01151\ \ \ \ \ \ \ \ \ data\_description.pop("{}description"{})}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01152}01152\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01153}01153\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01154}01154\ \ \ \ \ bunch.update(}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01155}01155\ \ \ \ \ \ \ \ \ DESCR=description,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01156}01156\ \ \ \ \ \ \ \ \ details=data\_description,}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01157}01157\ \ \ \ \ \ \ \ \ url="{}https://www.openml.org/d/\{\}"{}.format(data\_id),}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01158}01158\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01159}01159\ }
+\DoxyCodeLine{\Hypertarget{__openml_8py_source_l01160}01160\ \ \ \ \ return\ bunch}
+
+\end{DoxyCode}

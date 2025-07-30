@@ -1,6 +1,5 @@
 var searchData=
 [
-  ['embed_5ftexts_0',['embed_texts',['../d1/d9e/classmain_1_1EmbeddingModelManager.html#a95ca0983364857f926ce667a8336a1fd',1,'main::EmbeddingModelManager']]],
-  ['embeddingmodelmanager_1',['EmbeddingModelManager',['../d1/d9e/classmain_1_1EmbeddingModelManager.html',1,'main']]],
-  ['extract_5fcode_5ffiles_2',['extract_code_files',['../d5/d06/classmain_1_1RepositoryEmbedder.html#a717d0a6241cbe32e8e7793b446f00bba',1,'main::RepositoryEmbedder']]]
+  ['documentation_0',['Doxygen Documentation',['../index.html#autotoc_md3',1,'']]],
+  ['doxygen_20documentation_1',['Doxygen Documentation',['../index.html#autotoc_md3',1,'']]]
 ];

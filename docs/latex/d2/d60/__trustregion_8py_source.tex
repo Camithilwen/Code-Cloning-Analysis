@@ -1,0 +1,310 @@
+\doxysection{\+\_\+trustregion.\+py}
+\hypertarget{__trustregion_8py_source}{}\label{__trustregion_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/scipy/optimize/\_trustregion.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/scipy/optimize/\_trustregion.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00001}\mbox{\hyperlink{namespacescipy_1_1optimize_1_1__trustregion}{00001}}\ \textcolor{stringliteral}{"{}"{}"{}Trust-\/region\ optimization."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00002}00002\ \textcolor{keyword}{import}\ math}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00003}00003\ \textcolor{keyword}{import}\ warnings}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00004}00004\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00005}00005\ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00006}00006\ \textcolor{keyword}{import}\ \mbox{\hyperlink{namespacescipy_1_1linalg}{scipy.linalg}}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00007}00007\ \textcolor{keyword}{from}\ .\_optimize\ \textcolor{keyword}{import}\ (\_check\_unknown\_options,\ \_status\_message,}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00008}00008\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ OptimizeResult,\ \_prepare\_scalar\_function,}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00009}00009\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_call\_callback\_maybe\_halt)}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00010}00010\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacescipy_1_1optimize_1_1__hessian__update__strategy}{scipy.optimize.\_hessian\_update\_strategy}}\ \textcolor{keyword}{import}\ HessianUpdateStrategy}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00011}00011\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacescipy_1_1optimize_1_1__differentiable__functions}{scipy.optimize.\_differentiable\_functions}}\ \textcolor{keyword}{import}\ FD\_METHODS}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00012}00012\ \_\_all\_\_\ =\ []}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00013}00013\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00014}00014\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00015}00015\ \textcolor{keyword}{def\ }\_wrap\_function(function,\ args):}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00016}00016\ \ \ \ \ \textcolor{comment}{\#\ wraps\ a\ minimizer\ function\ to\ count\ number\ of\ evaluations}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00017}00017\ \ \ \ \ \textcolor{comment}{\#\ and\ to\ easily\ provide\ an\ args\ kwd.}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00018}00018\ \ \ \ \ ncalls\ =\ [0]}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00019}00019\ \ \ \ \ \textcolor{keywordflow}{if}\ function\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00020}00020\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ ncalls,\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00021}00021\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00022}00022\ \ \ \ \ \textcolor{keyword}{def\ }function\_wrapper(x,\ *wrapper\_args):}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00023}00023\ \ \ \ \ \ \ \ \ ncalls[0]\ +=\ 1}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00024}00024\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ A\ copy\ of\ x\ is\ sent\ to\ the\ user\ function\ (gh13740)}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00025}00025\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classfunction}{function}}(np.copy(x),\ *(wrapper\_args\ +\ args))}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00026}00026\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00027}00027\ \ \ \ \ \textcolor{keywordflow}{return}\ ncalls,\ function\_wrapper}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00028}00028\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00029}00029\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00030}\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem}{00030}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem}{BaseQuadraticSubproblem}}:}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00031}00031\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00032}00032\ \textcolor{stringliteral}{\ \ \ \ Base/abstract\ class\ defining\ the\ quadratic\ model\ for\ trust-\/region}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00033}00033\ \textcolor{stringliteral}{\ \ \ \ minimization.\ Child\ classes\ must\ implement\ the\ \`{}\`{}solve\`{}\`{}\ method.}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00034}00034\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00035}00035\ \textcolor{stringliteral}{\ \ \ \ Values\ of\ the\ objective\ function,\ Jacobian\ and\ Hessian\ (if\ provided)\ at}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00036}00036\ \textcolor{stringliteral}{\ \ \ \ the\ current\ iterate\ \`{}\`{}x\`{}\`{}\ are\ evaluated\ on\ demand\ and\ then\ stored\ as}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00037}00037\ \textcolor{stringliteral}{\ \ \ \ attributes\ \`{}\`{}fun\`{}\`{},\ \`{}\`{}jac\`{}\`{},\ \`{}\`{}hess\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00038}00038\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00039}00039\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00040}00040\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ x,\ fun,\ jac,\ hess=None,\ hessp=None):}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00041}00041\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_a447210ed76fd47897016ea79886a3bdd}{\_x}}\ =\ x}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00042}00042\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_a48e22e25547e1496668533bd312ef13b}{\_f}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00043}00043\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_a15dc709b28ed6a56268c22f44f958299}{\_g}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00044}00044\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_abf9f0c7b9300136751abba1bd77a7ada}{\_h}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00045}00045\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_a8c86c787231975fb8fae6763ba240815}{\_g\_mag}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00046}00046\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_a0e32446d67fc604ee858d72cd71ac741}{\_cauchy\_point}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00047}00047\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_a6e37e0f9ce7866308509993b9040e5dd}{\_newton\_point}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00048}00048\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_ab49590435d82cb782a3e9f5dc79acd4f}{\_fun}}\ =\ fun}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00049}00049\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_a7b69936c7d6db9a9991398803fd152bd}{\_jac}}\ =\ jac}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00050}00050\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_aa3c3d5a86dae5afaa8473e13c156d3c5}{\_hess}}\ =\ hess}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00051}00051\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_a49c754395c0091ad19a6d14e764065df}{\_hessp}}\ =\ hessp}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00052}00052\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00053}00053\ \ \ \ \ \textcolor{keyword}{def\ }\_\_call\_\_(self,\ p):}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00054}00054\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_ab3528858646a12ca049b9761ac8915bc}{fun}}\ +\ np.dot(self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_a1d18e62db476c68c6c588eafbd33f2ea}{jac}},\ p)\ +\ 0.5\ *\ np.dot(p,\ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_aacd6c03c5591c5174b57f4fcb964f924}{hessp}}(p))}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00055}00055\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00056}00056\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00057}\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_ab3528858646a12ca049b9761ac8915bc}{00057}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_ab3528858646a12ca049b9761ac8915bc}{fun}}(self):}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00058}00058\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Value\ of\ objective\ function\ at\ current\ iteration."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00059}00059\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_a48e22e25547e1496668533bd312ef13b}{\_f}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00060}00060\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_a48e22e25547e1496668533bd312ef13b}{\_f}}\ =\ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_ab49590435d82cb782a3e9f5dc79acd4f}{\_fun}}(self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_a447210ed76fd47897016ea79886a3bdd}{\_x}})}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00061}00061\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_a48e22e25547e1496668533bd312ef13b}{\_f}}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00062}00062\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00063}00063\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00064}\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_a9925aa058391917a798416b9a7b6d9ce}{00064}}\ \ \ \ \ \textcolor{keyword}{def\ }jac(self):}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00065}00065\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Value\ of\ Jacobian\ of\ objective\ function\ at\ current\ iteration."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00066}00066\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_a15dc709b28ed6a56268c22f44f958299}{\_g}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00067}00067\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_a15dc709b28ed6a56268c22f44f958299}{\_g}}\ =\ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_a7b69936c7d6db9a9991398803fd152bd}{\_jac}}(self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_a447210ed76fd47897016ea79886a3bdd}{\_x}})}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00068}00068\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_a15dc709b28ed6a56268c22f44f958299}{\_g}}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00069}00069\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00070}00070\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00071}\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_ae7291695d2dfd4aca818694e405727c2}{00071}}\ \ \ \ \ \textcolor{keyword}{def\ }hess(self):}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00072}00072\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Value\ of\ Hessian\ of\ objective\ function\ at\ current\ iteration."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00073}00073\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_abf9f0c7b9300136751abba1bd77a7ada}{\_h}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00074}00074\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_abf9f0c7b9300136751abba1bd77a7ada}{\_h}}\ =\ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_aa3c3d5a86dae5afaa8473e13c156d3c5}{\_hess}}(self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_a447210ed76fd47897016ea79886a3bdd}{\_x}})}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00075}00075\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_abf9f0c7b9300136751abba1bd77a7ada}{\_h}}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00076}00076\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00077}00077\ \ \ \ \ \textcolor{keyword}{def\ }hessp(self,\ p):}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00078}00078\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_a49c754395c0091ad19a6d14e764065df}{\_hessp}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00079}00079\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_a49c754395c0091ad19a6d14e764065df}{\_hessp}}(self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_a447210ed76fd47897016ea79886a3bdd}{\_x}},\ p)}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00080}00080\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00081}00081\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ np.dot(self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_a674a8529c0c239f4d8379449e8325153}{hess}},\ p)}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00082}00082\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00083}00083\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00084}\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_aab8f0ca30051c7a653cbd6f6e7028af5}{00084}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_aab8f0ca30051c7a653cbd6f6e7028af5}{jac\_mag}}(self):}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00085}00085\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Magnitude\ of\ jacobian\ of\ objective\ function\ at\ current\ iteration."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00086}00086\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_a8c86c787231975fb8fae6763ba240815}{\_g\_mag}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00087}00087\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_a8c86c787231975fb8fae6763ba240815}{\_g\_mag}}\ =\ scipy.linalg.norm(self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_a1d18e62db476c68c6c588eafbd33f2ea}{jac}})}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00088}00088\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_a8c86c787231975fb8fae6763ba240815}{\_g\_mag}}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00089}00089\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00090}\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_a9e6a577a6fe6e5220f23d92523e04493}{00090}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classscipy_1_1optimize_1_1__trustregion_1_1BaseQuadraticSubproblem_a9e6a577a6fe6e5220f23d92523e04493}{get\_boundaries\_intersections}}(self,\ z,\ d,\ trust\_radius):}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00091}00091\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00092}00092\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Solve\ the\ scalar\ quadratic\ equation\ ||z\ +\ t\ d||\ ==\ trust\_radius.}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00093}00093\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ This\ is\ like\ a\ line-\/sphere\ intersection.}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00094}00094\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Return\ the\ two\ values\ of\ t,\ sorted\ from\ low\ to\ high.}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00095}00095\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00096}00096\ \ \ \ \ \ \ \ \ a\ =\ np.dot(d,\ d)}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00097}00097\ \ \ \ \ \ \ \ \ b\ =\ 2\ *\ np.dot(z,\ d)}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00098}00098\ \ \ \ \ \ \ \ \ c\ =\ np.dot(z,\ z)\ -\/\ trust\_radius**2}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00099}00099\ \ \ \ \ \ \ \ \ sqrt\_discriminant\ =\ math.sqrt(b*b\ -\/\ 4*a*c)}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00100}00100\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00101}00101\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ following\ calculation\ is\ mathematically}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00102}00102\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ equivalent\ to:}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00103}00103\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ ta\ =\ (-\/b\ -\/\ sqrt\_discriminant)\ /\ (2*a)}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00104}00104\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ tb\ =\ (-\/b\ +\ sqrt\_discriminant)\ /\ (2*a)}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00105}00105\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ but\ produce\ smaller\ round\ off\ errors.}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00106}00106\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Look\ at\ Matrix\ Computation\ p.97}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00107}00107\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ for\ a\ better\ justification.}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00108}00108\ \ \ \ \ \ \ \ \ aux\ =\ b\ +\ math.copysign(sqrt\_discriminant,\ b)}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00109}00109\ \ \ \ \ \ \ \ \ ta\ =\ -\/aux\ /\ (2*a)}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00110}00110\ \ \ \ \ \ \ \ \ tb\ =\ -\/2*c\ /\ aux}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00111}00111\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ sorted([ta,\ tb])}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00112}00112\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00113}00113\ \ \ \ \ \textcolor{keyword}{def\ }solve(self,\ trust\_radius):}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00114}00114\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classNotImplementedError}{NotImplementedError}}(\textcolor{stringliteral}{'The\ solve\ method\ should\ be\ implemented\ by\ '}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00115}00115\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'the\ child\ class'})}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00116}00116\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00117}00117\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00118}\mbox{\hyperlink{namespacescipy_1_1optimize_1_1__trustregion_a85288b0d18addf5ab95f537f2adbcf8c}{00118}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacescipy_1_1optimize_1_1__trustregion_a85288b0d18addf5ab95f537f2adbcf8c}{\_minimize\_trust\_region}}(fun,\ x0,\ args=(),\ jac=\textcolor{keywordtype}{None},\ hess=\textcolor{keywordtype}{None},\ hessp=\textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00119}00119\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ subproblem=\textcolor{keywordtype}{None},\ initial\_trust\_radius=1.0,}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00120}00120\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ max\_trust\_radius=1000.0,\ eta=0.15,\ gtol=1e-\/4,}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00121}00121\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ maxiter=\textcolor{keywordtype}{None},\ disp=\textcolor{keyword}{False},\ return\_all=\textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00122}00122\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ callback=\textcolor{keywordtype}{None},\ inexact=\textcolor{keyword}{True},\ **unknown\_options):}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00123}00123\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00124}00124\ \textcolor{stringliteral}{\ \ \ \ Minimization\ of\ scalar\ function\ of\ one\ or\ more\ variables\ using\ a}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00125}00125\ \textcolor{stringliteral}{\ \ \ \ trust-\/region\ algorithm.}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00126}00126\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00127}00127\ \textcolor{stringliteral}{\ \ \ \ Options\ for\ the\ trust-\/region\ algorithm\ are:}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00128}00128\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ initial\_trust\_radius\ :\ float}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00129}00129\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Initial\ trust\ radius.}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00130}00130\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ max\_trust\_radius\ :\ float}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00131}00131\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Never\ propose\ steps\ that\ are\ longer\ than\ this\ value.}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00132}00132\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ eta\ :\ float}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00133}00133\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Trust\ region\ related\ acceptance\ stringency\ for\ proposed\ steps.}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00134}00134\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ gtol\ :\ float}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00135}00135\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Gradient\ norm\ must\ be\ less\ than\ \`{}gtol\`{}}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00136}00136\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ before\ successful\ termination.}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00137}00137\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ maxiter\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00138}00138\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Maximum\ number\ of\ iterations\ to\ perform.}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00139}00139\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ disp\ :\ bool}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00140}00140\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ If\ True,\ print\ convergence\ message.}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00141}00141\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ inexact\ :\ bool}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00142}00142\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Accuracy\ to\ solve\ subproblems.\ If\ True\ requires\ less\ nonlinear}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00143}00143\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ iterations,\ but\ more\ vector\ products.\ Only\ effective\ for\ method}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00144}00144\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ trust-\/krylov.}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00145}00145\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00146}00146\ \textcolor{stringliteral}{\ \ \ \ This\ function\ is\ called\ by\ the\ \`{}minimize\`{}\ function.}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00147}00147\ \textcolor{stringliteral}{\ \ \ \ It\ is\ not\ supposed\ to\ be\ called\ directly.}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00148}00148\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00149}00149\ \ \ \ \ \_check\_unknown\_options(unknown\_options)}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00150}00150\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00151}00151\ \ \ \ \ \textcolor{keywordflow}{if}\ jac\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00152}00152\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{'Jacobian\ is\ currently\ required\ for\ trust-\/region\ '}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00153}00153\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'methods'})}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00154}00154\ \ \ \ \ \textcolor{keywordflow}{if}\ hess\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{and}\ hessp\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00155}00155\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{'Either\ the\ Hessian\ or\ the\ Hessian-\/vector\ product\ '}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00156}00156\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'is\ currently\ required\ for\ trust-\/region\ methods'})}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00157}00157\ \ \ \ \ \textcolor{keywordflow}{if}\ subproblem\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00158}00158\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{'A\ subproblem\ solving\ strategy\ is\ required\ for\ '}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00159}00159\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'trust-\/region\ methods'})}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00160}00160\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ (0\ <=\ eta\ <\ 0.25):}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00161}00161\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classException}{Exception}}(\textcolor{stringliteral}{'invalid\ acceptance\ stringency'})}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00162}00162\ \ \ \ \ \textcolor{keywordflow}{if}\ max\_trust\_radius\ <=\ 0:}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00163}00163\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classException}{Exception}}(\textcolor{stringliteral}{'the\ max\ trust\ radius\ must\ be\ positive'})}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00164}00164\ \ \ \ \ \textcolor{keywordflow}{if}\ initial\_trust\_radius\ <=\ 0:}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00165}00165\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{'the\ initial\ trust\ radius\ must\ be\ positive'})}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00166}00166\ \ \ \ \ \textcolor{keywordflow}{if}\ initial\_trust\_radius\ >=\ max\_trust\_radius:}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00167}00167\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{'the\ initial\ trust\ radius\ must\ be\ less\ than\ the\ '}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00168}00168\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'max\ trust\ radius'})}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00169}00169\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00170}00170\ \ \ \ \ \textcolor{comment}{\#\ force\ the\ initial\ guess\ into\ a\ nice\ format}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00171}00171\ \ \ \ \ x0\ =\ np.asarray(x0).flatten()}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00172}00172\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00173}00173\ \ \ \ \ \textcolor{comment}{\#\ A\ ScalarFunction\ representing\ the\ problem.\ This\ caches\ calls\ to\ fun,\ jac,}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00174}00174\ \ \ \ \ \textcolor{comment}{\#\ hess.}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00175}00175\ \ \ \ \ sf\ =\ \mbox{\hyperlink{namespacescipy_1_1optimize_1_1__optimize_ad73454f855569a9ca1a9979e3d9b7a0a}{\_prepare\_scalar\_function}}(fun,\ x0,\ jac=jac,\ hess=hess,\ args=args)}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00176}00176\ \ \ \ \ fun\ =\ sf.fun}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00177}00177\ \ \ \ \ jac\ =\ sf.grad}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00178}00178\ \ \ \ \ \textcolor{keywordflow}{if}\ callable(hess):}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00179}00179\ \ \ \ \ \ \ \ \ hess\ =\ sf.hess}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00180}00180\ \ \ \ \ \textcolor{keywordflow}{elif}\ callable(hessp):}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00181}00181\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ this\ elif\ statement\ must\ come\ before\ examining\ whether\ hess}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00182}00182\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ is\ estimated\ by\ FD\ methods\ or\ a\ HessianUpdateStrategy}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00183}00183\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{pass}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00184}00184\ \ \ \ \ \textcolor{keywordflow}{elif}\ (hess\ \textcolor{keywordflow}{in}\ FD\_METHODS\ \textcolor{keywordflow}{or}\ isinstance(hess,\ HessianUpdateStrategy)):}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00185}00185\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ If\ the\ Hessian\ is\ being\ estimated\ by\ finite\ differences\ or\ a}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00186}00186\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Hessian\ update\ strategy\ then\ ScalarFunction.hess\ returns\ a}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00187}00187\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ LinearOperator\ or\ a\ HessianUpdateStrategy.\ This\ enables\ the}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00188}00188\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ calculation/creation\ of\ a\ hessp.\ BUT\ you\ only\ want\ to\ do\ this}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00189}00189\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ if\ the\ user\ *hasn't*\ provided\ a\ callable(hessp)\ function.}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00190}00190\ \ \ \ \ \ \ \ \ hess\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00191}00191\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00192}00192\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }hessp(x,\ p,\ *args):}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00193}00193\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ sf.hess(x).dot(p)}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00194}00194\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00195}00195\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{'Either\ the\ Hessian\ or\ the\ Hessian-\/vector\ product\ '}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00196}00196\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'is\ currently\ required\ for\ trust-\/region\ methods'})}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00197}00197\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00198}00198\ \ \ \ \ \textcolor{comment}{\#\ ScalarFunction\ doesn't\ represent\ hessp}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00199}00199\ \ \ \ \ nhessp,\ hessp\ =\ \_wrap\_function(hessp,\ args)}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00200}00200\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00201}00201\ \ \ \ \ \textcolor{comment}{\#\ limit\ the\ number\ of\ iterations}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00202}00202\ \ \ \ \ \textcolor{keywordflow}{if}\ maxiter\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00203}00203\ \ \ \ \ \ \ \ \ maxiter\ =\ len(x0)*200}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00204}00204\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00205}00205\ \ \ \ \ \textcolor{comment}{\#\ init\ the\ search\ status}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00206}00206\ \ \ \ \ warnflag\ =\ 0}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00207}00207\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00208}00208\ \ \ \ \ \textcolor{comment}{\#\ initialize\ the\ search}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00209}00209\ \ \ \ \ trust\_radius\ =\ initial\_trust\_radius}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00210}00210\ \ \ \ \ x\ =\ x0}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00211}00211\ \ \ \ \ \textcolor{keywordflow}{if}\ return\_all:}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00212}00212\ \ \ \ \ \ \ \ \ allvecs\ =\ [x]}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00213}00213\ \ \ \ \ m\ =\ subproblem(x,\ fun,\ jac,\ hess,\ hessp)}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00214}00214\ \ \ \ \ k\ =\ 0}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00215}00215\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00216}00216\ \ \ \ \ \textcolor{comment}{\#\ search\ for\ the\ function\ min}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00217}00217\ \ \ \ \ \textcolor{comment}{\#\ do\ not\ even\ start\ if\ the\ gradient\ is\ small\ enough}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00218}00218\ \ \ \ \ \textcolor{keywordflow}{while}\ m.jac\_mag\ >=\ gtol:}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00219}00219\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00220}00220\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Solve\ the\ sub-\/problem.}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00221}00221\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ This\ gives\ us\ the\ proposed\ step\ relative\ to\ the\ current\ position}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00222}00222\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ and\ it\ tells\ us\ whether\ the\ proposed\ step}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00223}00223\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ has\ reached\ the\ trust\ region\ boundary\ or\ not.}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00224}00224\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00225}00225\ \ \ \ \ \ \ \ \ \ \ \ \ p,\ hits\_boundary\ =\ m.solve(trust\_radius)}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00226}00226\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ \mbox{\hyperlink{classnp_1_1linalg_1_1LinAlgError}{np.linalg.LinAlgError}}:}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00227}00227\ \ \ \ \ \ \ \ \ \ \ \ \ warnflag\ =\ 3}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00228}00228\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00229}00229\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00230}00230\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ calculate\ the\ predicted\ value\ at\ the\ proposed\ point}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00231}00231\ \ \ \ \ \ \ \ \ predicted\_value\ =\ m(p)}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00232}00232\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00233}00233\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ define\ the\ local\ approximation\ at\ the\ proposed\ point}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00234}00234\ \ \ \ \ \ \ \ \ x\_proposed\ =\ x\ +\ p}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00235}00235\ \ \ \ \ \ \ \ \ m\_proposed\ =\ subproblem(x\_proposed,\ fun,\ jac,\ hess,\ hessp)}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00236}00236\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00237}00237\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ evaluate\ the\ ratio\ defined\ in\ equation\ (4.4)}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00238}00238\ \ \ \ \ \ \ \ \ actual\_reduction\ =\ m.fun\ -\/\ m\_proposed.fun}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00239}00239\ \ \ \ \ \ \ \ \ predicted\_reduction\ =\ m.fun\ -\/\ predicted\_value}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00240}00240\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ predicted\_reduction\ <=\ 0:}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00241}00241\ \ \ \ \ \ \ \ \ \ \ \ \ warnflag\ =\ 2}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00242}00242\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00243}00243\ \ \ \ \ \ \ \ \ rho\ =\ actual\_reduction\ /\ predicted\_reduction}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00244}00244\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00245}00245\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ update\ the\ trust\ radius\ according\ to\ the\ actual/predicted\ ratio}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00246}00246\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ rho\ <\ 0.25:}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00247}00247\ \ \ \ \ \ \ \ \ \ \ \ \ trust\_radius\ *=\ 0.25}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00248}00248\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ rho\ >\ 0.75\ \textcolor{keywordflow}{and}\ hits\_boundary:}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00249}00249\ \ \ \ \ \ \ \ \ \ \ \ \ trust\_radius\ =\ min(2*trust\_radius,\ max\_trust\_radius)}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00250}00250\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00251}00251\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ if\ the\ ratio\ is\ high\ enough\ then\ accept\ the\ proposed\ step}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00252}00252\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ rho\ >\ eta:}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00253}00253\ \ \ \ \ \ \ \ \ \ \ \ \ x\ =\ x\_proposed}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00254}00254\ \ \ \ \ \ \ \ \ \ \ \ \ m\ =\ m\_proposed}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00255}00255\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00256}00256\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ append\ the\ best\ guess,\ call\ back,\ increment\ the\ iteration\ count}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00257}00257\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ return\_all:}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00258}00258\ \ \ \ \ \ \ \ \ \ \ \ \ allvecs.append(np.copy(x))}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00259}00259\ \ \ \ \ \ \ \ \ k\ +=\ 1}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00260}00260\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00261}00261\ \ \ \ \ \ \ \ \ intermediate\_result\ =\ \mbox{\hyperlink{classscipy_1_1optimize_1_1__optimize_1_1OptimizeResult}{OptimizeResult}}(x=x,\ fun=m.fun)}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00262}00262\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \mbox{\hyperlink{namespacescipy_1_1optimize_1_1__optimize_a15df8b8131f027070766bef3407058fe}{\_call\_callback\_maybe\_halt}}(callback,\ intermediate\_result):}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00263}00263\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00264}00264\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00265}00265\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ check\ if\ the\ gradient\ is\ small\ enough\ to\ stop}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00266}00266\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ m.jac\_mag\ <\ gtol:}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00267}00267\ \ \ \ \ \ \ \ \ \ \ \ \ warnflag\ =\ 0}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00268}00268\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00269}00269\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00270}00270\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ check\ if\ we\ have\ looked\ at\ enough\ iterations}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00271}00271\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ k\ >=\ maxiter:}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00272}00272\ \ \ \ \ \ \ \ \ \ \ \ \ warnflag\ =\ 1}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00273}00273\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00274}00274\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00275}00275\ \ \ \ \ \textcolor{comment}{\#\ print\ some\ stuff\ if\ requested}}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00276}00276\ \ \ \ \ status\_messages\ =\ (}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00277}00277\ \ \ \ \ \ \ \ \ \ \ \ \ \_status\_message[\textcolor{stringliteral}{'success'}],}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00278}00278\ \ \ \ \ \ \ \ \ \ \ \ \ \_status\_message[\textcolor{stringliteral}{'maxiter'}],}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00279}00279\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'A\ bad\ approximation\ caused\ failure\ to\ predict\ improvement.'},}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00280}00280\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'A\ linalg\ error\ occurred,\ such\ as\ a\ non-\/psd\ Hessian.'},}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00281}00281\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00282}00282\ \ \ \ \ \textcolor{keywordflow}{if}\ disp:}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00283}00283\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ warnflag\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00284}00284\ \ \ \ \ \ \ \ \ \ \ \ \ print(status\_messages[warnflag])}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00285}00285\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00286}00286\ \ \ \ \ \ \ \ \ \ \ \ \ warnings.warn(status\_messages[warnflag],\ RuntimeWarning,\ 3)}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00287}00287\ \ \ \ \ \ \ \ \ print(\textcolor{stringliteral}{"{}\ \ \ \ \ \ \ \ \ Current\ function\ value:\ \%f"{}}\ \%\ m.fun)}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00288}00288\ \ \ \ \ \ \ \ \ print(\textcolor{stringliteral}{"{}\ \ \ \ \ \ \ \ \ Iterations:\ \%d"{}}\ \%\ k)}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00289}00289\ \ \ \ \ \ \ \ \ print(\textcolor{stringliteral}{"{}\ \ \ \ \ \ \ \ \ Function\ evaluations:\ \%d"{}}\ \%\ sf.nfev)}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00290}00290\ \ \ \ \ \ \ \ \ print(\textcolor{stringliteral}{"{}\ \ \ \ \ \ \ \ \ Gradient\ evaluations:\ \%d"{}}\ \%\ sf.ngev)}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00291}00291\ \ \ \ \ \ \ \ \ print(\textcolor{stringliteral}{"{}\ \ \ \ \ \ \ \ \ Hessian\ evaluations:\ \%d"{}}\ \%\ (sf.nhev\ +\ nhessp[0]))}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00292}00292\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00293}00293\ \ \ \ \ result\ =\ \mbox{\hyperlink{classscipy_1_1optimize_1_1__optimize_1_1OptimizeResult}{OptimizeResult}}(x=x,\ success=(warnflag\ ==\ 0),\ status=warnflag,}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00294}00294\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ fun=m.fun,\ jac=m.jac,\ nfev=sf.nfev,\ njev=sf.ngev,}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00295}00295\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ nhev=sf.nhev\ +\ nhessp[0],\ nit=k,}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00296}00296\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ message=status\_messages[warnflag])}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00297}00297\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00298}00298\ \ \ \ \ \textcolor{keywordflow}{if}\ hess\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00299}00299\ \ \ \ \ \ \ \ \ result[\textcolor{stringliteral}{'hess'}]\ =\ m.hess}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00300}00300\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00301}00301\ \ \ \ \ \textcolor{keywordflow}{if}\ return\_all:}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00302}00302\ \ \ \ \ \ \ \ \ result[\textcolor{stringliteral}{'allvecs'}]\ =\ allvecs}
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00303}00303\ }
+\DoxyCodeLine{\Hypertarget{__trustregion_8py_source_l00304}00304\ \ \ \ \ \textcolor{keywordflow}{return}\ result}
+
+\end{DoxyCode}

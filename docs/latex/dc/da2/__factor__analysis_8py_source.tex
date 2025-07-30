@@ -1,0 +1,463 @@
+\doxysection{\+\_\+factor\+\_\+analysis.\+py}
+\hypertarget{__factor__analysis_8py_source}{}\label{__factor__analysis_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/sklearn/decomposition/\_factor\_analysis.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/sklearn/decomposition/\_factor\_analysis.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00001}\mbox{\hyperlink{namespacesklearn_1_1decomposition_1_1__factor__analysis}{00001}}\ \textcolor{stringliteral}{"{}"{}"{}Factor\ Analysis.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00002}00002\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00003}00003\ \textcolor{stringliteral}{A\ latent\ linear\ variable\ model.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00004}00004\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00005}00005\ \textcolor{stringliteral}{FactorAnalysis\ is\ similar\ to\ probabilistic\ PCA\ implemented\ by\ PCA.score}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00006}00006\ \textcolor{stringliteral}{While\ PCA\ assumes\ Gaussian\ noise\ with\ the\ same\ variance\ for\ each}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00007}00007\ \textcolor{stringliteral}{feature,\ the\ FactorAnalysis\ model\ assumes\ different\ variances\ for}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00008}00008\ \textcolor{stringliteral}{each\ of\ them.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00009}00009\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00010}00010\ \textcolor{stringliteral}{This\ implementation\ is\ based\ on\ David\ Barber's\ Book,}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00011}00011\ \textcolor{stringliteral}{Bayesian\ Reasoning\ and\ Machine\ Learning,}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00012}00012\ \textcolor{stringliteral}{http://www.cs.ucl.ac.uk/staff/d.barber/brml,}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00013}00013\ \textcolor{stringliteral}{Algorithm\ 21.1}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00014}00014\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00015}00015\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00016}00016\ \textcolor{comment}{\#\ Authors:\ The\ scikit-\/learn\ developers}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00017}00017\ \textcolor{comment}{\#\ SPDX-\/License-\/Identifier:\ BSD-\/3-\/Clause}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00018}00018\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00019}00019\ \textcolor{keyword}{import}\ warnings}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00020}00020\ \textcolor{keyword}{from}\ math\ \textcolor{keyword}{import}\ log,\ sqrt}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00021}00021\ \textcolor{keyword}{from}\ numbers\ \textcolor{keyword}{import}\ Integral,\ Real}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00022}00022\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00023}00023\ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00024}00024\ \textcolor{keyword}{from}\ scipy\ \textcolor{keyword}{import}\ linalg}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00025}00025\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00026}00026\ \textcolor{keyword}{from}\ ..base\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00027}00027\ \ \ \ \ BaseEstimator,}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00028}00028\ \ \ \ \ ClassNamePrefixFeaturesOutMixin,}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00029}00029\ \ \ \ \ TransformerMixin,}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00030}00030\ \ \ \ \ \_fit\_context,}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00031}00031\ )}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00032}00032\ \textcolor{keyword}{from}\ ..exceptions\ \textcolor{keyword}{import}\ ConvergenceWarning}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00033}00033\ \textcolor{keyword}{from}\ ..utils\ \textcolor{keyword}{import}\ check\_random\_state}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00034}00034\ \textcolor{keyword}{from}\ ..utils.\_param\_validation\ \textcolor{keyword}{import}\ Interval,\ StrOptions}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00035}00035\ \textcolor{keyword}{from}\ ..utils.extmath\ \textcolor{keyword}{import}\ \_randomized\_svd,\ fast\_logdet,\ squared\_norm}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00036}00036\ \textcolor{keyword}{from}\ ..utils.validation\ \textcolor{keyword}{import}\ check\_is\_fitted,\ validate\_data}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00037}00037\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00038}00038\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00039}\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis}{00039}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis}{FactorAnalysis}}(\mbox{\hyperlink{classsklearn_1_1base_1_1ClassNamePrefixFeaturesOutMixin}{ClassNamePrefixFeaturesOutMixin}},\ \mbox{\hyperlink{classsklearn_1_1base_1_1TransformerMixin}{TransformerMixin}},\ \mbox{\hyperlink{classsklearn_1_1base_1_1BaseEstimator}{BaseEstimator}}):}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00040}00040\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Factor\ Analysis\ (FA).}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00041}00041\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00042}00042\ \textcolor{stringliteral}{\ \ \ \ A\ simple\ linear\ generative\ model\ with\ Gaussian\ latent\ variables.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00043}00043\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00044}00044\ \textcolor{stringliteral}{\ \ \ \ The\ observations\ are\ assumed\ to\ be\ caused\ by\ a\ linear\ transformation\ of}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00045}00045\ \textcolor{stringliteral}{\ \ \ \ lower\ dimensional\ latent\ factors\ and\ added\ Gaussian\ noise.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00046}00046\ \textcolor{stringliteral}{\ \ \ \ Without\ loss\ of\ generality\ the\ factors\ are\ distributed\ according\ to\ a}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00047}00047\ \textcolor{stringliteral}{\ \ \ \ Gaussian\ with\ zero\ mean\ and\ unit\ covariance.\ The\ noise\ is\ also\ zero\ mean}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00048}00048\ \textcolor{stringliteral}{\ \ \ \ and\ has\ an\ arbitrary\ diagonal\ covariance\ matrix.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00049}00049\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00050}00050\ \textcolor{stringliteral}{\ \ \ \ If\ we\ would\ restrict\ the\ model\ further,\ by\ assuming\ that\ the\ Gaussian}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00051}00051\ \textcolor{stringliteral}{\ \ \ \ noise\ is\ even\ isotropic\ (all\ diagonal\ entries\ are\ the\ same)\ we\ would\ obtain}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00052}00052\ \textcolor{stringliteral}{\ \ \ \ :class:\`{}PCA\`{}.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00053}00053\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00054}00054\ \textcolor{stringliteral}{\ \ \ \ FactorAnalysis\ performs\ a\ maximum\ likelihood\ estimate\ of\ the\ so-\/called}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00055}00055\ \textcolor{stringliteral}{\ \ \ \ \`{}loading\`{}\ matrix,\ the\ transformation\ of\ the\ latent\ variables\ to\ the}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00056}00056\ \textcolor{stringliteral}{\ \ \ \ observed\ ones,\ using\ SVD\ based\ approach.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00057}00057\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00058}00058\ \textcolor{stringliteral}{\ \ \ \ Read\ more\ in\ the\ :ref:\`{}User\ Guide\ <FA>\`{}.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00059}00059\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00060}00060\ \textcolor{stringliteral}{\ \ \ \ ..\ versionadded::\ 0.13}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00061}00061\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00062}00062\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00063}00063\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00064}00064\ \textcolor{stringliteral}{\ \ \ \ n\_components\ :\ int,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00065}00065\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Dimensionality\ of\ latent\ space,\ the\ number\ of\ components}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00066}00066\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ of\ \`{}\`{}X\`{}\`{}\ that\ are\ obtained\ after\ \`{}\`{}transform\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00067}00067\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ None,\ n\_components\ is\ set\ to\ the\ number\ of\ features.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00068}00068\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00069}00069\ \textcolor{stringliteral}{\ \ \ \ tol\ :\ float,\ default=1e-\/2}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00070}00070\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Stopping\ tolerance\ for\ log-\/likelihood\ increase.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00071}00071\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00072}00072\ \textcolor{stringliteral}{\ \ \ \ copy\ :\ bool,\ default=True}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00073}00073\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Whether\ to\ make\ a\ copy\ of\ X.\ If\ \`{}\`{}False\`{}\`{},\ the\ input\ X\ gets\ overwritten}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00074}00074\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ during\ fitting.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00075}00075\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00076}00076\ \textcolor{stringliteral}{\ \ \ \ max\_iter\ :\ int,\ default=1000}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00077}00077\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Maximum\ number\ of\ iterations.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00078}00078\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00079}00079\ \textcolor{stringliteral}{\ \ \ \ noise\_variance\_init\ :\ array-\/like\ of\ shape\ (n\_features,),\ default=None}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00080}00080\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ initial\ guess\ of\ the\ noise\ variance\ for\ each\ feature.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00081}00081\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ None,\ it\ defaults\ to\ np.ones(n\_features).}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00082}00082\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00083}00083\ \textcolor{stringliteral}{\ \ \ \ svd\_method\ :\ \{'lapack',\ 'randomized'\},\ default='randomized'}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00084}00084\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Which\ SVD\ method\ to\ use.\ If\ 'lapack'\ use\ standard\ SVD\ from}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00085}00085\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ scipy.linalg,\ if\ 'randomized'\ use\ fast\ \`{}\`{}randomized\_svd\`{}\`{}\ function.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00086}00086\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Defaults\ to\ 'randomized'.\ For\ most\ applications\ 'randomized'\ will}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00087}00087\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ be\ sufficiently\ precise\ while\ providing\ significant\ speed\ gains.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00088}00088\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Accuracy\ can\ also\ be\ improved\ by\ setting\ higher\ values\ for}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00089}00089\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}iterated\_power\`{}.\ If\ this\ is\ not\ sufficient,\ for\ maximum\ precision}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00090}00090\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ you\ should\ choose\ 'lapack'.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00091}00091\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00092}00092\ \textcolor{stringliteral}{\ \ \ \ iterated\_power\ :\ int,\ default=3}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00093}00093\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ iterations\ for\ the\ power\ method.\ 3\ by\ default.\ Only\ used}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00094}00094\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ if\ \`{}\`{}svd\_method\`{}\`{}\ equals\ 'randomized'.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00095}00095\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00096}00096\ \textcolor{stringliteral}{\ \ \ \ rotation\ :\ \{'varimax',\ 'quartimax'\},\ default=None}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00097}00097\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ not\ None,\ apply\ the\ indicated\ rotation.\ Currently,\ varimax\ and}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00098}00098\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ quartimax\ are\ implemented.\ See}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00099}00099\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}"{}The\ varimax\ criterion\ for\ analytic\ rotation\ in\ factor\ analysis"{}}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00100}00100\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ <https://link.springer.com/article/10.1007\%2FBF02289233>\`{}\_}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00101}00101\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ H.\ F.\ Kaiser,\ 1958.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00102}00102\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00103}00103\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 0.24}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00104}00104\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00105}00105\ \textcolor{stringliteral}{\ \ \ \ random\_state\ :\ int\ or\ RandomState\ instance,\ default=0}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00106}00106\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Only\ used\ when\ \`{}\`{}svd\_method\`{}\`{}\ equals\ 'randomized'.\ Pass\ an\ int\ for}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00107}00107\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ reproducible\ results\ across\ multiple\ function\ calls.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00108}00108\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ See\ :term:\`{}Glossary\ <random\_state>\`{}.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00109}00109\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00110}00110\ \textcolor{stringliteral}{\ \ \ \ Attributes}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00111}00111\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00112}00112\ \textcolor{stringliteral}{\ \ \ \ components\_\ :\ ndarray\ of\ shape\ (n\_components,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00113}00113\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Components\ with\ maximum\ variance.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00114}00114\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00115}00115\ \textcolor{stringliteral}{\ \ \ \ loglike\_\ :\ list\ of\ shape\ (n\_iterations,)}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00116}00116\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ log\ likelihood\ at\ each\ iteration.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00117}00117\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00118}00118\ \textcolor{stringliteral}{\ \ \ \ noise\_variance\_\ :\ ndarray\ of\ shape\ (n\_features,)}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00119}00119\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ estimated\ noise\ variance\ for\ each\ feature.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00120}00120\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00121}00121\ \textcolor{stringliteral}{\ \ \ \ n\_iter\_\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00122}00122\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ iterations\ run.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00123}00123\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00124}00124\ \textcolor{stringliteral}{\ \ \ \ mean\_\ :\ ndarray\ of\ shape\ (n\_features,)}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00125}00125\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Per-\/feature\ empirical\ mean,\ estimated\ from\ the\ training\ set.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00126}00126\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00127}00127\ \textcolor{stringliteral}{\ \ \ \ n\_features\_in\_\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00128}00128\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ features\ seen\ during\ :term:\`{}fit\`{}.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00129}00129\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00130}00130\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 0.24}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00131}00131\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00132}00132\ \textcolor{stringliteral}{\ \ \ \ feature\_names\_in\_\ :\ ndarray\ of\ shape\ (\`{}n\_features\_in\_\`{},)}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00133}00133\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Names\ of\ features\ seen\ during\ :term:\`{}fit\`{}.\ Defined\ only\ when\ \`{}X\`{}}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00134}00134\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ has\ feature\ names\ that\ are\ all\ strings.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00135}00135\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00136}00136\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 1.0}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00137}00137\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00138}00138\ \textcolor{stringliteral}{\ \ \ \ See\ Also}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00139}00139\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00140}00140\ \textcolor{stringliteral}{\ \ \ \ PCA:\ Principal\ component\ analysis\ is\ also\ a\ latent\ linear\ variable\ model}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00141}00141\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ which\ however\ assumes\ equal\ noise\ variance\ for\ each\ feature.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00142}00142\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ This\ extra\ assumption\ makes\ probabilistic\ PCA\ faster\ as\ it\ can\ be}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00143}00143\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ computed\ in\ closed\ form.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00144}00144\ \textcolor{stringliteral}{\ \ \ \ FastICA:\ Independent\ component\ analysis,\ a\ latent\ variable\ model\ with}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00145}00145\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ non-\/Gaussian\ latent\ variables.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00146}00146\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00147}00147\ \textcolor{stringliteral}{\ \ \ \ References}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00148}00148\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00149}00149\ \textcolor{stringliteral}{\ \ \ \ -\/\ David\ Barber,\ Bayesian\ Reasoning\ and\ Machine\ Learning,}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00150}00150\ \textcolor{stringliteral}{\ \ \ \ \ \ Algorithm\ 21.1.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00151}00151\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00152}00152\ \textcolor{stringliteral}{\ \ \ \ -\/\ Christopher\ M.\ Bishop:\ Pattern\ Recognition\ and\ Machine\ Learning,}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00153}00153\ \textcolor{stringliteral}{\ \ \ \ \ \ Chapter\ 12.2.4.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00154}00154\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00155}00155\ \textcolor{stringliteral}{\ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00156}00156\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00157}00157\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.datasets\ import\ load\_digits}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00158}00158\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.decomposition\ import\ FactorAnalysis}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00159}00159\ \textcolor{stringliteral}{\ \ \ \ >>>\ X,\ \_\ =\ load\_digits(return\_X\_y=True)}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00160}00160\ \textcolor{stringliteral}{\ \ \ \ >>>\ transformer\ =\ FactorAnalysis(n\_components=7,\ random\_state=0)}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00161}00161\ \textcolor{stringliteral}{\ \ \ \ >>>\ X\_transformed\ =\ transformer.fit\_transform(X)}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00162}00162\ \textcolor{stringliteral}{\ \ \ \ >>>\ X\_transformed.shape}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00163}00163\ \textcolor{stringliteral}{\ \ \ \ (1797,\ 7)}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00164}00164\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00165}00165\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00166}00166\ \ \ \ \ \_parameter\_constraints:\ dict\ =\ \{}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00167}00167\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}n\_components"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Integral,\ 0,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}}),\ \textcolor{keywordtype}{None}],}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00168}00168\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}tol"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Real,\ 0.0,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}})],}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00169}00169\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}copy"{}}:\ [\textcolor{stringliteral}{"{}boolean"{}}],}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00170}00170\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}max\_iter"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Integral,\ 1,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}})],}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00171}00171\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}noise\_variance\_init"{}}:\ [\textcolor{stringliteral}{"{}array-\/like"{}},\ \textcolor{keywordtype}{None}],}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00172}00172\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}svd\_method"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1StrOptions}{StrOptions}}(\{\textcolor{stringliteral}{"{}randomized"{}},\ \textcolor{stringliteral}{"{}lapack"{}}\})],}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00173}00173\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}iterated\_power"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Integral,\ 0,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}})],}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00174}00174\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}rotation"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1StrOptions}{StrOptions}}(\{\textcolor{stringliteral}{"{}varimax"{}},\ \textcolor{stringliteral}{"{}quartimax"{}}\}),\ \textcolor{keywordtype}{None}],}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00175}00175\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}random\_state"{}}:\ [\textcolor{stringliteral}{"{}random\_state"{}}],}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00176}00176\ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00177}00177\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00178}00178\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00179}00179\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00180}00180\ \ \ \ \ \ \ \ \ n\_components=None,}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00181}00181\ \ \ \ \ \ \ \ \ *,}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00182}00182\ \ \ \ \ \ \ \ \ tol=1e-\/2,}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00183}00183\ \ \ \ \ \ \ \ \ copy=True,}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00184}00184\ \ \ \ \ \ \ \ \ max\_iter=1000,}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00185}00185\ \ \ \ \ \ \ \ \ noise\_variance\_init=None,}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00186}00186\ \ \ \ \ \ \ \ \ svd\_method="{}randomized"{},}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00187}00187\ \ \ \ \ \ \ \ \ iterated\_power=3,}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00188}00188\ \ \ \ \ \ \ \ \ rotation=None,}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00189}00189\ \ \ \ \ \ \ \ \ random\_state=0,}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00190}00190\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00191}00191\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_a63fdf754d8fbbef8e9e634ff031e1b20}{n\_components}}\ =\ n\_components}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00192}00192\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_aa9588ca0a93cb798ac73990a611cdb0d}{copy}}\ =\ copy}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00193}00193\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_a5e2e60731b964abe6fe4c9e4e9f38a5e}{tol}}\ =\ tol}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00194}00194\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_a9cdfd1c6e077850074f3f299a08d4ec6}{max\_iter}}\ =\ max\_iter}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00195}00195\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_a2e9618e606bb51a9845b5b42c4b26865}{svd\_method}}\ =\ svd\_method}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00196}00196\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00197}00197\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_aa55782d1a35ad403f987b0a0299c596f}{noise\_variance\_init}}\ =\ noise\_variance\_init}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00198}00198\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_a197521a2dd89e146c281c2c81b719e64}{iterated\_power}}\ =\ iterated\_power}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00199}00199\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_a58e26e00d4b7e24806cf93fd07c0efee}{random\_state}}\ =\ random\_state}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00200}00200\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_ae832f2469d2bc567e09da44a65d3c23c}{rotation}}\ =\ rotation}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00201}00201\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00202}00202\ \ \ \ \ \textcolor{preprocessor}{@\_fit\_context(prefer\_skip\_nested\_validation=True)}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00203}\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_a7df45fbf2f4887f2d549cbdc151f13fb}{00203}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_a7df45fbf2f4887f2d549cbdc151f13fb}{fit}}(self,\ X,\ y=None):}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00204}00204\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Fit\ the\ FactorAnalysis\ model\ to\ X\ using\ SVD\ based\ approach.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00205}00205\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00206}00206\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00207}00207\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00208}00208\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\ :\ array-\/like\ of\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00209}00209\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Training\ data.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00210}00210\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00211}00211\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ y\ :\ Ignored}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00212}00212\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Ignored\ parameter.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00213}00213\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00214}00214\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00215}00215\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00216}00216\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ self\ :\ object}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00217}00217\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ FactorAnalysis\ class\ instance.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00218}00218\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00219}00219\ \ \ \ \ \ \ \ \ X\ =\ validate\_data(}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00220}00220\ \ \ \ \ \ \ \ \ \ \ \ \ self,\ X,\ copy=self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_aa9588ca0a93cb798ac73990a611cdb0d}{copy}},\ dtype=np.float64,\ force\_writeable=\textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00221}00221\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00222}00222\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00223}00223\ \ \ \ \ \ \ \ \ n\_samples,\ n\_features\ =\ X.shape}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00224}00224\ \ \ \ \ \ \ \ \ n\_components\ =\ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_a63fdf754d8fbbef8e9e634ff031e1b20}{n\_components}}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00225}00225\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ n\_components\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00226}00226\ \ \ \ \ \ \ \ \ \ \ \ \ n\_components\ =\ n\_features}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00227}00227\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00228}00228\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_ae35e92ef76b50562243ec44cc56fbcea}{mean\_}}\ =\ np.mean(X,\ axis=0)}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00229}00229\ \ \ \ \ \ \ \ \ X\ -\/=\ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_ae35e92ef76b50562243ec44cc56fbcea}{mean\_}}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00230}00230\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00231}00231\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ some\ constant\ terms}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00232}00232\ \ \ \ \ \ \ \ \ nsqrt\ =\ sqrt(n\_samples)}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00233}00233\ \ \ \ \ \ \ \ \ llconst\ =\ n\_features\ *\ log(2.0\ *\ np.pi)\ +\ n\_components}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00234}00234\ \ \ \ \ \ \ \ \ var\ =\ np.var(X,\ axis=0)}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00235}00235\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00236}00236\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_aa55782d1a35ad403f987b0a0299c596f}{noise\_variance\_init}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00237}00237\ \ \ \ \ \ \ \ \ \ \ \ \ psi\ =\ np.ones(n\_features,\ dtype=X.dtype)}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00238}00238\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00239}00239\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_aa55782d1a35ad403f987b0a0299c596f}{noise\_variance\_init}})\ !=\ n\_features:}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00240}00240\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00241}00241\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}noise\_variance\_init\ dimension\ does\ not\ "{}}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00242}00242\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}with\ number\ of\ features\ :\ \%d\ !=\ \%d"{}}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00243}00243\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \%\ (len(self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_aa55782d1a35ad403f987b0a0299c596f}{noise\_variance\_init}}),\ n\_features)}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00244}00244\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00245}00245\ \ \ \ \ \ \ \ \ \ \ \ \ psi\ =\ np.array(self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_aa55782d1a35ad403f987b0a0299c596f}{noise\_variance\_init}})}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00246}00246\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00247}00247\ \ \ \ \ \ \ \ \ loglike\ =\ []}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00248}00248\ \ \ \ \ \ \ \ \ old\_ll\ =\ -\/np.inf}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00249}00249\ \ \ \ \ \ \ \ \ SMALL\ =\ 1e-\/12}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00250}00250\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00251}00251\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ we'll\ modify\ svd\ outputs\ to\ return\ unexplained\ variance}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00252}00252\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ to\ allow\ for\ unified\ computation\ of\ loglikelihood}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00253}00253\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_a2e9618e606bb51a9845b5b42c4b26865}{svd\_method}}\ ==\ \textcolor{stringliteral}{"{}lapack"{}}:}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00254}00254\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00255}00255\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }my\_svd(X):}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00256}00256\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_,\ s,\ Vt\ =\ linalg.svd(X,\ full\_matrices=\textcolor{keyword}{False},\ check\_finite=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00257}00257\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ (}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00258}00258\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ s[:n\_components],}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00259}00259\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ Vt[:n\_components],}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00260}00260\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ squared\_norm(s[n\_components:]),}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00261}00261\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00262}00262\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00263}00263\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:\ \ \textcolor{comment}{\#\ svd\_method\ ==\ "{}randomized"{}}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00264}00264\ \ \ \ \ \ \ \ \ \ \ \ \ random\_state\ =\ check\_random\_state(self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_a58e26e00d4b7e24806cf93fd07c0efee}{random\_state}})}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00265}00265\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00266}00266\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }my\_svd(X):}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00267}00267\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_,\ s,\ Vt\ =\ \_randomized\_svd(}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00268}00268\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ X,}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00269}00269\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ n\_components,}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00270}00270\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ random\_state=random\_state,}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00271}00271\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ n\_iter=self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_a197521a2dd89e146c281c2c81b719e64}{iterated\_power}},}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00272}00272\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00273}00273\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ s,\ Vt,\ squared\_norm(X)\ -\/\ squared\_norm(s)}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00274}00274\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00275}00275\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_a9cdfd1c6e077850074f3f299a08d4ec6}{max\_iter}}):}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00276}00276\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ SMALL\ helps\ numerics}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00277}00277\ \ \ \ \ \ \ \ \ \ \ \ \ sqrt\_psi\ =\ np.sqrt(psi)\ +\ SMALL}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00278}00278\ \ \ \ \ \ \ \ \ \ \ \ \ s,\ Vt,\ unexp\_var\ =\ my\_svd(X\ /\ (sqrt\_psi\ *\ nsqrt))}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00279}00279\ \ \ \ \ \ \ \ \ \ \ \ \ s\ **=\ 2}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00280}00280\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Use\ 'maximum'\ here\ to\ avoid\ sqrt\ problems.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00281}00281\ \ \ \ \ \ \ \ \ \ \ \ \ W\ =\ np.sqrt(np.maximum(s\ -\/\ 1.0,\ 0.0))[:,\ np.newaxis]\ *\ Vt}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00282}00282\ \ \ \ \ \ \ \ \ \ \ \ \ del\ Vt}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00283}00283\ \ \ \ \ \ \ \ \ \ \ \ \ W\ *=\ sqrt\_psi}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00284}00284\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00285}00285\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ loglikelihood}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00286}00286\ \ \ \ \ \ \ \ \ \ \ \ \ ll\ =\ llconst\ +\ np.sum(np.log(s))}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00287}00287\ \ \ \ \ \ \ \ \ \ \ \ \ ll\ +=\ unexp\_var\ +\ np.sum(np.log(psi))}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00288}00288\ \ \ \ \ \ \ \ \ \ \ \ \ ll\ *=\ -\/n\_samples\ /\ 2.0}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00289}00289\ \ \ \ \ \ \ \ \ \ \ \ \ loglike.append(ll)}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00290}00290\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (ll\ -\/\ old\_ll)\ <\ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_a5e2e60731b964abe6fe4c9e4e9f38a5e}{tol}}:}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00291}00291\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00292}00292\ \ \ \ \ \ \ \ \ \ \ \ \ old\_ll\ =\ ll}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00293}00293\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00294}00294\ \ \ \ \ \ \ \ \ \ \ \ \ psi\ =\ np.maximum(var\ -\/\ np.sum(W**2,\ axis=0),\ SMALL)}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00295}00295\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00296}00296\ \ \ \ \ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00297}00297\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}FactorAnalysis\ did\ not\ converge."{}}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00298}00298\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ You\ might\ want"{}}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00299}00299\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ to\ increase\ the\ number\ of\ iterations."{}},}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00300}00300\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ConvergenceWarning,}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00301}00301\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00302}00302\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00303}00303\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_a8f3825f82111422cf219e160433c4436}{components\_}}\ =\ W}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00304}00304\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_ae832f2469d2bc567e09da44a65d3c23c}{rotation}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00305}00305\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_a8f3825f82111422cf219e160433c4436}{components\_}}\ =\ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_a8fd3de77a12ae8c7133f32609910cd91}{\_rotate}}(W)}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00306}00306\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_ab889f06ceca44d2befcde34d42f4af3f}{noise\_variance\_}}\ =\ psi}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00307}00307\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_af03ef45472ab89531b2e2e84a806b1d5}{loglike\_}}\ =\ loglike}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00308}00308\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_aabc1ed8be4a33bd4e86cccd031ed7e2b}{n\_iter\_}}\ =\ i\ +\ 1}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00309}00309\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00310}00310\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00311}\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_ad1c0564615b9ff4ed280262c2332585d}{00311}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_ad1c0564615b9ff4ed280262c2332585d}{transform}}(self,\ X):}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00312}00312\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Apply\ dimensionality\ reduction\ to\ X\ using\ the\ model.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00313}00313\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00314}00314\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Compute\ the\ expected\ mean\ of\ the\ latent\ variables.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00315}00315\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ See\ Barber,\ 21.2.33\ (or\ Bishop,\ 12.66).}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00316}00316\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00317}00317\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00318}00318\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00319}00319\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\ :\ array-\/like\ of\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00320}00320\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Training\ data.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00321}00321\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00322}00322\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00323}00323\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00324}00324\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\_new\ :\ ndarray\ of\ shape\ (n\_samples,\ n\_components)}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00325}00325\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ latent\ variables\ of\ X.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00326}00326\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00327}00327\ \ \ \ \ \ \ \ \ check\_is\_fitted(self)}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00328}00328\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00329}00329\ \ \ \ \ \ \ \ \ X\ =\ validate\_data(self,\ X,\ reset=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00330}00330\ \ \ \ \ \ \ \ \ Ih\ =\ np.eye(len(self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_a8f3825f82111422cf219e160433c4436}{components\_}}))}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00331}00331\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00332}00332\ \ \ \ \ \ \ \ \ X\_transformed\ =\ X\ -\/\ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_ae35e92ef76b50562243ec44cc56fbcea}{mean\_}}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00333}00333\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00334}00334\ \ \ \ \ \ \ \ \ Wpsi\ =\ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_a8f3825f82111422cf219e160433c4436}{components\_}}\ /\ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_ab889f06ceca44d2befcde34d42f4af3f}{noise\_variance\_}}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00335}00335\ \ \ \ \ \ \ \ \ cov\_z\ =\ linalg.inv(Ih\ +\ np.dot(Wpsi,\ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_a8f3825f82111422cf219e160433c4436}{components\_}}.T))}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00336}00336\ \ \ \ \ \ \ \ \ tmp\ =\ np.dot(X\_transformed,\ Wpsi.T)}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00337}00337\ \ \ \ \ \ \ \ \ X\_transformed\ =\ np.dot(tmp,\ cov\_z)}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00338}00338\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00339}00339\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ X\_transformed}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00340}00340\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00341}\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_a94403b54fd5b18b563deb05fe7d807e3}{00341}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_a94403b54fd5b18b563deb05fe7d807e3}{get\_covariance}}(self):}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00342}00342\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Compute\ data\ covariance\ with\ the\ FactorAnalysis\ model.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00343}00343\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00344}00344\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}cov\ =\ components\_.T\ *\ components\_\ +\ diag(noise\_variance)\`{}\`{}}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00345}00345\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00346}00346\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00347}00347\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00348}00348\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ cov\ :\ ndarray\ of\ shape\ (n\_features,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00349}00349\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Estimated\ covariance\ of\ data.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00350}00350\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00351}00351\ \ \ \ \ \ \ \ \ check\_is\_fitted(self)}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00352}00352\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00353}00353\ \ \ \ \ \ \ \ \ cov\ =\ np.dot(self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_a8f3825f82111422cf219e160433c4436}{components\_}}.T,\ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_a8f3825f82111422cf219e160433c4436}{components\_}})}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00354}00354\ \ \ \ \ \ \ \ \ cov.flat[::\ len(cov)\ +\ 1]\ +=\ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_ab889f06ceca44d2befcde34d42f4af3f}{noise\_variance\_}}\ \ \textcolor{comment}{\#\ modify\ diag\ inplace}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00355}00355\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ cov}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00356}00356\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00357}\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_a5a1cd96ab24b0fd10c6e6aed9d01b968}{00357}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_a5a1cd96ab24b0fd10c6e6aed9d01b968}{get\_precision}}(self):}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00358}00358\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Compute\ data\ precision\ matrix\ with\ the\ FactorAnalysis\ model.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00359}00359\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00360}00360\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00361}00361\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00362}00362\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ precision\ :\ ndarray\ of\ shape\ (n\_features,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00363}00363\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Estimated\ precision\ of\ data.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00364}00364\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00365}00365\ \ \ \ \ \ \ \ \ check\_is\_fitted(self)}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00366}00366\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00367}00367\ \ \ \ \ \ \ \ \ n\_features\ =\ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_a8f3825f82111422cf219e160433c4436}{components\_}}.shape[1]}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00368}00368\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00369}00369\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ handle\ corner\ cases\ first}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00370}00370\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_a63fdf754d8fbbef8e9e634ff031e1b20}{n\_components}}\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00371}00371\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ np.diag(1.0\ /\ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_ab889f06ceca44d2befcde34d42f4af3f}{noise\_variance\_}})}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00372}00372\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_a63fdf754d8fbbef8e9e634ff031e1b20}{n\_components}}\ ==\ n\_features:}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00373}00373\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ linalg.inv(self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_a94403b54fd5b18b563deb05fe7d807e3}{get\_covariance}}())}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00374}00374\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00375}00375\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Get\ precision\ using\ matrix\ inversion\ lemma}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00376}00376\ \ \ \ \ \ \ \ \ components\_\ =\ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_a8f3825f82111422cf219e160433c4436}{components\_}}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00377}00377\ \ \ \ \ \ \ \ \ precision\ =\ np.dot(components\_\ /\ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_ab889f06ceca44d2befcde34d42f4af3f}{noise\_variance\_}},\ components\_.T)}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00378}00378\ \ \ \ \ \ \ \ \ precision.flat[::\ len(precision)\ +\ 1]\ +=\ 1.0}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00379}00379\ \ \ \ \ \ \ \ \ precision\ =\ np.dot(components\_.T,\ np.dot(linalg.inv(precision),\ components\_))}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00380}00380\ \ \ \ \ \ \ \ \ precision\ /=\ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_ab889f06ceca44d2befcde34d42f4af3f}{noise\_variance\_}}[:,\ np.newaxis]}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00381}00381\ \ \ \ \ \ \ \ \ precision\ /=\ -\/self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_ab889f06ceca44d2befcde34d42f4af3f}{noise\_variance\_}}[np.newaxis,\ :]}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00382}00382\ \ \ \ \ \ \ \ \ precision.flat[::\ len(precision)\ +\ 1]\ +=\ 1.0\ /\ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_ab889f06ceca44d2befcde34d42f4af3f}{noise\_variance\_}}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00383}00383\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ precision}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00384}00384\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00385}\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_aa43dc8c7ebbafba24832a9f9531137a0}{00385}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_aa43dc8c7ebbafba24832a9f9531137a0}{score\_samples}}(self,\ X):}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00386}00386\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Compute\ the\ log-\/likelihood\ of\ each\ sample.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00387}00387\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00388}00388\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00389}00389\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00390}00390\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\ :\ ndarray\ of\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00391}00391\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ data.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00392}00392\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00393}00393\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00394}00394\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00395}00395\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ll\ :\ ndarray\ of\ shape\ (n\_samples,)}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00396}00396\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Log-\/likelihood\ of\ each\ sample\ under\ the\ current\ model.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00397}00397\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00398}00398\ \ \ \ \ \ \ \ \ check\_is\_fitted(self)}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00399}00399\ \ \ \ \ \ \ \ \ X\ =\ validate\_data(self,\ X,\ reset=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00400}00400\ \ \ \ \ \ \ \ \ Xr\ =\ X\ -\/\ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_ae35e92ef76b50562243ec44cc56fbcea}{mean\_}}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00401}00401\ \ \ \ \ \ \ \ \ precision\ =\ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_a5a1cd96ab24b0fd10c6e6aed9d01b968}{get\_precision}}()}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00402}00402\ \ \ \ \ \ \ \ \ n\_features\ =\ X.shape[1]}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00403}00403\ \ \ \ \ \ \ \ \ log\_like\ =\ -\/0.5\ *\ (Xr\ *\ (np.dot(Xr,\ precision))).sum(axis=1)}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00404}00404\ \ \ \ \ \ \ \ \ log\_like\ -\/=\ 0.5\ *\ (n\_features\ *\ log(2.0\ *\ np.pi)\ -\/\ fast\_logdet(precision))}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00405}00405\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ log\_like}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00406}00406\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00407}\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_a7677ba87658e37430b8ea485a9cf986d}{00407}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_a7677ba87658e37430b8ea485a9cf986d}{score}}(self,\ X,\ y=None):}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00408}00408\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Compute\ the\ average\ log-\/likelihood\ of\ the\ samples.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00409}00409\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00410}00410\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00411}00411\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00412}00412\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\ :\ ndarray\ of\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00413}00413\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ data.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00414}00414\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00415}00415\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ y\ :\ Ignored}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00416}00416\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Ignored\ parameter.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00417}00417\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00418}00418\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00419}00419\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00420}00420\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ll\ :\ float}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00421}00421\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Average\ log-\/likelihood\ of\ the\ samples\ under\ the\ current\ model.}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00422}00422\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00423}00423\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ np.mean(self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_aa43dc8c7ebbafba24832a9f9531137a0}{score\_samples}}(X))}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00424}00424\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00425}00425\ \ \ \ \ \textcolor{keyword}{def\ }\_rotate(self,\ components,\ n\_components=None,\ tol=1e-\/6):}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00426}00426\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Rotate\ the\ factor\ analysis\ solution."{}}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00427}00427\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ note\ that\ tol\ is\ not\ exposed}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00428}00428\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{namespacesklearn_1_1decomposition_1_1__factor__analysis_af8e430b427de5e0d1a96f915dcc196f5}{\_ortho\_rotation}}(components.T,\ method=self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_ae832f2469d2bc567e09da44a65d3c23c}{rotation}},\ tol=tol)[}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00429}00429\ \ \ \ \ \ \ \ \ \ \ \ \ :\ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_a63fdf754d8fbbef8e9e634ff031e1b20}{n\_components}}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00430}00430\ \ \ \ \ \ \ \ \ ]}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00431}00431\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00432}00432\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00433}\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_a89a926251081659eeccea3ec54db7b0d}{00433}}\ \ \ \ \ \textcolor{keyword}{def\ }\_n\_features\_out(self):}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00434}00434\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Number\ of\ transformed\ output\ features."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00435}00435\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classsklearn_1_1decomposition_1_1__factor__analysis_1_1FactorAnalysis_a8f3825f82111422cf219e160433c4436}{components\_}}.shape[0]}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00436}00436\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00437}00437\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00438}\mbox{\hyperlink{namespacesklearn_1_1decomposition_1_1__factor__analysis_af8e430b427de5e0d1a96f915dcc196f5}{00438}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1decomposition_1_1__factor__analysis_af8e430b427de5e0d1a96f915dcc196f5}{\_ortho\_rotation}}(components,\ method="{}varimax"{},\ tol=1e-\/6,\ max\_iter=100):}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00439}00439\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Return\ rotated\ components."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00440}00440\ \ \ \ \ nrow,\ ncol\ =\ components.shape}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00441}00441\ \ \ \ \ rotation\_matrix\ =\ np.eye(ncol)}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00442}00442\ \ \ \ \ var\ =\ 0}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00443}00443\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00444}00444\ \ \ \ \ \textcolor{keywordflow}{for}\ \_\ \textcolor{keywordflow}{in}\ range(max\_iter):}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00445}00445\ \ \ \ \ \ \ \ \ comp\_rot\ =\ np.dot(components,\ rotation\_matrix)}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00446}00446\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ method\ ==\ \textcolor{stringliteral}{"{}varimax"{}}:}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00447}00447\ \ \ \ \ \ \ \ \ \ \ \ \ tmp\ =\ comp\_rot\ *\ np.transpose((comp\_rot**2).sum(axis=0)\ /\ nrow)}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00448}00448\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ method\ ==\ \textcolor{stringliteral}{"{}quartimax"{}}:}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00449}00449\ \ \ \ \ \ \ \ \ \ \ \ \ tmp\ =\ 0}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00450}00450\ \ \ \ \ \ \ \ \ u,\ s,\ v\ =\ np.linalg.svd(np.dot(components.T,\ comp\_rot**3\ -\/\ tmp))}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00451}00451\ \ \ \ \ \ \ \ \ rotation\_matrix\ =\ np.dot(u,\ v)}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00452}00452\ \ \ \ \ \ \ \ \ var\_new\ =\ np.sum(s)}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00453}00453\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ var\ !=\ 0\ \textcolor{keywordflow}{and}\ var\_new\ <\ var\ *\ (1\ +\ tol):}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00454}00454\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00455}00455\ \ \ \ \ \ \ \ \ var\ =\ var\_new}
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00456}00456\ }
+\DoxyCodeLine{\Hypertarget{__factor__analysis_8py_source_l00457}00457\ \ \ \ \ \textcolor{keywordflow}{return}\ np.dot(components,\ rotation\_matrix).T}
+
+\end{DoxyCode}

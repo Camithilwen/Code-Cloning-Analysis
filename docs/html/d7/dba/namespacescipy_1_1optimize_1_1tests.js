@@ -1,0 +1,47 @@
+var namespacescipy_1_1optimize_1_1tests =
+[
+    [ "test__basinhopping", "dc/d2b/namespacescipy_1_1optimize_1_1tests_1_1test____basinhopping.html", "dc/d2b/namespacescipy_1_1optimize_1_1tests_1_1test____basinhopping" ],
+    [ "test__differential_evolution", "dd/df7/namespacescipy_1_1optimize_1_1tests_1_1test____differential__evolution.html", "dd/df7/namespacescipy_1_1optimize_1_1tests_1_1test____differential__evolution" ],
+    [ "test__dual_annealing", "d2/d60/namespacescipy_1_1optimize_1_1tests_1_1test____dual__annealing.html", "d2/d60/namespacescipy_1_1optimize_1_1tests_1_1test____dual__annealing" ],
+    [ "test__linprog_clean_inputs", "d4/d30/namespacescipy_1_1optimize_1_1tests_1_1test____linprog__clean__inputs.html", [
+      [ "test_aliasing", "d4/d30/namespacescipy_1_1optimize_1_1tests_1_1test____linprog__clean__inputs.html#a3ff34c2c5ebea1356374b7285e5cb9bc", null ],
+      [ "test_aliasing2", "d4/d30/namespacescipy_1_1optimize_1_1tests_1_1test____linprog__clean__inputs.html#a9b72dc0ae7dded23648c1b86269c2880", null ]
+    ] ],
+    [ "test__numdiff", "d9/d96/namespacescipy_1_1optimize_1_1tests_1_1test____numdiff.html", "d9/d96/namespacescipy_1_1optimize_1_1tests_1_1test____numdiff" ],
+    [ "test__remove_redundancy", "db/d4c/namespacescipy_1_1optimize_1_1tests_1_1test____remove__redundancy.html", "db/d4c/namespacescipy_1_1optimize_1_1tests_1_1test____remove__redundancy" ],
+    [ "test__root", "d5/d7d/namespacescipy_1_1optimize_1_1tests_1_1test____root.html", "d5/d7d/namespacescipy_1_1optimize_1_1tests_1_1test____root" ],
+    [ "test__shgo", "d3/d7c/namespacescipy_1_1optimize_1_1tests_1_1test____shgo.html", "d3/d7c/namespacescipy_1_1optimize_1_1tests_1_1test____shgo" ],
+    [ "test__spectral", "dc/dfa/namespacescipy_1_1optimize_1_1tests_1_1test____spectral.html", null ],
+    [ "test_cobyla", "d5/d00/namespacescipy_1_1optimize_1_1tests_1_1test__cobyla.html", "d5/d00/namespacescipy_1_1optimize_1_1tests_1_1test__cobyla" ],
+    [ "test_constraint_conversion", "d5/dbd/namespacescipy_1_1optimize_1_1tests_1_1test__constraint__conversion.html", "d5/dbd/namespacescipy_1_1optimize_1_1tests_1_1test__constraint__conversion" ],
+    [ "test_constraints", "d6/d21/namespacescipy_1_1optimize_1_1tests_1_1test__constraints.html", "d6/d21/namespacescipy_1_1optimize_1_1tests_1_1test__constraints" ],
+    [ "test_cython_optimize", "df/db1/namespacescipy_1_1optimize_1_1tests_1_1test__cython__optimize.html", null ],
+    [ "test_differentiable_functions", "d2/d9e/namespacescipy_1_1optimize_1_1tests_1_1test__differentiable__functions.html", "d2/d9e/namespacescipy_1_1optimize_1_1tests_1_1test__differentiable__functions" ],
+    [ "test_direct", "d2/d9e/namespacescipy_1_1optimize_1_1tests_1_1test__direct.html", "d2/d9e/namespacescipy_1_1optimize_1_1tests_1_1test__direct" ],
+    [ "test_hessian_update_strategy", "d7/d4e/namespacescipy_1_1optimize_1_1tests_1_1test__hessian__update__strategy.html", "d7/d4e/namespacescipy_1_1optimize_1_1tests_1_1test__hessian__update__strategy" ],
+    [ "test_lbfgsb_hessinv", "d7/dab/namespacescipy_1_1optimize_1_1tests_1_1test__lbfgsb__hessinv.html", null ],
+    [ "test_lbfgsb_setulb", "dd/df8/namespacescipy_1_1optimize_1_1tests_1_1test__lbfgsb__setulb.html", [
+      [ "objfun", "dd/df8/namespacescipy_1_1optimize_1_1tests_1_1test__lbfgsb__setulb.html#a350edd6a0c9b685e6c659cb77c05c8c7", null ],
+      [ "test_setulb_floatround", "dd/df8/namespacescipy_1_1optimize_1_1tests_1_1test__lbfgsb__setulb.html#af1644359c2a1d56df058f085db6f94a0", null ]
+    ] ],
+    [ "test_least_squares", "d1/df5/namespacescipy_1_1optimize_1_1tests_1_1test__least__squares.html", "d1/df5/namespacescipy_1_1optimize_1_1tests_1_1test__least__squares" ],
+    [ "test_linear_assignment", "d7/d12/namespacescipy_1_1optimize_1_1tests_1_1test__linear__assignment.html", null ],
+    [ "test_linesearch", "dd/d76/namespacescipy_1_1optimize_1_1tests_1_1test__linesearch.html", "dd/d76/namespacescipy_1_1optimize_1_1tests_1_1test__linesearch" ],
+    [ "test_linprog", "db/ddc/namespacescipy_1_1optimize_1_1tests_1_1test__linprog.html", "db/ddc/namespacescipy_1_1optimize_1_1tests_1_1test__linprog" ],
+    [ "test_lsq_common", "db/d87/namespacescipy_1_1optimize_1_1tests_1_1test__lsq__common.html", "db/d87/namespacescipy_1_1optimize_1_1tests_1_1test__lsq__common" ],
+    [ "test_lsq_linear", "df/d87/namespacescipy_1_1optimize_1_1tests_1_1test__lsq__linear.html", "df/d87/namespacescipy_1_1optimize_1_1tests_1_1test__lsq__linear" ],
+    [ "test_milp", "de/d2f/namespacescipy_1_1optimize_1_1tests_1_1test__milp.html", null ],
+    [ "test_minimize_constrained", "dd/d64/namespacescipy_1_1optimize_1_1tests_1_1test__minimize__constrained.html", "dd/d64/namespacescipy_1_1optimize_1_1tests_1_1test__minimize__constrained" ],
+    [ "test_minpack", "d4/dac/namespacescipy_1_1optimize_1_1tests_1_1test__minpack.html", "d4/dac/namespacescipy_1_1optimize_1_1tests_1_1test__minpack" ],
+    [ "test_nnls", "d1/d77/namespacescipy_1_1optimize_1_1tests_1_1test__nnls.html", "d1/d77/namespacescipy_1_1optimize_1_1tests_1_1test__nnls" ],
+    [ "test_nonlin", "d4/ddb/namespacescipy_1_1optimize_1_1tests_1_1test__nonlin.html", "d4/ddb/namespacescipy_1_1optimize_1_1tests_1_1test__nonlin" ],
+    [ "test_optimize", "d7/d14/namespacescipy_1_1optimize_1_1tests_1_1test__optimize.html", "d7/d14/namespacescipy_1_1optimize_1_1tests_1_1test__optimize" ],
+    [ "test_quadratic_assignment", "df/ddc/namespacescipy_1_1optimize_1_1tests_1_1test__quadratic__assignment.html", "df/ddc/namespacescipy_1_1optimize_1_1tests_1_1test__quadratic__assignment" ],
+    [ "test_regression", "d8/d00/namespacescipy_1_1optimize_1_1tests_1_1test__regression.html", "d8/d00/namespacescipy_1_1optimize_1_1tests_1_1test__regression" ],
+    [ "test_slsqp", "dd/db8/namespacescipy_1_1optimize_1_1tests_1_1test__slsqp.html", "dd/db8/namespacescipy_1_1optimize_1_1tests_1_1test__slsqp" ],
+    [ "test_tnc", "d3/db6/namespacescipy_1_1optimize_1_1tests_1_1test__tnc.html", "d3/db6/namespacescipy_1_1optimize_1_1tests_1_1test__tnc" ],
+    [ "test_trustregion", "d3/d66/namespacescipy_1_1optimize_1_1tests_1_1test__trustregion.html", "d3/d66/namespacescipy_1_1optimize_1_1tests_1_1test__trustregion" ],
+    [ "test_trustregion_exact", "dc/d07/namespacescipy_1_1optimize_1_1tests_1_1test__trustregion__exact.html", "dc/d07/namespacescipy_1_1optimize_1_1tests_1_1test__trustregion__exact" ],
+    [ "test_trustregion_krylov", "d5/d00/namespacescipy_1_1optimize_1_1tests_1_1test__trustregion__krylov.html", "d5/d00/namespacescipy_1_1optimize_1_1tests_1_1test__trustregion__krylov" ],
+    [ "test_zeros", "d7/d4d/namespacescipy_1_1optimize_1_1tests_1_1test__zeros.html", "d7/d4d/namespacescipy_1_1optimize_1_1tests_1_1test__zeros" ]
+];

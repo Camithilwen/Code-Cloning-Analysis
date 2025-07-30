@@ -1,0 +1,8 @@
+var namespacesklearn_1_1ensemble_1_1__hist__gradient__boosting_1_1gradient__boosting =
+[
+    [ "BaseHistGradientBoosting", "d0/d2d/classsklearn_1_1ensemble_1_1__hist__gradient__boosting_1_1gradient__boosting_1_1BaseHistGradientBoosting.html", "d0/d2d/classsklearn_1_1ensemble_1_1__hist__gradient__boosting_1_1gradient__boosting_1_1BaseHistGradientBoosting" ],
+    [ "HistGradientBoostingClassifier", "db/d1e/classsklearn_1_1ensemble_1_1__hist__gradient__boosting_1_1gradient__boosting_1_1HistGradientBoostingClassifier.html", "db/d1e/classsklearn_1_1ensemble_1_1__hist__gradient__boosting_1_1gradient__boosting_1_1HistGradientBoostingClassifier" ],
+    [ "HistGradientBoostingRegressor", "d0/db8/classsklearn_1_1ensemble_1_1__hist__gradient__boosting_1_1gradient__boosting_1_1HistGradientBoostingRegressor.html", "d0/db8/classsklearn_1_1ensemble_1_1__hist__gradient__boosting_1_1gradient__boosting_1_1HistGradientBoostingRegressor" ],
+    [ "_patch_raw_predict", "d4/d40/namespacesklearn_1_1ensemble_1_1__hist__gradient__boosting_1_1gradient__boosting.html#a4cf3085f0d80a3d32f5fbc2a96f6b28a", null ],
+    [ "_update_leaves_values", "d4/d40/namespacesklearn_1_1ensemble_1_1__hist__gradient__boosting_1_1gradient__boosting.html#a792e2e12a4c12db534fb1b6ce74c5b04", null ]
+];

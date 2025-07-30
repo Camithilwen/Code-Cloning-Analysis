@@ -1,0 +1,1286 @@
+\doxysection{test\+\_\+memmapping.\+py}
+\hypertarget{test__memmapping_8py_source}{}\label{test__memmapping_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/joblib/test/test\_memmapping.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/joblib/test/test\_memmapping.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00001}\mbox{\hyperlink{namespacejoblib_1_1test_1_1test__memmapping}{00001}}\ \textcolor{keyword}{import}\ faulthandler}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00002}00002\ \textcolor{keyword}{import}\ gc}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00003}00003\ \textcolor{keyword}{import}\ itertools}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00004}00004\ \textcolor{keyword}{import}\ mmap}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00005}00005\ \textcolor{keyword}{import}\ os}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00006}00006\ \textcolor{keyword}{import}\ pickle}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00007}00007\ \textcolor{keyword}{import}\ platform}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00008}00008\ \textcolor{keyword}{import}\ subprocess}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00009}00009\ \textcolor{keyword}{import}\ sys}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00010}00010\ \textcolor{keyword}{import}\ threading}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00011}00011\ \textcolor{keyword}{from}\ time\ \textcolor{keyword}{import}\ sleep}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00012}00012\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00013}00013\ \textcolor{keyword}{import}\ pytest}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00014}00014\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00015}00015\ \textcolor{keyword}{import}\ \mbox{\hyperlink{namespacejoblib_1_1__memmapping__reducer}{joblib.\_memmapping\_reducer}}\ \textcolor{keyword}{as}\ jmr}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00016}00016\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacejoblib_1_1__memmapping__reducer}{joblib.\_memmapping\_reducer}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00017}00017\ \ \ \ \ ArrayMemmapForwardReducer,}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00018}00018\ \ \ \ \ \_get\_backing\_memmap,}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00019}00019\ \ \ \ \ \_get\_temp\_dir,}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00020}00020\ \ \ \ \ \_strided\_from\_memmap,}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00021}00021\ \ \ \ \ \_WeakArrayKeyMap,}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00022}00022\ \ \ \ \ has\_shareable\_memory,}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00023}00023\ )}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00024}00024\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacejoblib_1_1backports}{joblib.backports}}\ \textcolor{keyword}{import}\ make\_memmap}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00025}00025\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacejoblib_1_1executor}{joblib.executor}}\ \textcolor{keyword}{import}\ \_TestingMemmappingExecutor\ \textcolor{keyword}{as}\ TestExecutor}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00026}00026\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacejoblib_1_1parallel}{joblib.parallel}}\ \textcolor{keyword}{import}\ Parallel,\ delayed}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00027}00027\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacejoblib_1_1pool}{joblib.pool}}\ \textcolor{keyword}{import}\ MemmappingPool}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00028}00028\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacejoblib_1_1test_1_1common}{joblib.test.common}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00029}00029\ \ \ \ \ IS\_GIL\_DISABLED,}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00030}00030\ \ \ \ \ np,}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00031}00031\ \ \ \ \ with\_dev\_shm,}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00032}00032\ \ \ \ \ with\_multiprocessing,}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00033}00033\ \ \ \ \ with\_numpy,}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00034}00034\ )}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00035}00035\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacejoblib_1_1testing}{joblib.testing}}\ \textcolor{keyword}{import}\ parametrize,\ raises,\ skipif}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00036}00036\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00037}00037\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00038}00038\ \textcolor{keyword}{def\ }setup\_module():}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00039}00039\ \ \ \ \ faulthandler.dump\_traceback\_later(timeout=300,\ exit=\textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00040}00040\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00041}00041\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00042}00042\ \textcolor{keyword}{def\ }teardown\_module():}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00043}00043\ \ \ \ \ faulthandler.cancel\_dump\_traceback\_later()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00044}00044\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00045}00045\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00046}00046\ \textcolor{keyword}{def\ }check\_memmap\_and\_send\_back(array):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00047}00047\ \ \ \ \ \textcolor{keyword}{assert}\ \_get\_backing\_memmap(array)\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00048}00048\ \ \ \ \ \textcolor{keywordflow}{return}\ array}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00049}00049\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00050}00050\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00051}\mbox{\hyperlink{namespacejoblib_1_1test_1_1test__memmapping_a276dc8cd54c8a2295ef5c4e645ae5266}{00051}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1test_1_1test__memmapping_a276dc8cd54c8a2295ef5c4e645ae5266}{check\_array}}(args):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00052}00052\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Dummy\ helper\ function\ to\ be\ executed\ in\ subprocesses}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00053}00053\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00054}00054\ \textcolor{stringliteral}{\ \ \ \ Check\ that\ the\ provided\ array\ has\ the\ expected\ values\ in\ the\ provided}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00055}00055\ \textcolor{stringliteral}{\ \ \ \ range.}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00056}00056\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00057}00057\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00058}00058\ \ \ \ \ data,\ position,\ expected\ =\ args}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00059}00059\ \ \ \ \ np.testing.assert\_array\_equal(data[position],\ expected)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00060}00060\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00061}00061\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00062}\mbox{\hyperlink{namespacejoblib_1_1test_1_1test__memmapping_ab06b583152ef75629a785832b74544a0}{00062}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1test_1_1test__memmapping_ab06b583152ef75629a785832b74544a0}{inplace\_double}}(args):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00063}00063\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Dummy\ helper\ function\ to\ be\ executed\ in\ subprocesses}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00064}00064\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00065}00065\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00066}00066\ \textcolor{stringliteral}{\ \ \ \ Check\ that\ the\ input\ array\ has\ the\ right\ values\ in\ the\ provided\ range}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00067}00067\ \textcolor{stringliteral}{\ \ \ \ and\ perform\ an\ inplace\ modification\ to\ double\ the\ values\ in\ the\ range\ by}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00068}00068\ \textcolor{stringliteral}{\ \ \ \ two.}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00069}00069\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00070}00070\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00071}00071\ \ \ \ \ data,\ position,\ expected\ =\ args}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00072}00072\ \ \ \ \ \textcolor{keyword}{assert}\ data[position]\ ==\ expected}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00073}00073\ \ \ \ \ data[position]\ *=\ 2}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00074}00074\ \ \ \ \ np.testing.assert\_array\_equal(data[position],\ 2\ *\ expected)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00075}00075\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00076}00076\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00077}00077\ \textcolor{preprocessor}{@with\_numpy}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00078}00078\ \textcolor{preprocessor}{@with\_multiprocessing}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00079}\mbox{\hyperlink{namespacejoblib_1_1test_1_1test__memmapping_a782913b56aaee94e0b03429d0d6c3c98}{00079}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1test_1_1test__memmapping_a782913b56aaee94e0b03429d0d6c3c98}{test\_memmap\_based\_array\_reducing}}(tmpdir):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00080}00080\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Check\ that\ it\ is\ possible\ to\ reduce\ a\ memmap\ backed\ array"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00081}00081\ \ \ \ \ assert\_array\_equal\ =\ np.testing.assert\_array\_equal}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00082}00082\ \ \ \ \ filename\ =\ tmpdir.join(\textcolor{stringliteral}{"{}test.mmap"{}}).strpath}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00083}00083\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00084}00084\ \ \ \ \ \textcolor{comment}{\#\ Create\ a\ file\ larger\ than\ what\ will\ be\ used\ by\ a}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00085}00085\ \ \ \ \ buffer\ =\ np.memmap(filename,\ dtype=np.float64,\ shape=500,\ mode=\textcolor{stringliteral}{"{}w+"{}})}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00086}00086\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00087}00087\ \ \ \ \ \textcolor{comment}{\#\ Fill\ the\ original\ buffer\ with\ negative\ markers\ to\ detect\ over\ of}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00088}00088\ \ \ \ \ \textcolor{comment}{\#\ underflow\ in\ case\ of\ test\ failures}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00089}00089\ \ \ \ \ buffer[:]\ =\ -\/1.0\ *\ np.arange(buffer.shape[0],\ dtype=buffer.dtype)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00090}00090\ \ \ \ \ buffer.flush()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00091}00091\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00092}00092\ \ \ \ \ \textcolor{comment}{\#\ Memmap\ a\ 2D\ fortran\ array\ on\ a\ offsetted\ subsection\ of\ the\ previous}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00093}00093\ \ \ \ \ \textcolor{comment}{\#\ buffer}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00094}00094\ \ \ \ \ a\ =\ np.memmap(}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00095}00095\ \ \ \ \ \ \ \ \ filename,\ dtype=np.float64,\ shape=(3,\ 5,\ 4),\ mode=\textcolor{stringliteral}{"{}r+"{}},\ order=\textcolor{stringliteral}{"{}F"{}},\ offset=4}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00096}00096\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00097}00097\ \ \ \ \ a[:]\ =\ np.arange(60).reshape(a.shape)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00098}00098\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00099}00099\ \ \ \ \ \textcolor{comment}{\#\ Build\ various\ views\ that\ share\ the\ buffer\ with\ the\ original\ memmap}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00100}00100\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00101}00101\ \ \ \ \ \textcolor{comment}{\#\ b\ is\ an\ memmap\ sliced\ view\ on\ an\ memmap\ instance}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00102}00102\ \ \ \ \ b\ =\ a[1:-\/1,\ 2:-\/1,\ 2:4]}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00103}00103\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00104}00104\ \ \ \ \ \textcolor{comment}{\#\ b2\ is\ a\ memmap\ 2d\ with\ memmap\ 1d\ as\ base}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00105}00105\ \ \ \ \ \textcolor{comment}{\#\ non-\/regression\ test\ for\ https://github.com/joblib/joblib/issues/1703}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00106}00106\ \ \ \ \ b2\ =\ buffer.reshape(10,\ 50)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00107}00107\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00108}00108\ \ \ \ \ \textcolor{comment}{\#\ c\ and\ d\ are\ array\ views}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00109}00109\ \ \ \ \ c\ =\ np.asarray(b)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00110}00110\ \ \ \ \ d\ =\ c.T}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00111}00111\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00112}00112\ \ \ \ \ \textcolor{comment}{\#\ Array\ reducer\ with\ auto\ dumping\ disabled}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00113}00113\ \ \ \ \ reducer\ =\ \mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1ArrayMemmapForwardReducer}{ArrayMemmapForwardReducer}}(\textcolor{keywordtype}{None},\ tmpdir.strpath,\ \textcolor{stringliteral}{"{}c"{}},\ \textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00114}00114\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00115}00115\ \ \ \ \ \textcolor{keyword}{def\ }reconstruct\_array\_or\_memmap(x):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00116}00116\ \ \ \ \ \ \ \ \ cons,\ args\ =\ reducer(x)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00117}00117\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ cons(*args)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00118}00118\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00119}00119\ \ \ \ \ \textcolor{comment}{\#\ Reconstruct\ original\ memmap}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00120}00120\ \ \ \ \ a\_reconstructed\ =\ reconstruct\_array\_or\_memmap(a)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00121}00121\ \ \ \ \ \textcolor{keyword}{assert}\ has\_shareable\_memory(a\_reconstructed)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00122}00122\ \ \ \ \ \textcolor{keyword}{assert}\ isinstance(a\_reconstructed,\ np.memmap)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00123}00123\ \ \ \ \ assert\_array\_equal(a\_reconstructed,\ a)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00124}00124\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00125}00125\ \ \ \ \ \textcolor{comment}{\#\ Reconstruct\ strided\ memmap\ view}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00126}00126\ \ \ \ \ b\_reconstructed\ =\ reconstruct\_array\_or\_memmap(b)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00127}00127\ \ \ \ \ \textcolor{keyword}{assert}\ has\_shareable\_memory(b\_reconstructed)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00128}00128\ \ \ \ \ assert\_array\_equal(b\_reconstructed,\ b)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00129}00129\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00130}00130\ \ \ \ \ \textcolor{comment}{\#\ Reconstruct\ memmap\ 2d\ with\ memmap\ 1d\ as\ base}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00131}00131\ \ \ \ \ b2\_reconstructed\ =\ reconstruct\_array\_or\_memmap(b2)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00132}00132\ \ \ \ \ \textcolor{keyword}{assert}\ has\_shareable\_memory(b2\_reconstructed)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00133}00133\ \ \ \ \ assert\_array\_equal(b2\_reconstructed,\ b2)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00134}00134\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00135}00135\ \ \ \ \ \textcolor{comment}{\#\ Reconstruct\ arrays\ views\ on\ memmap\ base}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00136}00136\ \ \ \ \ c\_reconstructed\ =\ reconstruct\_array\_or\_memmap(c)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00137}00137\ \ \ \ \ \textcolor{keyword}{assert}\ \textcolor{keywordflow}{not}\ isinstance(c\_reconstructed,\ np.memmap)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00138}00138\ \ \ \ \ \textcolor{keyword}{assert}\ has\_shareable\_memory(c\_reconstructed)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00139}00139\ \ \ \ \ assert\_array\_equal(c\_reconstructed,\ c)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00140}00140\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00141}00141\ \ \ \ \ d\_reconstructed\ =\ reconstruct\_array\_or\_memmap(d)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00142}00142\ \ \ \ \ \textcolor{keyword}{assert}\ \textcolor{keywordflow}{not}\ isinstance(d\_reconstructed,\ np.memmap)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00143}00143\ \ \ \ \ \textcolor{keyword}{assert}\ has\_shareable\_memory(d\_reconstructed)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00144}00144\ \ \ \ \ assert\_array\_equal(d\_reconstructed,\ d)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00145}00145\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00146}00146\ \ \ \ \ \textcolor{comment}{\#\ Test\ graceful\ degradation\ on\ fake\ memmap\ instances\ with\ in-\/memory}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00147}00147\ \ \ \ \ \textcolor{comment}{\#\ buffers}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00148}00148\ \ \ \ \ a3\ =\ a\ *\ 3}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00149}00149\ \ \ \ \ \textcolor{keyword}{assert}\ \textcolor{keywordflow}{not}\ has\_shareable\_memory(a3)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00150}00150\ \ \ \ \ a3\_reconstructed\ =\ reconstruct\_array\_or\_memmap(a3)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00151}00151\ \ \ \ \ \textcolor{keyword}{assert}\ \textcolor{keywordflow}{not}\ has\_shareable\_memory(a3\_reconstructed)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00152}00152\ \ \ \ \ \textcolor{keyword}{assert}\ \textcolor{keywordflow}{not}\ isinstance(a3\_reconstructed,\ np.memmap)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00153}00153\ \ \ \ \ assert\_array\_equal(a3\_reconstructed,\ a\ *\ 3)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00154}00154\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00155}00155\ \ \ \ \ \textcolor{comment}{\#\ Test\ graceful\ degradation\ on\ arrays\ derived\ from\ fake\ memmap\ instances}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00156}00156\ \ \ \ \ b3\ =\ np.asarray(a3)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00157}00157\ \ \ \ \ \textcolor{keyword}{assert}\ \textcolor{keywordflow}{not}\ has\_shareable\_memory(b3)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00158}00158\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00159}00159\ \ \ \ \ b3\_reconstructed\ =\ reconstruct\_array\_or\_memmap(b3)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00160}00160\ \ \ \ \ \textcolor{keyword}{assert}\ isinstance(b3\_reconstructed,\ np.ndarray)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00161}00161\ \ \ \ \ \textcolor{keyword}{assert}\ \textcolor{keywordflow}{not}\ has\_shareable\_memory(b3\_reconstructed)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00162}00162\ \ \ \ \ assert\_array\_equal(b3\_reconstructed,\ b3)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00163}00163\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00164}00164\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00165}00165\ \textcolor{preprocessor}{@with\_numpy}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00166}00166\ \textcolor{preprocessor}{@with\_multiprocessing}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00167}00167\ \textcolor{preprocessor}{@skipif}(}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00168}00168\ \ \ \ \ sys.platform\ !=\ \textcolor{stringliteral}{"{}win32"{}},\ reason=\textcolor{stringliteral}{"{}PermissionError\ only\ easily\ triggerable\ on\ Windows"{}}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00169}00169\ )}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00170}00170\ \textcolor{keyword}{def\ }test\_resource\_tracker\_retries\_when\_permissionerror(tmpdir):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00171}00171\ \ \ \ \ \textcolor{comment}{\#\ Test\ resource\_tracker\ retry\ mechanism\ when\ unlinking\ memmaps.\ \ See\ more}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00172}00172\ \ \ \ \ \textcolor{comment}{\#\ thorough\ information\ in\ the\ \`{}\`{}unlink\_file``\ documentation\ of\ joblib.}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00173}00173\ \ \ \ \ filename\ =\ tmpdir.join(\textcolor{stringliteral}{"{}test.mmap"{}}).strpath}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00174}00174\ \ \ \ \ cmd\ =\ \textcolor{stringliteral}{"{}"{}"{}if\ 1:}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00175}00175\ \textcolor{stringliteral}{\ \ \ \ import\ os}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00176}00176\ \textcolor{stringliteral}{\ \ \ \ import\ numpy\ as\ np}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00177}00177\ \textcolor{stringliteral}{\ \ \ \ import\ time}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00178}00178\ \textcolor{stringliteral}{\ \ \ \ from\ joblib.externals.loky.backend\ import\ resource\_tracker}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00179}00179\ \textcolor{stringliteral}{\ \ \ \ resource\_tracker.VERBOSE\ =\ 1}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00180}00180\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00181}00181\ \textcolor{stringliteral}{\ \ \ \ \#\ Start\ the\ resource\ tracker}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00182}00182\ \textcolor{stringliteral}{\ \ \ \ resource\_tracker.ensure\_running()}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00183}00183\ \textcolor{stringliteral}{\ \ \ \ time.sleep(1)}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00184}00184\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00185}00185\ \textcolor{stringliteral}{\ \ \ \ \#\ Create\ a\ file\ containing\ numpy\ data}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00186}00186\ \textcolor{stringliteral}{\ \ \ \ memmap\ =\ np.memmap(r"{}\{filename\}"{},\ dtype=np.float64,\ shape=10,\ mode='w+')}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00187}00187\ \textcolor{stringliteral}{\ \ \ \ memmap[:]\ =\ np.arange(10).astype(np.int8).data}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00188}00188\ \textcolor{stringliteral}{\ \ \ \ memmap.flush()}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00189}00189\ \textcolor{stringliteral}{\ \ \ \ assert\ os.path.exists(r"{}\{filename\}"{})}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00190}00190\ \textcolor{stringliteral}{\ \ \ \ del\ memmap}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00191}00191\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00192}00192\ \textcolor{stringliteral}{\ \ \ \ \#\ Create\ a\ np.memmap\ backed\ by\ this\ file}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00193}00193\ \textcolor{stringliteral}{\ \ \ \ memmap\ =\ np.memmap(r"{}\{filename\}"{},\ dtype=np.float64,\ shape=10,\ mode='w+')}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00194}00194\ \textcolor{stringliteral}{\ \ \ \ resource\_tracker.register(r"{}\{filename\}"{},\ "{}file"{})}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00195}00195\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00196}00196\ \textcolor{stringliteral}{\ \ \ \ \#\ Ask\ the\ resource\_tracker\ to\ delete\ the\ file\ backing\ the\ np.memmap\ ,\ this}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00197}00197\ \textcolor{stringliteral}{\ \ \ \ \#\ should\ raise\ PermissionError\ that\ the\ resource\_tracker\ will\ log.}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00198}00198\ \textcolor{stringliteral}{\ \ \ \ resource\_tracker.maybe\_unlink(r"{}\{filename\}"{},\ "{}file"{})}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00199}00199\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00200}00200\ \textcolor{stringliteral}{\ \ \ \ \#\ Wait\ for\ the\ resource\_tracker\ to\ process\ the\ maybe\_unlink\ before\ cleaning}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00201}00201\ \textcolor{stringliteral}{\ \ \ \ \#\ up\ the\ memmap}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00202}00202\ \textcolor{stringliteral}{\ \ \ \ time.sleep(2)}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00203}00203\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}.format(filename=filename)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00204}00204\ \ \ \ \ p\ =\ subprocess.Popen(}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00205}00205\ \ \ \ \ \ \ \ \ [sys.executable,\ \textcolor{stringliteral}{"{}-\/c"{}},\ cmd],\ stderr=subprocess.PIPE,\ stdout=subprocess.PIPE}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00206}00206\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00207}00207\ \ \ \ \ p.wait()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00208}00208\ \ \ \ \ out,\ err\ =\ p.communicate()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00209}00209\ \ \ \ \ \textcolor{keyword}{assert}\ p.returncode\ ==\ 0,\ err.decode()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00210}00210\ \ \ \ \ \textcolor{keyword}{assert}\ out\ ==\ b\textcolor{stringliteral}{"{}"{}}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00211}00211\ \ \ \ \ msg\ =\ \textcolor{stringliteral}{"{}tried\ to\ unlink\ \{\},\ got\ PermissionError"{}}.format(filename)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00212}00212\ \ \ \ \ \textcolor{keyword}{assert}\ msg\ \textcolor{keywordflow}{in}\ err.decode()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00213}00213\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00214}00214\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00215}00215\ \textcolor{preprocessor}{@with\_numpy}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00216}00216\ \textcolor{preprocessor}{@with\_multiprocessing}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00217}00217\ \textcolor{keyword}{def\ }test\_high\_dimension\_memmap\_array\_reducing(tmpdir):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00218}00218\ \ \ \ \ assert\_array\_equal\ =\ np.testing.assert\_array\_equal}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00219}00219\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00220}00220\ \ \ \ \ filename\ =\ tmpdir.join(\textcolor{stringliteral}{"{}test.mmap"{}}).strpath}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00221}00221\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00222}00222\ \ \ \ \ \textcolor{comment}{\#\ Create\ a\ high\ dimensional\ memmap}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00223}00223\ \ \ \ \ a\ =\ np.memmap(filename,\ dtype=np.float64,\ shape=(100,\ 15,\ 15,\ 3),\ mode=\textcolor{stringliteral}{"{}w+"{}})}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00224}00224\ \ \ \ \ a[:]\ =\ np.arange(100\ *\ 15\ *\ 15\ *\ 3).reshape(a.shape)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00225}00225\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00226}00226\ \ \ \ \ \textcolor{comment}{\#\ Create\ some\ slices/indices\ at\ various\ dimensions}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00227}00227\ \ \ \ \ b\ =\ a[0:10]}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00228}00228\ \ \ \ \ c\ =\ a[:,\ 5:10]}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00229}00229\ \ \ \ \ d\ =\ a[:,\ :,\ :,\ 0]}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00230}00230\ \ \ \ \ e\ =\ a[1:3:4]}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00231}00231\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00232}00232\ \ \ \ \ \textcolor{comment}{\#\ Array\ reducer\ with\ auto\ dumping\ disabled}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00233}00233\ \ \ \ \ reducer\ =\ \mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1ArrayMemmapForwardReducer}{ArrayMemmapForwardReducer}}(\textcolor{keywordtype}{None},\ tmpdir.strpath,\ \textcolor{stringliteral}{"{}c"{}},\ \textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00234}00234\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00235}00235\ \ \ \ \ \textcolor{keyword}{def\ }reconstruct\_array\_or\_memmap(x):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00236}00236\ \ \ \ \ \ \ \ \ cons,\ args\ =\ reducer(x)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00237}00237\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ cons(*args)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00238}00238\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00239}00239\ \ \ \ \ a\_reconstructed\ =\ reconstruct\_array\_or\_memmap(a)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00240}00240\ \ \ \ \ \textcolor{keyword}{assert}\ has\_shareable\_memory(a\_reconstructed)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00241}00241\ \ \ \ \ \textcolor{keyword}{assert}\ isinstance(a\_reconstructed,\ np.memmap)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00242}00242\ \ \ \ \ assert\_array\_equal(a\_reconstructed,\ a)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00243}00243\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00244}00244\ \ \ \ \ b\_reconstructed\ =\ reconstruct\_array\_or\_memmap(b)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00245}00245\ \ \ \ \ \textcolor{keyword}{assert}\ has\_shareable\_memory(b\_reconstructed)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00246}00246\ \ \ \ \ assert\_array\_equal(b\_reconstructed,\ b)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00247}00247\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00248}00248\ \ \ \ \ c\_reconstructed\ =\ reconstruct\_array\_or\_memmap(c)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00249}00249\ \ \ \ \ \textcolor{keyword}{assert}\ has\_shareable\_memory(c\_reconstructed)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00250}00250\ \ \ \ \ assert\_array\_equal(c\_reconstructed,\ c)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00251}00251\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00252}00252\ \ \ \ \ d\_reconstructed\ =\ reconstruct\_array\_or\_memmap(d)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00253}00253\ \ \ \ \ \textcolor{keyword}{assert}\ has\_shareable\_memory(d\_reconstructed)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00254}00254\ \ \ \ \ assert\_array\_equal(d\_reconstructed,\ d)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00255}00255\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00256}00256\ \ \ \ \ e\_reconstructed\ =\ reconstruct\_array\_or\_memmap(e)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00257}00257\ \ \ \ \ \textcolor{keyword}{assert}\ has\_shareable\_memory(e\_reconstructed)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00258}00258\ \ \ \ \ assert\_array\_equal(e\_reconstructed,\ e)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00259}00259\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00260}00260\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00261}00261\ \textcolor{preprocessor}{@with\_numpy}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00262}00262\ \textcolor{keyword}{def\ }test\_\_strided\_from\_memmap(tmpdir):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00263}00263\ \ \ \ \ fname\ =\ tmpdir.join(\textcolor{stringliteral}{"{}test.mmap"{}}).strpath}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00264}00264\ \ \ \ \ size\ =\ 5\ *\ mmap.ALLOCATIONGRANULARITY}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00265}00265\ \ \ \ \ offset\ =\ mmap.ALLOCATIONGRANULARITY\ +\ 1}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00266}00266\ \ \ \ \ \textcolor{comment}{\#\ This\ line\ creates\ the\ mmap\ file\ that\ is\ reused\ later}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00267}00267\ \ \ \ \ memmap\_obj\ =\ np.memmap(fname,\ mode=\textcolor{stringliteral}{"{}w+"{}},\ shape=size\ +\ offset)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00268}00268\ \ \ \ \ \textcolor{comment}{\#\ filename,\ dtype,\ mode,\ offset,\ order,\ shape,\ strides,\ total\_buffer\_len}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00269}00269\ \ \ \ \ memmap\_obj\ =\ \_strided\_from\_memmap(}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00270}00270\ \ \ \ \ \ \ \ \ fname,}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00271}00271\ \ \ \ \ \ \ \ \ dtype=\textcolor{stringliteral}{"{}uint8"{}},}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00272}00272\ \ \ \ \ \ \ \ \ mode=\textcolor{stringliteral}{"{}r"{}},}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00273}00273\ \ \ \ \ \ \ \ \ offset=offset,}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00274}00274\ \ \ \ \ \ \ \ \ order=\textcolor{stringliteral}{"{}C"{}},}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00275}00275\ \ \ \ \ \ \ \ \ shape=size,}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00276}00276\ \ \ \ \ \ \ \ \ strides=\textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00277}00277\ \ \ \ \ \ \ \ \ total\_buffer\_len=\textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00278}00278\ \ \ \ \ \ \ \ \ unlink\_on\_gc\_collect=\textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00279}00279\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00280}00280\ \ \ \ \ \textcolor{keyword}{assert}\ isinstance(memmap\_obj,\ np.memmap)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00281}00281\ \ \ \ \ \textcolor{keyword}{assert}\ memmap\_obj.offset\ ==\ offset}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00282}00282\ \ \ \ \ memmap\_backed\_obj\ =\ \_strided\_from\_memmap(}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00283}00283\ \ \ \ \ \ \ \ \ fname,}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00284}00284\ \ \ \ \ \ \ \ \ dtype=\textcolor{stringliteral}{"{}uint8"{}},}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00285}00285\ \ \ \ \ \ \ \ \ mode=\textcolor{stringliteral}{"{}r"{}},}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00286}00286\ \ \ \ \ \ \ \ \ offset=offset,}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00287}00287\ \ \ \ \ \ \ \ \ order=\textcolor{stringliteral}{"{}C"{}},}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00288}00288\ \ \ \ \ \ \ \ \ shape=(size\ //\ 2,),}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00289}00289\ \ \ \ \ \ \ \ \ strides=(2,),}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00290}00290\ \ \ \ \ \ \ \ \ total\_buffer\_len=size,}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00291}00291\ \ \ \ \ \ \ \ \ unlink\_on\_gc\_collect=\textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00292}00292\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00293}00293\ \ \ \ \ \textcolor{keyword}{assert}\ \_get\_backing\_memmap(memmap\_backed\_obj).offset\ ==\ offset}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00294}00294\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00295}00295\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00296}00296\ \textcolor{preprocessor}{@with\_numpy}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00297}00297\ \textcolor{preprocessor}{@with\_multiprocessing}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00298}00298\ \textcolor{preprocessor}{@parametrize}(}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00299}00299\ \ \ \ \ \textcolor{stringliteral}{"{}factory"{}},}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00300}00300\ \ \ \ \ [MemmappingPool,\ TestExecutor.get\_memmapping\_executor],}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00301}00301\ \ \ \ \ ids=[\textcolor{stringliteral}{"{}multiprocessing"{}},\ \textcolor{stringliteral}{"{}loky"{}}],}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00302}00302\ )}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00303}\mbox{\hyperlink{namespacejoblib_1_1test_1_1test__memmapping_a2fc78072ce9fe3799ef3ffc3ee722e31}{00303}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1test_1_1test__memmapping_a2fc78072ce9fe3799ef3ffc3ee722e31}{test\_pool\_with\_memmap}}(factory,\ tmpdir):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00304}00304\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Check\ that\ subprocess\ can\ access\ and\ update\ shared\ memory\ memmap"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00305}00305\ \ \ \ \ assert\_array\_equal\ =\ np.testing.assert\_array\_equal}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00306}00306\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00307}00307\ \ \ \ \ \textcolor{comment}{\#\ Fork\ the\ subprocess\ before\ allocating\ the\ objects\ to\ be\ passed}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00308}00308\ \ \ \ \ pool\_temp\_folder\ =\ tmpdir.mkdir(\textcolor{stringliteral}{"{}pool"{}}).strpath}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00309}00309\ \ \ \ \ p\ =\ factory(10,\ max\_nbytes=2,\ temp\_folder=pool\_temp\_folder)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00310}00310\ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00311}00311\ \ \ \ \ \ \ \ \ filename\ =\ tmpdir.join(\textcolor{stringliteral}{"{}test.mmap"{}}).strpath}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00312}00312\ \ \ \ \ \ \ \ \ a\ =\ np.memmap(filename,\ dtype=np.float32,\ shape=(3,\ 5),\ mode=\textcolor{stringliteral}{"{}w+"{}})}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00313}00313\ \ \ \ \ \ \ \ \ a.fill(1.0)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00314}00314\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00315}00315\ \ \ \ \ \ \ \ \ p.map(}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00316}00316\ \ \ \ \ \ \ \ \ \ \ \ \ inplace\_double,}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00317}00317\ \ \ \ \ \ \ \ \ \ \ \ \ [(a,\ (i,\ j),\ 1.0)\ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(a.shape[0])\ \textcolor{keywordflow}{for}\ j\ \textcolor{keywordflow}{in}\ range(a.shape[1])],}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00318}00318\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00319}00319\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00320}00320\ \ \ \ \ \ \ \ \ assert\_array\_equal(a,\ 2\ *\ np.ones(a.shape))}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00321}00321\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00322}00322\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Open\ a\ copy-\/on-\/write\ view\ on\ the\ previous\ data}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00323}00323\ \ \ \ \ \ \ \ \ b\ =\ np.memmap(filename,\ dtype=np.float32,\ shape=(5,\ 3),\ mode=\textcolor{stringliteral}{"{}c"{}})}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00324}00324\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00325}00325\ \ \ \ \ \ \ \ \ p.map(}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00326}00326\ \ \ \ \ \ \ \ \ \ \ \ \ inplace\_double,}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00327}00327\ \ \ \ \ \ \ \ \ \ \ \ \ [(b,\ (i,\ j),\ 2.0)\ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(b.shape[0])\ \textcolor{keywordflow}{for}\ j\ \textcolor{keywordflow}{in}\ range(b.shape[1])],}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00328}00328\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00329}00329\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00330}00330\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Passing\ memmap\ instances\ to\ the\ pool\ should\ not\ trigger\ the\ creation}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00331}00331\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ of\ new\ files\ on\ the\ FS}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00332}00332\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ os.listdir(pool\_temp\_folder)\ ==\ []}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00333}00333\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00334}00334\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ the\ original\ data\ is\ untouched}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00335}00335\ \ \ \ \ \ \ \ \ assert\_array\_equal(a,\ 2\ *\ np.ones(a.shape))}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00336}00336\ \ \ \ \ \ \ \ \ assert\_array\_equal(b,\ 2\ *\ np.ones(b.shape))}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00337}00337\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00338}00338\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ readonly\ maps\ can\ be\ read\ but\ not\ updated}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00339}00339\ \ \ \ \ \ \ \ \ c\ =\ np.memmap(filename,\ dtype=np.float32,\ shape=(10,),\ mode=\textcolor{stringliteral}{"{}r"{}},\ offset=5\ *\ 4)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00340}00340\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00341}00341\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ raises(AssertionError):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00342}00342\ \ \ \ \ \ \ \ \ \ \ \ \ p.map(check\_array,\ [(c,\ i,\ 3.0)\ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(c.shape[0])])}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00343}00343\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00344}00344\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ depending\ on\ the\ version\ of\ numpy\ one\ can\ either\ get\ a\ RuntimeError}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00345}00345\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ or\ a\ ValueError}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00346}00346\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ raises((RuntimeError,\ ValueError)):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00347}00347\ \ \ \ \ \ \ \ \ \ \ \ \ p.map(inplace\_double,\ [(c,\ i,\ 2.0)\ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(c.shape[0])])}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00348}00348\ \ \ \ \ \textcolor{keywordflow}{finally}:}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00349}00349\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Clean\ all\ filehandlers\ held\ by\ the\ pool}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00350}00350\ \ \ \ \ \ \ \ \ p.terminate()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00351}00351\ \ \ \ \ \ \ \ \ del\ p}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00352}00352\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00353}00353\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00354}00354\ \textcolor{preprocessor}{@with\_numpy}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00355}00355\ \textcolor{preprocessor}{@with\_multiprocessing}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00356}00356\ \textcolor{preprocessor}{@parametrize}(}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00357}00357\ \ \ \ \ \textcolor{stringliteral}{"{}factory"{}},}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00358}00358\ \ \ \ \ [MemmappingPool,\ TestExecutor.get\_memmapping\_executor],}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00359}00359\ \ \ \ \ ids=[\textcolor{stringliteral}{"{}multiprocessing"{}},\ \textcolor{stringliteral}{"{}loky"{}}],}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00360}00360\ )}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00361}\mbox{\hyperlink{namespacejoblib_1_1test_1_1test__memmapping_a2a2ea79ed9eeead00a1f4f102f72399e}{00361}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1test_1_1test__memmapping_a2a2ea79ed9eeead00a1f4f102f72399e}{test\_pool\_with\_memmap\_array\_view}}(factory,\ tmpdir):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00362}00362\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Check\ that\ subprocess\ can\ access\ and\ update\ shared\ memory\ array"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00363}00363\ \ \ \ \ assert\_array\_equal\ =\ np.testing.assert\_array\_equal}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00364}00364\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00365}00365\ \ \ \ \ \textcolor{comment}{\#\ Fork\ the\ subprocess\ before\ allocating\ the\ objects\ to\ be\ passed}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00366}00366\ \ \ \ \ pool\_temp\_folder\ =\ tmpdir.mkdir(\textcolor{stringliteral}{"{}pool"{}}).strpath}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00367}00367\ \ \ \ \ p\ =\ factory(10,\ max\_nbytes=2,\ temp\_folder=pool\_temp\_folder)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00368}00368\ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00369}00369\ \ \ \ \ \ \ \ \ filename\ =\ tmpdir.join(\textcolor{stringliteral}{"{}test.mmap"{}}).strpath}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00370}00370\ \ \ \ \ \ \ \ \ a\ =\ np.memmap(filename,\ dtype=np.float32,\ shape=(3,\ 5),\ mode=\textcolor{stringliteral}{"{}w+"{}})}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00371}00371\ \ \ \ \ \ \ \ \ a.fill(1.0)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00372}00372\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00373}00373\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Create\ an\ ndarray\ view\ on\ the\ memmap\ instance}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00374}00374\ \ \ \ \ \ \ \ \ a\_view\ =\ np.asarray(a)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00375}00375\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ \textcolor{keywordflow}{not}\ isinstance(a\_view,\ np.memmap)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00376}00376\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ has\_shareable\_memory(a\_view)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00377}00377\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00378}00378\ \ \ \ \ \ \ \ \ p.map(}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00379}00379\ \ \ \ \ \ \ \ \ \ \ \ \ inplace\_double,}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00380}00380\ \ \ \ \ \ \ \ \ \ \ \ \ [}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00381}00381\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (a\_view,\ (i,\ j),\ 1.0)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00382}00382\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(a.shape[0])}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00383}00383\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ j\ \textcolor{keywordflow}{in}\ range(a.shape[1])}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00384}00384\ \ \ \ \ \ \ \ \ \ \ \ \ ],}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00385}00385\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00386}00386\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00387}00387\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Both\ a\ and\ the\ a\_view\ have\ been\ updated}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00388}00388\ \ \ \ \ \ \ \ \ assert\_array\_equal(a,\ 2\ *\ np.ones(a.shape))}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00389}00389\ \ \ \ \ \ \ \ \ assert\_array\_equal(a\_view,\ 2\ *\ np.ones(a.shape))}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00390}00390\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00391}00391\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Passing\ memmap\ array\ view\ to\ the\ pool\ should\ not\ trigger\ the}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00392}00392\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ creation\ of\ new\ files\ on\ the\ FS}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00393}00393\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ os.listdir(pool\_temp\_folder)\ ==\ []}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00394}00394\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00395}00395\ \ \ \ \ \textcolor{keywordflow}{finally}:}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00396}00396\ \ \ \ \ \ \ \ \ p.terminate()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00397}00397\ \ \ \ \ \ \ \ \ del\ p}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00398}00398\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00399}00399\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00400}00400\ \textcolor{preprocessor}{@with\_numpy}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00401}00401\ \textcolor{preprocessor}{@with\_multiprocessing}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00402}00402\ \textcolor{preprocessor}{@parametrize("{}backend"{},\ ["{}multiprocessing"{},\ "{}loky"{}])}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00403}00403\ \textcolor{keyword}{def\ }test\_permission\_error\_windows\_reference\_cycle(backend):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00404}00404\ \ \ \ \ \textcolor{comment}{\#\ Non\ regression\ test\ for:}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00405}00405\ \ \ \ \ \textcolor{comment}{\#\ https://github.com/joblib/joblib/issues/806}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00406}00406\ \ \ \ \ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00407}00407\ \ \ \ \ \textcolor{comment}{\#\ The\ issue\ happens\ when\ trying\ to\ delete\ a\ memory\ mapped\ file\ that\ has}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00408}00408\ \ \ \ \ \textcolor{comment}{\#\ not\ yet\ been\ closed\ by\ one\ of\ the\ worker\ processes.}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00409}00409\ \ \ \ \ cmd\ =\ \textcolor{stringliteral}{"{}"{}"{}if\ 1:}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00410}00410\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ import\ numpy\ as\ np}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00411}00411\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ from\ joblib\ import\ Parallel,\ delayed}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00412}00412\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00413}00413\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00414}00414\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ data\ =\ np.random.rand(int(2e6)).reshape((int(1e6),\ 2))}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00415}00415\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00416}00416\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \#\ Build\ a\ complex\ cyclic\ reference\ that\ is\ likely\ to\ delay\ garbage}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00417}00417\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \#\ collection\ of\ the\ memmapped\ array\ in\ the\ worker\ processes.}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00418}00418\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ first\_list\ =\ current\_list\ =\ [data]}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00419}00419\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ for\ i\ in\ range(10):}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00420}00420\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ current\_list\ =\ [current\_list]}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00421}00421\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ first\_list.append(current\_list)}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00422}00422\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00423}00423\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ if\ \_\_name\_\_\ ==\ "{}\_\_main\_\_"{}:}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00424}00424\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ results\ =\ Parallel(n\_jobs=2,\ backend="{}\{b\}"{})(}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00425}00425\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ delayed(len)(current\_list)\ for\ i\ in\ range(10))}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00426}00426\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ assert\ results\ ==\ [1]\ *\ 10}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00427}00427\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}.format(b=backend)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00428}00428\ \ \ \ \ p\ =\ subprocess.Popen(}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00429}00429\ \ \ \ \ \ \ \ \ [sys.executable,\ \textcolor{stringliteral}{"{}-\/c"{}},\ cmd],\ stderr=subprocess.PIPE,\ stdout=subprocess.PIPE}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00430}00430\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00431}00431\ \ \ \ \ p.wait()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00432}00432\ \ \ \ \ out,\ err\ =\ p.communicate()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00433}00433\ \ \ \ \ \textcolor{keyword}{assert}\ p.returncode\ ==\ 0,\ out.decode()\ +\ \textcolor{stringliteral}{"{}\(\backslash\)n\(\backslash\)n"{}}\ +\ err.decode()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00434}00434\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00435}00435\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00436}00436\ \textcolor{preprocessor}{@with\_numpy}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00437}00437\ \textcolor{preprocessor}{@with\_multiprocessing}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00438}00438\ \textcolor{preprocessor}{@parametrize("{}backend"{},\ ["{}multiprocessing"{},\ "{}loky"{}])}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00439}00439\ \textcolor{keyword}{def\ }test\_permission\_error\_windows\_memmap\_sent\_to\_parent(backend):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00440}00440\ \ \ \ \ \textcolor{comment}{\#\ Second\ non-\/regression\ test\ for:}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00441}00441\ \ \ \ \ \textcolor{comment}{\#\ https://github.com/joblib/joblib/issues/806}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00442}00442\ \ \ \ \ \textcolor{comment}{\#\ previously,\ child\ process\ would\ not\ convert\ temporary\ memmaps\ to\ numpy}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00443}00443\ \ \ \ \ \textcolor{comment}{\#\ arrays\ when\ sending\ the\ data\ back\ to\ the\ parent\ process.\ This\ would\ lead}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00444}00444\ \ \ \ \ \textcolor{comment}{\#\ to\ permission\ errors\ on\ windows\ when\ deleting\ joblib's\ temporary\ folder,}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00445}00445\ \ \ \ \ \textcolor{comment}{\#\ as\ the\ memmaped\ files\ handles\ would\ still\ opened\ in\ the\ parent\ process.}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00446}00446\ \ \ \ \ cmd\ =\ \textcolor{stringliteral}{"{}"{}"{}if\ 1:}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00447}00447\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ import\ os}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00448}00448\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ import\ time}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00449}00449\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00450}00450\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ import\ numpy\ as\ np}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00451}00451\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00452}00452\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ from\ joblib\ import\ Parallel,\ delayed}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00453}00453\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ from\ testutils\ import\ return\_slice\_of\_data}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00454}00454\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00455}00455\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ data\ =\ np.ones(int(2e6))}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00456}00456\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00457}00457\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ if\ \_\_name\_\_\ ==\ '\_\_main\_\_':}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00458}00458\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \#\ warm-\/up\ call\ to\ launch\ the\ workers\ and\ start\ the\ resource\_tracker}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00459}00459\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \_\ =\ Parallel(n\_jobs=2,\ verbose=5,\ backend='\{b\}')(}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00460}00460\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ delayed(id)(i)\ for\ i\ in\ range(20))}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00461}00461\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00462}00462\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ time.sleep(0.5)}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00463}00463\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00464}00464\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ slice\_of\_data\ =\ Parallel(n\_jobs=2,\ verbose=5,\ backend='\{b\}')(}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00465}00465\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ delayed(return\_slice\_of\_data)(data,\ 0,\ 20)\ for\ \_\ in\ range(10))}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00466}00466\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}.format(b=backend)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00467}00467\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00468}00468\ \ \ \ \ \textcolor{keywordflow}{for}\ \_\ \textcolor{keywordflow}{in}\ range(3):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00469}00469\ \ \ \ \ \ \ \ \ env\ =\ os.environ.copy()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00470}00470\ \ \ \ \ \ \ \ \ env[\textcolor{stringliteral}{"{}PYTHONPATH"{}}]\ =\ os.path.dirname(\_\_file\_\_)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00471}00471\ \ \ \ \ \ \ \ \ p\ =\ subprocess.Popen(}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00472}00472\ \ \ \ \ \ \ \ \ \ \ \ \ [sys.executable,\ \textcolor{stringliteral}{"{}-\/c"{}},\ cmd],}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00473}00473\ \ \ \ \ \ \ \ \ \ \ \ \ stderr=subprocess.PIPE,}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00474}00474\ \ \ \ \ \ \ \ \ \ \ \ \ stdout=subprocess.PIPE,}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00475}00475\ \ \ \ \ \ \ \ \ \ \ \ \ env=env,}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00476}00476\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00477}00477\ \ \ \ \ \ \ \ \ p.wait()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00478}00478\ \ \ \ \ \ \ \ \ out,\ err\ =\ p.communicate()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00479}00479\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ p.returncode\ ==\ 0,\ err}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00480}00480\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ out\ ==\ b\textcolor{stringliteral}{"{}"{}}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00481}00481\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ b\textcolor{stringliteral}{"{}resource\_tracker"{}}\ \textcolor{keywordflow}{not}\ \textcolor{keywordflow}{in}\ err}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00482}00482\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00483}00483\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00484}00484\ \textcolor{preprocessor}{@with\_numpy}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00485}00485\ \textcolor{preprocessor}{@with\_multiprocessing}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00486}00486\ \textcolor{preprocessor}{@parametrize("{}backend"{},\ ["{}multiprocessing"{},\ "{}loky"{}])}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00487}00487\ \textcolor{keyword}{def\ }test\_parallel\_isolated\_temp\_folders(backend):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00488}00488\ \ \ \ \ \textcolor{comment}{\#\ Test\ that\ consecutive\ Parallel\ call\ use\ isolated\ subfolders,\ even}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00489}00489\ \ \ \ \ \textcolor{comment}{\#\ for\ the\ loky\ backend\ that\ reuses\ its\ executor\ instance\ across\ calls.}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00490}00490\ \ \ \ \ array\ =\ np.arange(int(1e2))}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00491}00491\ \ \ \ \ [filename\_1]\ =\ \mbox{\hyperlink{classjoblib_1_1parallel_1_1Parallel}{Parallel}}(n\_jobs=2,\ backend=backend,\ max\_nbytes=10)(}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00492}00492\ \ \ \ \ \ \ \ \ delayed(getattr)(array,\ \textcolor{stringliteral}{"{}filename"{}})\ \textcolor{keywordflow}{for}\ \_\ \textcolor{keywordflow}{in}\ range(1)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00493}00493\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00494}00494\ \ \ \ \ [filename\_2]\ =\ \mbox{\hyperlink{classjoblib_1_1parallel_1_1Parallel}{Parallel}}(n\_jobs=2,\ backend=backend,\ max\_nbytes=10)(}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00495}00495\ \ \ \ \ \ \ \ \ delayed(getattr)(array,\ \textcolor{stringliteral}{"{}filename"{}})\ \textcolor{keywordflow}{for}\ \_\ \textcolor{keywordflow}{in}\ range(1)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00496}00496\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00497}00497\ \ \ \ \ \textcolor{keyword}{assert}\ os.path.dirname(filename\_2)\ !=\ os.path.dirname(filename\_1)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00498}00498\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00499}00499\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00500}00500\ \textcolor{preprocessor}{@with\_numpy}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00501}00501\ \textcolor{preprocessor}{@with\_multiprocessing}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00502}00502\ \textcolor{preprocessor}{@parametrize("{}backend"{},\ ["{}multiprocessing"{},\ "{}loky"{}])}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00503}00503\ \textcolor{keyword}{def\ }test\_managed\_backend\_reuse\_temp\_folder(backend):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00504}00504\ \ \ \ \ \textcolor{comment}{\#\ Test\ that\ calls\ to\ a\ managed\ parallel\ object\ reuse\ the\ same\ memmaps.}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00505}00505\ \ \ \ \ array\ =\ np.arange(int(1e2))}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00506}00506\ \ \ \ \ \textcolor{keyword}{with}\ \mbox{\hyperlink{classjoblib_1_1parallel_1_1Parallel}{Parallel}}(n\_jobs=2,\ backend=backend,\ max\_nbytes=10)\ \textcolor{keyword}{as}\ p:}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00507}00507\ \ \ \ \ \ \ \ \ [filename\_1]\ =\ p(delayed(getattr)(array,\ \textcolor{stringliteral}{"{}filename"{}})\ \textcolor{keywordflow}{for}\ \_\ \textcolor{keywordflow}{in}\ range(1))}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00508}00508\ \ \ \ \ \ \ \ \ [filename\_2]\ =\ p(delayed(getattr)(array,\ \textcolor{stringliteral}{"{}filename"{}})\ \textcolor{keywordflow}{for}\ \_\ \textcolor{keywordflow}{in}\ range(1))}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00509}00509\ \ \ \ \ \textcolor{keyword}{assert}\ os.path.dirname(filename\_2)\ ==\ os.path.dirname(filename\_1)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00510}00510\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00511}00511\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00512}00512\ \textcolor{preprocessor}{@with\_numpy}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00513}00513\ \textcolor{preprocessor}{@with\_multiprocessing}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00514}00514\ \textcolor{keyword}{def\ }test\_memmapping\_temp\_folder\_thread\_safety():}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00515}00515\ \ \ \ \ \textcolor{comment}{\#\ Concurrent\ calls\ to\ Parallel\ with\ the\ loky\ backend\ will\ use\ the\ same}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00516}00516\ \ \ \ \ \textcolor{comment}{\#\ executor,\ and\ thus\ the\ same\ reducers.\ Make\ sure\ that\ those\ reducers\ use}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00517}00517\ \ \ \ \ \textcolor{comment}{\#\ different\ temporary\ folders\ depending\ on\ which\ Parallel\ objects\ called}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00518}00518\ \ \ \ \ \textcolor{comment}{\#\ them,\ which\ is\ necessary\ to\ limit\ potential\ race\ conditions\ during\ the}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00519}00519\ \ \ \ \ \textcolor{comment}{\#\ garbage\ collection\ of\ temporary\ memmaps.}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00520}00520\ \ \ \ \ array\ =\ np.arange(int(1e2))}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00521}00521\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00522}00522\ \ \ \ \ temp\_dirs\_thread\_1\ =\ set()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00523}00523\ \ \ \ \ temp\_dirs\_thread\_2\ =\ set()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00524}00524\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00525}00525\ \ \ \ \ \textcolor{keyword}{def\ }concurrent\_get\_filename(array,\ temp\_dirs):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00526}00526\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ \mbox{\hyperlink{classjoblib_1_1parallel_1_1Parallel}{Parallel}}(backend=\textcolor{stringliteral}{"{}loky"{}},\ n\_jobs=2,\ max\_nbytes=10)\ \textcolor{keyword}{as}\ p:}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00527}00527\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(10):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00528}00528\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ [filename]\ =\ p(delayed(getattr)(array,\ \textcolor{stringliteral}{"{}filename"{}})\ \textcolor{keywordflow}{for}\ \_\ \textcolor{keywordflow}{in}\ range(1))}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00529}00529\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ temp\_dirs.add(os.path.dirname(filename))}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00530}00530\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00531}00531\ \ \ \ \ t1\ =\ threading.Thread(}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00532}00532\ \ \ \ \ \ \ \ \ target=concurrent\_get\_filename,\ args=(array,\ temp\_dirs\_thread\_1)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00533}00533\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00534}00534\ \ \ \ \ t2\ =\ threading.Thread(}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00535}00535\ \ \ \ \ \ \ \ \ target=concurrent\_get\_filename,\ args=(array,\ temp\_dirs\_thread\_2)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00536}00536\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00537}00537\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00538}00538\ \ \ \ \ t1.start()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00539}00539\ \ \ \ \ t2.start()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00540}00540\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00541}00541\ \ \ \ \ t1.join()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00542}00542\ \ \ \ \ t2.join()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00543}00543\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00544}00544\ \ \ \ \ \textcolor{keyword}{assert}\ len(temp\_dirs\_thread\_1)\ ==\ 1}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00545}00545\ \ \ \ \ \textcolor{keyword}{assert}\ len(temp\_dirs\_thread\_2)\ ==\ 1}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00546}00546\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00547}00547\ \ \ \ \ \textcolor{keyword}{assert}\ temp\_dirs\_thread\_1\ !=\ temp\_dirs\_thread\_2}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00548}00548\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00549}00549\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00550}00550\ \textcolor{preprocessor}{@with\_numpy}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00551}00551\ \textcolor{preprocessor}{@with\_multiprocessing}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00552}00552\ \textcolor{keyword}{def\ }test\_multithreaded\_parallel\_termination\_resource\_tracker\_silent():}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00553}00553\ \ \ \ \ \textcolor{comment}{\#\ test\ that\ concurrent\ termination\ attempts\ of\ a\ same\ executor\ does\ not}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00554}00554\ \ \ \ \ \textcolor{comment}{\#\ emit\ any\ spurious\ error\ from\ the\ resource\_tracker.\ We\ test\ various}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00555}00555\ \ \ \ \ \textcolor{comment}{\#\ situations\ making\ 0,\ 1\ or\ both\ parallel\ call\ sending\ a\ task\ that\ will}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00556}00556\ \ \ \ \ \textcolor{comment}{\#\ make\ the\ worker\ (and\ thus\ the\ whole\ Parallel\ call)\ error\ out.}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00557}00557\ \ \ \ \ cmd\ =\ \textcolor{stringliteral}{"{}"{}"{}if\ 1:}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00558}00558\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ import\ os}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00559}00559\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ import\ numpy\ as\ np}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00560}00560\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ from\ joblib\ import\ Parallel,\ delayed}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00561}00561\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ from\ joblib.externals.loky.backend\ import\ resource\_tracker}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00562}00562\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ from\ concurrent.futures\ import\ ThreadPoolExecutor,\ wait}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00563}00563\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00564}00564\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ resource\_tracker.VERBOSE\ =\ 0}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00565}00565\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00566}00566\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ array\ =\ np.arange(int(1e2))}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00567}00567\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00568}00568\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ temp\_dirs\_thread\_1\ =\ set()}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00569}00569\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ temp\_dirs\_thread\_2\ =\ set()}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00570}00570\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00571}00571\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00572}00572\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ def\ raise\_error(array):}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00573}00573\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ raise\ ValueError}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00574}00574\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00575}00575\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00576}00576\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ def\ parallel\_get\_filename(array,\ temp\_dirs):}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00577}00577\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ with\ Parallel(backend="{}loky"{},\ n\_jobs=2,\ max\_nbytes=10)\ as\ p:}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00578}00578\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ for\ i\ in\ range(10):}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00579}00579\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ [filename]\ =\ p(}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00580}00580\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ delayed(getattr)(array,\ "{}filename"{})\ for\ \_\ in\ range(1)}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00581}00581\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00582}00582\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ temp\_dirs.add(os.path.dirname(filename))}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00583}00583\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00584}00584\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00585}00585\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ def\ parallel\_raise(array,\ temp\_dirs):}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00586}00586\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ with\ Parallel(backend="{}loky"{},\ n\_jobs=2,\ max\_nbytes=10)\ as\ p:}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00587}00587\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ for\ i\ in\ range(10):}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00588}00588\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ [filename]\ =\ p(}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00589}00589\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ delayed(raise\_error)(array)\ for\ \_\ in\ range(1)}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00590}00590\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00591}00591\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ temp\_dirs.add(os.path.dirname(filename))}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00592}00592\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00593}00593\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00594}00594\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ executor\ =\ ThreadPoolExecutor(max\_workers=2)}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00595}00595\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00596}00596\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \#\ both\ function\ calls\ will\ use\ the\ same\ loky\ executor,\ but\ with\ a}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00597}00597\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \#\ different\ Parallel\ object.}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00598}00598\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ future\_1\ =\ executor.submit(\{f1\},\ array,\ temp\_dirs\_thread\_1)}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00599}00599\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ future\_2\ =\ executor.submit(\{f2\},\ array,\ temp\_dirs\_thread\_2)}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00600}00600\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00601}00601\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \#\ Wait\ for\ both\ threads\ to\ terminate\ their\ backend}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00602}00602\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ wait([future\_1,\ future\_2])}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00603}00603\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00604}00604\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ future\_1.result()}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00605}00605\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ future\_2.result()}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00606}00606\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00607}00607\ \ \ \ \ functions\_and\_returncodes\ =\ [}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00608}00608\ \ \ \ \ \ \ \ \ (\textcolor{stringliteral}{"{}parallel\_get\_filename"{}},\ \textcolor{stringliteral}{"{}parallel\_get\_filename"{}},\ 0),}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00609}00609\ \ \ \ \ \ \ \ \ (\textcolor{stringliteral}{"{}parallel\_get\_filename"{}},\ \textcolor{stringliteral}{"{}parallel\_raise"{}},\ 1),}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00610}00610\ \ \ \ \ \ \ \ \ (\textcolor{stringliteral}{"{}parallel\_raise"{}},\ \textcolor{stringliteral}{"{}parallel\_raise"{}},\ 1),}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00611}00611\ \ \ \ \ ]}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00612}00612\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00613}00613\ \ \ \ \ \textcolor{keywordflow}{for}\ f1,\ f2,\ returncode\ \textcolor{keywordflow}{in}\ functions\_and\_returncodes:}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00614}00614\ \ \ \ \ \ \ \ \ p\ =\ subprocess.Popen(}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00615}00615\ \ \ \ \ \ \ \ \ \ \ \ \ [sys.executable,\ \textcolor{stringliteral}{"{}-\/c"{}},\ cmd.format(f1=f1,\ f2=f2)],}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00616}00616\ \ \ \ \ \ \ \ \ \ \ \ \ stderr=subprocess.PIPE,}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00617}00617\ \ \ \ \ \ \ \ \ \ \ \ \ stdout=subprocess.PIPE,}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00618}00618\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00619}00619\ \ \ \ \ \ \ \ \ p.wait()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00620}00620\ \ \ \ \ \ \ \ \ \_,\ err\ =\ p.communicate()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00621}00621\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ p.returncode\ ==\ returncode,\ err.decode()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00622}00622\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ b\textcolor{stringliteral}{"{}resource\_tracker"{}}\ \textcolor{keywordflow}{not}\ \textcolor{keywordflow}{in}\ err,\ err.decode()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00623}00623\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00624}00624\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00625}00625\ \textcolor{preprocessor}{@with\_numpy}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00626}00626\ \textcolor{preprocessor}{@with\_multiprocessing}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00627}00627\ \textcolor{preprocessor}{@parametrize("{}backend"{},\ ["{}multiprocessing"{},\ "{}loky"{}])}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00628}00628\ \textcolor{keyword}{def\ }test\_many\_parallel\_calls\_on\_same\_object(backend):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00629}00629\ \ \ \ \ \textcolor{comment}{\#\ After\ \#966\ got\ merged,\ consecutive\ Parallel\ objects\ were\ sharing\ temp}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00630}00630\ \ \ \ \ \textcolor{comment}{\#\ folder,\ which\ would\ lead\ to\ race\ conditions\ happening\ during\ the}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00631}00631\ \ \ \ \ \textcolor{comment}{\#\ temporary\ resources\ management\ with\ the\ resource\_tracker.\ This\ is\ a}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00632}00632\ \ \ \ \ \textcolor{comment}{\#\ non-\/regression\ test\ that\ makes\ sure\ that\ consecutive\ Parallel\ operations}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00633}00633\ \ \ \ \ \textcolor{comment}{\#\ on\ the\ same\ object\ do\ not\ error\ out.}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00634}00634\ \ \ \ \ cmd\ =\ \textcolor{stringliteral}{"{}"{}"{}if\ 1:}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00635}00635\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ import\ os}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00636}00636\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ import\ time}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00637}00637\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00638}00638\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ import\ numpy\ as\ np}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00639}00639\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00640}00640\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ from\ joblib\ import\ Parallel,\ delayed}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00641}00641\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ from\ testutils\ import\ return\_slice\_of\_data}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00642}00642\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00643}00643\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ data\ =\ np.ones(100)}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00644}00644\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00645}00645\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ if\ \_\_name\_\_\ ==\ '\_\_main\_\_':}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00646}00646\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ for\ i\ in\ range(5):}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00647}00647\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ slice\_of\_data\ =\ Parallel(}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00648}00648\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ n\_jobs=2,\ max\_nbytes=1,\ backend='\{b\}')(}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00649}00649\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ delayed(return\_slice\_of\_data)(data,\ 0,\ 20)}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00650}00650\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ for\ \_\ in\ range(10)}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00651}00651\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00652}00652\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}.format(b=backend)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00653}00653\ \ \ \ \ env\ =\ os.environ.copy()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00654}00654\ \ \ \ \ env[\textcolor{stringliteral}{"{}PYTHONPATH"{}}]\ =\ os.path.dirname(\_\_file\_\_)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00655}00655\ \ \ \ \ p\ =\ subprocess.Popen(}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00656}00656\ \ \ \ \ \ \ \ \ [sys.executable,\ \textcolor{stringliteral}{"{}-\/c"{}},\ cmd],}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00657}00657\ \ \ \ \ \ \ \ \ stderr=subprocess.PIPE,}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00658}00658\ \ \ \ \ \ \ \ \ stdout=subprocess.PIPE,}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00659}00659\ \ \ \ \ \ \ \ \ env=env,}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00660}00660\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00661}00661\ \ \ \ \ p.wait()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00662}00662\ \ \ \ \ out,\ err\ =\ p.communicate()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00663}00663\ \ \ \ \ \textcolor{keyword}{assert}\ p.returncode\ ==\ 0,\ err.decode()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00664}00664\ \ \ \ \ \textcolor{keyword}{assert}\ out\ ==\ b\textcolor{stringliteral}{"{}"{}},\ out.decode()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00665}00665\ \ \ \ \ \textcolor{keyword}{assert}\ b\textcolor{stringliteral}{"{}resource\_tracker"{}}\ \textcolor{keywordflow}{not}\ \textcolor{keywordflow}{in}\ err}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00666}00666\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00667}00667\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00668}00668\ \textcolor{preprocessor}{@with\_numpy}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00669}00669\ \textcolor{preprocessor}{@with\_multiprocessing}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00670}00670\ \textcolor{preprocessor}{@parametrize("{}backend"{},\ ["{}multiprocessing"{},\ "{}loky"{}])}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00671}00671\ \textcolor{keyword}{def\ }test\_memmap\_returned\_as\_regular\_array(backend):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00672}00672\ \ \ \ \ data\ =\ np.ones(int(1e3))}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00673}00673\ \ \ \ \ \textcolor{comment}{\#\ Check\ that\ child\ processes\ send\ temporary\ memmaps\ back\ as\ numpy\ arrays.}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00674}00674\ \ \ \ \ [result]\ =\ \mbox{\hyperlink{classjoblib_1_1parallel_1_1Parallel}{Parallel}}(n\_jobs=2,\ backend=backend,\ max\_nbytes=100)(}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00675}00675\ \ \ \ \ \ \ \ \ delayed(check\_memmap\_and\_send\_back)(data)\ \textcolor{keywordflow}{for}\ \_\ \textcolor{keywordflow}{in}\ range(1)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00676}00676\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00677}00677\ \ \ \ \ \textcolor{keyword}{assert}\ \_get\_backing\_memmap(result)\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00678}00678\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00679}00679\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00680}00680\ \textcolor{preprocessor}{@with\_numpy}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00681}00681\ \textcolor{preprocessor}{@with\_multiprocessing}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00682}00682\ \textcolor{preprocessor}{@parametrize("{}backend"{},\ ["{}multiprocessing"{},\ "{}loky"{}])}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00683}00683\ \textcolor{keyword}{def\ }test\_resource\_tracker\_silent\_when\_reference\_cycles(backend):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00684}00684\ \ \ \ \ \textcolor{comment}{\#\ There\ is\ a\ variety\ of\ reasons\ that\ can\ make\ joblib\ with\ loky\ backend}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00685}00685\ \ \ \ \ \textcolor{comment}{\#\ output\ noisy\ warnings\ when\ a\ reference\ cycle\ is\ preventing\ a\ memmap\ from}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00686}00686\ \ \ \ \ \textcolor{comment}{\#\ being\ garbage\ collected.\ Especially,\ joblib's\ main\ process\ finalizer}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00687}00687\ \ \ \ \ \textcolor{comment}{\#\ deletes\ the\ temporary\ folder\ if\ it\ was\ not\ done\ before,\ which\ can}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00688}00688\ \ \ \ \ \textcolor{comment}{\#\ interact\ badly\ with\ the\ resource\_tracker.\ We\ don't\ risk\ leaking\ any}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00689}00689\ \ \ \ \ \textcolor{comment}{\#\ resources,\ but\ this\ will\ likely\ make\ joblib\ output\ a\ lot\ of\ low-\/level}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00690}00690\ \ \ \ \ \textcolor{comment}{\#\ confusing\ messages.}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00691}00691\ \ \ \ \ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00692}00692\ \ \ \ \ \textcolor{comment}{\#\ This\ test\ makes\ sure\ that\ the\ resource\_tracker\ is\ silent\ when\ a\ reference}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00693}00693\ \ \ \ \ \textcolor{comment}{\#\ has\ been\ collected\ concurrently\ on\ non-\/Windows\ platforms.}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00694}00694\ \ \ \ \ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00695}00695\ \ \ \ \ \textcolor{comment}{\#\ Note\ that\ the\ script\ in\ \`{}\`{}cmd``\ is\ the\ exact\ same\ script\ as\ in}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00696}00696\ \ \ \ \ \textcolor{comment}{\#\ test\_permission\_error\_windows\_reference\_cycle.}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00697}00697\ \ \ \ \ \textcolor{keywordflow}{if}\ backend\ ==\ \textcolor{stringliteral}{"{}loky"{}}\ \textcolor{keywordflow}{and}\ sys.platform.startswith(\textcolor{stringliteral}{"{}win"{}}):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00698}00698\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ XXX:\ on\ Windows,\ reference\ cycles\ can\ delay\ timely\ garbage\ collection}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00699}00699\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ and\ make\ it\ impossible\ to\ properly\ delete\ the\ temporary\ folder\ in\ the}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00700}00700\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ main\ process\ because\ of\ permission\ errors.}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00701}00701\ \ \ \ \ \ \ \ \ pytest.xfail(}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00702}00702\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}The\ temporary\ folder\ cannot\ be\ deleted\ on\ Windows\ in\ the\ "{}}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00703}00703\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}presence\ of\ a\ reference\ cycle"{}}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00704}00704\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00705}00705\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00706}00706\ \ \ \ \ cmd\ =\ \textcolor{stringliteral}{"{}"{}"{}if\ 1:}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00707}00707\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ import\ numpy\ as\ np}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00708}00708\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ from\ joblib\ import\ Parallel,\ delayed}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00709}00709\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00710}00710\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00711}00711\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ data\ =\ np.random.rand(int(2e6)).reshape((int(1e6),\ 2))}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00712}00712\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00713}00713\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \#\ Build\ a\ complex\ cyclic\ reference\ that\ is\ likely\ to\ delay\ garbage}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00714}00714\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \#\ collection\ of\ the\ memmapped\ array\ in\ the\ worker\ processes.}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00715}00715\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ first\_list\ =\ current\_list\ =\ [data]}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00716}00716\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ for\ i\ in\ range(10):}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00717}00717\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ current\_list\ =\ [current\_list]}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00718}00718\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ first\_list.append(current\_list)}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00719}00719\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00720}00720\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ if\ \_\_name\_\_\ ==\ "{}\_\_main\_\_"{}:}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00721}00721\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ results\ =\ Parallel(n\_jobs=2,\ backend="{}\{b\}"{})(}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00722}00722\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ delayed(len)(current\_list)\ for\ i\ in\ range(10))}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00723}00723\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ assert\ results\ ==\ [1]\ *\ 10}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00724}00724\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}.format(b=backend)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00725}00725\ \ \ \ \ p\ =\ subprocess.Popen(}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00726}00726\ \ \ \ \ \ \ \ \ [sys.executable,\ \textcolor{stringliteral}{"{}-\/c"{}},\ cmd],\ stderr=subprocess.PIPE,\ stdout=subprocess.PIPE}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00727}00727\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00728}00728\ \ \ \ \ p.wait()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00729}00729\ \ \ \ \ out,\ err\ =\ p.communicate()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00730}00730\ \ \ \ \ out\ =\ out.decode()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00731}00731\ \ \ \ \ err\ =\ err.decode()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00732}00732\ \ \ \ \ \textcolor{keyword}{assert}\ p.returncode\ ==\ 0,\ out\ +\ \textcolor{stringliteral}{"{}\(\backslash\)n\(\backslash\)n"{}}\ +\ err}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00733}00733\ \ \ \ \ \textcolor{keyword}{assert}\ \textcolor{stringliteral}{"{}resource\_tracker"{}}\ \textcolor{keywordflow}{not}\ \textcolor{keywordflow}{in}\ err,\ err}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00734}00734\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00735}00735\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00736}00736\ \textcolor{preprocessor}{@with\_numpy}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00737}00737\ \textcolor{preprocessor}{@with\_multiprocessing}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00738}00738\ \textcolor{preprocessor}{@parametrize}(}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00739}00739\ \ \ \ \ \textcolor{stringliteral}{"{}factory"{}},}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00740}00740\ \ \ \ \ [MemmappingPool,\ TestExecutor.get\_memmapping\_executor],}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00741}00741\ \ \ \ \ ids=[\textcolor{stringliteral}{"{}multiprocessing"{}},\ \textcolor{stringliteral}{"{}loky"{}}],}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00742}00742\ )}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00743}\mbox{\hyperlink{namespacejoblib_1_1test_1_1test__memmapping_aa44b865da5b0460467933632d42e55a7}{00743}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1test_1_1test__memmapping_aa44b865da5b0460467933632d42e55a7}{test\_memmapping\_pool\_for\_large\_arrays}}(factory,\ tmpdir):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00744}00744\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Check\ that\ large\ arrays\ are\ not\ copied\ in\ memory"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00745}00745\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00746}00746\ \ \ \ \ \textcolor{comment}{\#\ Check\ that\ the\ tempfolder\ is\ empty}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00747}00747\ \ \ \ \ \textcolor{keyword}{assert}\ os.listdir(tmpdir.strpath)\ ==\ []}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00748}00748\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00749}00749\ \ \ \ \ \textcolor{comment}{\#\ Build\ an\ array\ reducers\ that\ automatically\ dump\ large\ array\ content}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00750}00750\ \ \ \ \ \textcolor{comment}{\#\ to\ filesystem\ backed\ memmap\ instances\ to\ avoid\ memory\ explosion}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00751}00751\ \ \ \ \ p\ =\ factory(3,\ max\_nbytes=40,\ temp\_folder=tmpdir.strpath,\ verbose=2)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00752}00752\ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00753}00753\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ temporary\ folder\ for\ the\ pool\ is\ not\ provisioned\ in\ advance}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00754}00754\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ os.listdir(tmpdir.strpath)\ ==\ []}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00755}00755\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ \textcolor{keywordflow}{not}\ os.path.exists(p.\_temp\_folder)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00756}00756\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00757}00757\ \ \ \ \ \ \ \ \ small\ =\ np.ones(5,\ dtype=np.float32)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00758}00758\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ small.nbytes\ ==\ 20}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00759}00759\ \ \ \ \ \ \ \ \ p.map(check\_array,\ [(small,\ i,\ 1.0)\ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(small.shape[0])])}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00760}00760\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00761}00761\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Memory\ has\ been\ copied,\ the\ pool\ filesystem\ folder\ is\ unused}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00762}00762\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ os.listdir(tmpdir.strpath)\ ==\ []}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00763}00763\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00764}00764\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Try\ with\ a\ file\ larger\ than\ the\ memmap\ threshold\ of\ 40\ bytes}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00765}00765\ \ \ \ \ \ \ \ \ large\ =\ np.ones(100,\ dtype=np.float64)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00766}00766\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ large.nbytes\ ==\ 800}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00767}00767\ \ \ \ \ \ \ \ \ p.map(check\_array,\ [(large,\ i,\ 1.0)\ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(large.shape[0])])}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00768}00768\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00769}00769\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ data\ has\ been\ dumped\ in\ a\ temp\ folder\ for\ subprocess\ to\ share\ it}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00770}00770\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ without\ per-\/child\ memory\ copies}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00771}00771\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ os.path.isdir(p.\_temp\_folder)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00772}00772\ \ \ \ \ \ \ \ \ dumped\_filenames\ =\ os.listdir(p.\_temp\_folder)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00773}00773\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ len(dumped\_filenames)\ ==\ 1}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00774}00774\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00775}00775\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Check\ that\ memory\ mapping\ is\ not\ triggered\ for\ arrays\ with}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00776}00776\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ dtype='object'}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00777}00777\ \ \ \ \ \ \ \ \ objects\ =\ np.array([\textcolor{stringliteral}{"{}abc"{}}]\ *\ 100,\ dtype=\textcolor{stringliteral}{"{}object"{}})}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00778}00778\ \ \ \ \ \ \ \ \ results\ =\ p.map(has\_shareable\_memory,\ [objects])}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00779}00779\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ \textcolor{keywordflow}{not}\ results[0]}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00780}00780\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00781}00781\ \ \ \ \ \textcolor{keywordflow}{finally}:}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00782}00782\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ check\ FS\ garbage\ upon\ pool\ termination}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00783}00783\ \ \ \ \ \ \ \ \ p.terminate()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00784}00784\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(10):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00785}00785\ \ \ \ \ \ \ \ \ \ \ \ \ sleep(0.1)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00786}00786\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ os.path.exists(p.\_temp\_folder):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00787}00787\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00788}00788\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:\ \ \textcolor{comment}{\#\ pragma:\ no\ cover}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00789}00789\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classAssertionError}{AssertionError}}(}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00790}00790\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}temporary\ folder\ \{\}\ was\ not\ deleted"{}}.format(p.\_temp\_folder)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00791}00791\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00792}00792\ \ \ \ \ \ \ \ \ del\ p}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00793}00793\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00794}00794\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00795}00795\ \textcolor{preprocessor}{@with\_numpy}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00796}00796\ \textcolor{preprocessor}{@with\_multiprocessing}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00797}00797\ \textcolor{preprocessor}{@parametrize}(}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00798}00798\ \ \ \ \ \textcolor{stringliteral}{"{}backend"{}},}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00799}00799\ \ \ \ \ [}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00800}00800\ \ \ \ \ \ \ \ \ pytest.param(}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00801}00801\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}multiprocessing"{}},}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00802}00802\ \ \ \ \ \ \ \ \ \ \ \ \ marks=pytest.mark.xfail(}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00803}00803\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ reason=\textcolor{stringliteral}{"{}https://github.com/joblib/joblib/issues/1086"{}}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00804}00804\ \ \ \ \ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00805}00805\ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00806}00806\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}loky"{}},}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00807}00807\ \ \ \ \ ],}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00808}00808\ )}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00809}00809\ \textcolor{keyword}{def\ }test\_child\_raises\_parent\_exits\_cleanly(backend):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00810}00810\ \ \ \ \ \textcolor{comment}{\#\ When\ a\ task\ executed\ by\ a\ child\ process\ raises\ an\ error,\ the\ parent}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00811}00811\ \ \ \ \ \textcolor{comment}{\#\ process's\ backend\ is\ notified,\ and\ calls\ abort\_everything.}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00812}00812\ \ \ \ \ \textcolor{comment}{\#\ In\ loky,\ abort\_everything\ itself\ calls\ shutdown(kill\_workers=True)\ which}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00813}00813\ \ \ \ \ \textcolor{comment}{\#\ sends\ SIGKILL\ to\ the\ worker,\ preventing\ it\ from\ running\ the\ finalizers}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00814}00814\ \ \ \ \ \textcolor{comment}{\#\ supposed\ to\ signal\ the\ resource\_tracker\ when\ the\ worker\ is\ done\ using}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00815}00815\ \ \ \ \ \textcolor{comment}{\#\ objects\ relying\ on\ a\ shared\ resource\ (e.g\ np.memmaps).\ Because\ this}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00816}00816\ \ \ \ \ \textcolor{comment}{\#\ behavior\ is\ prone\ to\ :}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00817}00817\ \ \ \ \ \textcolor{comment}{\#\ -\/\ cause\ a\ resource\ leak}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00818}00818\ \ \ \ \ \textcolor{comment}{\#\ -\/\ make\ the\ resource\ tracker\ emit\ noisy\ resource\ warnings}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00819}00819\ \ \ \ \ \textcolor{comment}{\#\ we\ explicitly\ test\ that,\ when\ the\ said\ situation\ occurs:}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00820}00820\ \ \ \ \ \textcolor{comment}{\#\ -\/\ no\ resources\ are\ actually\ leaked}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00821}00821\ \ \ \ \ \textcolor{comment}{\#\ -\/\ the\ temporary\ resources\ are\ deleted\ as\ soon\ as\ possible\ (typically,\ at}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00822}00822\ \ \ \ \ \textcolor{comment}{\#\ \ \ the\ end\ of\ the\ failing\ Parallel\ call)}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00823}00823\ \ \ \ \ \textcolor{comment}{\#\ -\/\ the\ resource\_tracker\ does\ not\ emit\ any\ warnings.}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00824}00824\ \ \ \ \ cmd\ =\ \textcolor{stringliteral}{"{}"{}"{}if\ 1:}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00825}00825\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ import\ os}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00826}00826\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ from\ pathlib\ import\ Path}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00827}00827\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ from\ time\ import\ sleep}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00828}00828\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00829}00829\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ import\ numpy\ as\ np}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00830}00830\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ from\ joblib\ import\ Parallel,\ delayed}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00831}00831\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ from\ testutils\ import\ print\_filename\_and\_raise}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00832}00832\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00833}00833\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ data\ =\ np.random.rand(1000)}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00834}00834\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00835}00835\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ def\ get\_temp\_folder(parallel\_obj,\ backend):}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00836}00836\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ if\ "{}\{b\}"{}\ ==\ "{}loky"{}:}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00837}00837\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ return\ Path(parallel\_obj.\_backend.\_workers.\_temp\_folder)}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00838}00838\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ else:}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00839}00839\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ return\ Path(parallel\_obj.\_backend.\_pool.\_temp\_folder)}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00840}00840\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00841}00841\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00842}00842\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ if\ \_\_name\_\_\ ==\ "{}\_\_main\_\_"{}:}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00843}00843\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ try:}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00844}00844\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ with\ Parallel(n\_jobs=2,\ backend="{}\{b\}"{},\ max\_nbytes=100)\ as\ p:}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00845}00845\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ temp\_folder\ =\ get\_temp\_folder(p,\ "{}\{b\}"{})}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00846}00846\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p(delayed(print\_filename\_and\_raise)(data)}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00847}00847\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ for\ i\ in\ range(1))}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00848}00848\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ except\ ValueError\ as\ e:}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00849}00849\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \#\ the\ temporary\ folder\ should\ be\ deleted\ by\ the\ end\ of\ this}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00850}00850\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \#\ call\ but\ apparently\ on\ some\ file\ systems,\ this\ takes}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00851}00851\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \#\ some\ time\ to\ be\ visible.}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00852}00852\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \#}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00853}00853\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \#\ We\ attempt\ to\ write\ into\ the\ temporary\ folder\ to\ test\ for}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00854}00854\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \#\ its\ existence\ and\ we\ wait\ for\ a\ maximum\ of\ 10\ seconds.}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00855}00855\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ for\ i\ in\ range(100):}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00856}00856\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ try:}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00857}00857\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ with\ open(temp\_folder\ /\ "{}some\_file.txt"{},\ "{}w"{})\ as\ f:}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00858}00858\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f.write("{}some\ content"{})}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00859}00859\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ except\ FileNotFoundError:}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00860}00860\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \#\ temp\_folder\ has\ been\ deleted,\ all\ is\ fine}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00861}00861\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ break}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00862}00862\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00863}00863\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \#\ ...\ else,\ wait\ a\ bit\ and\ try\ again}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00864}00864\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ sleep(.1)}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00865}00865\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ else:}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00866}00866\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ raise\ AssertionError(}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00867}00867\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ str(temp\_folder)\ +\ "{}\ was\ not\ deleted"{}}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00868}00868\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )\ from\ e}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00869}00869\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}.format(b=backend)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00870}00870\ \ \ \ \ env\ =\ os.environ.copy()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00871}00871\ \ \ \ \ env[\textcolor{stringliteral}{"{}PYTHONPATH"{}}]\ =\ os.path.dirname(\_\_file\_\_)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00872}00872\ \ \ \ \ p\ =\ subprocess.Popen(}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00873}00873\ \ \ \ \ \ \ \ \ [sys.executable,\ \textcolor{stringliteral}{"{}-\/c"{}},\ cmd],}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00874}00874\ \ \ \ \ \ \ \ \ stderr=subprocess.PIPE,}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00875}00875\ \ \ \ \ \ \ \ \ stdout=subprocess.PIPE,}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00876}00876\ \ \ \ \ \ \ \ \ env=env,}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00877}00877\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00878}00878\ \ \ \ \ p.wait()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00879}00879\ \ \ \ \ out,\ err\ =\ p.communicate()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00880}00880\ \ \ \ \ out,\ err\ =\ out.decode(),\ err.decode()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00881}00881\ \ \ \ \ filename\ =\ out.split(\textcolor{stringliteral}{"{}\(\backslash\)n"{}})[0]}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00882}00882\ \ \ \ \ \textcolor{keyword}{assert}\ p.returncode\ ==\ 0,\ err\ \textcolor{keywordflow}{or}\ out}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00883}00883\ \ \ \ \ \textcolor{keyword}{assert}\ err\ ==\ \textcolor{stringliteral}{"{}"{}}\ \ \textcolor{comment}{\#\ no\ resource\_tracker\ warnings.}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00884}00884\ \ \ \ \ \textcolor{keyword}{assert}\ \textcolor{keywordflow}{not}\ os.path.exists(filename)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00885}00885\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00886}00886\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00887}00887\ \textcolor{preprocessor}{@with\_numpy}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00888}00888\ \textcolor{preprocessor}{@with\_multiprocessing}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00889}00889\ \textcolor{preprocessor}{@parametrize}(}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00890}00890\ \ \ \ \ \textcolor{stringliteral}{"{}factory"{}},}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00891}00891\ \ \ \ \ [MemmappingPool,\ TestExecutor.get\_memmapping\_executor],}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00892}00892\ \ \ \ \ ids=[\textcolor{stringliteral}{"{}multiprocessing"{}},\ \textcolor{stringliteral}{"{}loky"{}}],}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00893}00893\ )}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00894}\mbox{\hyperlink{namespacejoblib_1_1test_1_1test__memmapping_a2c36922b42abf2300071b97d9db4d252}{00894}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1test_1_1test__memmapping_a2c36922b42abf2300071b97d9db4d252}{test\_memmapping\_pool\_for\_large\_arrays\_disabled}}(factory,\ tmpdir):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00895}00895\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Check\ that\ large\ arrays\ memmapping\ can\ be\ disabled"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00896}00896\ \ \ \ \ \textcolor{comment}{\#\ Set\ max\_nbytes\ to\ None\ to\ disable\ the\ auto\ memmapping\ feature}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00897}00897\ \ \ \ \ p\ =\ factory(3,\ max\_nbytes=\textcolor{keywordtype}{None},\ temp\_folder=tmpdir.strpath)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00898}00898\ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00899}00899\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Check\ that\ the\ tempfolder\ is\ empty}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00900}00900\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ os.listdir(tmpdir.strpath)\ ==\ []}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00901}00901\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00902}00902\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Try\ with\ a\ file\ largish\ than\ the\ memmap\ threshold\ of\ 40\ bytes}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00903}00903\ \ \ \ \ \ \ \ \ large\ =\ np.ones(100,\ dtype=np.float64)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00904}00904\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ large.nbytes\ ==\ 800}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00905}00905\ \ \ \ \ \ \ \ \ p.map(check\_array,\ [(large,\ i,\ 1.0)\ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(large.shape[0])])}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00906}00906\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00907}00907\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Check\ that\ the\ tempfolder\ is\ still\ empty}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00908}00908\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ os.listdir(tmpdir.strpath)\ ==\ []}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00909}00909\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00910}00910\ \ \ \ \ \textcolor{keywordflow}{finally}:}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00911}00911\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Cleanup\ open\ file\ descriptors}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00912}00912\ \ \ \ \ \ \ \ \ p.terminate()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00913}00913\ \ \ \ \ \ \ \ \ del\ p}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00914}00914\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00915}00915\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00916}00916\ \textcolor{preprocessor}{@with\_numpy}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00917}00917\ \textcolor{preprocessor}{@with\_multiprocessing}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00918}00918\ \textcolor{preprocessor}{@with\_dev\_shm}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00919}00919\ \textcolor{preprocessor}{@parametrize}(}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00920}00920\ \ \ \ \ \textcolor{stringliteral}{"{}factory"{}},}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00921}00921\ \ \ \ \ [MemmappingPool,\ TestExecutor.get\_memmapping\_executor],}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00922}00922\ \ \ \ \ ids=[\textcolor{stringliteral}{"{}multiprocessing"{}},\ \textcolor{stringliteral}{"{}loky"{}}],}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00923}00923\ )}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00924}\mbox{\hyperlink{namespacejoblib_1_1test_1_1test__memmapping_a474d79ff81757b0798c498f7e8c9eab3}{00924}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1test_1_1test__memmapping_a474d79ff81757b0798c498f7e8c9eab3}{test\_memmapping\_on\_large\_enough\_dev\_shm}}(factory):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00925}00925\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Check\ that\ memmapping\ uses\ /dev/shm\ when\ possible"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00926}00926\ \ \ \ \ orig\_size\ =\ jmr.SYSTEM\_SHARED\_MEM\_FS\_MIN\_SIZE}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00927}00927\ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00928}00928\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Make\ joblib\ believe\ that\ it\ can\ use\ /dev/shm\ even\ when\ running\ on\ a}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00929}00929\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ CI\ container\ where\ the\ size\ of\ the\ /dev/shm\ is\ not\ very\ large\ (that}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00930}00930\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ is\ at\ least\ 32\ MB\ instead\ of\ 2\ GB\ by\ default).}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00931}00931\ \ \ \ \ \ \ \ \ jmr.SYSTEM\_SHARED\_MEM\_FS\_MIN\_SIZE\ =\ int(32e6)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00932}00932\ \ \ \ \ \ \ \ \ p\ =\ factory(3,\ max\_nbytes=10)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00933}00933\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00934}00934\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Check\ that\ the\ pool\ has\ correctly\ detected\ the\ presence\ of\ the}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00935}00935\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ shared\ memory\ filesystem.}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00936}00936\ \ \ \ \ \ \ \ \ \ \ \ \ pool\_temp\_folder\ =\ p.\_temp\_folder}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00937}00937\ \ \ \ \ \ \ \ \ \ \ \ \ folder\_prefix\ =\ \textcolor{stringliteral}{"{}/dev/shm/joblib\_memmapping\_folder\_"{}}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00938}00938\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ pool\_temp\_folder.startswith(folder\_prefix)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00939}00939\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ os.path.exists(pool\_temp\_folder)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00940}00940\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00941}00941\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Try\ with\ a\ file\ larger\ than\ the\ memmap\ threshold\ of\ 10\ bytes}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00942}00942\ \ \ \ \ \ \ \ \ \ \ \ \ a\ =\ np.ones(100,\ dtype=np.float64)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00943}00943\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ a.nbytes\ ==\ 800}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00944}00944\ \ \ \ \ \ \ \ \ \ \ \ \ p.map(id,\ [a]\ *\ 10)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00945}00945\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ a\ should\ have\ been\ memmapped\ to\ the\ pool\ temp\ folder:\ the\ joblib}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00946}00946\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ pickling\ procedure\ generate\ one\ .pkl\ file:}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00947}00947\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ len(os.listdir(pool\_temp\_folder))\ ==\ 1}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00948}00948\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00949}00949\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ create\ a\ new\ array\ with\ content\ that\ is\ different\ from\ 'a'\ so}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00950}00950\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ that\ it\ is\ mapped\ to\ a\ different\ file\ in\ the\ temporary\ folder\ of}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00951}00951\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ the\ pool.}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00952}00952\ \ \ \ \ \ \ \ \ \ \ \ \ b\ =\ np.ones(100,\ dtype=np.float64)\ *\ 2}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00953}00953\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ b.nbytes\ ==\ 800}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00954}00954\ \ \ \ \ \ \ \ \ \ \ \ \ p.map(id,\ [b]\ *\ 10)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00955}00955\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ A\ copy\ of\ both\ a\ and\ b\ are\ now\ stored\ in\ the\ shared\ memory\ folder}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00956}00956\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ len(os.listdir(pool\_temp\_folder))\ ==\ 2}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00957}00957\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{finally}:}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00958}00958\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Cleanup\ open\ file\ descriptors}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00959}00959\ \ \ \ \ \ \ \ \ \ \ \ \ p.terminate()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00960}00960\ \ \ \ \ \ \ \ \ \ \ \ \ del\ p}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00961}00961\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00962}00962\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(100):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00963}00963\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ temp\ folder\ is\ cleaned\ up\ upon\ pool\ termination}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00964}00964\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ os.path.exists(pool\_temp\_folder):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00965}00965\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00966}00966\ \ \ \ \ \ \ \ \ \ \ \ \ sleep(0.1)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00967}00967\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:\ \ \textcolor{comment}{\#\ pragma:\ no\ cover}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00968}00968\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classAssertionError}{AssertionError}}(\textcolor{stringliteral}{"{}temporary\ folder\ of\ pool\ was\ not\ deleted"{}})}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00969}00969\ \ \ \ \ \textcolor{keywordflow}{finally}:}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00970}00970\ \ \ \ \ \ \ \ \ jmr.SYSTEM\_SHARED\_MEM\_FS\_MIN\_SIZE\ =\ orig\_size}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00971}00971\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00972}00972\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00973}00973\ \textcolor{preprocessor}{@with\_numpy}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00974}00974\ \textcolor{preprocessor}{@with\_multiprocessing}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00975}00975\ \textcolor{preprocessor}{@with\_dev\_shm}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00976}00976\ \textcolor{preprocessor}{@parametrize}(}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00977}00977\ \ \ \ \ \textcolor{stringliteral}{"{}factory"{}},}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00978}00978\ \ \ \ \ [MemmappingPool,\ TestExecutor.get\_memmapping\_executor],}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00979}00979\ \ \ \ \ ids=[\textcolor{stringliteral}{"{}multiprocessing"{}},\ \textcolor{stringliteral}{"{}loky"{}}],}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00980}00980\ )}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00981}00981\ \textcolor{keyword}{def\ }test\_memmapping\_on\_too\_small\_dev\_shm(factory):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00982}00982\ \ \ \ \ orig\_size\ =\ jmr.SYSTEM\_SHARED\_MEM\_FS\_MIN\_SIZE}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00983}00983\ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00984}00984\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Make\ joblib\ believe\ that\ it\ cannot\ use\ /dev/shm\ unless\ there\ is}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00985}00985\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ 42\ exabytes\ of\ available\ shared\ memory\ in\ /dev/shm}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00986}00986\ \ \ \ \ \ \ \ \ jmr.SYSTEM\_SHARED\_MEM\_FS\_MIN\_SIZE\ =\ int(42e18)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00987}00987\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00988}00988\ \ \ \ \ \ \ \ \ p\ =\ factory(3,\ max\_nbytes=10)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00989}00989\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00990}00990\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Check\ that\ the\ pool\ has\ correctly\ detected\ the\ presence\ of\ the}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00991}00991\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ shared\ memory\ filesystem.}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00992}00992\ \ \ \ \ \ \ \ \ \ \ \ \ pool\_temp\_folder\ =\ p.\_temp\_folder}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00993}00993\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ \textcolor{keywordflow}{not}\ pool\_temp\_folder.startswith(\textcolor{stringliteral}{"{}/dev/shm"{}})}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00994}00994\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{finally}:}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00995}00995\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Cleanup\ open\ file\ descriptors}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00996}00996\ \ \ \ \ \ \ \ \ \ \ \ \ p.terminate()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00997}00997\ \ \ \ \ \ \ \ \ \ \ \ \ del\ p}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00998}00998\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l00999}00999\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ temp\ folder\ is\ cleaned\ up\ upon\ pool\ termination}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01000}01000\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ \textcolor{keywordflow}{not}\ os.path.exists(pool\_temp\_folder)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01001}01001\ \ \ \ \ \textcolor{keywordflow}{finally}:}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01002}01002\ \ \ \ \ \ \ \ \ jmr.SYSTEM\_SHARED\_MEM\_FS\_MIN\_SIZE\ =\ orig\_size}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01003}01003\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01004}01004\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01005}01005\ \textcolor{preprocessor}{@with\_numpy}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01006}01006\ \textcolor{preprocessor}{@with\_multiprocessing}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01007}01007\ \textcolor{preprocessor}{@parametrize}(}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01008}01008\ \ \ \ \ \textcolor{stringliteral}{"{}factory"{}},}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01009}01009\ \ \ \ \ [MemmappingPool,\ TestExecutor.get\_memmapping\_executor],}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01010}01010\ \ \ \ \ ids=[\textcolor{stringliteral}{"{}multiprocessing"{}},\ \textcolor{stringliteral}{"{}loky"{}}],}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01011}01011\ )}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01012}\mbox{\hyperlink{namespacejoblib_1_1test_1_1test__memmapping_af4c21c6e439a1af030e80fb9de68f724}{01012}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1test_1_1test__memmapping_af4c21c6e439a1af030e80fb9de68f724}{test\_memmapping\_pool\_for\_large\_arrays\_in\_return}}(factory,\ tmpdir):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01013}01013\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Check\ that\ large\ arrays\ are\ not\ copied\ in\ memory\ in\ return"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01014}01014\ \ \ \ \ assert\_array\_equal\ =\ np.testing.assert\_array\_equal}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01015}01015\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01016}01016\ \ \ \ \ \textcolor{comment}{\#\ Build\ an\ array\ reducers\ that\ automatically\ dump\ large\ array\ content}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01017}01017\ \ \ \ \ \textcolor{comment}{\#\ but\ check\ that\ the\ returned\ datastructure\ are\ regular\ arrays\ to\ avoid}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01018}01018\ \ \ \ \ \textcolor{comment}{\#\ passing\ a\ memmap\ array\ pointing\ to\ a\ pool\ controlled\ temp\ folder\ that}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01019}01019\ \ \ \ \ \textcolor{comment}{\#\ might\ be\ confusing\ to\ the\ user}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01020}01020\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01021}01021\ \ \ \ \ \textcolor{comment}{\#\ The\ MemmappingPool\ user\ can\ always\ return\ numpy.memmap\ object\ explicitly}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01022}01022\ \ \ \ \ \textcolor{comment}{\#\ to\ avoid\ memory\ copy}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01023}01023\ \ \ \ \ p\ =\ factory(3,\ max\_nbytes=10,\ temp\_folder=tmpdir.strpath)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01024}01024\ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01025}01025\ \ \ \ \ \ \ \ \ res\ =\ p.apply\_async(np.ones,\ args=(1000,))}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01026}01026\ \ \ \ \ \ \ \ \ large\ =\ res.get()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01027}01027\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ \textcolor{keywordflow}{not}\ has\_shareable\_memory(large)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01028}01028\ \ \ \ \ \ \ \ \ assert\_array\_equal(large,\ np.ones(1000))}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01029}01029\ \ \ \ \ \textcolor{keywordflow}{finally}:}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01030}01030\ \ \ \ \ \ \ \ \ p.terminate()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01031}01031\ \ \ \ \ \ \ \ \ del\ p}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01032}01032\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01033}01033\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01034}\mbox{\hyperlink{namespacejoblib_1_1test_1_1test__memmapping_a520d06e355032f3c026c54637740c6a3}{01034}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1test_1_1test__memmapping_a520d06e355032f3c026c54637740c6a3}{\_worker\_multiply}}(a,\ n\_times):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01035}01035\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Multiplication\ function\ to\ be\ executed\ by\ subprocess"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01036}01036\ \ \ \ \ \textcolor{keyword}{assert}\ has\_shareable\_memory(a)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01037}01037\ \ \ \ \ \textcolor{keywordflow}{return}\ a\ *\ n\_times}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01038}01038\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01039}01039\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01040}01040\ \textcolor{preprocessor}{@with\_numpy}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01041}01041\ \textcolor{preprocessor}{@with\_multiprocessing}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01042}01042\ \textcolor{preprocessor}{@parametrize}(}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01043}01043\ \ \ \ \ \textcolor{stringliteral}{"{}factory"{}},}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01044}01044\ \ \ \ \ [MemmappingPool,\ TestExecutor.get\_memmapping\_executor],}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01045}01045\ \ \ \ \ ids=[\textcolor{stringliteral}{"{}multiprocessing"{}},\ \textcolor{stringliteral}{"{}loky"{}}],}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01046}01046\ )}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01047}\mbox{\hyperlink{namespacejoblib_1_1test_1_1test__memmapping_a7606e872d878c92b14a9a70faf5ad258}{01047}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1test_1_1test__memmapping_a7606e872d878c92b14a9a70faf5ad258}{test\_workaround\_against\_bad\_memmap\_with\_copied\_buffers}}(factory,\ tmpdir):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01048}01048\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Check\ that\ memmaps\ with\ a\ bad\ buffer\ are\ returned\ as\ regular\ arrays}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01049}01049\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01050}01050\ \textcolor{stringliteral}{\ \ \ \ Unary\ operations\ and\ ufuncs\ on\ memmap\ instances\ return\ a\ new\ memmap}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01051}01051\ \textcolor{stringliteral}{\ \ \ \ instance\ with\ an\ in-\/memory\ buffer\ (probably\ a\ numpy\ bug).}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01052}01052\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01053}01053\ \ \ \ \ assert\_array\_equal\ =\ np.testing.assert\_array\_equal}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01054}01054\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01055}01055\ \ \ \ \ p\ =\ factory(3,\ max\_nbytes=10,\ temp\_folder=tmpdir.strpath)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01056}01056\ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01057}01057\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Send\ a\ complex,\ large-\/ish\ view\ on\ a\ array\ that\ will\ be\ converted\ to}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01058}01058\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ a\ memmap\ in\ the\ worker\ process}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01059}01059\ \ \ \ \ \ \ \ \ a\ =\ np.asarray(np.arange(6000).reshape((1000,\ 2,\ 3)),\ order=\textcolor{stringliteral}{"{}F"{}})[:,\ :1,\ :]}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01060}01060\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01061}01061\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Call\ a\ non-\/inplace\ multiply\ operation\ on\ the\ worker\ and\ memmap\ and}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01062}01062\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ send\ it\ back\ to\ the\ parent.}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01063}01063\ \ \ \ \ \ \ \ \ b\ =\ p.apply\_async(\_worker\_multiply,\ args=(a,\ 3)).get()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01064}01064\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ \textcolor{keywordflow}{not}\ has\_shareable\_memory(b)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01065}01065\ \ \ \ \ \ \ \ \ assert\_array\_equal(b,\ 3\ *\ a)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01066}01066\ \ \ \ \ \textcolor{keywordflow}{finally}:}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01067}01067\ \ \ \ \ \ \ \ \ p.terminate()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01068}01068\ \ \ \ \ \ \ \ \ del\ p}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01069}01069\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01070}01070\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01071}01071\ \textcolor{keyword}{def\ }identity(arg):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01072}01072\ \ \ \ \ \textcolor{keywordflow}{return}\ arg}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01073}01073\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01074}01074\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01075}01075\ \textcolor{preprocessor}{@with\_numpy}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01076}01076\ \textcolor{preprocessor}{@with\_multiprocessing}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01077}01077\ \textcolor{preprocessor}{@parametrize}(}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01078}01078\ \ \ \ \ \textcolor{stringliteral}{"{}factory,retry\_no"{}},}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01079}01079\ \ \ \ \ list(}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01080}01080\ \ \ \ \ \ \ \ \ itertools.product(}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01081}01081\ \ \ \ \ \ \ \ \ \ \ \ \ [MemmappingPool,\ TestExecutor.get\_memmapping\_executor],\ range(3)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01082}01082\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01083}01083\ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01084}01084\ \ \ \ \ ids=[}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01085}01085\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\{\},\ \{\}"{}}.format(x,\ y)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01086}01086\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ x,\ y\ \textcolor{keywordflow}{in}\ itertools.product([\textcolor{stringliteral}{"{}multiprocessing"{}},\ \textcolor{stringliteral}{"{}loky"{}}],\ map(str,\ range(3)))}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01087}01087\ \ \ \ \ ],}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01088}01088\ )}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01089}01089\ \textcolor{keyword}{def\ }test\_pool\_memmap\_with\_big\_offset(factory,\ retry\_no,\ tmpdir):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01090}01090\ \ \ \ \ \textcolor{comment}{\#\ Test\ that\ numpy\ memmap\ offset\ is\ set\ correctly\ if\ greater\ than}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01091}01091\ \ \ \ \ \textcolor{comment}{\#\ mmap.ALLOCATIONGRANULARITY,\ see}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01092}01092\ \ \ \ \ \textcolor{comment}{\#\ https://github.com/joblib/joblib/issues/451\ and}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01093}01093\ \ \ \ \ \textcolor{comment}{\#\ https://github.com/numpy/numpy/pull/8443\ for\ more\ details.}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01094}01094\ \ \ \ \ fname\ =\ tmpdir.join(\textcolor{stringliteral}{"{}test.mmap"{}}).strpath}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01095}01095\ \ \ \ \ size\ =\ 5\ *\ mmap.ALLOCATIONGRANULARITY}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01096}01096\ \ \ \ \ offset\ =\ mmap.ALLOCATIONGRANULARITY\ +\ 1}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01097}01097\ \ \ \ \ obj\ =\ make\_memmap(fname,\ mode=\textcolor{stringliteral}{"{}w+"{}},\ shape=size,\ dtype=\textcolor{stringliteral}{"{}uint8"{}},\ offset=offset)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01098}01098\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01099}01099\ \ \ \ \ p\ =\ factory(2,\ temp\_folder=tmpdir.strpath)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01100}01100\ \ \ \ \ result\ =\ p.apply\_async(identity,\ args=(obj,)).get()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01101}01101\ \ \ \ \ \textcolor{keyword}{assert}\ isinstance(result,\ np.memmap)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01102}01102\ \ \ \ \ \textcolor{keyword}{assert}\ result.offset\ ==\ offset}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01103}01103\ \ \ \ \ np.testing.assert\_array\_equal(obj,\ result)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01104}01104\ \ \ \ \ p.terminate()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01105}01105\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01106}01106\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01107}01107\ \textcolor{keyword}{def\ }test\_pool\_get\_temp\_dir(tmpdir):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01108}01108\ \ \ \ \ pool\_folder\_name\ =\ \textcolor{stringliteral}{"{}test.tmpdir"{}}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01109}01109\ \ \ \ \ pool\_folder,\ shared\_mem\ =\ \_get\_temp\_dir(pool\_folder\_name,\ tmpdir.strpath)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01110}01110\ \ \ \ \ \textcolor{keyword}{assert}\ shared\_mem\ \textcolor{keywordflow}{is}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01111}01111\ \ \ \ \ \textcolor{keyword}{assert}\ pool\_folder\ ==\ tmpdir.join(\textcolor{stringliteral}{"{}test.tmpdir"{}}).strpath}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01112}01112\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01113}01113\ \ \ \ \ pool\_folder,\ shared\_mem\ =\ \_get\_temp\_dir(pool\_folder\_name,\ temp\_folder=\textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01114}01114\ \ \ \ \ \textcolor{keywordflow}{if}\ sys.platform.startswith(\textcolor{stringliteral}{"{}win"{}}):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01115}01115\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ shared\_mem\ \textcolor{keywordflow}{is}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01116}01116\ \ \ \ \ \textcolor{keyword}{assert}\ pool\_folder.endswith(pool\_folder\_name)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01117}01117\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01118}01118\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01119}\mbox{\hyperlink{namespacejoblib_1_1test_1_1test__memmapping_a40d74a4591e2f67dbc3ff70ba7230193}{01119}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1test_1_1test__memmapping_a40d74a4591e2f67dbc3ff70ba7230193}{test\_pool\_get\_temp\_dir\_no\_statvfs}}(tmpdir,\ monkeypatch):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01120}01120\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Check\ that\ \_get\_temp\_dir\ works\ when\ os.statvfs\ is\ not\ defined}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01121}01121\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01122}01122\ \textcolor{stringliteral}{\ \ \ \ Regression\ test\ for\ \#902}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01123}01123\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01124}01124\ \ \ \ \ pool\_folder\_name\ =\ \textcolor{stringliteral}{"{}test.tmpdir"{}}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01125}01125\ \ \ \ \ \textcolor{keyword}{import}\ \mbox{\hyperlink{namespacejoblib_1_1__memmapping__reducer}{joblib.\_memmapping\_reducer}}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01126}01126\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01127}01127\ \ \ \ \ \textcolor{keywordflow}{if}\ hasattr(joblib.\_memmapping\_reducer.os,\ \textcolor{stringliteral}{"{}statvfs"{}}):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01128}01128\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ We\ are\ on\ Unix,\ since\ Windows\ doesn't\ have\ this\ function}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01129}01129\ \ \ \ \ \ \ \ \ monkeypatch.delattr(joblib.\_memmapping\_reducer.os,\ \textcolor{stringliteral}{"{}statvfs"{}})}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01130}01130\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01131}01131\ \ \ \ \ pool\_folder,\ shared\_mem\ =\ \_get\_temp\_dir(pool\_folder\_name,\ temp\_folder=\textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01132}01132\ \ \ \ \ \textcolor{keywordflow}{if}\ sys.platform.startswith(\textcolor{stringliteral}{"{}win"{}}):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01133}01133\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ shared\_mem\ \textcolor{keywordflow}{is}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01134}01134\ \ \ \ \ \textcolor{keyword}{assert}\ pool\_folder.endswith(pool\_folder\_name)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01135}01135\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01136}01136\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01137}01137\ \textcolor{preprocessor}{@with\_numpy}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01138}01138\ \textcolor{preprocessor}{@skipif}(}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01139}01139\ \ \ \ \ sys.platform\ ==\ \textcolor{stringliteral}{"{}win32"{}},\ reason=\textcolor{stringliteral}{"{}This\ test\ fails\ with\ a\ PermissionError\ on\ Windows"{}}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01140}01140\ )}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01141}01141\ \textcolor{preprocessor}{@parametrize("{}mmap\_mode"{},\ ["{}r+"{},\ "{}w+"{}])}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01142}01142\ \textcolor{keyword}{def\ }test\_numpy\_arrays\_use\_different\_memory(mmap\_mode):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01143}01143\ \ \ \ \ \textcolor{keyword}{def\ }func(arr,\ value):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01144}01144\ \ \ \ \ \ \ \ \ arr[:]\ =\ value}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01145}01145\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ arr}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01146}01146\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01147}01147\ \ \ \ \ arrays\ =\ [np.zeros((10,\ 10),\ dtype=\textcolor{stringliteral}{"{}float64"{}})\ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(10)]}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01148}01148\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01149}01149\ \ \ \ \ results\ =\ \mbox{\hyperlink{classjoblib_1_1parallel_1_1Parallel}{Parallel}}(mmap\_mode=mmap\_mode,\ max\_nbytes=0,\ n\_jobs=2)(}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01150}01150\ \ \ \ \ \ \ \ \ delayed(func)(arr,\ i)\ \textcolor{keywordflow}{for}\ i,\ arr\ \textcolor{keywordflow}{in}\ enumerate(arrays)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01151}01151\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01152}01152\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01153}01153\ \ \ \ \ \textcolor{keywordflow}{for}\ i,\ arr\ \textcolor{keywordflow}{in}\ enumerate(results):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01154}01154\ \ \ \ \ \ \ \ \ np.testing.assert\_array\_equal(arr,\ i)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01155}01155\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01156}01156\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01157}01157\ \textcolor{preprocessor}{@with\_numpy}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01158}01158\ \textcolor{keyword}{def\ }test\_weak\_array\_key\_map():}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01159}01159\ \ \ \ \ \textcolor{keyword}{def\ }assert\_empty\_after\_gc\_collect(container,\ retries=100):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01160}01160\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(retries):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01161}01161\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(container)\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01162}01162\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01163}01163\ \ \ \ \ \ \ \ \ \ \ \ \ gc.collect()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01164}01164\ \ \ \ \ \ \ \ \ \ \ \ \ sleep(0.1)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01165}01165\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ len(container)\ ==\ 0}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01166}01166\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01167}01167\ \ \ \ \ a\ =\ np.ones(42)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01168}01168\ \ \ \ \ m\ =\ \mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1__WeakArrayKeyMap}{\_WeakArrayKeyMap}}()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01169}01169\ \ \ \ \ m.set(a,\ \textcolor{stringliteral}{"{}a"{}})}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01170}01170\ \ \ \ \ \textcolor{keyword}{assert}\ m.get(a)\ ==\ \textcolor{stringliteral}{"{}a"{}}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01171}01171\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01172}01172\ \ \ \ \ b\ =\ a}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01173}01173\ \ \ \ \ \textcolor{keyword}{assert}\ m.get(b)\ ==\ \textcolor{stringliteral}{"{}a"{}}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01174}01174\ \ \ \ \ m.set(b,\ \textcolor{stringliteral}{"{}b"{}})}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01175}01175\ \ \ \ \ \textcolor{keyword}{assert}\ m.get(a)\ ==\ \textcolor{stringliteral}{"{}b"{}}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01176}01176\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01177}01177\ \ \ \ \ del\ a}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01178}01178\ \ \ \ \ gc.collect()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01179}01179\ \ \ \ \ \textcolor{keyword}{assert}\ len(m.\_data)\ ==\ 1}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01180}01180\ \ \ \ \ \textcolor{keyword}{assert}\ m.get(b)\ ==\ \textcolor{stringliteral}{"{}b"{}}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01181}01181\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01182}01182\ \ \ \ \ del\ b}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01183}01183\ \ \ \ \ assert\_empty\_after\_gc\_collect(m.\_data)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01184}01184\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01185}01185\ \ \ \ \ c\ =\ np.ones(42)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01186}01186\ \ \ \ \ m.set(c,\ \textcolor{stringliteral}{"{}c"{}})}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01187}01187\ \ \ \ \ \textcolor{keyword}{assert}\ len(m.\_data)\ ==\ 1}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01188}01188\ \ \ \ \ \textcolor{keyword}{assert}\ m.get(c)\ ==\ \textcolor{stringliteral}{"{}c"{}}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01189}01189\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01190}01190\ \ \ \ \ \textcolor{keyword}{with}\ raises(KeyError):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01191}01191\ \ \ \ \ \ \ \ \ m.get(np.ones(42))}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01192}01192\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01193}01193\ \ \ \ \ del\ c}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01194}01194\ \ \ \ \ assert\_empty\_after\_gc\_collect(m.\_data)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01195}01195\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01196}01196\ \ \ \ \ \textcolor{comment}{\#\ Check\ that\ creating\ and\ dropping\ numpy\ arrays\ with\ potentially\ the\ same}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01197}01197\ \ \ \ \ \textcolor{comment}{\#\ object\ id\ will\ not\ cause\ the\ map\ to\ get\ confused.}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01198}01198\ \ \ \ \ \textcolor{keyword}{def\ }get\_set\_get\_collect(m,\ i):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01199}01199\ \ \ \ \ \ \ \ \ a\ =\ np.ones(42)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01200}01200\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ raises(KeyError):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01201}01201\ \ \ \ \ \ \ \ \ \ \ \ \ m.get(a)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01202}01202\ \ \ \ \ \ \ \ \ m.set(a,\ i)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01203}01203\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ m.get(a)\ ==\ i}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01204}01204\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ id(a)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01205}01205\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01206}01206\ \ \ \ \ unique\_ids\ =\ set([get\_set\_get\_collect(m,\ i)\ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(1000)])}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01207}01207\ \ \ \ \ \textcolor{keywordflow}{if}\ platform.python\_implementation()\ ==\ \textcolor{stringliteral}{"{}CPython"{}}:}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01208}01208\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ On\ CPython\ (at\ least)\ the\ same\ id\ is\ often\ reused\ many\ times\ for\ the}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01209}01209\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ temporary\ arrays\ created\ under\ the\ local\ scope\ of\ the}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01210}01210\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ get\_set\_get\_collect\ function\ without\ causing\ any\ spurious\ lookups\ /}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01211}01211\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ insertions\ in\ the\ map.\ Apparently\ on\ free-\/threaded\ Python,\ the\ id\ is}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01212}01212\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ not\ reused\ as\ often.}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01213}01213\ \ \ \ \ \ \ \ \ max\_len\_unique\_ids\ =\ 400\ \textcolor{keywordflow}{if}\ IS\_GIL\_DISABLED\ \textcolor{keywordflow}{else}\ 100}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01214}01214\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ len(unique\_ids)\ <\ max\_len\_unique\_ids}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01215}01215\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01216}01216\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01217}01217\ \textcolor{keyword}{def\ }test\_weak\_array\_key\_map\_no\_pickling():}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01218}01218\ \ \ \ \ m\ =\ \mbox{\hyperlink{classjoblib_1_1__memmapping__reducer_1_1__WeakArrayKeyMap}{\_WeakArrayKeyMap}}()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01219}01219\ \ \ \ \ \textcolor{keyword}{with}\ raises(pickle.PicklingError):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01220}01220\ \ \ \ \ \ \ \ \ pickle.dumps(m)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01221}01221\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01222}01222\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01223}01223\ \textcolor{preprocessor}{@with\_numpy}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01224}01224\ \textcolor{preprocessor}{@with\_multiprocessing}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01225}01225\ \textcolor{keyword}{def\ }test\_direct\_mmap(tmpdir):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01226}01226\ \ \ \ \ testfile\ =\ str(tmpdir.join(\textcolor{stringliteral}{"{}arr.dat"{}}))}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01227}01227\ \ \ \ \ a\ =\ np.arange(10,\ dtype=\textcolor{stringliteral}{"{}uint8"{}})}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01228}01228\ \ \ \ \ a.tofile(testfile)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01229}01229\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01230}01230\ \ \ \ \ \textcolor{keyword}{def\ }\_read\_array():}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01231}01231\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ open(testfile)\ \textcolor{keyword}{as}\ fd:}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01232}01232\ \ \ \ \ \ \ \ \ \ \ \ \ mm\ =\ mmap.mmap(fd.fileno(),\ 0,\ access=mmap.ACCESS\_READ,\ offset=0)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01233}01233\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ np.ndarray((10,),\ dtype=np.uint8,\ buffer=mm,\ offset=0)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01234}01234\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01235}01235\ \ \ \ \ \textcolor{keyword}{def\ }func(x):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01236}01236\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ x**2}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01237}01237\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01238}01238\ \ \ \ \ arr\ =\ \_read\_array()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01239}01239\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01240}01240\ \ \ \ \ \textcolor{comment}{\#\ this\ gives\ the\ reference\ result\ of\ the\ function\ with\ an\ array}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01241}01241\ \ \ \ \ ref\ =\ \mbox{\hyperlink{classjoblib_1_1parallel_1_1Parallel}{Parallel}}(n\_jobs=2)(delayed(func)(x)\ \textcolor{keywordflow}{for}\ x\ \textcolor{keywordflow}{in}\ [a])}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01242}01242\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01243}01243\ \ \ \ \ \textcolor{comment}{\#\ now\ test\ that\ it\ works\ with\ the\ mmap\ array}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01244}01244\ \ \ \ \ results\ =\ \mbox{\hyperlink{classjoblib_1_1parallel_1_1Parallel}{Parallel}}(n\_jobs=2)(delayed(func)(x)\ \textcolor{keywordflow}{for}\ x\ \textcolor{keywordflow}{in}\ [arr])}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01245}01245\ \ \ \ \ np.testing.assert\_array\_equal(results,\ ref)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01246}01246\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01247}01247\ \ \ \ \ \textcolor{comment}{\#\ also\ test\ that\ a\ mmap\ array\ read\ in\ the\ subprocess\ is\ correctly\ returned}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01248}01248\ \ \ \ \ results\ =\ \mbox{\hyperlink{classjoblib_1_1parallel_1_1Parallel}{Parallel}}(n\_jobs=2)(delayed(\_read\_array)()\ \textcolor{keywordflow}{for}\ \_\ \textcolor{keywordflow}{in}\ range(1))}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01249}01249\ \ \ \ \ np.testing.assert\_array\_equal(results[0],\ arr)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01250}01250\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01251}01251\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01252}01252\ \textcolor{preprocessor}{@with\_numpy}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01253}01253\ \textcolor{preprocessor}{@with\_multiprocessing}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01254}01254\ \textcolor{keyword}{def\ }test\_parallel\_memmap2d\_as\_memmap\_1d\_base(tmpdir):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01255}01255\ \ \ \ \ \textcolor{comment}{\#\ non-\/regression\ test\ for\ https://github.com/joblib/joblib/issues/1703,}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01256}01256\ \ \ \ \ \textcolor{comment}{\#\ where\ 2D\ arrays\ backed\ by\ 1D\ memmap\ had\ un-\/wanted\ order\ changes.}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01257}01257\ \ \ \ \ testfile\ =\ str(tmpdir.join(\textcolor{stringliteral}{"{}arr2.dat"{}}))}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01258}01258\ \ \ \ \ a\ =\ np.arange(10,\ dtype=\textcolor{stringliteral}{"{}uint8"{}}).reshape(5,\ 2)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01259}01259\ \ \ \ \ a.tofile(testfile)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01260}01260\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01261}01261\ \ \ \ \ \textcolor{keyword}{def\ }\_read\_array():}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01262}01262\ \ \ \ \ \ \ \ \ mm\ =\ np.memmap(testfile)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01263}01263\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ mm.reshape(5,\ 2)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01264}01264\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01265}01265\ \ \ \ \ \textcolor{keyword}{def\ }func(x):}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01266}01266\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ x**2}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01267}01267\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01268}01268\ \ \ \ \ arr\ =\ \_read\_array()}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01269}01269\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01270}01270\ \ \ \ \ \textcolor{comment}{\#\ this\ gives\ the\ reference\ result\ of\ the\ function\ with\ an\ array}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01271}01271\ \ \ \ \ ref\ =\ \mbox{\hyperlink{classjoblib_1_1parallel_1_1Parallel}{Parallel}}(n\_jobs=2)(delayed(func)(x)\ \textcolor{keywordflow}{for}\ x\ \textcolor{keywordflow}{in}\ [a])}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01272}01272\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01273}01273\ \ \ \ \ \textcolor{comment}{\#\ now\ test\ that\ it\ works\ with\ a\ view\ on\ a\ 1D\ mmap\ array}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01274}01274\ \ \ \ \ results\ =\ \mbox{\hyperlink{classjoblib_1_1parallel_1_1Parallel}{Parallel}}(n\_jobs=2)(delayed(func)(x)\ \textcolor{keywordflow}{for}\ x\ \textcolor{keywordflow}{in}\ [arr])}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01275}01275\ \ \ \ \ \textcolor{keyword}{assert}\ \textcolor{keywordflow}{not}\ results[0].flags[\textcolor{stringliteral}{"{}F\_CONTIGUOUS"{}}]}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01276}01276\ \ \ \ \ np.testing.assert\_array\_equal(results,\ ref)}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01277}01277\ }
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01278}01278\ \ \ \ \ \textcolor{comment}{\#\ also\ test\ that\ returned\ memmap\ arrays\ are\ correctly\ ordered}}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01279}01279\ \ \ \ \ results\ =\ \mbox{\hyperlink{classjoblib_1_1parallel_1_1Parallel}{Parallel}}(n\_jobs=2)(delayed(\_read\_array)()\ \textcolor{keywordflow}{for}\ \_\ \textcolor{keywordflow}{in}\ range(1))}
+\DoxyCodeLine{\Hypertarget{test__memmapping_8py_source_l01280}01280\ \ \ \ \ np.testing.assert\_array\_equal(results[0],\ a)}
+
+\end{DoxyCode}

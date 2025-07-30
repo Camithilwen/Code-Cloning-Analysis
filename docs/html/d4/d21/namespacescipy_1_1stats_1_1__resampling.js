@@ -1,0 +1,27 @@
+var namespacescipy_1_1stats_1_1__resampling =
+[
+    [ "BootstrapMethod", "de/da4/classscipy_1_1stats_1_1__resampling_1_1BootstrapMethod.html", null ],
+    [ "BootstrapResult", "d8/d1d/classscipy_1_1stats_1_1__resampling_1_1BootstrapResult.html", null ],
+    [ "MonteCarloMethod", "d4/dd7/classscipy_1_1stats_1_1__resampling_1_1MonteCarloMethod.html", null ],
+    [ "MonteCarloTestResult", "dd/d95/classscipy_1_1stats_1_1__resampling_1_1MonteCarloTestResult.html", null ],
+    [ "PermutationMethod", "d3/d46/classscipy_1_1stats_1_1__resampling_1_1PermutationMethod.html", null ],
+    [ "PermutationTestResult", "d4/d40/classscipy_1_1stats_1_1__resampling_1_1PermutationTestResult.html", null ],
+    [ "ResamplingMethod", "dd/dc5/classscipy_1_1stats_1_1__resampling_1_1ResamplingMethod.html", null ],
+    [ "_all_partitions_concatenated", "d4/d21/namespacescipy_1_1stats_1_1__resampling.html#a0e31d9de95afc8cc40db53ed7f4cfddd", null ],
+    [ "_batch_generator", "d4/d21/namespacescipy_1_1stats_1_1__resampling.html#ab2c3fbfa8434bb273175aafd84fd9eb3", null ],
+    [ "_bca_interval", "d4/d21/namespacescipy_1_1stats_1_1__resampling.html#a2f04e1d5f070ff31f1343441e0d49b13", null ],
+    [ "_bootstrap_iv", "d4/d21/namespacescipy_1_1stats_1_1__resampling.html#ac8abcdc18ed960610af3403ad6fdf8ac", null ],
+    [ "_bootstrap_resample", "d4/d21/namespacescipy_1_1stats_1_1__resampling.html#a92d4dbf131de119c12f6c988ff2f220c", null ],
+    [ "_calculate_null_both", "d4/d21/namespacescipy_1_1stats_1_1__resampling.html#abce466a2e498006d6c0c57bfde7b7ce7", null ],
+    [ "_calculate_null_pairings", "d4/d21/namespacescipy_1_1stats_1_1__resampling.html#a164b747bb35a0a8fc563729ec8e72e5d", null ],
+    [ "_calculate_null_samples", "d4/d21/namespacescipy_1_1stats_1_1__resampling.html#a281bd931b030ac46a8df78e1ae2ce06c", null ],
+    [ "_jackknife_resample", "d4/d21/namespacescipy_1_1stats_1_1__resampling.html#a769ff272403e86cb56c70da1815f7578", null ],
+    [ "_monte_carlo_test_iv", "d4/d21/namespacescipy_1_1stats_1_1__resampling.html#a0d199f6fb5c86b7de1da4cb6443c743e", null ],
+    [ "_percentile_along_axis", "d4/d21/namespacescipy_1_1stats_1_1__resampling.html#acbe7a1919ac1faf534dd1e5e3f091543", null ],
+    [ "_percentile_of_score", "d4/d21/namespacescipy_1_1stats_1_1__resampling.html#a4d690dafccfb69022dcf50b4c19becdd", null ],
+    [ "_permutation_test_iv", "d4/d21/namespacescipy_1_1stats_1_1__resampling.html#aaa7528e2c981d6bb79547bdb33da599a", null ],
+    [ "_vectorize_statistic", "d4/d21/namespacescipy_1_1stats_1_1__resampling.html#a1cbf31c18034ecab33c5c808b268dd86", null ],
+    [ "bootstrap", "d4/d21/namespacescipy_1_1stats_1_1__resampling.html#a6c3d395af56f8cabdf385cf951cbc52d", null ],
+    [ "monte_carlo_test", "d4/d21/namespacescipy_1_1stats_1_1__resampling.html#a5486c49c316587dae5db7b43deef6ce9", null ],
+    [ "permutation_test", "d4/d21/namespacescipy_1_1stats_1_1__resampling.html#a2121e61e3b44b91dd340f938469b5b38", null ]
+];

@@ -1,0 +1,401 @@
+\doxysection{context.\+py}
+\hypertarget{context_8py_source}{}\label{context_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/joblib/externals/loky/backend/context.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/joblib/externals/loky/backend/context.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00001}\mbox{\hyperlink{namespacejoblib_1_1externals_1_1loky_1_1backend_1_1context}{00001}}\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00012}00012\ \textcolor{keyword}{import}\ os}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00013}00013\ \textcolor{keyword}{import}\ sys}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00014}00014\ \textcolor{keyword}{import}\ math}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00015}00015\ \textcolor{keyword}{import}\ subprocess}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00016}00016\ \textcolor{keyword}{import}\ traceback}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00017}00017\ \textcolor{keyword}{import}\ warnings}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00018}00018\ \textcolor{keyword}{import}\ multiprocessing\ \textcolor{keyword}{as}\ mp}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00019}00019\ \textcolor{keyword}{from}\ multiprocessing\ \textcolor{keyword}{import}\ get\_context\ \textcolor{keyword}{as}\ mp\_get\_context}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00020}00020\ \textcolor{keyword}{from}\ multiprocessing.context\ \textcolor{keyword}{import}\ BaseContext}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00021}00021\ \textcolor{keyword}{from}\ concurrent.futures.process\ \textcolor{keyword}{import}\ \_MAX\_WINDOWS\_WORKERS}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00022}00022\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00023}00023\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00024}00024\ \textcolor{keyword}{from}\ .process\ \textcolor{keyword}{import}\ LokyProcess,\ LokyInitMainProcess}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00025}00025\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00026}00026\ \textcolor{comment}{\#\ Apparently,\ on\ older\ Python\ versions,\ loky\ cannot\ work\ 61\ workers\ on\ Windows}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00027}00027\ \textcolor{comment}{\#\ but\ instead\ 60:\ ¯\(\backslash\)\_(ツ)\_/¯}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00028}00028\ \textcolor{keywordflow}{if}\ sys.version\_info\ <\ (3,\ 10):}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00029}00029\ \ \ \ \ \_MAX\_WINDOWS\_WORKERS\ =\ \_MAX\_WINDOWS\_WORKERS\ -\/\ 1}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00030}00030\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00031}00031\ START\_METHODS\ =\ [\textcolor{stringliteral}{"{}loky"{}},\ \textcolor{stringliteral}{"{}loky\_init\_main"{}},\ \textcolor{stringliteral}{"{}spawn"{}}]}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00032}00032\ \textcolor{keywordflow}{if}\ sys.platform\ !=\ \textcolor{stringliteral}{"{}win32"{}}:}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00033}00033\ \ \ \ \ START\_METHODS\ +=\ [\textcolor{stringliteral}{"{}fork"{}},\ \textcolor{stringliteral}{"{}forkserver"{}}]}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00034}00034\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00035}00035\ \_DEFAULT\_START\_METHOD\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00036}00036\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00037}00037\ \textcolor{comment}{\#\ Cache\ for\ the\ number\ of\ physical\ cores\ to\ avoid\ repeating\ subprocess\ calls.}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00038}00038\ \textcolor{comment}{\#\ It\ should\ not\ change\ during\ the\ lifetime\ of\ the\ program.}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00039}00039\ physical\_cores\_cache\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00040}00040\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00041}00041\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00042}00042\ \textcolor{keyword}{def\ }get\_context(method=None):}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00043}00043\ \ \ \ \ \textcolor{comment}{\#\ Try\ to\ overload\ the\ default\ context}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00044}00044\ \ \ \ \ method\ =\ method\ \textcolor{keywordflow}{or}\ \_DEFAULT\_START\_METHOD\ \textcolor{keywordflow}{or}\ \textcolor{stringliteral}{"{}loky"{}}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00045}00045\ \ \ \ \ \textcolor{keywordflow}{if}\ method\ ==\ \textcolor{stringliteral}{"{}fork"{}}:}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00046}00046\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ If\ 'fork'\ is\ explicitly\ requested,\ warn\ user\ about\ potential\ issues.}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00047}00047\ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00048}00048\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\`{}fork`\ start\ method\ should\ not\ be\ used\ with\ "{}}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00049}00049\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\`{}loky`\ as\ it\ does\ not\ respect\ POSIX.\ Try\ using\ "{}}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00050}00050\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\`{}spawn`\ or\ \`{}loky`\ instead."{}},}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00051}00051\ \ \ \ \ \ \ \ \ \ \ \ \ UserWarning,}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00052}00052\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00053}00053\ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00054}00054\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ mp\_get\_context(method)}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00055}00055\ \ \ \ \ \textcolor{keywordflow}{except}\ ValueError:}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00056}00056\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00057}00057\ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}Unknown\ context\ '\{method\}'.\ Value\ should\ be\ in\ "{}}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00058}00058\ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\{START\_METHODS\}."{}}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00059}00059\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00060}00060\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00061}00061\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00062}00062\ \textcolor{keyword}{def\ }set\_start\_method(method,\ force=False):}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00063}00063\ \ \ \ \ \textcolor{keyword}{global}\ \_DEFAULT\_START\_METHOD}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00064}00064\ \ \ \ \ \textcolor{keywordflow}{if}\ \_DEFAULT\_START\_METHOD\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{and}\ \textcolor{keywordflow}{not}\ force:}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00065}00065\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classRuntimeError}{RuntimeError}}(\textcolor{stringliteral}{"{}context\ has\ already\ been\ set"{}})}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00066}00066\ \ \ \ \ \textcolor{keyword}{assert}\ method\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{or}\ method\ \textcolor{keywordflow}{in}\ START\_METHODS,\ (}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00067}00067\ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}'\{method\}'\ is\ not\ a\ valid\ start\_method.\ It\ should\ be\ in\ "{}}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00068}00068\ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\{START\_METHODS\}"{}}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00069}00069\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00070}00070\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00071}00071\ \ \ \ \ \_DEFAULT\_START\_METHOD\ =\ method}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00072}00072\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00073}00073\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00074}00074\ \textcolor{keyword}{def\ }get\_start\_method():}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00075}00075\ \ \ \ \ \textcolor{keywordflow}{return}\ \_DEFAULT\_START\_METHOD}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00076}00076\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00077}00077\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00078}\mbox{\hyperlink{namespacejoblib_1_1externals_1_1loky_1_1backend_1_1context_a64a1667d8d8206bcf3815aaab0aafe1c}{00078}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1externals_1_1loky_1_1backend_1_1context_a64a1667d8d8206bcf3815aaab0aafe1c}{cpu\_count}}(only\_physical\_cores=False):}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00079}00079\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Return\ the\ number\ of\ CPUs\ the\ current\ process\ can\ use.}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00080}00080\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00081}00081\ \textcolor{stringliteral}{\ \ \ \ The\ returned\ number\ of\ CPUs\ accounts\ for:}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00082}00082\ \textcolor{stringliteral}{\ \ \ \ \ *\ the\ number\ of\ CPUs\ in\ the\ system,\ as\ given\ by}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00083}00083\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \`{}\`{}multiprocessing.cpu\_count\`{}\`{};}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00084}00084\ \textcolor{stringliteral}{\ \ \ \ \ *\ the\ CPU\ affinity\ settings\ of\ the\ current\ process}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00085}00085\ \textcolor{stringliteral}{\ \ \ \ \ \ \ (available\ on\ some\ Unix\ systems);}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00086}00086\ \textcolor{stringliteral}{\ \ \ \ \ *\ Cgroup\ CPU\ bandwidth\ limit\ (available\ on\ Linux\ only,\ typically}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00087}00087\ \textcolor{stringliteral}{\ \ \ \ \ \ \ set\ by\ docker\ and\ similar\ container\ orchestration\ systems);}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00088}00088\ \textcolor{stringliteral}{\ \ \ \ \ *\ the\ value\ of\ the\ LOKY\_MAX\_CPU\_COUNT\ environment\ variable\ if\ defined.}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00089}00089\ \textcolor{stringliteral}{\ \ \ \ and\ is\ given\ as\ the\ minimum\ of\ these\ constraints.}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00090}00090\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00091}00091\ \textcolor{stringliteral}{\ \ \ \ If\ \`{}\`{}only\_physical\_cores\`{}\`{}\ is\ True,\ return\ the\ number\ of\ physical\ cores}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00092}00092\ \textcolor{stringliteral}{\ \ \ \ instead\ of\ the\ number\ of\ logical\ cores\ (hyperthreading\ /\ SMT).\ Note\ that}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00093}00093\ \textcolor{stringliteral}{\ \ \ \ this\ option\ is\ not\ enforced\ if\ the\ number\ of\ usable\ cores\ is\ controlled\ in}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00094}00094\ \textcolor{stringliteral}{\ \ \ \ any\ other\ way\ such\ as:\ process\ affinity,\ Cgroup\ restricted\ CPU\ bandwidth}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00095}00095\ \textcolor{stringliteral}{\ \ \ \ or\ the\ LOKY\_MAX\_CPU\_COUNT\ environment\ variable.\ If\ the\ number\ of\ physical}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00096}00096\ \textcolor{stringliteral}{\ \ \ \ cores\ is\ not\ found,\ return\ the\ number\ of\ logical\ cores.}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00097}00097\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00098}00098\ \textcolor{stringliteral}{\ \ \ \ Note\ that\ on\ Windows,\ the\ returned\ number\ of\ CPUs\ cannot\ exceed\ 61\ (or\ 60\ for}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00099}00099\ \textcolor{stringliteral}{\ \ \ \ Python\ <\ 3.10),\ see:}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00100}00100\ \textcolor{stringliteral}{\ \ \ \ https://bugs.python.org/issue26903.}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00101}00101\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00102}00102\ \textcolor{stringliteral}{\ \ \ \ It\ is\ also\ always\ larger\ or\ equal\ to\ 1.}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00103}00103\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00104}00104\ \ \ \ \ \textcolor{comment}{\#\ Note:\ os.cpu\_count()\ is\ allowed\ to\ return\ None\ in\ its\ docstring}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00105}00105\ \ \ \ \ os\_cpu\_count\ =\ os.cpu\_count()\ \textcolor{keywordflow}{or}\ 1}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00106}00106\ \ \ \ \ \textcolor{keywordflow}{if}\ sys.platform\ ==\ \textcolor{stringliteral}{"{}win32"{}}:}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00107}00107\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ On\ Windows,\ attempting\ to\ use\ more\ than\ 61\ CPUs\ would\ result\ in\ a}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00108}00108\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ OS-\/level\ error.\ See\ https://bugs.python.org/issue26903.\ According\ to}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00109}00109\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ https://learn.microsoft.com/en-\/us/windows/win32/procthread/processor-\/groups}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00110}00110\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ it\ might\ be\ possible\ to\ go\ beyond\ with\ a\ lot\ of\ extra\ work\ but\ this}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00111}00111\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ does\ not\ look\ easy.}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00112}00112\ \ \ \ \ \ \ \ \ os\_cpu\_count\ =\ min(os\_cpu\_count,\ \_MAX\_WINDOWS\_WORKERS)}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00113}00113\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00114}00114\ \ \ \ \ cpu\_count\_user\ =\ \mbox{\hyperlink{namespacejoblib_1_1externals_1_1loky_1_1backend_1_1context_a58ec7d0a912b8ed91331f9b2aa72ce0f}{\_cpu\_count\_user}}(os\_cpu\_count)}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00115}00115\ \ \ \ \ aggregate\_cpu\_count\ =\ max(min(os\_cpu\_count,\ cpu\_count\_user),\ 1)}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00116}00116\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00117}00117\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ only\_physical\_cores:}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00118}00118\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ aggregate\_cpu\_count}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00119}00119\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00120}00120\ \ \ \ \ \textcolor{keywordflow}{if}\ cpu\_count\_user\ <\ os\_cpu\_count:}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00121}00121\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Respect\ user\ setting}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00122}00122\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ max(cpu\_count\_user,\ 1)}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00123}00123\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00124}00124\ \ \ \ \ cpu\_count\_physical,\ exception\ =\ \mbox{\hyperlink{namespacejoblib_1_1externals_1_1loky_1_1backend_1_1context_a98b5c6e7962bd45d62c7e0a31438323f}{\_count\_physical\_cores}}()}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00125}00125\ \ \ \ \ \textcolor{keywordflow}{if}\ cpu\_count\_physical\ !=\ \textcolor{stringliteral}{"{}not\ found"{}}:}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00126}00126\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ cpu\_count\_physical}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00127}00127\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00128}00128\ \ \ \ \ \textcolor{comment}{\#\ Fallback\ to\ default\ behavior}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00129}00129\ \ \ \ \ \textcolor{keywordflow}{if}\ exception\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00130}00130\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ warns\ only\ the\ first\ time}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00131}00131\ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00132}00132\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Could\ not\ find\ the\ number\ of\ physical\ cores\ for\ the\ "{}}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00133}00133\ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}following\ reason:\(\backslash\)n\{exception\}\(\backslash\)n"{}}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00134}00134\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Returning\ the\ number\ of\ logical\ cores\ instead.\ You\ can\ "{}}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00135}00135\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}silence\ this\ warning\ by\ setting\ LOKY\_MAX\_CPU\_COUNT\ to\ "{}}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00136}00136\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}the\ number\ of\ cores\ you\ want\ to\ use."{}}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00137}00137\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00138}00138\ \ \ \ \ \ \ \ \ traceback.print\_tb(exception.\_\_traceback\_\_)}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00139}00139\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00140}00140\ \ \ \ \ \textcolor{keywordflow}{return}\ aggregate\_cpu\_count}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00141}00141\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00142}00142\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00143}00143\ \textcolor{keyword}{def\ }\_cpu\_count\_cgroup(os\_cpu\_count):}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00144}00144\ \ \ \ \ \textcolor{comment}{\#\ Cgroup\ CPU\ bandwidth\ limit\ available\ in\ Linux\ since\ 2.6\ kernel}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00145}00145\ \ \ \ \ cpu\_max\_fname\ =\ \textcolor{stringliteral}{"{}/sys/fs/cgroup/cpu.max"{}}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00146}00146\ \ \ \ \ cfs\_quota\_fname\ =\ \textcolor{stringliteral}{"{}/sys/fs/cgroup/cpu/cpu.cfs\_quota\_us"{}}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00147}00147\ \ \ \ \ cfs\_period\_fname\ =\ \textcolor{stringliteral}{"{}/sys/fs/cgroup/cpu/cpu.cfs\_period\_us"{}}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00148}00148\ \ \ \ \ \textcolor{keywordflow}{if}\ os.path.exists(cpu\_max\_fname):}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00149}00149\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ cgroup\ v2}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00150}00150\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ https://www.kernel.org/doc/html/latest/admin-\/guide/cgroup-\/v2.html}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00151}00151\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ open(cpu\_max\_fname)\ \textcolor{keyword}{as}\ fh:}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00152}00152\ \ \ \ \ \ \ \ \ \ \ \ \ cpu\_quota\_us,\ cpu\_period\_us\ =\ fh.read().strip().split()}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00153}00153\ \ \ \ \ \textcolor{keywordflow}{elif}\ os.path.exists(cfs\_quota\_fname)\ \textcolor{keywordflow}{and}\ os.path.exists(cfs\_period\_fname):}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00154}00154\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ cgroup\ v1}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00155}00155\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ https://www.kernel.org/doc/html/latest/scheduler/sched-\/bwc.html\#management}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00156}00156\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ open(cfs\_quota\_fname)\ \textcolor{keyword}{as}\ fh:}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00157}00157\ \ \ \ \ \ \ \ \ \ \ \ \ cpu\_quota\_us\ =\ fh.read().strip()}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00158}00158\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ open(cfs\_period\_fname)\ \textcolor{keyword}{as}\ fh:}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00159}00159\ \ \ \ \ \ \ \ \ \ \ \ \ cpu\_period\_us\ =\ fh.read().strip()}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00160}00160\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00161}00161\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ No\ Cgroup\ CPU\ bandwidth\ limit\ (e.g.\ non-\/Linux\ platform)}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00162}00162\ \ \ \ \ \ \ \ \ cpu\_quota\_us\ =\ \textcolor{stringliteral}{"{}max"{}}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00163}00163\ \ \ \ \ \ \ \ \ cpu\_period\_us\ =\ 100\_000\ \ \textcolor{comment}{\#\ unused,\ for\ consistency\ with\ default\ values}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00164}00164\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00165}00165\ \ \ \ \ \textcolor{keywordflow}{if}\ cpu\_quota\_us\ ==\ \textcolor{stringliteral}{"{}max"{}}:}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00166}00166\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ No\ active\ Cgroup\ quota\ on\ a\ Cgroup-\/capable\ platform}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00167}00167\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ os\_cpu\_count}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00168}00168\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00169}00169\ \ \ \ \ \ \ \ \ cpu\_quota\_us\ =\ int(cpu\_quota\_us)}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00170}00170\ \ \ \ \ \ \ \ \ cpu\_period\_us\ =\ int(cpu\_period\_us)}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00171}00171\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ cpu\_quota\_us\ >\ 0\ \textcolor{keywordflow}{and}\ cpu\_period\_us\ >\ 0:}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00172}00172\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ math.ceil(cpu\_quota\_us\ /\ cpu\_period\_us)}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00173}00173\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:\ \ \textcolor{comment}{\#\ pragma:\ no\ cover}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00174}00174\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Setting\ a\ negative\ cpu\_quota\_us\ value\ is\ a\ valid\ way\ to\ disable}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00175}00175\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ cgroup\ CPU\ bandwith\ limits}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00176}00176\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ os\_cpu\_count}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00177}00177\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00178}00178\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00179}00179\ \textcolor{keyword}{def\ }\_cpu\_count\_affinity(os\_cpu\_count):}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00180}00180\ \ \ \ \ \textcolor{comment}{\#\ Number\ of\ available\ CPUs\ given\ affinity\ settings}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00181}00181\ \ \ \ \ \textcolor{keywordflow}{if}\ hasattr(os,\ \textcolor{stringliteral}{"{}sched\_getaffinity"{}}):}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00182}00182\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00183}00183\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ len(os.sched\_getaffinity(0))}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00184}00184\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ NotImplementedError:}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00185}00185\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{pass}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00186}00186\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00187}00187\ \ \ \ \ \textcolor{comment}{\#\ On\ some\ platforms,\ os.sched\_getaffinity\ does\ not\ exist\ or\ raises}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00188}00188\ \ \ \ \ \textcolor{comment}{\#\ NotImplementedError,\ let's\ try\ with\ the\ psutil\ if\ installed.}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00189}00189\ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00190}00190\ \ \ \ \ \ \ \ \ \textcolor{keyword}{import}\ psutil}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00191}00191\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00192}00192\ \ \ \ \ \ \ \ \ p\ =\ psutil.Process()}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00193}00193\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ hasattr(p,\ \textcolor{stringliteral}{"{}cpu\_affinity"{}}):}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00194}00194\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ len(p.cpu\_affinity())}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00195}00195\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00196}00196\ \ \ \ \ \textcolor{keywordflow}{except}\ ImportError:\ \ \textcolor{comment}{\#\ pragma:\ no\ cover}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00197}00197\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00198}00198\ \ \ \ \ \ \ \ \ \ \ \ \ sys.platform\ ==\ \textcolor{stringliteral}{"{}linux"{}}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00199}00199\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}\ os.environ.get(\textcolor{stringliteral}{"{}LOKY\_MAX\_CPU\_COUNT"{}})\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00200}00200\ \ \ \ \ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00201}00201\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Some\ platforms\ don't\ implement\ os.sched\_getaffinity\ on\ Linux\ which}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00202}00202\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ can\ cause\ severe\ oversubscription\ problems.\ Better\ warn\ the}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00203}00203\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ user\ in\ this\ particularly\ pathological\ case\ which\ can\ wreck}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00204}00204\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ havoc,\ typically\ on\ CI\ workers.}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00205}00205\ \ \ \ \ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00206}00206\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Failed\ to\ inspect\ CPU\ affinity\ constraints\ on\ this\ system.\ "{}}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00207}00207\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Please\ install\ psutil\ or\ explictly\ set\ LOKY\_MAX\_CPU\_COUNT."{}}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00208}00208\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00209}00209\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00210}00210\ \ \ \ \ \textcolor{comment}{\#\ This\ can\ happen\ for\ platforms\ that\ do\ not\ implement\ any\ kind\ of\ CPU}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00211}00211\ \ \ \ \ \textcolor{comment}{\#\ infinity\ such\ as\ macOS-\/based\ platforms.}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00212}00212\ \ \ \ \ \textcolor{keywordflow}{return}\ os\_cpu\_count}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00213}00213\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00214}00214\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00215}\mbox{\hyperlink{namespacejoblib_1_1externals_1_1loky_1_1backend_1_1context_a58ec7d0a912b8ed91331f9b2aa72ce0f}{00215}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1externals_1_1loky_1_1backend_1_1context_a58ec7d0a912b8ed91331f9b2aa72ce0f}{\_cpu\_count\_user}}(os\_cpu\_count):}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00216}00216\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Number\ of\ user\ defined\ available\ CPUs"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00217}00217\ \ \ \ \ cpu\_count\_affinity\ =\ \_cpu\_count\_affinity(os\_cpu\_count)}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00218}00218\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00219}00219\ \ \ \ \ cpu\_count\_cgroup\ =\ \_cpu\_count\_cgroup(os\_cpu\_count)}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00220}00220\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00221}00221\ \ \ \ \ \textcolor{comment}{\#\ User\ defined\ soft-\/limit\ passed\ as\ a\ loky\ specific\ environment\ variable.}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00222}00222\ \ \ \ \ cpu\_count\_loky\ =\ int(os.environ.get(\textcolor{stringliteral}{"{}LOKY\_MAX\_CPU\_COUNT"{}},\ os\_cpu\_count))}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00223}00223\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00224}00224\ \ \ \ \ \textcolor{keywordflow}{return}\ min(cpu\_count\_affinity,\ cpu\_count\_cgroup,\ cpu\_count\_loky)}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00225}00225\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00226}00226\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00227}\mbox{\hyperlink{namespacejoblib_1_1externals_1_1loky_1_1backend_1_1context_a98b5c6e7962bd45d62c7e0a31438323f}{00227}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1externals_1_1loky_1_1backend_1_1context_a98b5c6e7962bd45d62c7e0a31438323f}{\_count\_physical\_cores}}():}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00228}00228\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Return\ a\ tuple\ (number\ of\ physical\ cores,\ exception)}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00229}00229\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00230}00230\ \textcolor{stringliteral}{\ \ \ \ If\ the\ number\ of\ physical\ cores\ is\ found,\ exception\ is\ set\ to\ None.}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00231}00231\ \textcolor{stringliteral}{\ \ \ \ If\ it\ has\ not\ been\ found,\ return\ ("{}not\ found"{},\ exception).}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00232}00232\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00233}00233\ \textcolor{stringliteral}{\ \ \ \ The\ number\ of\ physical\ cores\ is\ cached\ to\ avoid\ repeating\ subprocess\ calls.}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00234}00234\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00235}00235\ \ \ \ \ exception\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00236}00236\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00237}00237\ \ \ \ \ \textcolor{comment}{\#\ First\ check\ if\ the\ value\ is\ cached}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00238}00238\ \ \ \ \ \textcolor{keyword}{global}\ physical\_cores\_cache}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00239}00239\ \ \ \ \ \textcolor{keywordflow}{if}\ physical\_cores\_cache\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00240}00240\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ physical\_cores\_cache,\ exception}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00241}00241\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00242}00242\ \ \ \ \ \textcolor{comment}{\#\ Not\ cached\ yet,\ find\ it}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00243}00243\ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00244}00244\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ sys.platform\ ==\ \textcolor{stringliteral}{"{}linux"{}}:}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00245}00245\ \ \ \ \ \ \ \ \ \ \ \ \ cpu\_count\_physical\ =\ \_count\_physical\_cores\_linux()}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00246}00246\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ sys.platform\ ==\ \textcolor{stringliteral}{"{}win32"{}}:}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00247}00247\ \ \ \ \ \ \ \ \ \ \ \ \ cpu\_count\_physical\ =\ \_count\_physical\_cores\_win32()}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00248}00248\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ sys.platform\ ==\ \textcolor{stringliteral}{"{}darwin"{}}:}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00249}00249\ \ \ \ \ \ \ \ \ \ \ \ \ cpu\_count\_physical\ =\ \_count\_physical\_cores\_darwin()}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00250}00250\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00251}00251\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classNotImplementedError}{NotImplementedError}}(f\textcolor{stringliteral}{"{}unsupported\ platform:\ \{sys.platform\}"{}})}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00252}00252\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00253}00253\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ if\ cpu\_count\_physical\ <\ 1,\ we\ did\ not\ find\ a\ valid\ value}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00254}00254\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ cpu\_count\_physical\ <\ 1:}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00255}00255\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(f\textcolor{stringliteral}{"{}found\ \{cpu\_count\_physical\}\ physical\ cores\ <\ 1"{}})}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00256}00256\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00257}00257\ \ \ \ \ \textcolor{keywordflow}{except}\ Exception\ \textcolor{keyword}{as}\ e:}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00258}00258\ \ \ \ \ \ \ \ \ exception\ =\ e}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00259}00259\ \ \ \ \ \ \ \ \ cpu\_count\_physical\ =\ \textcolor{stringliteral}{"{}not\ found"{}}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00260}00260\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00261}00261\ \ \ \ \ \textcolor{comment}{\#\ Put\ the\ result\ in\ cache}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00262}00262\ \ \ \ \ physical\_cores\_cache\ =\ cpu\_count\_physical}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00263}00263\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00264}00264\ \ \ \ \ \textcolor{keywordflow}{return}\ cpu\_count\_physical,\ exception}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00265}00265\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00266}00266\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00267}00267\ \textcolor{keyword}{def\ }\_count\_physical\_cores\_linux():}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00268}00268\ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00269}00269\ \ \ \ \ \ \ \ \ cpu\_info\ =\ subprocess.run(}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00270}00270\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}lscpu\ -\/-\/parse=core"{}}.split(),\ capture\_output=\textcolor{keyword}{True},\ text=\textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00271}00271\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00272}00272\ \ \ \ \ \ \ \ \ cpu\_info\ =\ cpu\_info.stdout.splitlines()}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00273}00273\ \ \ \ \ \ \ \ \ cpu\_info\ =\ \{line\ \textcolor{keywordflow}{for}\ line\ \textcolor{keywordflow}{in}\ cpu\_info\ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ line.startswith(\textcolor{stringliteral}{"{}\#"{}})\}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00274}00274\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ len(cpu\_info)}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00275}00275\ \ \ \ \ \textcolor{keywordflow}{except}:}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00276}00276\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{pass}\ \ \textcolor{comment}{\#\ fallback\ to\ /proc/cpuinfo}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00277}00277\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00278}00278\ \ \ \ \ cpu\_info\ =\ subprocess.run(}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00279}00279\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}cat\ /proc/cpuinfo"{}}.split(),\ capture\_output=\textcolor{keyword}{True},\ text=\textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00280}00280\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00281}00281\ \ \ \ \ cpu\_info\ =\ cpu\_info.stdout.splitlines()}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00282}00282\ \ \ \ \ cpu\_info\ =\ \{line\ \textcolor{keywordflow}{for}\ line\ \textcolor{keywordflow}{in}\ cpu\_info\ \textcolor{keywordflow}{if}\ line.startswith(\textcolor{stringliteral}{"{}core\ id"{}})\}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00283}00283\ \ \ \ \ \textcolor{keywordflow}{return}\ len(cpu\_info)}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00284}00284\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00285}00285\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00286}00286\ \textcolor{keyword}{def\ }\_count\_physical\_cores\_win32():}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00287}00287\ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00288}00288\ \ \ \ \ \ \ \ \ cmd\ =\ \textcolor{stringliteral}{"{}-\/Command\ (Get-\/CimInstance\ -\/ClassName\ Win32\_Processor).NumberOfCores"{}}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00289}00289\ \ \ \ \ \ \ \ \ cpu\_info\ =\ subprocess.run(}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00290}00290\ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}powershell.exe\ \{cmd\}"{}}.split(),}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00291}00291\ \ \ \ \ \ \ \ \ \ \ \ \ capture\_output=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00292}00292\ \ \ \ \ \ \ \ \ \ \ \ \ text=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00293}00293\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00294}00294\ \ \ \ \ \ \ \ \ cpu\_info\ =\ cpu\_info.stdout.splitlines()}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00295}00295\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ int(cpu\_info[0])}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00296}00296\ \ \ \ \ \textcolor{keywordflow}{except}:}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00297}00297\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{pass}\ \ \textcolor{comment}{\#\ fallback\ to\ wmic\ (older\ Windows\ versions;\ deprecated\ now)}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00298}00298\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00299}00299\ \ \ \ \ cpu\_info\ =\ subprocess.run(}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00300}00300\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}wmic\ CPU\ Get\ NumberOfCores\ /Format:csv"{}}.split(),}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00301}00301\ \ \ \ \ \ \ \ \ capture\_output=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00302}00302\ \ \ \ \ \ \ \ \ text=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00303}00303\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00304}00304\ \ \ \ \ cpu\_info\ =\ cpu\_info.stdout.splitlines()}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00305}00305\ \ \ \ \ cpu\_info\ =\ [}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00306}00306\ \ \ \ \ \ \ \ \ l.split(\textcolor{stringliteral}{"{},"{}})[1]\ \textcolor{keywordflow}{for}\ l\ \textcolor{keywordflow}{in}\ cpu\_info\ \textcolor{keywordflow}{if}\ (l\ \textcolor{keywordflow}{and}\ l\ !=\ \textcolor{stringliteral}{"{}Node,NumberOfCores"{}})}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00307}00307\ \ \ \ \ ]}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00308}00308\ \ \ \ \ \textcolor{keywordflow}{return}\ sum(map(int,\ cpu\_info))}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00309}00309\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00310}00310\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00311}00311\ \textcolor{keyword}{def\ }\_count\_physical\_cores\_darwin():}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00312}00312\ \ \ \ \ cpu\_info\ =\ subprocess.run(}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00313}00313\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}sysctl\ -\/n\ hw.physicalcpu"{}}.split(),}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00314}00314\ \ \ \ \ \ \ \ \ capture\_output=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00315}00315\ \ \ \ \ \ \ \ \ text=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00316}00316\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00317}00317\ \ \ \ \ cpu\_info\ =\ cpu\_info.stdout}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00318}00318\ \ \ \ \ \textcolor{keywordflow}{return}\ int(cpu\_info)}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00319}00319\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00320}00320\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00321}\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1context_1_1LokyContext}{00321}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1context_1_1LokyContext}{LokyContext}}(\mbox{\hyperlink{classBaseContext}{BaseContext}}):}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00322}00322\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Context\ relying\ on\ the\ LokyProcess."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00323}00323\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00324}00324\ \ \ \ \ \_name\ =\ \textcolor{stringliteral}{"{}loky"{}}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00325}00325\ \ \ \ \ Process\ =\ LokyProcess}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00326}00326\ \ \ \ \ cpu\_count\ =\ staticmethod(cpu\_count)}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00327}00327\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00328}\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1context_1_1LokyContext_a400b7fcc3044346381c3ff022adf608f}{00328}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1context_1_1LokyContext_a400b7fcc3044346381c3ff022adf608f}{Queue}}(self,\ maxsize=0,\ reducers=None):}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00329}00329\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Returns\ a\ queue\ object"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00330}00330\ \ \ \ \ \ \ \ \ \textcolor{keyword}{from}\ .queues\ \textcolor{keyword}{import}\ Queue}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00331}00331\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00332}00332\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1context_1_1LokyContext_a400b7fcc3044346381c3ff022adf608f}{Queue}}(maxsize,\ reducers=reducers,\ ctx=self.get\_context())}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00333}00333\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00334}\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1context_1_1LokyContext_ab8f0210d7f67aa063e16a09404837282}{00334}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1context_1_1LokyContext_ab8f0210d7f67aa063e16a09404837282}{SimpleQueue}}(self,\ reducers=None):}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00335}00335\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Returns\ a\ queue\ object"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00336}00336\ \ \ \ \ \ \ \ \ \textcolor{keyword}{from}\ .queues\ \textcolor{keyword}{import}\ SimpleQueue}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00337}00337\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00338}00338\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1context_1_1LokyContext_ab8f0210d7f67aa063e16a09404837282}{SimpleQueue}}(reducers=reducers,\ ctx=self.get\_context())}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00339}00339\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00340}00340\ \ \ \ \ \textcolor{keywordflow}{if}\ sys.platform\ !=\ \textcolor{stringliteral}{"{}win32"{}}:}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00341}00341\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}For\ Unix\ platform,\ use\ our\ custom\ implementation\ of\ synchronize}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00342}00342\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ensuring\ that\ we\ use\ the\ loky.backend.resource\_tracker\ to\ clean-\/up}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00343}00343\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ semaphores\ in\ case\ of\ a\ worker\ crash.}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00344}00344\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00345}00345\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00346}\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1context_1_1LokyContext_a42e36877c55ed8cf8cf0762cef9a4e85}{00346}}\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1context_1_1LokyContext_a42e36877c55ed8cf8cf0762cef9a4e85}{Semaphore}}(self,\ value=1):}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00347}00347\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Returns\ a\ semaphore\ object"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00348}00348\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{from}\ .synchronize\ \textcolor{keyword}{import}\ Semaphore}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00349}00349\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00350}00350\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1context_1_1LokyContext_a42e36877c55ed8cf8cf0762cef9a4e85}{Semaphore}}(value=value)}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00351}00351\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00352}\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1context_1_1LokyContext_a33ae344961770c90b70c358c59607c77}{00352}}\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1context_1_1LokyContext_a33ae344961770c90b70c358c59607c77}{BoundedSemaphore}}(self,\ value):}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00353}00353\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Returns\ a\ bounded\ semaphore\ object"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00354}00354\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{from}\ .synchronize\ \textcolor{keyword}{import}\ BoundedSemaphore}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00355}00355\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00356}00356\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1context_1_1LokyContext_a33ae344961770c90b70c358c59607c77}{BoundedSemaphore}}(value)}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00357}00357\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00358}\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1context_1_1LokyContext_a02f02e016819cb677f122b615135679c}{00358}}\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1context_1_1LokyContext_a02f02e016819cb677f122b615135679c}{Lock}}(self):}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00359}00359\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Returns\ a\ lock\ object"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00360}00360\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{from}\ .synchronize\ \textcolor{keyword}{import}\ Lock}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00361}00361\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00362}00362\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1context_1_1LokyContext_a02f02e016819cb677f122b615135679c}{Lock}}()}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00363}00363\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00364}\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1context_1_1LokyContext_aa0b75e7cb55a1ced34043d525ad144a0}{00364}}\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1context_1_1LokyContext_aa0b75e7cb55a1ced34043d525ad144a0}{RLock}}(self):}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00365}00365\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Returns\ a\ recurrent\ lock\ object"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00366}00366\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{from}\ .synchronize\ \textcolor{keyword}{import}\ RLock}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00367}00367\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00368}00368\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ RLock()}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00369}00369\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00370}\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1context_1_1LokyContext_a6afcdfc10e57a5fcd67dc2079818bf9d}{00370}}\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1context_1_1LokyContext_a6afcdfc10e57a5fcd67dc2079818bf9d}{Condition}}(self,\ lock=None):}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00371}00371\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Returns\ a\ condition\ object"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00372}00372\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{from}\ .synchronize\ \textcolor{keyword}{import}\ Condition}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00373}00373\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00374}00374\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1context_1_1LokyContext_a6afcdfc10e57a5fcd67dc2079818bf9d}{Condition}}(lock)}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00375}00375\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00376}\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1context_1_1LokyContext_a666706224ebd8baa6403fbb1e50c56ad}{00376}}\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1context_1_1LokyContext_a666706224ebd8baa6403fbb1e50c56ad}{Event}}(self):}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00377}00377\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Returns\ an\ event\ object"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00378}00378\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{from}\ .synchronize\ \textcolor{keyword}{import}\ Event}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00379}00379\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00380}00380\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1context_1_1LokyContext_a666706224ebd8baa6403fbb1e50c56ad}{Event}}()}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00381}00381\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00382}00382\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00383}\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1context_1_1LokyInitMainContext}{00383}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1context_1_1LokyInitMainContext}{LokyInitMainContext}}(\mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1context_1_1LokyContext}{LokyContext}}):}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00384}00384\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Extra\ context\ with\ LokyProcess,\ which\ does\ load\ the\ main\ module}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00385}00385\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00386}00386\ \textcolor{stringliteral}{\ \ \ \ This\ context\ is\ used\ for\ compatibility\ in\ the\ case\ \`{}\`{}cloudpickle\`{}\`{}\ is\ not}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00387}00387\ \textcolor{stringliteral}{\ \ \ \ present\ on\ the\ running\ system.\ This\ permits\ to\ load\ functions\ defined\ in}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00388}00388\ \textcolor{stringliteral}{\ \ \ \ the\ \`{}\`{}main\`{}\`{}\ module,\ using\ proper\ safeguards.\ The\ declaration\ of\ the}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00389}00389\ \textcolor{stringliteral}{\ \ \ \ \`{}\`{}executor\`{}\`{}\ should\ be\ protected\ by\ \`{}\`{}if\ \_\_name\_\_\ ==\ "{}\_\_main\_\_"{}:\`{}\`{}\ and\ the}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00390}00390\ \textcolor{stringliteral}{\ \ \ \ functions\ and\ variable\ used\ from\ main\ should\ be\ out\ of\ this\ block.}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00391}00391\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00392}00392\ \textcolor{stringliteral}{\ \ \ \ This\ mimics\ the\ default\ behavior\ of\ multiprocessing\ under\ Windows\ and\ the}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00393}00393\ \textcolor{stringliteral}{\ \ \ \ behavior\ of\ the\ \`{}\`{}spawn\`{}\`{}\ start\ method\ on\ a\ posix\ system.}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00394}00394\ \textcolor{stringliteral}{\ \ \ \ For\ more\ details,\ see\ the\ end\ of\ the\ following\ section\ of\ python\ doc}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00395}00395\ \textcolor{stringliteral}{\ \ \ \ https://docs.python.org/3/library/multiprocessing.html\#multiprocessing-\/programming}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00396}00396\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00397}00397\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00398}00398\ \ \ \ \ \_name\ =\ \textcolor{stringliteral}{"{}loky\_init\_main"{}}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00399}00399\ \ \ \ \ Process\ =\ LokyInitMainProcess}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00400}00400\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00401}00401\ }
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00402}00402\ \textcolor{comment}{\#\ Register\ loky\ context\ so\ it\ works\ with\ multiprocessing.get\_context}}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00403}00403\ ctx\_loky\ =\ \mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1context_1_1LokyContext}{LokyContext}}()}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00404}00404\ mp.context.\_concrete\_contexts[\textcolor{stringliteral}{"{}loky"{}}]\ =\ ctx\_loky}
+\DoxyCodeLine{\Hypertarget{context_8py_source_l00405}00405\ mp.context.\_concrete\_contexts[\textcolor{stringliteral}{"{}loky\_init\_main"{}}]\ =\ \mbox{\hyperlink{classjoblib_1_1externals_1_1loky_1_1backend_1_1context_1_1LokyInitMainContext}{LokyInitMainContext}}()}
+
+\end{DoxyCode}

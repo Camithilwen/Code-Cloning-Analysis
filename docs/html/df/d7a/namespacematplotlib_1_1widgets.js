@@ -1,0 +1,25 @@
+var namespacematplotlib_1_1widgets =
+[
+    [ "_SelectorWidget", "d9/ddd/classmatplotlib_1_1widgets_1_1__SelectorWidget.html", "d9/ddd/classmatplotlib_1_1widgets_1_1__SelectorWidget" ],
+    [ "AxesWidget", "d9/d5f/classmatplotlib_1_1widgets_1_1AxesWidget.html", "d9/d5f/classmatplotlib_1_1widgets_1_1AxesWidget" ],
+    [ "Button", "d7/dd4/classmatplotlib_1_1widgets_1_1Button.html", "d7/dd4/classmatplotlib_1_1widgets_1_1Button" ],
+    [ "CheckButtons", "d6/d93/classmatplotlib_1_1widgets_1_1CheckButtons.html", "d6/d93/classmatplotlib_1_1widgets_1_1CheckButtons" ],
+    [ "Cursor", "df/d15/classmatplotlib_1_1widgets_1_1Cursor.html", "df/d15/classmatplotlib_1_1widgets_1_1Cursor" ],
+    [ "EllipseSelector", "d1/d9d/classmatplotlib_1_1widgets_1_1EllipseSelector.html", null ],
+    [ "Lasso", "d4/d2a/classmatplotlib_1_1widgets_1_1Lasso.html", null ],
+    [ "LassoSelector", "d6/d9e/classmatplotlib_1_1widgets_1_1LassoSelector.html", "d6/d9e/classmatplotlib_1_1widgets_1_1LassoSelector" ],
+    [ "LockDraw", "d1/de0/classmatplotlib_1_1widgets_1_1LockDraw.html", "d1/de0/classmatplotlib_1_1widgets_1_1LockDraw" ],
+    [ "MultiCursor", "dc/d75/classmatplotlib_1_1widgets_1_1MultiCursor.html", "dc/d75/classmatplotlib_1_1widgets_1_1MultiCursor" ],
+    [ "PolygonSelector", "df/d9c/classmatplotlib_1_1widgets_1_1PolygonSelector.html", "df/d9c/classmatplotlib_1_1widgets_1_1PolygonSelector" ],
+    [ "RadioButtons", "d5/d2e/classmatplotlib_1_1widgets_1_1RadioButtons.html", "d5/d2e/classmatplotlib_1_1widgets_1_1RadioButtons" ],
+    [ "RangeSlider", "dd/dcd/classmatplotlib_1_1widgets_1_1RangeSlider.html", "dd/dcd/classmatplotlib_1_1widgets_1_1RangeSlider" ],
+    [ "RectangleSelector", "d4/d78/classmatplotlib_1_1widgets_1_1RectangleSelector.html", "d4/d78/classmatplotlib_1_1widgets_1_1RectangleSelector" ],
+    [ "Slider", "db/d39/classmatplotlib_1_1widgets_1_1Slider.html", "db/d39/classmatplotlib_1_1widgets_1_1Slider" ],
+    [ "SliderBase", "d7/d25/classmatplotlib_1_1widgets_1_1SliderBase.html", "d7/d25/classmatplotlib_1_1widgets_1_1SliderBase" ],
+    [ "SpanSelector", "da/de8/classmatplotlib_1_1widgets_1_1SpanSelector.html", "da/de8/classmatplotlib_1_1widgets_1_1SpanSelector" ],
+    [ "SubplotTool", "d2/dd3/classmatplotlib_1_1widgets_1_1SubplotTool.html", "d2/dd3/classmatplotlib_1_1widgets_1_1SubplotTool" ],
+    [ "TextBox", "d5/de8/classmatplotlib_1_1widgets_1_1TextBox.html", "d5/de8/classmatplotlib_1_1widgets_1_1TextBox" ],
+    [ "ToolHandles", "da/d0d/classmatplotlib_1_1widgets_1_1ToolHandles.html", "da/d0d/classmatplotlib_1_1widgets_1_1ToolHandles" ],
+    [ "ToolLineHandles", "d2/d85/classmatplotlib_1_1widgets_1_1ToolLineHandles.html", "d2/d85/classmatplotlib_1_1widgets_1_1ToolLineHandles" ],
+    [ "Widget", "dc/d59/classmatplotlib_1_1widgets_1_1Widget.html", "dc/d59/classmatplotlib_1_1widgets_1_1Widget" ]
+];

@@ -1,0 +1,1190 @@
+\doxysection{\+\_\+t\+\_\+sne.\+py}
+\hypertarget{__t__sne_8py_source}{}\label{__t__sne_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/sklearn/manifold/\_t\_sne.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/sklearn/manifold/\_t\_sne.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00001}\mbox{\hyperlink{namespacesklearn_1_1manifold_1_1__t__sne}{00001}}\ \textcolor{comment}{\#\ Authors:\ The\ scikit-\/learn\ developers}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00002}00002\ \textcolor{comment}{\#\ SPDX-\/License-\/Identifier:\ BSD-\/3-\/Clause}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00003}00003\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00004}00004\ \textcolor{comment}{\#\ This\ is\ the\ exact\ and\ Barnes-\/Hut\ t-\/SNE\ implementation.\ There\ are\ other}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00005}00005\ \textcolor{comment}{\#\ modifications\ of\ the\ algorithm:}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00006}00006\ \textcolor{comment}{\#\ *\ Fast\ Optimization\ for\ t-\/SNE:}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00007}00007\ \textcolor{comment}{\#\ \ \ https://cseweb.ucsd.edu/\string~lvdmaaten/workshops/nips2010/papers/vandermaaten.pdf}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00008}00008\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00009}00009\ \textcolor{keyword}{from}\ numbers\ \textcolor{keyword}{import}\ Integral,\ Real}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00010}00010\ \textcolor{keyword}{from}\ time\ \textcolor{keyword}{import}\ time}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00011}00011\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00012}00012\ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00013}00013\ \textcolor{keyword}{from}\ scipy\ \textcolor{keyword}{import}\ linalg}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00014}00014\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacescipy_1_1sparse}{scipy.sparse}}\ \textcolor{keyword}{import}\ csr\_matrix,\ issparse}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00015}00015\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacescipy_1_1spatial_1_1distance}{scipy.spatial.distance}}\ \textcolor{keyword}{import}\ pdist,\ squareform}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00016}00016\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00017}00017\ \textcolor{keyword}{from}\ ..base\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00018}00018\ \ \ \ \ BaseEstimator,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00019}00019\ \ \ \ \ ClassNamePrefixFeaturesOutMixin,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00020}00020\ \ \ \ \ TransformerMixin,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00021}00021\ \ \ \ \ \_fit\_context,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00022}00022\ )}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00023}00023\ \textcolor{keyword}{from}\ ..decomposition\ \textcolor{keyword}{import}\ PCA}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00024}00024\ \textcolor{keyword}{from}\ ..metrics.pairwise\ \textcolor{keyword}{import}\ \_VALID\_METRICS,\ pairwise\_distances}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00025}00025\ \textcolor{keyword}{from}\ ..neighbors\ \textcolor{keyword}{import}\ NearestNeighbors}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00026}00026\ \textcolor{keyword}{from}\ ..utils\ \textcolor{keyword}{import}\ check\_random\_state}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00027}00027\ \textcolor{keyword}{from}\ ..utils.\_openmp\_helpers\ \textcolor{keyword}{import}\ \_openmp\_effective\_n\_threads}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00028}00028\ \textcolor{keyword}{from}\ ..utils.\_param\_validation\ \textcolor{keyword}{import}\ Interval,\ StrOptions,\ validate\_params}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00029}00029\ \textcolor{keyword}{from}\ ..utils.validation\ \textcolor{keyword}{import}\ \_num\_samples,\ check\_non\_negative,\ validate\_data}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00030}00030\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00031}00031\ \textcolor{comment}{\#\ mypy\ error:\ Module\ 'sklearn.manifold'\ has\ no\ attribute\ '\_utils'}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00032}00032\ \textcolor{comment}{\#\ mypy\ error:\ Module\ 'sklearn.manifold'\ has\ no\ attribute\ '\_barnes\_hut\_tsne'}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00033}00033\ \textcolor{keyword}{from}\ .\ \textcolor{keyword}{import}\ \_barnes\_hut\_tsne,\ \_utils\ \ \textcolor{comment}{\#\ type:\ ignore[attr-\/defined]}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00034}00034\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00035}00035\ MACHINE\_EPSILON\ =\ np.finfo(np.double).eps}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00036}00036\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00037}00037\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00038}\mbox{\hyperlink{namespacesklearn_1_1manifold_1_1__t__sne_ad8b7c25c5600bbaa275abe387cef55d3}{00038}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1manifold_1_1__t__sne_ad8b7c25c5600bbaa275abe387cef55d3}{\_joint\_probabilities}}(distances,\ desired\_perplexity,\ verbose):}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00039}00039\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Compute\ joint\ probabilities\ p\_ij\ from\ distances.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00040}00040\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00041}00041\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00042}00042\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00043}00043\ \textcolor{stringliteral}{\ \ \ \ distances\ :\ ndarray\ of\ shape\ (n\_samples\ *\ (n\_samples-\/1)\ /\ 2,)}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00044}00044\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Distances\ of\ samples\ are\ stored\ as\ condensed\ matrices,\ i.e.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00045}00045\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ we\ omit\ the\ diagonal\ and\ duplicate\ entries\ and\ store\ everything}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00046}00046\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ in\ a\ one-\/dimensional\ array.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00047}00047\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00048}00048\ \textcolor{stringliteral}{\ \ \ \ desired\_perplexity\ :\ float}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00049}00049\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Desired\ perplexity\ of\ the\ joint\ probability\ distributions.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00050}00050\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00051}00051\ \textcolor{stringliteral}{\ \ \ \ verbose\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00052}00052\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Verbosity\ level.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00053}00053\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00054}00054\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00055}00055\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00056}00056\ \textcolor{stringliteral}{\ \ \ \ P\ :\ ndarray\ of\ shape\ (n\_samples\ *\ (n\_samples-\/1)\ /\ 2,)}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00057}00057\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Condensed\ joint\ probability\ matrix.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00058}00058\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00059}00059\ \ \ \ \ \textcolor{comment}{\#\ Compute\ conditional\ probabilities\ such\ that\ they\ approximately\ match}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00060}00060\ \ \ \ \ \textcolor{comment}{\#\ the\ desired\ perplexity}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00061}00061\ \ \ \ \ distances\ =\ distances.astype(np.float32,\ copy=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00062}00062\ \ \ \ \ conditional\_P\ =\ \_utils.\_binary\_search\_perplexity(}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00063}00063\ \ \ \ \ \ \ \ \ distances,\ desired\_perplexity,\ verbose}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00064}00064\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00065}00065\ \ \ \ \ P\ =\ conditional\_P\ +\ conditional\_P.T}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00066}00066\ \ \ \ \ sum\_P\ =\ np.maximum(np.sum(P),\ MACHINE\_EPSILON)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00067}00067\ \ \ \ \ P\ =\ np.maximum(squareform(P)\ /\ sum\_P,\ MACHINE\_EPSILON)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00068}00068\ \ \ \ \ \textcolor{keywordflow}{return}\ P}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00069}00069\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00070}00070\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00071}\mbox{\hyperlink{namespacesklearn_1_1manifold_1_1__t__sne_ae142c57fc0866dacf6978fe62facd79c}{00071}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1manifold_1_1__t__sne_ae142c57fc0866dacf6978fe62facd79c}{\_joint\_probabilities\_nn}}(distances,\ desired\_perplexity,\ verbose):}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00072}00072\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Compute\ joint\ probabilities\ p\_ij\ from\ distances\ using\ just\ nearest}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00073}00073\ \textcolor{stringliteral}{\ \ \ \ neighbors.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00074}00074\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00075}00075\ \textcolor{stringliteral}{\ \ \ \ This\ method\ is\ approximately\ equal\ to\ \_joint\_probabilities.\ The\ latter}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00076}00076\ \textcolor{stringliteral}{\ \ \ \ is\ O(N),\ but\ limiting\ the\ joint\ probability\ to\ nearest\ neighbors\ improves}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00077}00077\ \textcolor{stringliteral}{\ \ \ \ this\ substantially\ to\ O(uN).}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00078}00078\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00079}00079\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00080}00080\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00081}00081\ \textcolor{stringliteral}{\ \ \ \ distances\ :\ sparse\ matrix\ of\ shape\ (n\_samples,\ n\_samples)}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00082}00082\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Distances\ of\ samples\ to\ its\ n\_neighbors\ nearest\ neighbors.\ All\ other}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00083}00083\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ distances\ are\ left\ to\ zero\ (and\ are\ not\ materialized\ in\ memory).}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00084}00084\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Matrix\ should\ be\ of\ CSR\ format.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00085}00085\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00086}00086\ \textcolor{stringliteral}{\ \ \ \ desired\_perplexity\ :\ float}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00087}00087\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Desired\ perplexity\ of\ the\ joint\ probability\ distributions.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00088}00088\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00089}00089\ \textcolor{stringliteral}{\ \ \ \ verbose\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00090}00090\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Verbosity\ level.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00091}00091\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00092}00092\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00093}00093\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00094}00094\ \textcolor{stringliteral}{\ \ \ \ P\ :\ sparse\ matrix\ of\ shape\ (n\_samples,\ n\_samples)}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00095}00095\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Condensed\ joint\ probability\ matrix\ with\ only\ nearest\ neighbors.\ Matrix}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00096}00096\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ will\ be\ of\ CSR\ format.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00097}00097\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00098}00098\ \ \ \ \ t0\ =\ time()}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00099}00099\ \ \ \ \ \textcolor{comment}{\#\ Compute\ conditional\ probabilities\ such\ that\ they\ approximately\ match}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00100}00100\ \ \ \ \ \textcolor{comment}{\#\ the\ desired\ perplexity}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00101}00101\ \ \ \ \ distances.sort\_indices()}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00102}00102\ \ \ \ \ n\_samples\ =\ distances.shape[0]}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00103}00103\ \ \ \ \ distances\_data\ =\ distances.data.reshape(n\_samples,\ -\/1)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00104}00104\ \ \ \ \ distances\_data\ =\ distances\_data.astype(np.float32,\ copy=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00105}00105\ \ \ \ \ conditional\_P\ =\ \_utils.\_binary\_search\_perplexity(}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00106}00106\ \ \ \ \ \ \ \ \ distances\_data,\ desired\_perplexity,\ verbose}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00107}00107\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00108}00108\ \ \ \ \ \textcolor{keyword}{assert}\ np.all(np.isfinite(conditional\_P)),\ \textcolor{stringliteral}{"{}All\ probabilities\ should\ be\ finite"{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00109}00109\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00110}00110\ \ \ \ \ \textcolor{comment}{\#\ Symmetrize\ the\ joint\ probability\ distribution\ using\ sparse\ operations}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00111}00111\ \ \ \ \ P\ =\ \mbox{\hyperlink{classscipy_1_1sparse_1_1__csr_1_1csr__matrix}{csr\_matrix}}(}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00112}00112\ \ \ \ \ \ \ \ \ (conditional\_P.ravel(),\ distances.indices,\ distances.indptr),}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00113}00113\ \ \ \ \ \ \ \ \ shape=(n\_samples,\ n\_samples),}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00114}00114\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00115}00115\ \ \ \ \ P\ =\ P\ +\ P.T}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00116}00116\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00117}00117\ \ \ \ \ \textcolor{comment}{\#\ Normalize\ the\ joint\ probability\ distribution}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00118}00118\ \ \ \ \ sum\_P\ =\ np.maximum(P.sum(),\ MACHINE\_EPSILON)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00119}00119\ \ \ \ \ P\ /=\ sum\_P}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00120}00120\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00121}00121\ \ \ \ \ \textcolor{keyword}{assert}\ np.all(np.abs(P.data)\ <=\ 1.0)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00122}00122\ \ \ \ \ \textcolor{keywordflow}{if}\ verbose\ >=\ 2:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00123}00123\ \ \ \ \ \ \ \ \ duration\ =\ time()\ -\/\ t0}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00124}00124\ \ \ \ \ \ \ \ \ print(\textcolor{stringliteral}{"{}[t-\/SNE]\ Computed\ conditional\ probabilities\ in\ \{:.3f\}s"{}}.format(duration))}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00125}00125\ \ \ \ \ \textcolor{keywordflow}{return}\ P}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00126}00126\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00127}00127\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00128}\mbox{\hyperlink{namespacesklearn_1_1manifold_1_1__t__sne_a26ce7302d5085e587421770508bd7cad}{00128}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1manifold_1_1__t__sne_a26ce7302d5085e587421770508bd7cad}{\_kl\_divergence}}(}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00129}00129\ \ \ \ \ params,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00130}00130\ \ \ \ \ P,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00131}00131\ \ \ \ \ degrees\_of\_freedom,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00132}00132\ \ \ \ \ n\_samples,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00133}00133\ \ \ \ \ n\_components,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00134}00134\ \ \ \ \ skip\_num\_points=0,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00135}00135\ \ \ \ \ compute\_error=True,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00136}00136\ ):}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00137}00137\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}t-\/SNE\ objective\ function:\ gradient\ of\ the\ KL\ divergence}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00138}00138\ \textcolor{stringliteral}{\ \ \ \ of\ p\_ijs\ and\ q\_ijs\ and\ the\ absolute\ error.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00139}00139\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00140}00140\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00141}00141\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00142}00142\ \textcolor{stringliteral}{\ \ \ \ params\ :\ ndarray\ of\ shape\ (n\_params,)}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00143}00143\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Unraveled\ embedding.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00144}00144\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00145}00145\ \textcolor{stringliteral}{\ \ \ \ P\ :\ ndarray\ of\ shape\ (n\_samples\ *\ (n\_samples-\/1)\ /\ 2,)}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00146}00146\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Condensed\ joint\ probability\ matrix.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00147}00147\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00148}00148\ \textcolor{stringliteral}{\ \ \ \ degrees\_of\_freedom\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00149}00149\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Degrees\ of\ freedom\ of\ the\ Student's-\/t\ distribution.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00150}00150\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00151}00151\ \textcolor{stringliteral}{\ \ \ \ n\_samples\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00152}00152\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ samples.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00153}00153\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00154}00154\ \textcolor{stringliteral}{\ \ \ \ n\_components\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00155}00155\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Dimension\ of\ the\ embedded\ space.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00156}00156\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00157}00157\ \textcolor{stringliteral}{\ \ \ \ skip\_num\_points\ :\ int,\ default=0}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00158}00158\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ This\ does\ not\ compute\ the\ gradient\ for\ points\ with\ indices\ below}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00159}00159\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}skip\_num\_points\`{}.\ This\ is\ useful\ when\ computing\ transforms\ of\ new}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00160}00160\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ data\ where\ you'd\ like\ to\ keep\ the\ old\ data\ fixed.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00161}00161\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00162}00162\ \textcolor{stringliteral}{\ \ \ \ compute\_error:\ bool,\ default=True}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00163}00163\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ False,\ the\ kl\_divergence\ is\ not\ computed\ and\ returns\ NaN.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00164}00164\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00165}00165\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00166}00166\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00167}00167\ \textcolor{stringliteral}{\ \ \ \ kl\_divergence\ :\ float}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00168}00168\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Kullback-\/Leibler\ divergence\ of\ p\_ij\ and\ q\_ij.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00169}00169\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00170}00170\ \textcolor{stringliteral}{\ \ \ \ grad\ :\ ndarray\ of\ shape\ (n\_params,)}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00171}00171\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Unraveled\ gradient\ of\ the\ Kullback-\/Leibler\ divergence\ with\ respect\ to}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00172}00172\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ embedding.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00173}00173\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00174}00174\ \ \ \ \ X\_embedded\ =\ params.reshape(n\_samples,\ n\_components)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00175}00175\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00176}00176\ \ \ \ \ \textcolor{comment}{\#\ Q\ is\ a\ heavy-\/tailed\ distribution:\ Student's\ t-\/distribution}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00177}00177\ \ \ \ \ dist\ =\ pdist(X\_embedded,\ \textcolor{stringliteral}{"{}sqeuclidean"{}})}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00178}00178\ \ \ \ \ dist\ /=\ degrees\_of\_freedom}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00179}00179\ \ \ \ \ dist\ +=\ 1.0}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00180}00180\ \ \ \ \ dist\ **=\ (degrees\_of\_freedom\ +\ 1.0)\ /\ -\/2.0}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00181}00181\ \ \ \ \ Q\ =\ np.maximum(dist\ /\ (2.0\ *\ np.sum(dist)),\ MACHINE\_EPSILON)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00182}00182\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00183}00183\ \ \ \ \ \textcolor{comment}{\#\ Optimization\ trick\ below:\ np.dot(x,\ y)\ is\ faster\ than}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00184}00184\ \ \ \ \ \textcolor{comment}{\#\ np.sum(x\ *\ y)\ because\ it\ calls\ BLAS}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00185}00185\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00186}00186\ \ \ \ \ \textcolor{comment}{\#\ Objective:\ C\ (Kullback-\/Leibler\ divergence\ of\ P\ and\ Q)}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00187}00187\ \ \ \ \ \textcolor{keywordflow}{if}\ compute\_error:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00188}00188\ \ \ \ \ \ \ \ \ kl\_divergence\ =\ 2.0\ *\ np.dot(P,\ np.log(np.maximum(P,\ MACHINE\_EPSILON)\ /\ Q))}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00189}00189\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00190}00190\ \ \ \ \ \ \ \ \ kl\_divergence\ =\ np.nan}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00191}00191\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00192}00192\ \ \ \ \ \textcolor{comment}{\#\ Gradient:\ dC/dY}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00193}00193\ \ \ \ \ \textcolor{comment}{\#\ pdist\ always\ returns\ double\ precision\ distances.\ Thus\ we\ need\ to\ take}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00194}00194\ \ \ \ \ grad\ =\ np.ndarray((n\_samples,\ n\_components),\ dtype=params.dtype)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00195}00195\ \ \ \ \ PQd\ =\ squareform((P\ -\/\ Q)\ *\ dist)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00196}00196\ \ \ \ \ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(skip\_num\_points,\ n\_samples):}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00197}00197\ \ \ \ \ \ \ \ \ grad[i]\ =\ np.dot(np.ravel(PQd[i],\ order=\textcolor{stringliteral}{"{}K"{}}),\ X\_embedded[i]\ -\/\ X\_embedded)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00198}00198\ \ \ \ \ grad\ =\ grad.ravel()}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00199}00199\ \ \ \ \ c\ =\ 2.0\ *\ (degrees\_of\_freedom\ +\ 1.0)\ /\ degrees\_of\_freedom}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00200}00200\ \ \ \ \ grad\ *=\ c}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00201}00201\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00202}00202\ \ \ \ \ \textcolor{keywordflow}{return}\ kl\_divergence,\ grad}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00203}00203\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00204}00204\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00205}\mbox{\hyperlink{namespacesklearn_1_1manifold_1_1__t__sne_a454a53a34098a51ad06ebc4890b7b961}{00205}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1manifold_1_1__t__sne_a454a53a34098a51ad06ebc4890b7b961}{\_kl\_divergence\_bh}}(}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00206}00206\ \ \ \ \ params,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00207}00207\ \ \ \ \ P,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00208}00208\ \ \ \ \ degrees\_of\_freedom,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00209}00209\ \ \ \ \ n\_samples,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00210}00210\ \ \ \ \ n\_components,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00211}00211\ \ \ \ \ angle=0.5,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00212}00212\ \ \ \ \ skip\_num\_points=0,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00213}00213\ \ \ \ \ verbose=False,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00214}00214\ \ \ \ \ compute\_error=True,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00215}00215\ \ \ \ \ num\_threads=1,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00216}00216\ ):}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00217}00217\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}t-\/SNE\ objective\ function:\ KL\ divergence\ of\ p\_ijs\ and\ q\_ijs.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00218}00218\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00219}00219\ \textcolor{stringliteral}{\ \ \ \ Uses\ Barnes-\/Hut\ tree\ methods\ to\ calculate\ the\ gradient\ that}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00220}00220\ \textcolor{stringliteral}{\ \ \ \ runs\ in\ O(NlogN)\ instead\ of\ O(N\string^2).}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00221}00221\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00222}00222\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00223}00223\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00224}00224\ \textcolor{stringliteral}{\ \ \ \ params\ :\ ndarray\ of\ shape\ (n\_params,)}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00225}00225\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Unraveled\ embedding.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00226}00226\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00227}00227\ \textcolor{stringliteral}{\ \ \ \ P\ :\ sparse\ matrix\ of\ shape\ (n\_samples,\ n\_sample)}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00228}00228\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Sparse\ approximate\ joint\ probability\ matrix,\ computed\ only\ for\ the}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00229}00229\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ k\ nearest-\/neighbors\ and\ symmetrized.\ Matrix\ should\ be\ of\ CSR\ format.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00230}00230\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00231}00231\ \textcolor{stringliteral}{\ \ \ \ degrees\_of\_freedom\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00232}00232\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Degrees\ of\ freedom\ of\ the\ Student's-\/t\ distribution.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00233}00233\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00234}00234\ \textcolor{stringliteral}{\ \ \ \ n\_samples\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00235}00235\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ samples.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00236}00236\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00237}00237\ \textcolor{stringliteral}{\ \ \ \ n\_components\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00238}00238\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Dimension\ of\ the\ embedded\ space.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00239}00239\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00240}00240\ \textcolor{stringliteral}{\ \ \ \ angle\ :\ float,\ default=0.5}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00241}00241\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ This\ is\ the\ trade-\/off\ between\ speed\ and\ accuracy\ for\ Barnes-\/Hut\ T-\/SNE.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00242}00242\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 'angle'\ is\ the\ angular\ size\ (referred\ to\ as\ theta\ in\ [3])\ of\ a\ distant}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00243}00243\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ node\ as\ measured\ from\ a\ point.\ If\ this\ size\ is\ below\ 'angle'\ then\ it\ is}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00244}00244\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ used\ as\ a\ summary\ node\ of\ all\ points\ contained\ within\ it.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00245}00245\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ This\ method\ is\ not\ very\ sensitive\ to\ changes\ in\ this\ parameter}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00246}00246\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ in\ the\ range\ of\ 0.2\ -\/\ 0.8.\ Angle\ less\ than\ 0.2\ has\ quickly\ increasing}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00247}00247\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ computation\ time\ and\ angle\ greater\ 0.8\ has\ quickly\ increasing\ error.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00248}00248\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00249}00249\ \textcolor{stringliteral}{\ \ \ \ skip\_num\_points\ :\ int,\ default=0}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00250}00250\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ This\ does\ not\ compute\ the\ gradient\ for\ points\ with\ indices\ below}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00251}00251\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}skip\_num\_points\`{}.\ This\ is\ useful\ when\ computing\ transforms\ of\ new}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00252}00252\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ data\ where\ you'd\ like\ to\ keep\ the\ old\ data\ fixed.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00253}00253\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00254}00254\ \textcolor{stringliteral}{\ \ \ \ verbose\ :\ int,\ default=False}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00255}00255\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Verbosity\ level.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00256}00256\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00257}00257\ \textcolor{stringliteral}{\ \ \ \ compute\_error:\ bool,\ default=True}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00258}00258\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ False,\ the\ kl\_divergence\ is\ not\ computed\ and\ returns\ NaN.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00259}00259\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00260}00260\ \textcolor{stringliteral}{\ \ \ \ num\_threads\ :\ int,\ default=1}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00261}00261\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ threads\ used\ to\ compute\ the\ gradient.\ This\ is\ set\ here\ to}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00262}00262\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ avoid\ calling\ \_openmp\_effective\_n\_threads\ for\ each\ gradient\ step.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00263}00263\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00264}00264\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00265}00265\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00266}00266\ \textcolor{stringliteral}{\ \ \ \ kl\_divergence\ :\ float}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00267}00267\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Kullback-\/Leibler\ divergence\ of\ p\_ij\ and\ q\_ij.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00268}00268\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00269}00269\ \textcolor{stringliteral}{\ \ \ \ grad\ :\ ndarray\ of\ shape\ (n\_params,)}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00270}00270\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Unraveled\ gradient\ of\ the\ Kullback-\/Leibler\ divergence\ with\ respect\ to}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00271}00271\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ embedding.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00272}00272\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00273}00273\ \ \ \ \ params\ =\ params.astype(np.float32,\ copy=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00274}00274\ \ \ \ \ X\_embedded\ =\ params.reshape(n\_samples,\ n\_components)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00275}00275\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00276}00276\ \ \ \ \ val\_P\ =\ P.data.astype(np.float32,\ copy=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00277}00277\ \ \ \ \ neighbors\ =\ P.indices.astype(np.int64,\ copy=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00278}00278\ \ \ \ \ indptr\ =\ P.indptr.astype(np.int64,\ copy=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00279}00279\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00280}00280\ \ \ \ \ grad\ =\ np.zeros(X\_embedded.shape,\ dtype=np.float32)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00281}00281\ \ \ \ \ error\ =\ \_barnes\_hut\_tsne.gradient(}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00282}00282\ \ \ \ \ \ \ \ \ val\_P,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00283}00283\ \ \ \ \ \ \ \ \ X\_embedded,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00284}00284\ \ \ \ \ \ \ \ \ neighbors,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00285}00285\ \ \ \ \ \ \ \ \ indptr,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00286}00286\ \ \ \ \ \ \ \ \ grad,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00287}00287\ \ \ \ \ \ \ \ \ angle,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00288}00288\ \ \ \ \ \ \ \ \ n\_components,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00289}00289\ \ \ \ \ \ \ \ \ verbose,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00290}00290\ \ \ \ \ \ \ \ \ dof=degrees\_of\_freedom,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00291}00291\ \ \ \ \ \ \ \ \ compute\_error=compute\_error,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00292}00292\ \ \ \ \ \ \ \ \ num\_threads=num\_threads,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00293}00293\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00294}00294\ \ \ \ \ c\ =\ 2.0\ *\ (degrees\_of\_freedom\ +\ 1.0)\ /\ degrees\_of\_freedom}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00295}00295\ \ \ \ \ grad\ =\ grad.ravel()}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00296}00296\ \ \ \ \ grad\ *=\ c}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00297}00297\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00298}00298\ \ \ \ \ \textcolor{keywordflow}{return}\ error,\ grad}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00299}00299\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00300}00300\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00301}\mbox{\hyperlink{namespacesklearn_1_1manifold_1_1__t__sne_a926a76e5870dca32aa3988f202c841bd}{00301}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1manifold_1_1__t__sne_a926a76e5870dca32aa3988f202c841bd}{\_gradient\_descent}}(}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00302}00302\ \ \ \ \ objective,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00303}00303\ \ \ \ \ p0,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00304}00304\ \ \ \ \ it,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00305}00305\ \ \ \ \ max\_iter,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00306}00306\ \ \ \ \ n\_iter\_check=1,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00307}00307\ \ \ \ \ n\_iter\_without\_progress=300,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00308}00308\ \ \ \ \ momentum=0.8,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00309}00309\ \ \ \ \ learning\_rate=200.0,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00310}00310\ \ \ \ \ min\_gain=0.01,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00311}00311\ \ \ \ \ min\_grad\_norm=1e-\/7,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00312}00312\ \ \ \ \ verbose=0,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00313}00313\ \ \ \ \ args=None,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00314}00314\ \ \ \ \ kwargs=None,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00315}00315\ ):}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00316}00316\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Batch\ gradient\ descent\ with\ momentum\ and\ individual\ gains.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00317}00317\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00318}00318\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00319}00319\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00320}00320\ \textcolor{stringliteral}{\ \ \ \ objective\ :\ callable}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00321}00321\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Should\ return\ a\ tuple\ of\ cost\ and\ gradient\ for\ a\ given\ parameter}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00322}00322\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ vector.\ When\ expensive\ to\ compute,\ the\ cost\ can\ optionally}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00323}00323\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ be\ None\ and\ can\ be\ computed\ every\ n\_iter\_check\ steps\ using}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00324}00324\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ objective\_error\ function.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00325}00325\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00326}00326\ \textcolor{stringliteral}{\ \ \ \ p0\ :\ array-\/like\ of\ shape\ (n\_params,)}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00327}00327\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Initial\ parameter\ vector.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00328}00328\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00329}00329\ \textcolor{stringliteral}{\ \ \ \ it\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00330}00330\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Current\ number\ of\ iterations\ (this\ function\ will\ be\ called\ more\ than}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00331}00331\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ once\ during\ the\ optimization).}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00332}00332\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00333}00333\ \textcolor{stringliteral}{\ \ \ \ max\_iter\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00334}00334\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Maximum\ number\ of\ gradient\ descent\ iterations.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00335}00335\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00336}00336\ \textcolor{stringliteral}{\ \ \ \ n\_iter\_check\ :\ int,\ default=1}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00337}00337\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ iterations\ before\ evaluating\ the\ global\ error.\ If\ the\ error}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00338}00338\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ is\ sufficiently\ low,\ we\ abort\ the\ optimization.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00339}00339\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00340}00340\ \textcolor{stringliteral}{\ \ \ \ n\_iter\_without\_progress\ :\ int,\ default=300}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00341}00341\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Maximum\ number\ of\ iterations\ without\ progress\ before\ we\ abort\ the}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00342}00342\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ optimization.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00343}00343\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00344}00344\ \textcolor{stringliteral}{\ \ \ \ momentum\ :\ float\ within\ (0.0,\ 1.0),\ default=0.8}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00345}00345\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ momentum\ generates\ a\ weight\ for\ previous\ gradients\ that\ decays}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00346}00346\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ exponentially.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00347}00347\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00348}00348\ \textcolor{stringliteral}{\ \ \ \ learning\_rate\ :\ float,\ default=200.0}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00349}00349\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ learning\ rate\ for\ t-\/SNE\ is\ usually\ in\ the\ range\ [10.0,\ 1000.0].\ If}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00350}00350\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ learning\ rate\ is\ too\ high,\ the\ data\ may\ look\ like\ a\ 'ball'\ with\ any}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00351}00351\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ point\ approximately\ equidistant\ from\ its\ nearest\ neighbours.\ If\ the}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00352}00352\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ learning\ rate\ is\ too\ low,\ most\ points\ may\ look\ compressed\ in\ a\ dense}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00353}00353\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ cloud\ with\ few\ outliers.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00354}00354\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00355}00355\ \textcolor{stringliteral}{\ \ \ \ min\_gain\ :\ float,\ default=0.01}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00356}00356\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Minimum\ individual\ gain\ for\ each\ parameter.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00357}00357\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00358}00358\ \textcolor{stringliteral}{\ \ \ \ min\_grad\_norm\ :\ float,\ default=1e-\/7}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00359}00359\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ the\ gradient\ norm\ is\ below\ this\ threshold,\ the\ optimization\ will}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00360}00360\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ be\ aborted.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00361}00361\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00362}00362\ \textcolor{stringliteral}{\ \ \ \ verbose\ :\ int,\ default=0}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00363}00363\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Verbosity\ level.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00364}00364\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00365}00365\ \textcolor{stringliteral}{\ \ \ \ args\ :\ sequence,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00366}00366\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Arguments\ to\ pass\ to\ objective\ function.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00367}00367\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00368}00368\ \textcolor{stringliteral}{\ \ \ \ kwargs\ :\ dict,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00369}00369\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Keyword\ arguments\ to\ pass\ to\ objective\ function.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00370}00370\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00371}00371\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00372}00372\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00373}00373\ \textcolor{stringliteral}{\ \ \ \ p\ :\ ndarray\ of\ shape\ (n\_params,)}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00374}00374\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Optimum\ parameters.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00375}00375\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00376}00376\ \textcolor{stringliteral}{\ \ \ \ error\ :\ float}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00377}00377\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Optimum.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00378}00378\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00379}00379\ \textcolor{stringliteral}{\ \ \ \ i\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00380}00380\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Last\ iteration.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00381}00381\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00382}00382\ \ \ \ \ \textcolor{keywordflow}{if}\ args\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00383}00383\ \ \ \ \ \ \ \ \ args\ =\ []}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00384}00384\ \ \ \ \ \textcolor{keywordflow}{if}\ kwargs\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00385}00385\ \ \ \ \ \ \ \ \ kwargs\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00386}00386\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00387}00387\ \ \ \ \ p\ =\ p0.copy().ravel()}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00388}00388\ \ \ \ \ update\ =\ np.zeros\_like(p)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00389}00389\ \ \ \ \ gains\ =\ np.ones\_like(p)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00390}00390\ \ \ \ \ error\ =\ np.finfo(float).max}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00391}00391\ \ \ \ \ best\_error\ =\ np.finfo(float).max}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00392}00392\ \ \ \ \ best\_iter\ =\ i\ =\ it}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00393}00393\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00394}00394\ \ \ \ \ tic\ =\ time()}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00395}00395\ \ \ \ \ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(it,\ max\_iter):}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00396}00396\ \ \ \ \ \ \ \ \ check\_convergence\ =\ (i\ +\ 1)\ \%\ n\_iter\_check\ ==\ 0}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00397}00397\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ only\ compute\ the\ error\ when\ needed}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00398}00398\ \ \ \ \ \ \ \ \ kwargs[\textcolor{stringliteral}{"{}compute\_error"{}}]\ =\ check\_convergence\ \textcolor{keywordflow}{or}\ i\ ==\ max\_iter\ -\/\ 1}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00399}00399\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00400}00400\ \ \ \ \ \ \ \ \ error,\ grad\ =\ objective(p,\ *args,\ **kwargs)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00401}00401\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00402}00402\ \ \ \ \ \ \ \ \ inc\ =\ update\ *\ grad\ <\ 0.0}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00403}00403\ \ \ \ \ \ \ \ \ dec\ =\ np.invert(inc)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00404}00404\ \ \ \ \ \ \ \ \ gains[inc]\ +=\ 0.2}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00405}00405\ \ \ \ \ \ \ \ \ gains[dec]\ *=\ 0.8}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00406}00406\ \ \ \ \ \ \ \ \ np.clip(gains,\ min\_gain,\ np.inf,\ out=gains)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00407}00407\ \ \ \ \ \ \ \ \ grad\ *=\ gains}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00408}00408\ \ \ \ \ \ \ \ \ update\ =\ momentum\ *\ update\ -\/\ learning\_rate\ *\ grad}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00409}00409\ \ \ \ \ \ \ \ \ p\ +=\ update}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00410}00410\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00411}00411\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ check\_convergence:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00412}00412\ \ \ \ \ \ \ \ \ \ \ \ \ toc\ =\ time()}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00413}00413\ \ \ \ \ \ \ \ \ \ \ \ \ duration\ =\ toc\ -\/\ tic}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00414}00414\ \ \ \ \ \ \ \ \ \ \ \ \ tic\ =\ toc}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00415}00415\ \ \ \ \ \ \ \ \ \ \ \ \ grad\_norm\ =\ linalg.norm(grad)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00416}00416\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00417}00417\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ verbose\ >=\ 2:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00418}00418\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00419}00419\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}[t-\/SNE]\ Iteration\ \%d:\ error\ =\ \%.7f,"{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00420}00420\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ gradient\ norm\ =\ \%.7f"{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00421}00421\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ (\%s\ iterations\ in\ \%0.3fs)"{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00422}00422\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \%\ (i\ +\ 1,\ error,\ grad\_norm,\ n\_iter\_check,\ duration)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00423}00423\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00424}00424\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00425}00425\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ error\ <\ best\_error:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00426}00426\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ best\_error\ =\ error}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00427}00427\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ best\_iter\ =\ i}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00428}00428\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ i\ -\/\ best\_iter\ >\ n\_iter\_without\_progress:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00429}00429\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ verbose\ >=\ 2:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00430}00430\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00431}00431\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}[t-\/SNE]\ Iteration\ \%d:\ did\ not\ make\ any\ progress\ "{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00432}00432\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}during\ the\ last\ \%d\ episodes.\ Finished."{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00433}00433\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \%\ (i\ +\ 1,\ n\_iter\_without\_progress)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00434}00434\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00435}00435\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00436}00436\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ grad\_norm\ <=\ min\_grad\_norm:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00437}00437\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ verbose\ >=\ 2:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00438}00438\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00439}00439\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}[t-\/SNE]\ Iteration\ \%d:\ gradient\ norm\ \%f.\ Finished."{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00440}00440\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \%\ (i\ +\ 1,\ grad\_norm)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00441}00441\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00442}00442\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00443}00443\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00444}00444\ \ \ \ \ \textcolor{keywordflow}{return}\ p,\ error,\ i}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00445}00445\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00446}00446\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00447}00447\ \textcolor{preprocessor}{@validate\_params}(}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00448}00448\ \ \ \ \ \{}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00449}00449\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}X"{}}:\ [\textcolor{stringliteral}{"{}array-\/like"{}},\ \textcolor{stringliteral}{"{}sparse\ matrix"{}}],}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00450}00450\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}X\_embedded"{}}:\ [\textcolor{stringliteral}{"{}array-\/like"{}},\ \textcolor{stringliteral}{"{}sparse\ matrix"{}}],}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00451}00451\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}n\_neighbors"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Integral,\ 1,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}})],}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00452}00452\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}metric"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1StrOptions}{StrOptions}}(set(\_VALID\_METRICS)\ |\ \{\textcolor{stringliteral}{"{}precomputed"{}}\}),\ callable],}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00453}00453\ \ \ \ \ \},}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00454}00454\ \ \ \ \ prefer\_skip\_nested\_validation=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00455}00455\ )}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00456}\mbox{\hyperlink{namespacesklearn_1_1manifold_1_1__t__sne_a53b4608cc501ac550d5207ffb9dc43cc}{00456}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1manifold_1_1__t__sne_a53b4608cc501ac550d5207ffb9dc43cc}{trustworthiness}}(X,\ X\_embedded,\ *,\ n\_neighbors=5,\ metric="{}euclidean"{}):}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00457}00457\ \ \ \ \ \textcolor{stringliteral}{r"{}"{}"{}Indicate\ to\ what\ extent\ the\ local\ structure\ is\ retained.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00458}00458\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00459}00459\ \textcolor{stringliteral}{\ \ \ \ The\ trustworthiness\ is\ within\ [0,\ 1].\ It\ is\ defined\ as}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00460}00460\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00461}00461\ \textcolor{stringliteral}{\ \ \ \ ..\ math::}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00462}00462\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00463}00463\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ T(k)\ =\ 1\ -\/\ \(\backslash\)frac\{2\}\{nk\ (2n\ -\/\ 3k\ -\/\ 1)\}\ \(\backslash\)sum\string^n\_\{i=1\}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00464}00464\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \(\backslash\)sum\_\{j\ \(\backslash\)in\ \(\backslash\)mathcal\{N\}\_\{i\}\string^\{k\}\}\ \(\backslash\)max(0,\ (r(i,\ j)\ -\/\ k))}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00465}00465\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00466}00466\ \textcolor{stringliteral}{\ \ \ \ where\ for\ each\ sample\ i,\ :math:\`{}\(\backslash\)mathcal\{N\}\_\{i\}\string^\{k\}\`{}\ are\ its\ k\ nearest}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00467}00467\ \textcolor{stringliteral}{\ \ \ \ neighbors\ in\ the\ output\ space,\ and\ every\ sample\ j\ is\ its\ :math:\`{}r(i,\ j)\`{}-\/th}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00468}00468\ \textcolor{stringliteral}{\ \ \ \ nearest\ neighbor\ in\ the\ input\ space.\ In\ other\ words,\ any\ unexpected\ nearest}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00469}00469\ \textcolor{stringliteral}{\ \ \ \ neighbors\ in\ the\ output\ space\ are\ penalised\ in\ proportion\ to\ their\ rank\ in}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00470}00470\ \textcolor{stringliteral}{\ \ \ \ the\ input\ space.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00471}00471\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00472}00472\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00473}00473\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00474}00474\ \textcolor{stringliteral}{\ \ \ \ X\ :\ \{array-\/like,\ sparse\ matrix\}\ of\ shape\ (n\_samples,\ n\_features)\ or\ \(\backslash\)}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00475}00475\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ (n\_samples,\ n\_samples)}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00476}00476\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ the\ metric\ is\ 'precomputed'\ X\ must\ be\ a\ square\ distance}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00477}00477\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ matrix.\ Otherwise\ it\ contains\ a\ sample\ per\ row.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00478}00478\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00479}00479\ \textcolor{stringliteral}{\ \ \ \ X\_embedded\ :\ \{array-\/like,\ sparse\ matrix\}\ of\ shape\ (n\_samples,\ n\_components)}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00480}00480\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Embedding\ of\ the\ training\ data\ in\ low-\/dimensional\ space.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00481}00481\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00482}00482\ \textcolor{stringliteral}{\ \ \ \ n\_neighbors\ :\ int,\ default=5}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00483}00483\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ number\ of\ neighbors\ that\ will\ be\ considered.\ Should\ be\ fewer\ than}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00484}00484\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}n\_samples\ /\ 2\`{}\ to\ ensure\ the\ trustworthiness\ to\ lies\ within\ [0,\ 1],\ as}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00485}00485\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ mentioned\ in\ [1]\_.\ An\ error\ will\ be\ raised\ otherwise.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00486}00486\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00487}00487\ \textcolor{stringliteral}{\ \ \ \ metric\ :\ str\ or\ callable,\ default='euclidean'}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00488}00488\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Which\ metric\ to\ use\ for\ computing\ pairwise\ distances\ between\ samples}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00489}00489\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ from\ the\ original\ input\ space.\ If\ metric\ is\ 'precomputed',\ X\ must\ be\ a}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00490}00490\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ matrix\ of\ pairwise\ distances\ or\ squared\ distances.\ Otherwise,\ for\ a\ list}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00491}00491\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ of\ available\ metrics,\ see\ the\ documentation\ of\ argument\ metric\ in}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00492}00492\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}sklearn.pairwise.pairwise\_distances\`{}\ and\ metrics\ listed\ in}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00493}00493\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}sklearn.metrics.pairwise.PAIRWISE\_DISTANCE\_FUNCTIONS\`{}.\ Note\ that\ the}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00494}00494\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}cosine"{}\ metric\ uses\ :func:\`{}\string~sklearn.metrics.pairwise.cosine\_distances\`{}.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00495}00495\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00496}00496\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 0.20}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00497}00497\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00498}00498\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00499}00499\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00500}00500\ \textcolor{stringliteral}{\ \ \ \ trustworthiness\ :\ float}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00501}00501\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Trustworthiness\ of\ the\ low-\/dimensional\ embedding.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00502}00502\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00503}00503\ \textcolor{stringliteral}{\ \ \ \ References}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00504}00504\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00505}00505\ \textcolor{stringliteral}{\ \ \ \ ..\ [1]\ Jarkko\ Venna\ and\ Samuel\ Kaski.\ 2001.\ Neighborhood}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00506}00506\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ Preservation\ in\ Nonlinear\ Projection\ Methods:\ An\ Experimental\ Study.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00507}00507\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ In\ Proceedings\ of\ the\ International\ Conference\ on\ Artificial\ Neural\ Networks}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00508}00508\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ (ICANN\ '01).\ Springer-\/Verlag,\ Berlin,\ Heidelberg,\ 485-\/491.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00509}00509\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00510}00510\ \textcolor{stringliteral}{\ \ \ \ ..\ [2]\ Laurens\ van\ der\ Maaten.\ Learning\ a\ Parametric\ Embedding\ by\ Preserving}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00511}00511\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ Local\ Structure.\ Proceedings\ of\ the\ Twelfth\ International\ Conference\ on}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00512}00512\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ Artificial\ Intelligence\ and\ Statistics,\ PMLR\ 5:384-\/391,\ 2009.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00513}00513\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00514}00514\ \textcolor{stringliteral}{\ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00515}00515\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00516}00516\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.datasets\ import\ make\_blobs}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00517}00517\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.decomposition\ import\ PCA}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00518}00518\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.manifold\ import\ trustworthiness}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00519}00519\ \textcolor{stringliteral}{\ \ \ \ >>>\ X,\ \_\ =\ make\_blobs(n\_samples=100,\ n\_features=10,\ centers=3,\ random\_state=42)}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00520}00520\ \textcolor{stringliteral}{\ \ \ \ >>>\ X\_embedded\ =\ PCA(n\_components=2).fit\_transform(X)}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00521}00521\ \textcolor{stringliteral}{\ \ \ \ >>>\ print(f"{}\{trustworthiness(X,\ X\_embedded,\ n\_neighbors=5):.2f\}"{})}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00522}00522\ \textcolor{stringliteral}{\ \ \ \ 0.92}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00523}00523\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00524}00524\ \ \ \ \ n\_samples\ =\ \_num\_samples(X)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00525}00525\ \ \ \ \ \textcolor{keywordflow}{if}\ n\_neighbors\ >=\ n\_samples\ /\ 2:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00526}00526\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00527}00527\ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}n\_neighbors\ (\{n\_neighbors\})\ should\ be\ less\ than\ n\_samples\ /\ 2"{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00528}00528\ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\ (\{n\_samples\ /\ 2\})"{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00529}00529\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00530}00530\ \ \ \ \ dist\_X\ =\ pairwise\_distances(X,\ metric=metric)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00531}00531\ \ \ \ \ \textcolor{keywordflow}{if}\ metric\ ==\ \textcolor{stringliteral}{"{}precomputed"{}}:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00532}00532\ \ \ \ \ \ \ \ \ dist\_X\ =\ dist\_X.copy()}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00533}00533\ \ \ \ \ \textcolor{comment}{\#\ we\ set\ the\ diagonal\ to\ np.inf\ to\ exclude\ the\ points\ themselves\ from}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00534}00534\ \ \ \ \ \textcolor{comment}{\#\ their\ own\ neighborhood}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00535}00535\ \ \ \ \ np.fill\_diagonal(dist\_X,\ np.inf)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00536}00536\ \ \ \ \ ind\_X\ =\ np.argsort(dist\_X,\ axis=1)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00537}00537\ \ \ \ \ \textcolor{comment}{\#\ \`{}ind\_X[i]`\ is\ the\ index\ of\ sorted\ distances\ between\ i\ and\ other\ samples}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00538}00538\ \ \ \ \ ind\_X\_embedded\ =\ (}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00539}00539\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classsklearn_1_1neighbors_1_1__unsupervised_1_1NearestNeighbors}{NearestNeighbors}}(n\_neighbors=n\_neighbors)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00540}00540\ \ \ \ \ \ \ \ \ .fit(X\_embedded)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00541}00541\ \ \ \ \ \ \ \ \ .kneighbors(return\_distance=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00542}00542\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00543}00543\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00544}00544\ \ \ \ \ \textcolor{comment}{\#\ We\ build\ an\ inverted\ index\ of\ neighbors\ in\ the\ input\ space:\ For\ sample\ i,}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00545}00545\ \ \ \ \ \textcolor{comment}{\#\ we\ define\ \`{}inverted\_index[i]`\ as\ the\ inverted\ index\ of\ sorted\ distances:}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00546}00546\ \ \ \ \ \textcolor{comment}{\#\ inverted\_index[i][ind\_X[i]]\ =\ np.arange(1,\ n\_sample\ +\ 1)}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00547}00547\ \ \ \ \ inverted\_index\ =\ np.zeros((n\_samples,\ n\_samples),\ dtype=int)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00548}00548\ \ \ \ \ ordered\_indices\ =\ np.arange(n\_samples\ +\ 1)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00549}00549\ \ \ \ \ inverted\_index[ordered\_indices[:-\/1,\ np.newaxis],\ ind\_X]\ =\ ordered\_indices[1:]}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00550}00550\ \ \ \ \ ranks\ =\ (}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00551}00551\ \ \ \ \ \ \ \ \ inverted\_index[ordered\_indices[:-\/1,\ np.newaxis],\ ind\_X\_embedded]\ -\/\ n\_neighbors}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00552}00552\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00553}00553\ \ \ \ \ t\ =\ np.sum(ranks[ranks\ >\ 0])}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00554}00554\ \ \ \ \ t\ =\ 1.0\ -\/\ t\ *\ (}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00555}00555\ \ \ \ \ \ \ \ \ 2.0\ /\ (n\_samples\ *\ n\_neighbors\ *\ (2.0\ *\ n\_samples\ -\/\ 3.0\ *\ n\_neighbors\ -\/\ 1.0))}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00556}00556\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00557}00557\ \ \ \ \ \textcolor{keywordflow}{return}\ t}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00558}00558\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00559}00559\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00560}\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE}{00560}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE}{TSNE}}(\mbox{\hyperlink{classsklearn_1_1base_1_1ClassNamePrefixFeaturesOutMixin}{ClassNamePrefixFeaturesOutMixin}},\ \mbox{\hyperlink{classsklearn_1_1base_1_1TransformerMixin}{TransformerMixin}},\ \mbox{\hyperlink{classsklearn_1_1base_1_1BaseEstimator}{BaseEstimator}}):}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00561}00561\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}T-\/distributed\ Stochastic\ Neighbor\ Embedding.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00562}00562\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00563}00563\ \textcolor{stringliteral}{\ \ \ \ t-\/SNE\ [1]\ is\ a\ tool\ to\ visualize\ high-\/dimensional\ data.\ It\ converts}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00564}00564\ \textcolor{stringliteral}{\ \ \ \ similarities\ between\ data\ points\ to\ joint\ probabilities\ and\ tries}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00565}00565\ \textcolor{stringliteral}{\ \ \ \ to\ minimize\ the\ Kullback-\/Leibler\ divergence\ between\ the\ joint}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00566}00566\ \textcolor{stringliteral}{\ \ \ \ probabilities\ of\ the\ low-\/dimensional\ embedding\ and\ the}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00567}00567\ \textcolor{stringliteral}{\ \ \ \ high-\/dimensional\ data.\ t-\/SNE\ has\ a\ cost\ function\ that\ is\ not\ convex,}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00568}00568\ \textcolor{stringliteral}{\ \ \ \ i.e.\ with\ different\ initializations\ we\ can\ get\ different\ results.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00569}00569\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00570}00570\ \textcolor{stringliteral}{\ \ \ \ It\ is\ highly\ recommended\ to\ use\ another\ dimensionality\ reduction}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00571}00571\ \textcolor{stringliteral}{\ \ \ \ method\ (e.g.\ PCA\ for\ dense\ data\ or\ TruncatedSVD\ for\ sparse\ data)}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00572}00572\ \textcolor{stringliteral}{\ \ \ \ to\ reduce\ the\ number\ of\ dimensions\ to\ a\ reasonable\ amount\ (e.g.\ 50)}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00573}00573\ \textcolor{stringliteral}{\ \ \ \ if\ the\ number\ of\ features\ is\ very\ high.\ This\ will\ suppress\ some}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00574}00574\ \textcolor{stringliteral}{\ \ \ \ noise\ and\ speed\ up\ the\ computation\ of\ pairwise\ distances\ between}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00575}00575\ \textcolor{stringliteral}{\ \ \ \ samples.\ For\ more\ tips\ see\ Laurens\ van\ der\ Maaten's\ FAQ\ [2].}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00576}00576\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00577}00577\ \textcolor{stringliteral}{\ \ \ \ Read\ more\ in\ the\ :ref:\`{}User\ Guide\ <t\_sne>\`{}.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00578}00578\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00579}00579\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00580}00580\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00581}00581\ \textcolor{stringliteral}{\ \ \ \ n\_components\ :\ int,\ default=2}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00582}00582\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Dimension\ of\ the\ embedded\ space.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00583}00583\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00584}00584\ \textcolor{stringliteral}{\ \ \ \ perplexity\ :\ float,\ default=30.0}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00585}00585\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ perplexity\ is\ related\ to\ the\ number\ of\ nearest\ neighbors\ that}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00586}00586\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ is\ used\ in\ other\ manifold\ learning\ algorithms.\ Larger\ datasets}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00587}00587\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ usually\ require\ a\ larger\ perplexity.\ Consider\ selecting\ a\ value}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00588}00588\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ between\ 5\ and\ 50.\ Different\ values\ can\ result\ in\ significantly}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00589}00589\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ different\ results.\ The\ perplexity\ must\ be\ less\ than\ the\ number}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00590}00590\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ of\ samples.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00591}00591\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00592}00592\ \textcolor{stringliteral}{\ \ \ \ early\_exaggeration\ :\ float,\ default=12.0}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00593}00593\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Controls\ how\ tight\ natural\ clusters\ in\ the\ original\ space\ are\ in}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00594}00594\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ embedded\ space\ and\ how\ much\ space\ will\ be\ between\ them.\ For}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00595}00595\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ larger\ values,\ the\ space\ between\ natural\ clusters\ will\ be\ larger}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00596}00596\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ in\ the\ embedded\ space.\ Again,\ the\ choice\ of\ this\ parameter\ is\ not}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00597}00597\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ very\ critical.\ If\ the\ cost\ function\ increases\ during\ initial}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00598}00598\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ optimization,\ the\ early\ exaggeration\ factor\ or\ the\ learning\ rate}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00599}00599\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ might\ be\ too\ high.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00600}00600\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00601}00601\ \textcolor{stringliteral}{\ \ \ \ learning\_rate\ :\ float\ or\ "{}auto"{},\ default="{}auto"{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00602}00602\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ learning\ rate\ for\ t-\/SNE\ is\ usually\ in\ the\ range\ [10.0,\ 1000.0].\ If}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00603}00603\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ learning\ rate\ is\ too\ high,\ the\ data\ may\ look\ like\ a\ 'ball'\ with\ any}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00604}00604\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ point\ approximately\ equidistant\ from\ its\ nearest\ neighbours.\ If\ the}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00605}00605\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ learning\ rate\ is\ too\ low,\ most\ points\ may\ look\ compressed\ in\ a\ dense}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00606}00606\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ cloud\ with\ few\ outliers.\ If\ the\ cost\ function\ gets\ stuck\ in\ a\ bad\ local}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00607}00607\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ minimum\ increasing\ the\ learning\ rate\ may\ help.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00608}00608\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Note\ that\ many\ other\ t-\/SNE\ implementations\ (bhtsne,\ FIt-\/SNE,\ openTSNE,}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00609}00609\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ etc.)\ use\ a\ definition\ of\ learning\_rate\ that\ is\ 4\ times\ smaller\ than}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00610}00610\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ours.\ So\ our\ learning\_rate=200\ corresponds\ to\ learning\_rate=800\ in}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00611}00611\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ those\ other\ implementations.\ The\ 'auto'\ option\ sets\ the\ learning\_rate}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00612}00612\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ to\ \`{}max(N\ /\ early\_exaggeration\ /\ 4,\ 50)\`{}\ where\ N\ is\ the\ sample\ size,}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00613}00613\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ following\ [4]\ and\ [5].}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00614}00614\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00615}00615\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionchanged::\ 1.2}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00616}00616\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ The\ default\ value\ changed\ to\ \`{}"{}auto"{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00617}00617\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00618}00618\ \textcolor{stringliteral}{\ \ \ \ max\_iter\ :\ int,\ default=1000}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00619}00619\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Maximum\ number\ of\ iterations\ for\ the\ optimization.\ Should\ be\ at}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00620}00620\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ least\ 250.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00621}00621\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00622}00622\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionchanged::\ 1.5}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00623}00623\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Parameter\ name\ changed\ from\ \`{}n\_iter\`{}\ to\ \`{}max\_iter\`{}.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00624}00624\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00625}00625\ \textcolor{stringliteral}{\ \ \ \ n\_iter\_without\_progress\ :\ int,\ default=300}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00626}00626\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Maximum\ number\ of\ iterations\ without\ progress\ before\ we\ abort\ the}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00627}00627\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ optimization,\ used\ after\ 250\ initial\ iterations\ with\ early}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00628}00628\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ exaggeration.\ Note\ that\ progress\ is\ only\ checked\ every\ 50\ iterations\ so}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00629}00629\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ this\ value\ is\ rounded\ to\ the\ next\ multiple\ of\ 50.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00630}00630\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00631}00631\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 0.17}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00632}00632\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ parameter\ *n\_iter\_without\_progress*\ to\ control\ stopping\ criteria.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00633}00633\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00634}00634\ \textcolor{stringliteral}{\ \ \ \ min\_grad\_norm\ :\ float,\ default=1e-\/7}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00635}00635\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ the\ gradient\ norm\ is\ below\ this\ threshold,\ the\ optimization\ will}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00636}00636\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ be\ stopped.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00637}00637\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00638}00638\ \textcolor{stringliteral}{\ \ \ \ metric\ :\ str\ or\ callable,\ default='euclidean'}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00639}00639\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ metric\ to\ use\ when\ calculating\ distance\ between\ instances\ in\ a}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00640}00640\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ feature\ array.\ If\ metric\ is\ a\ string,\ it\ must\ be\ one\ of\ the\ options}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00641}00641\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ allowed\ by\ scipy.spatial.distance.pdist\ for\ its\ metric\ parameter,\ or}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00642}00642\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ a\ metric\ listed\ in\ pairwise.PAIRWISE\_DISTANCE\_FUNCTIONS.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00643}00643\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ metric\ is\ "{}precomputed"{},\ X\ is\ assumed\ to\ be\ a\ distance\ matrix.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00644}00644\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Alternatively,\ if\ metric\ is\ a\ callable\ function,\ it\ is\ called\ on\ each}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00645}00645\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ pair\ of\ instances\ (rows)\ and\ the\ resulting\ value\ recorded.\ The\ callable}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00646}00646\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ should\ take\ two\ arrays\ from\ X\ as\ input\ and\ return\ a\ value\ indicating}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00647}00647\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ distance\ between\ them.\ The\ default\ is\ "{}euclidean"{}\ which\ is}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00648}00648\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ interpreted\ as\ squared\ euclidean\ distance.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00649}00649\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00650}00650\ \textcolor{stringliteral}{\ \ \ \ metric\_params\ :\ dict,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00651}00651\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Additional\ keyword\ arguments\ for\ the\ metric\ function.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00652}00652\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00653}00653\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 1.1}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00654}00654\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00655}00655\ \textcolor{stringliteral}{\ \ \ \ init\ :\ \{"{}random"{},\ "{}pca"{}\}\ or\ ndarray\ of\ shape\ (n\_samples,\ n\_components),\ \(\backslash\)}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00656}00656\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ default="{}pca"{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00657}00657\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Initialization\ of\ embedding.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00658}00658\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ PCA\ initialization\ cannot\ be\ used\ with\ precomputed\ distances\ and\ is}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00659}00659\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ usually\ more\ globally\ stable\ than\ random\ initialization.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00660}00660\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00661}00661\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionchanged::\ 1.2}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00662}00662\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ The\ default\ value\ changed\ to\ \`{}"{}pca"{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00663}00663\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00664}00664\ \textcolor{stringliteral}{\ \ \ \ verbose\ :\ int,\ default=0}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00665}00665\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Verbosity\ level.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00666}00666\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00667}00667\ \textcolor{stringliteral}{\ \ \ \ random\_state\ :\ int,\ RandomState\ instance\ or\ None,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00668}00668\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Determines\ the\ random\ number\ generator.\ Pass\ an\ int\ for\ reproducible}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00669}00669\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ results\ across\ multiple\ function\ calls.\ Note\ that\ different}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00670}00670\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ initializations\ might\ result\ in\ different\ local\ minima\ of\ the\ cost}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00671}00671\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ function.\ See\ :term:\`{}Glossary\ <random\_state>\`{}.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00672}00672\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00673}00673\ \textcolor{stringliteral}{\ \ \ \ method\ :\ \{'barnes\_hut',\ 'exact'\},\ default='barnes\_hut'}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00674}00674\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ By\ default\ the\ gradient\ calculation\ algorithm\ uses\ Barnes-\/Hut}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00675}00675\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ approximation\ running\ in\ O(NlogN)\ time.\ method='exact'}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00676}00676\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ will\ run\ on\ the\ slower,\ but\ exact,\ algorithm\ in\ O(N\string^2)\ time.\ The}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00677}00677\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ exact\ algorithm\ should\ be\ used\ when\ nearest-\/neighbor\ errors\ need}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00678}00678\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ to\ be\ better\ than\ 3\%.\ However,\ the\ exact\ method\ cannot\ scale\ to}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00679}00679\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ millions\ of\ examples.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00680}00680\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00681}00681\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 0.17}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00682}00682\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ Approximate\ optimization\ *method*\ via\ the\ Barnes-\/Hut.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00683}00683\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00684}00684\ \textcolor{stringliteral}{\ \ \ \ angle\ :\ float,\ default=0.5}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00685}00685\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Only\ used\ if\ method='barnes\_hut'}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00686}00686\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ This\ is\ the\ trade-\/off\ between\ speed\ and\ accuracy\ for\ Barnes-\/Hut\ T-\/SNE.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00687}00687\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 'angle'\ is\ the\ angular\ size\ (referred\ to\ as\ theta\ in\ [3])\ of\ a\ distant}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00688}00688\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ node\ as\ measured\ from\ a\ point.\ If\ this\ size\ is\ below\ 'angle'\ then\ it\ is}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00689}00689\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ used\ as\ a\ summary\ node\ of\ all\ points\ contained\ within\ it.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00690}00690\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ This\ method\ is\ not\ very\ sensitive\ to\ changes\ in\ this\ parameter}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00691}00691\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ in\ the\ range\ of\ 0.2\ -\/\ 0.8.\ Angle\ less\ than\ 0.2\ has\ quickly\ increasing}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00692}00692\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ computation\ time\ and\ angle\ greater\ 0.8\ has\ quickly\ increasing\ error.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00693}00693\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00694}00694\ \textcolor{stringliteral}{\ \ \ \ n\_jobs\ :\ int,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00695}00695\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ number\ of\ parallel\ jobs\ to\ run\ for\ neighbors\ search.\ This\ parameter}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00696}00696\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ has\ no\ impact\ when\ \`{}\`{}metric="{}precomputed"{}\`{}\`{}\ or}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00697}00697\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ (\`{}\`{}metric="{}euclidean"{}\`{}\`{}\ and\ \`{}\`{}method="{}exact"{}\`{}\`{}).}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00698}00698\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}None\`{}\`{}\ means\ 1\ unless\ in\ a\ :obj:\`{}joblib.parallel\_backend\`{}\ context.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00699}00699\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}-\/1\`{}\`{}\ means\ using\ all\ processors.\ See\ :term:\`{}Glossary\ <n\_jobs>\`{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00700}00700\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ for\ more\ details.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00701}00701\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00702}00702\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 0.22}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00703}00703\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00704}00704\ \textcolor{stringliteral}{\ \ \ \ Attributes}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00705}00705\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00706}00706\ \textcolor{stringliteral}{\ \ \ \ embedding\_\ :\ array-\/like\ of\ shape\ (n\_samples,\ n\_components)}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00707}00707\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Stores\ the\ embedding\ vectors.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00708}00708\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00709}00709\ \textcolor{stringliteral}{\ \ \ \ kl\_divergence\_\ :\ float}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00710}00710\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Kullback-\/Leibler\ divergence\ after\ optimization.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00711}00711\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00712}00712\ \textcolor{stringliteral}{\ \ \ \ n\_features\_in\_\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00713}00713\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ features\ seen\ during\ :term:\`{}fit\`{}.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00714}00714\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00715}00715\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 0.24}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00716}00716\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00717}00717\ \textcolor{stringliteral}{\ \ \ \ feature\_names\_in\_\ :\ ndarray\ of\ shape\ (\`{}n\_features\_in\_\`{},)}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00718}00718\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Names\ of\ features\ seen\ during\ :term:\`{}fit\`{}.\ Defined\ only\ when\ \`{}X\`{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00719}00719\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ has\ feature\ names\ that\ are\ all\ strings.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00720}00720\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00721}00721\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 1.0}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00722}00722\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00723}00723\ \textcolor{stringliteral}{\ \ \ \ learning\_rate\_\ :\ float}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00724}00724\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Effective\ learning\ rate.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00725}00725\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00726}00726\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 1.2}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00727}00727\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00728}00728\ \textcolor{stringliteral}{\ \ \ \ n\_iter\_\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00729}00729\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ iterations\ run.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00730}00730\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00731}00731\ \textcolor{stringliteral}{\ \ \ \ See\ Also}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00732}00732\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00733}00733\ \textcolor{stringliteral}{\ \ \ \ sklearn.decomposition.PCA\ :\ Principal\ component\ analysis\ that\ is\ a\ linear}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00734}00734\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ dimensionality\ reduction\ method.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00735}00735\ \textcolor{stringliteral}{\ \ \ \ sklearn.decomposition.KernelPCA\ :\ Non-\/linear\ dimensionality\ reduction\ using}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00736}00736\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ kernels\ and\ PCA.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00737}00737\ \textcolor{stringliteral}{\ \ \ \ MDS\ :\ Manifold\ learning\ using\ multidimensional\ scaling.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00738}00738\ \textcolor{stringliteral}{\ \ \ \ Isomap\ :\ Manifold\ learning\ based\ on\ Isometric\ Mapping.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00739}00739\ \textcolor{stringliteral}{\ \ \ \ LocallyLinearEmbedding\ :\ Manifold\ learning\ using\ Locally\ Linear\ Embedding.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00740}00740\ \textcolor{stringliteral}{\ \ \ \ SpectralEmbedding\ :\ Spectral\ embedding\ for\ non-\/linear\ dimensionality.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00741}00741\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00742}00742\ \textcolor{stringliteral}{\ \ \ \ Notes}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00743}00743\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00744}00744\ \textcolor{stringliteral}{\ \ \ \ For\ an\ example\ of\ using\ :class:\`{}\string~sklearn.manifold.TSNE\`{}\ in\ combination\ with}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00745}00745\ \textcolor{stringliteral}{\ \ \ \ :class:\`{}\string~sklearn.neighbors.KNeighborsTransformer\`{}\ see}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00746}00746\ \textcolor{stringliteral}{\ \ \ \ :ref:\`{}sphx\_glr\_auto\_examples\_neighbors\_approximate\_nearest\_neighbors.py\`{}.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00747}00747\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00748}00748\ \textcolor{stringliteral}{\ \ \ \ References}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00749}00749\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00750}00750\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00751}00751\ \textcolor{stringliteral}{\ \ \ \ [1]\ van\ der\ Maaten,\ L.J.P.;\ Hinton,\ G.E.\ Visualizing\ High-\/Dimensional\ Data}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00752}00752\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Using\ t-\/SNE.\ Journal\ of\ Machine\ Learning\ Research\ 9:2579-\/2605,\ 2008.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00753}00753\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00754}00754\ \textcolor{stringliteral}{\ \ \ \ [2]\ van\ der\ Maaten,\ L.J.P.\ t-\/Distributed\ Stochastic\ Neighbor\ Embedding}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00755}00755\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ https://lvdmaaten.github.io/tsne/}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00756}00756\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00757}00757\ \textcolor{stringliteral}{\ \ \ \ [3]\ L.J.P.\ van\ der\ Maaten.\ Accelerating\ t-\/SNE\ using\ Tree-\/Based\ Algorithms.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00758}00758\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Journal\ of\ Machine\ Learning\ Research\ 15(Oct):3221-\/3245,\ 2014.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00759}00759\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ https://lvdmaaten.github.io/publications/papers/JMLR\_2014.pdf}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00760}00760\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00761}00761\ \textcolor{stringliteral}{\ \ \ \ [4]\ Belkina,\ A.\ C.,\ Ciccolella,\ C.\ O.,\ Anno,\ R.,\ Halpert,\ R.,\ Spidlen,\ J.,}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00762}00762\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \&\ Snyder-\/Cappione,\ J.\ E.\ (2019).\ Automated\ optimized\ parameters\ for}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00763}00763\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ T-\/distributed\ stochastic\ neighbor\ embedding\ improve\ visualization}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00764}00764\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ and\ analysis\ of\ large\ datasets.\ Nature\ Communications,\ 10(1),\ 1-\/12.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00765}00765\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00766}00766\ \textcolor{stringliteral}{\ \ \ \ [5]\ Kobak,\ D.,\ \&\ Berens,\ P.\ (2019).\ The\ art\ of\ using\ t-\/SNE\ for\ single-\/cell}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00767}00767\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ transcriptomics.\ Nature\ Communications,\ 10(1),\ 1-\/14.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00768}00768\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00769}00769\ \textcolor{stringliteral}{\ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00770}00770\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00771}00771\ \textcolor{stringliteral}{\ \ \ \ >>>\ import\ numpy\ as\ np}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00772}00772\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.manifold\ import\ TSNE}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00773}00773\ \textcolor{stringliteral}{\ \ \ \ >>>\ X\ =\ np.array([[0,\ 0,\ 0],\ [0,\ 1,\ 1],\ [1,\ 0,\ 1],\ [1,\ 1,\ 1]])}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00774}00774\ \textcolor{stringliteral}{\ \ \ \ >>>\ X\_embedded\ =\ TSNE(n\_components=2,\ learning\_rate='auto',}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00775}00775\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ init='random',\ perplexity=3).fit\_transform(X)}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00776}00776\ \textcolor{stringliteral}{\ \ \ \ >>>\ X\_embedded.shape}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00777}00777\ \textcolor{stringliteral}{\ \ \ \ (4,\ 2)}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00778}00778\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00779}00779\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00780}00780\ \ \ \ \ \_parameter\_constraints:\ dict\ =\ \{}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00781}00781\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}n\_components"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Integral,\ 1,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}})],}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00782}00782\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}perplexity"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Real,\ 0,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}neither"{}})],}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00783}00783\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}early\_exaggeration"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Real,\ 1,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}})],}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00784}00784\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}learning\_rate"{}}:\ [}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00785}00785\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1StrOptions}{StrOptions}}(\{\textcolor{stringliteral}{"{}auto"{}}\}),}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00786}00786\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Real,\ 0,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}neither"{}}),}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00787}00787\ \ \ \ \ \ \ \ \ ],}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00788}00788\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}max\_iter"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Integral,\ 250,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}})],}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00789}00789\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}n\_iter\_without\_progress"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Integral,\ -\/1,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}})],}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00790}00790\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}min\_grad\_norm"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Real,\ 0,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}})],}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00791}00791\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}metric"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1StrOptions}{StrOptions}}(set(\_VALID\_METRICS)\ |\ \{\textcolor{stringliteral}{"{}precomputed"{}}\}),\ callable],}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00792}00792\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}metric\_params"{}}:\ [dict,\ \textcolor{keywordtype}{None}],}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00793}00793\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}init"{}}:\ [}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00794}00794\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1StrOptions}{StrOptions}}(\{\textcolor{stringliteral}{"{}pca"{}},\ \textcolor{stringliteral}{"{}random"{}}\}),}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00795}00795\ \ \ \ \ \ \ \ \ \ \ \ \ np.ndarray,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00796}00796\ \ \ \ \ \ \ \ \ ],}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00797}00797\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}verbose"{}}:\ [\textcolor{stringliteral}{"{}verbose"{}}],}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00798}00798\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}random\_state"{}}:\ [\textcolor{stringliteral}{"{}random\_state"{}}],}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00799}00799\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}method"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1StrOptions}{StrOptions}}(\{\textcolor{stringliteral}{"{}barnes\_hut"{}},\ \textcolor{stringliteral}{"{}exact"{}}\})],}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00800}00800\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}angle"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Real,\ 0,\ 1,\ closed=\textcolor{stringliteral}{"{}both"{}})],}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00801}00801\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}n\_jobs"{}}:\ [\textcolor{keywordtype}{None},\ Integral],}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00802}00802\ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00803}00803\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00804}00804\ \ \ \ \ \textcolor{comment}{\#\ Control\ the\ number\ of\ exploration\ iterations\ with\ early\_exaggeration\ on}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00805}00805\ \ \ \ \ \_EXPLORATION\_MAX\_ITER\ =\ 250}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00806}00806\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00807}00807\ \ \ \ \ \textcolor{comment}{\#\ Control\ the\ number\ of\ iterations\ between\ progress\ checks}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00808}00808\ \ \ \ \ \_N\_ITER\_CHECK\ =\ 50}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00809}00809\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00810}00810\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00811}00811\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00812}00812\ \ \ \ \ \ \ \ \ n\_components=2,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00813}00813\ \ \ \ \ \ \ \ \ *,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00814}00814\ \ \ \ \ \ \ \ \ perplexity=30.0,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00815}00815\ \ \ \ \ \ \ \ \ early\_exaggeration=12.0,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00816}00816\ \ \ \ \ \ \ \ \ learning\_rate="{}auto"{},}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00817}00817\ \ \ \ \ \ \ \ \ max\_iter=1000,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00818}00818\ \ \ \ \ \ \ \ \ n\_iter\_without\_progress=300,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00819}00819\ \ \ \ \ \ \ \ \ min\_grad\_norm=1e-\/7,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00820}00820\ \ \ \ \ \ \ \ \ metric="{}euclidean"{},}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00821}00821\ \ \ \ \ \ \ \ \ metric\_params=None,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00822}00822\ \ \ \ \ \ \ \ \ init="{}pca"{},}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00823}00823\ \ \ \ \ \ \ \ \ verbose=0,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00824}00824\ \ \ \ \ \ \ \ \ random\_state=None,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00825}00825\ \ \ \ \ \ \ \ \ method="{}barnes\_hut"{},}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00826}00826\ \ \ \ \ \ \ \ \ angle=0.5,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00827}00827\ \ \ \ \ \ \ \ \ n\_jobs=None,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00828}00828\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00829}00829\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a15a527870c0eb0139855702f15233248}{n\_components}}\ =\ n\_components}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00830}00830\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a9118a214f87a73baafab03f3d9def24c}{perplexity}}\ =\ perplexity}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00831}00831\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a678da09e53ca774818a65c4ea0b9ee1d}{early\_exaggeration}}\ =\ early\_exaggeration}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00832}00832\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a01647d7c5cb96d25cd167eb41e381a3d}{learning\_rate}}\ =\ learning\_rate}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00833}00833\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a1de0fa818f7906c1373ec9d587e89b7a}{max\_iter}}\ =\ max\_iter}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00834}00834\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a505766fcb207421995278eb89fa99051}{n\_iter\_without\_progress}}\ =\ n\_iter\_without\_progress}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00835}00835\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a9335cb8aa7b2aca0b8102f2ad2d45fd2}{min\_grad\_norm}}\ =\ min\_grad\_norm}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00836}00836\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_aeb75f5bbc9a7df12ec7127474b4d1c84}{metric}}\ =\ metric}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00837}00837\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a9a803bc9da0fcb272a3526ebc446beb4}{metric\_params}}\ =\ metric\_params}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00838}00838\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_ad131d252e0a8da181d2606a9882f0ee9}{init}}\ =\ init}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00839}00839\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_ac57977a40d046a0fcf614de3ffb47aed}{verbose}}\ =\ verbose}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00840}00840\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a1e715a18a54e8dc2dba18a976fdd0510}{random\_state}}\ =\ random\_state}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00841}00841\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a34b18edee2f8f8ddfbb3993e333bb453}{method}}\ =\ method}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00842}00842\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a44f7649041f350b019f8a2f1a5affa92}{angle}}\ =\ angle}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00843}00843\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a4cf2c6fc4cc796710eda135e4a69637f}{n\_jobs}}\ =\ n\_jobs}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00844}00844\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00845}00845\ \ \ \ \ \textcolor{keyword}{def\ }\_check\_params\_vs\_input(self,\ X):}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00846}00846\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a9118a214f87a73baafab03f3d9def24c}{perplexity}}\ >=\ X.shape[0]:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00847}00847\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00848}00848\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}perplexity\ (\{self.perplexity\})\ must\ be\ less\ "{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00849}00849\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}than\ n\_samples\ (\{X.shape[0]\})"{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00850}00850\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00851}00851\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00852}\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a060496e1499c4074aaca448a6921afca}{00852}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a060496e1499c4074aaca448a6921afca}{\_fit}}(self,\ X,\ skip\_num\_points=0):}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00853}00853\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Private\ function\ to\ fit\ the\ model\ using\ X\ as\ training\ data."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00854}00854\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00855}00855\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_ad131d252e0a8da181d2606a9882f0ee9}{init}},\ str)\ \textcolor{keywordflow}{and}\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_ad131d252e0a8da181d2606a9882f0ee9}{init}}\ ==\ \textcolor{stringliteral}{"{}pca"{}}\ \textcolor{keywordflow}{and}\ issparse(X):}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00856}00856\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classTypeError}{TypeError}}(}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00857}00857\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}PCA\ initialization\ is\ currently\ not\ supported\ "{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00858}00858\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}with\ the\ sparse\ input\ matrix.\ Use\ "{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00859}00859\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'init="{}random"{}\ instead.'}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00860}00860\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00861}00861\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00862}00862\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a01647d7c5cb96d25cd167eb41e381a3d}{learning\_rate}}\ ==\ \textcolor{stringliteral}{"{}auto"{}}:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00863}00863\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ See\ issue\ \#18018}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00864}00864\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_ade00e9efd60a00b89019c521e7ccfeb6}{learning\_rate\_}}\ =\ X.shape[0]\ /\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a678da09e53ca774818a65c4ea0b9ee1d}{early\_exaggeration}}\ /\ 4}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00865}00865\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_ade00e9efd60a00b89019c521e7ccfeb6}{learning\_rate\_}}\ =\ np.maximum(self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_ade00e9efd60a00b89019c521e7ccfeb6}{learning\_rate\_}},\ 50)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00866}00866\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00867}00867\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_ade00e9efd60a00b89019c521e7ccfeb6}{learning\_rate\_}}\ =\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a01647d7c5cb96d25cd167eb41e381a3d}{learning\_rate}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00868}00868\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00869}00869\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a34b18edee2f8f8ddfbb3993e333bb453}{method}}\ ==\ \textcolor{stringliteral}{"{}barnes\_hut"{}}:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00870}00870\ \ \ \ \ \ \ \ \ \ \ \ \ X\ =\ validate\_data(}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00871}00871\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00872}00872\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ X,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00873}00873\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ accept\_sparse=[\textcolor{stringliteral}{"{}csr"{}}],}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00874}00874\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ensure\_min\_samples=2,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00875}00875\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ dtype=[np.float32,\ np.float64],}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00876}00876\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00877}00877\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00878}00878\ \ \ \ \ \ \ \ \ \ \ \ \ X\ =\ validate\_data(}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00879}00879\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00880}00880\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ X,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00881}00881\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ accept\_sparse=[\textcolor{stringliteral}{"{}csr"{}},\ \textcolor{stringliteral}{"{}csc"{}},\ \textcolor{stringliteral}{"{}coo"{}}],}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00882}00882\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ dtype=[np.float32,\ np.float64],}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00883}00883\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00884}00884\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_aeb75f5bbc9a7df12ec7127474b4d1c84}{metric}}\ ==\ \textcolor{stringliteral}{"{}precomputed"{}}:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00885}00885\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_ad131d252e0a8da181d2606a9882f0ee9}{init}},\ str)\ \textcolor{keywordflow}{and}\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_ad131d252e0a8da181d2606a9882f0ee9}{init}}\ ==\ \textcolor{stringliteral}{"{}pca"{}}:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00886}00886\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00887}00887\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'The\ parameter\ init="{}pca"{}\ cannot\ be\ used\ with\ metric="{}precomputed"{}.'}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00888}00888\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00889}00889\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ X.shape[0]\ !=\ X.shape[1]:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00890}00890\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}X\ should\ be\ a\ square\ distance\ matrix"{}})}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00891}00891\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00892}00892\ \ \ \ \ \ \ \ \ \ \ \ \ check\_non\_negative(}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00893}00893\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ X,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00894}00894\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00895}00895\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}TSNE.fit().\ With\ metric='precomputed',\ X\ "{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00896}00896\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}should\ contain\ positive\ distances."{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00897}00897\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00898}00898\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00899}00899\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00900}00900\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a34b18edee2f8f8ddfbb3993e333bb453}{method}}\ ==\ \textcolor{stringliteral}{"{}exact"{}}\ \textcolor{keywordflow}{and}\ issparse(X):}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00901}00901\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classTypeError}{TypeError}}(}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00902}00902\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'TSNE\ with\ method="{}exact"{}\ does\ not\ accept\ sparse\ '}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00903}00903\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'precomputed\ distance\ matrix.\ Use\ method="{}barnes\_hut"{}\ '}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00904}00904\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}or\ provide\ the\ dense\ distance\ matrix."{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00905}00905\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00906}00906\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00907}00907\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a34b18edee2f8f8ddfbb3993e333bb453}{method}}\ ==\ \textcolor{stringliteral}{"{}barnes\_hut"{}}\ \textcolor{keywordflow}{and}\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a15a527870c0eb0139855702f15233248}{n\_components}}\ >\ 3:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00908}00908\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00909}00909\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}'n\_components'\ should\ be\ inferior\ to\ 4\ for\ the\ "{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00910}00910\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}barnes\_hut\ algorithm\ as\ it\ relies\ on\ "{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00911}00911\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}quad-\/tree\ or\ oct-\/tree."{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00912}00912\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00913}00913\ \ \ \ \ \ \ \ \ random\_state\ =\ check\_random\_state(self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a1e715a18a54e8dc2dba18a976fdd0510}{random\_state}})}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00914}00914\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00915}00915\ \ \ \ \ \ \ \ \ n\_samples\ =\ X.shape[0]}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00916}00916\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00917}00917\ \ \ \ \ \ \ \ \ neighbors\_nn\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00918}00918\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a34b18edee2f8f8ddfbb3993e333bb453}{method}}\ ==\ \textcolor{stringliteral}{"{}exact"{}}:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00919}00919\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Retrieve\ the\ distance\ matrix,\ either\ using\ the\ precomputed\ one\ or}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00920}00920\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ computing\ it.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00921}00921\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_aeb75f5bbc9a7df12ec7127474b4d1c84}{metric}}\ ==\ \textcolor{stringliteral}{"{}precomputed"{}}:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00922}00922\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ distances\ =\ X}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00923}00923\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00924}00924\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_ac57977a40d046a0fcf614de3ffb47aed}{verbose}}:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00925}00925\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(\textcolor{stringliteral}{"{}[t-\/SNE]\ Computing\ pairwise\ distances..."{}})}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00926}00926\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00927}00927\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_aeb75f5bbc9a7df12ec7127474b4d1c84}{metric}}\ ==\ \textcolor{stringliteral}{"{}euclidean"{}}:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00928}00928\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Euclidean\ is\ squared\ here,\ rather\ than\ using\ **=\ 2,}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00929}00929\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ because\ euclidean\_distances\ already\ calculates}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00930}00930\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ squared\ distances,\ and\ returns\ np.sqrt(dist)\ for}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00931}00931\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ squared=False.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00932}00932\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Also,\ Euclidean\ is\ slower\ for\ n\_jobs>1,\ so\ don't\ set\ here}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00933}00933\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ distances\ =\ pairwise\_distances(X,\ metric=self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_aeb75f5bbc9a7df12ec7127474b4d1c84}{metric}},\ squared=\textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00934}00934\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00935}00935\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ metric\_params\_\ =\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a9a803bc9da0fcb272a3526ebc446beb4}{metric\_params}}\ \textcolor{keywordflow}{or}\ \{\}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00936}00936\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ distances\ =\ pairwise\_distances(}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00937}00937\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ X,\ metric=self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_aeb75f5bbc9a7df12ec7127474b4d1c84}{metric}},\ n\_jobs=self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a4cf2c6fc4cc796710eda135e4a69637f}{n\_jobs}},\ **metric\_params\_}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00938}00938\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00939}00939\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00940}00940\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ np.any(distances\ <\ 0):}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00941}00941\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00942}00942\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}All\ distances\ should\ be\ positive,\ the\ metric\ given\ is\ not\ correct"{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00943}00943\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00944}00944\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00945}00945\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_aeb75f5bbc9a7df12ec7127474b4d1c84}{metric}}\ !=\ \textcolor{stringliteral}{"{}euclidean"{}}:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00946}00946\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ distances\ **=\ 2}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00947}00947\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00948}00948\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ compute\ the\ joint\ probability\ distribution\ for\ the\ input\ space}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00949}00949\ \ \ \ \ \ \ \ \ \ \ \ \ P\ =\ \mbox{\hyperlink{namespacesklearn_1_1manifold_1_1__t__sne_ad8b7c25c5600bbaa275abe387cef55d3}{\_joint\_probabilities}}(distances,\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a9118a214f87a73baafab03f3d9def24c}{perplexity}},\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_ac57977a40d046a0fcf614de3ffb47aed}{verbose}})}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00950}00950\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ np.all(np.isfinite(P)),\ \textcolor{stringliteral}{"{}All\ probabilities\ should\ be\ finite"{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00951}00951\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ np.all(P\ >=\ 0),\ \textcolor{stringliteral}{"{}All\ probabilities\ should\ be\ non-\/negative"{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00952}00952\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ np.all(P\ <=\ 1),\ (}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00953}00953\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}All\ probabilities\ should\ be\ less\ or\ then\ equal\ to\ one"{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00954}00954\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00955}00955\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00956}00956\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00957}00957\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Compute\ the\ number\ of\ nearest\ neighbors\ to\ find.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00958}00958\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ LvdM\ uses\ 3\ *\ perplexity\ as\ the\ number\ of\ neighbors.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00959}00959\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ In\ the\ event\ that\ we\ have\ very\ small\ \#\ of\ points}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00960}00960\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ set\ the\ neighbors\ to\ n\ -\/\ 1.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00961}00961\ \ \ \ \ \ \ \ \ \ \ \ \ n\_neighbors\ =\ min(n\_samples\ -\/\ 1,\ int(3.0\ *\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a9118a214f87a73baafab03f3d9def24c}{perplexity}}\ +\ 1))}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00962}00962\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00963}00963\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_ac57977a40d046a0fcf614de3ffb47aed}{verbose}}:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00964}00964\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(\textcolor{stringliteral}{"{}[t-\/SNE]\ Computing\ \{\}\ nearest\ neighbors..."{}}.format(n\_neighbors))}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00965}00965\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00966}00966\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Find\ the\ nearest\ neighbors\ for\ every\ point}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00967}00967\ \ \ \ \ \ \ \ \ \ \ \ \ knn\ =\ \mbox{\hyperlink{classsklearn_1_1neighbors_1_1__unsupervised_1_1NearestNeighbors}{NearestNeighbors}}(}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00968}00968\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ algorithm=\textcolor{stringliteral}{"{}auto"{}},}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00969}00969\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ n\_jobs=self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a4cf2c6fc4cc796710eda135e4a69637f}{n\_jobs}},}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00970}00970\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ n\_neighbors=n\_neighbors,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00971}00971\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ metric=self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_aeb75f5bbc9a7df12ec7127474b4d1c84}{metric}},}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00972}00972\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ metric\_params=self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a9a803bc9da0fcb272a3526ebc446beb4}{metric\_params}},}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00973}00973\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00974}00974\ \ \ \ \ \ \ \ \ \ \ \ \ t0\ =\ time()}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00975}00975\ \ \ \ \ \ \ \ \ \ \ \ \ knn.fit(X)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00976}00976\ \ \ \ \ \ \ \ \ \ \ \ \ duration\ =\ time()\ -\/\ t0}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00977}00977\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_ac57977a40d046a0fcf614de3ffb47aed}{verbose}}:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00978}00978\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00979}00979\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}[t-\/SNE]\ Indexed\ \{\}\ samples\ in\ \{:.3f\}s..."{}}.format(}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00980}00980\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ n\_samples,\ duration}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00981}00981\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00982}00982\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00983}00983\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00984}00984\ \ \ \ \ \ \ \ \ \ \ \ \ t0\ =\ time()}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00985}00985\ \ \ \ \ \ \ \ \ \ \ \ \ distances\_nn\ =\ knn.kneighbors\_graph(mode=\textcolor{stringliteral}{"{}distance"{}})}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00986}00986\ \ \ \ \ \ \ \ \ \ \ \ \ duration\ =\ time()\ -\/\ t0}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00987}00987\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_ac57977a40d046a0fcf614de3ffb47aed}{verbose}}:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00988}00988\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00989}00989\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}[t-\/SNE]\ Computed\ neighbors\ for\ \{\}\ samples\ in\ \{:.3f\}s..."{}}.format(}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00990}00990\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ n\_samples,\ duration}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00991}00991\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00992}00992\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00993}00993\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00994}00994\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Free\ the\ memory\ used\ by\ the\ ball\_tree}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00995}00995\ \ \ \ \ \ \ \ \ \ \ \ \ del\ knn}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00996}00996\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00997}00997\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ knn\ return\ the\ euclidean\ distance\ but\ we\ need\ it\ squared}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00998}00998\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ to\ be\ consistent\ with\ the\ 'exact'\ method.\ Note\ that\ the}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l00999}00999\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ the\ method\ was\ derived\ using\ the\ euclidean\ method\ as\ in\ the}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01000}01000\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ input\ space.\ Not\ sure\ of\ the\ implication\ of\ using\ a\ different}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01001}01001\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ metric.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01002}01002\ \ \ \ \ \ \ \ \ \ \ \ \ distances\_nn.data\ **=\ 2}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01003}01003\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01004}01004\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ compute\ the\ joint\ probability\ distribution\ for\ the\ input\ space}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01005}01005\ \ \ \ \ \ \ \ \ \ \ \ \ P\ =\ \mbox{\hyperlink{namespacesklearn_1_1manifold_1_1__t__sne_ae142c57fc0866dacf6978fe62facd79c}{\_joint\_probabilities\_nn}}(distances\_nn,\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a9118a214f87a73baafab03f3d9def24c}{perplexity}},\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_ac57977a40d046a0fcf614de3ffb47aed}{verbose}})}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01006}01006\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01007}01007\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_ad131d252e0a8da181d2606a9882f0ee9}{init}},\ np.ndarray):}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01008}01008\ \ \ \ \ \ \ \ \ \ \ \ \ X\_embedded\ =\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_ad131d252e0a8da181d2606a9882f0ee9}{init}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01009}01009\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_ad131d252e0a8da181d2606a9882f0ee9}{init}}\ ==\ \textcolor{stringliteral}{"{}pca"{}}:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01010}01010\ \ \ \ \ \ \ \ \ \ \ \ \ pca\ =\ \mbox{\hyperlink{classsklearn_1_1decomposition_1_1__pca_1_1PCA}{PCA}}(}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01011}01011\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ n\_components=self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a15a527870c0eb0139855702f15233248}{n\_components}},}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01012}01012\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ svd\_solver=\textcolor{stringliteral}{"{}randomized"{}},}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01013}01013\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ random\_state=random\_state,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01014}01014\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01015}01015\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Always\ output\ a\ numpy\ array,\ no\ matter\ what\ is\ configured\ globally}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01016}01016\ \ \ \ \ \ \ \ \ \ \ \ \ pca.set\_output(transform=\textcolor{stringliteral}{"{}default"{}})}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01017}01017\ \ \ \ \ \ \ \ \ \ \ \ \ X\_embedded\ =\ pca.fit\_transform(X).astype(np.float32,\ copy=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01018}01018\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ PCA\ is\ rescaled\ so\ that\ PC1\ has\ standard\ deviation\ 1e-\/4\ which\ is}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01019}01019\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ the\ default\ value\ for\ random\ initialization.\ See\ issue\ \#18018.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01020}01020\ \ \ \ \ \ \ \ \ \ \ \ \ X\_embedded\ =\ X\_embedded\ /\ np.std(X\_embedded[:,\ 0])\ *\ 1e-\/4}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01021}01021\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_ad131d252e0a8da181d2606a9882f0ee9}{init}}\ ==\ \textcolor{stringliteral}{"{}random"{}}:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01022}01022\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ embedding\ is\ initialized\ with\ iid\ samples\ from\ Gaussians\ with}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01023}01023\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ standard\ deviation\ 1e-\/4.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01024}01024\ \ \ \ \ \ \ \ \ \ \ \ \ X\_embedded\ =\ 1e-\/4\ *\ random\_state.standard\_normal(}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01025}01025\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ size=(n\_samples,\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a15a527870c0eb0139855702f15233248}{n\_components}})}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01026}01026\ \ \ \ \ \ \ \ \ \ \ \ \ ).astype(np.float32)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01027}01027\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01028}01028\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Degrees\ of\ freedom\ of\ the\ Student's\ t-\/distribution.\ The\ suggestion}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01029}01029\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ degrees\_of\_freedom\ =\ n\_components\ -\/\ 1\ comes\ from}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01030}01030\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ "{}Learning\ a\ Parametric\ Embedding\ by\ Preserving\ Local\ Structure"{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01031}01031\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Laurens\ van\ der\ Maaten,\ 2009.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01032}01032\ \ \ \ \ \ \ \ \ degrees\_of\_freedom\ =\ max(self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a15a527870c0eb0139855702f15233248}{n\_components}}\ -\/\ 1,\ 1)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01033}01033\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01034}01034\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a6ddf413452875c012b07080258cfaa85}{\_tsne}}(}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01035}01035\ \ \ \ \ \ \ \ \ \ \ \ \ P,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01036}01036\ \ \ \ \ \ \ \ \ \ \ \ \ degrees\_of\_freedom,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01037}01037\ \ \ \ \ \ \ \ \ \ \ \ \ n\_samples,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01038}01038\ \ \ \ \ \ \ \ \ \ \ \ \ X\_embedded=X\_embedded,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01039}01039\ \ \ \ \ \ \ \ \ \ \ \ \ neighbors=neighbors\_nn,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01040}01040\ \ \ \ \ \ \ \ \ \ \ \ \ skip\_num\_points=skip\_num\_points,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01041}01041\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01042}01042\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01043}\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a6ddf413452875c012b07080258cfaa85}{01043}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a6ddf413452875c012b07080258cfaa85}{\_tsne}}(}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01044}01044\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01045}01045\ \ \ \ \ \ \ \ \ P,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01046}01046\ \ \ \ \ \ \ \ \ degrees\_of\_freedom,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01047}01047\ \ \ \ \ \ \ \ \ n\_samples,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01048}01048\ \ \ \ \ \ \ \ \ X\_embedded,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01049}01049\ \ \ \ \ \ \ \ \ neighbors=None,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01050}01050\ \ \ \ \ \ \ \ \ skip\_num\_points=0,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01051}01051\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01052}01052\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Runs\ t-\/SNE."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01053}01053\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ t-\/SNE\ minimizes\ the\ Kullback-\/Leiber\ divergence\ of\ the\ Gaussians\ P}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01054}01054\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ and\ the\ Student's\ t-\/distributions\ Q.\ The\ optimization\ algorithm\ that}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01055}01055\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ we\ use\ is\ batch\ gradient\ descent\ with\ two\ stages:}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01056}01056\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ *\ initial\ optimization\ with\ early\ exaggeration\ and\ momentum\ at\ 0.5}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01057}01057\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ *\ final\ optimization\ with\ momentum\ at\ 0.8}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01058}01058\ \ \ \ \ \ \ \ \ params\ =\ X\_embedded.ravel()}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01059}01059\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01060}01060\ \ \ \ \ \ \ \ \ opt\_args\ =\ \{}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01061}01061\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}it"{}}:\ 0,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01062}01062\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}n\_iter\_check"{}}:\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_ab27a53dfcd7602d11e3dc59474aefc4d}{\_N\_ITER\_CHECK}},}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01063}01063\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}min\_grad\_norm"{}}:\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a9335cb8aa7b2aca0b8102f2ad2d45fd2}{min\_grad\_norm}},}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01064}01064\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}learning\_rate"{}}:\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_ade00e9efd60a00b89019c521e7ccfeb6}{learning\_rate\_}},}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01065}01065\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}verbose"{}}:\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_ac57977a40d046a0fcf614de3ffb47aed}{verbose}},}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01066}01066\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}kwargs"{}}:\ dict(skip\_num\_points=skip\_num\_points),}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01067}01067\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}args"{}}:\ [P,\ degrees\_of\_freedom,\ n\_samples,\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a15a527870c0eb0139855702f15233248}{n\_components}}],}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01068}01068\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}n\_iter\_without\_progress"{}}:\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_ad245cd6fd161a2a0d679682dc60fe8c6}{\_EXPLORATION\_MAX\_ITER}},}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01069}01069\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}max\_iter"{}}:\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_ad245cd6fd161a2a0d679682dc60fe8c6}{\_EXPLORATION\_MAX\_ITER}},}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01070}01070\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}momentum"{}}:\ 0.5,}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01071}01071\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01072}01072\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a34b18edee2f8f8ddfbb3993e333bb453}{method}}\ ==\ \textcolor{stringliteral}{"{}barnes\_hut"{}}:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01073}01073\ \ \ \ \ \ \ \ \ \ \ \ \ obj\_func\ =\ \_kl\_divergence\_bh}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01074}01074\ \ \ \ \ \ \ \ \ \ \ \ \ opt\_args[\textcolor{stringliteral}{"{}kwargs"{}}][\textcolor{stringliteral}{"{}angle"{}}]\ =\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a44f7649041f350b019f8a2f1a5affa92}{angle}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01075}01075\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Repeat\ verbose\ argument\ for\ \_kl\_divergence\_bh}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01076}01076\ \ \ \ \ \ \ \ \ \ \ \ \ opt\_args[\textcolor{stringliteral}{"{}kwargs"{}}][\textcolor{stringliteral}{"{}verbose"{}}]\ =\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_ac57977a40d046a0fcf614de3ffb47aed}{verbose}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01077}01077\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Get\ the\ number\ of\ threads\ for\ gradient\ computation\ here\ to}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01078}01078\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ avoid\ recomputing\ it\ at\ each\ iteration.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01079}01079\ \ \ \ \ \ \ \ \ \ \ \ \ opt\_args[\textcolor{stringliteral}{"{}kwargs"{}}][\textcolor{stringliteral}{"{}num\_threads"{}}]\ =\ \_openmp\_effective\_n\_threads()}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01080}01080\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01081}01081\ \ \ \ \ \ \ \ \ \ \ \ \ obj\_func\ =\ \_kl\_divergence}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01082}01082\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01083}01083\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Learning\ schedule\ (part\ 1):\ do\ 250\ iteration\ with\ lower\ momentum\ but}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01084}01084\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ higher\ learning\ rate\ controlled\ via\ the\ early\ exaggeration\ parameter}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01085}01085\ \ \ \ \ \ \ \ \ P\ *=\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a678da09e53ca774818a65c4ea0b9ee1d}{early\_exaggeration}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01086}01086\ \ \ \ \ \ \ \ \ params,\ kl\_divergence,\ it\ =\ \mbox{\hyperlink{namespacesklearn_1_1manifold_1_1__t__sne_a926a76e5870dca32aa3988f202c841bd}{\_gradient\_descent}}(obj\_func,\ params,\ **opt\_args)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01087}01087\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_ac57977a40d046a0fcf614de3ffb47aed}{verbose}}:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01088}01088\ \ \ \ \ \ \ \ \ \ \ \ \ print(}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01089}01089\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}[t-\/SNE]\ KL\ divergence\ after\ \%d\ iterations\ with\ early\ exaggeration:\ \%f"{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01090}01090\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \%\ (it\ +\ 1,\ kl\_divergence)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01091}01091\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01092}01092\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01093}01093\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Learning\ schedule\ (part\ 2):\ disable\ early\ exaggeration\ and\ finish}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01094}01094\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ optimization\ with\ a\ higher\ momentum\ at\ 0.8}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01095}01095\ \ \ \ \ \ \ \ \ P\ /=\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a678da09e53ca774818a65c4ea0b9ee1d}{early\_exaggeration}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01096}01096\ \ \ \ \ \ \ \ \ remaining\ =\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a1de0fa818f7906c1373ec9d587e89b7a}{max\_iter}}\ -\/\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_ad245cd6fd161a2a0d679682dc60fe8c6}{\_EXPLORATION\_MAX\_ITER}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01097}01097\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ it\ <\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_ad245cd6fd161a2a0d679682dc60fe8c6}{\_EXPLORATION\_MAX\_ITER}}\ \textcolor{keywordflow}{or}\ remaining\ >\ 0:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01098}01098\ \ \ \ \ \ \ \ \ \ \ \ \ opt\_args[\textcolor{stringliteral}{"{}max\_iter"{}}]\ =\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a1de0fa818f7906c1373ec9d587e89b7a}{max\_iter}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01099}01099\ \ \ \ \ \ \ \ \ \ \ \ \ opt\_args[\textcolor{stringliteral}{"{}it"{}}]\ =\ it\ +\ 1}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01100}01100\ \ \ \ \ \ \ \ \ \ \ \ \ opt\_args[\textcolor{stringliteral}{"{}momentum"{}}]\ =\ 0.8}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01101}01101\ \ \ \ \ \ \ \ \ \ \ \ \ opt\_args[\textcolor{stringliteral}{"{}n\_iter\_without\_progress"{}}]\ =\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a505766fcb207421995278eb89fa99051}{n\_iter\_without\_progress}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01102}01102\ \ \ \ \ \ \ \ \ \ \ \ \ params,\ kl\_divergence,\ it\ =\ \mbox{\hyperlink{namespacesklearn_1_1manifold_1_1__t__sne_a926a76e5870dca32aa3988f202c841bd}{\_gradient\_descent}}(obj\_func,\ params,\ **opt\_args)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01103}01103\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01104}01104\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Save\ the\ final\ number\ of\ iterations}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01105}01105\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a23394bbdbff56f91cecaf329b8903f3b}{n\_iter\_}}\ =\ it}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01106}01106\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01107}01107\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_ac57977a40d046a0fcf614de3ffb47aed}{verbose}}:}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01108}01108\ \ \ \ \ \ \ \ \ \ \ \ \ print(}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01109}01109\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}[t-\/SNE]\ KL\ divergence\ after\ \%d\ iterations:\ \%f"{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01110}01110\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \%\ (it\ +\ 1,\ kl\_divergence)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01111}01111\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01112}01112\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01113}01113\ \ \ \ \ \ \ \ \ X\_embedded\ =\ params.reshape(n\_samples,\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a15a527870c0eb0139855702f15233248}{n\_components}})}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01114}01114\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a3d84680ad926dea50a7f70946d6b75a4}{kl\_divergence\_}}\ =\ kl\_divergence}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01115}01115\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01116}01116\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ X\_embedded}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01117}01117\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01118}01118\ \ \ \ \ \textcolor{preprocessor}{@\_fit\_context}(}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01119}01119\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ TSNE.metric\ is\ not\ validated\ yet}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01120}01120\ \ \ \ \ \ \ \ \ prefer\_skip\_nested\_validation=\textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01121}01121\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01122}\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a2e7acd251db64b95c76f1d58792e7848}{01122}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a2e7acd251db64b95c76f1d58792e7848}{fit\_transform}}(self,\ X,\ y=None):}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01123}01123\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Fit\ X\ into\ an\ embedded\ space\ and\ return\ that\ transformed\ output.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01124}01124\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01125}01125\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01126}01126\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01127}01127\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\ :\ \{array-\/like,\ sparse\ matrix\}\ of\ shape\ (n\_samples,\ n\_features)\ or\ \(\backslash\)}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01128}01128\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ (n\_samples,\ n\_samples)}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01129}01129\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ If\ the\ metric\ is\ 'precomputed'\ X\ must\ be\ a\ square\ distance}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01130}01130\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ matrix.\ Otherwise\ it\ contains\ a\ sample\ per\ row.\ If\ the\ method}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01131}01131\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ is\ 'exact',\ X\ may\ be\ a\ sparse\ matrix\ of\ type\ 'csr',\ 'csc'}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01132}01132\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ or\ 'coo'.\ If\ the\ method\ is\ 'barnes\_hut'\ and\ the\ metric\ is}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01133}01133\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ 'precomputed',\ X\ may\ be\ a\ precomputed\ sparse\ graph.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01134}01134\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01135}01135\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ y\ :\ None}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01136}01136\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Ignored.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01137}01137\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01138}01138\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01139}01139\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01140}01140\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\_new\ :\ ndarray\ of\ shape\ (n\_samples,\ n\_components)}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01141}01141\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Embedding\ of\ the\ training\ data\ in\ low-\/dimensional\ space.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01142}01142\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01143}01143\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a0c9054517c52bc5e7339297a6f8f9e02}{\_check\_params\_vs\_input}}(X)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01144}01144\ \ \ \ \ \ \ \ \ embedding\ =\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a060496e1499c4074aaca448a6921afca}{\_fit}}(X)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01145}01145\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_aa8ace68776ef7e8b90c79032d8f05713}{embedding\_}}\ =\ embedding}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01146}01146\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_aa8ace68776ef7e8b90c79032d8f05713}{embedding\_}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01147}01147\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01148}01148\ \ \ \ \ \textcolor{preprocessor}{@\_fit\_context}(}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01149}01149\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ TSNE.metric\ is\ not\ validated\ yet}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01150}01150\ \ \ \ \ \ \ \ \ prefer\_skip\_nested\_validation=\textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01151}01151\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01152}\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a67003e70b7bebc76a3a7fc566e82fb13}{01152}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a67003e70b7bebc76a3a7fc566e82fb13}{fit}}(self,\ X,\ y=None):}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01153}01153\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Fit\ X\ into\ an\ embedded\ space.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01154}01154\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01155}01155\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01156}01156\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01157}01157\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ X\ :\ \{array-\/like,\ sparse\ matrix\}\ of\ shape\ (n\_samples,\ n\_features)\ or\ \(\backslash\)}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01158}01158\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ (n\_samples,\ n\_samples)}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01159}01159\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ If\ the\ metric\ is\ 'precomputed'\ X\ must\ be\ a\ square\ distance}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01160}01160\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ matrix.\ Otherwise\ it\ contains\ a\ sample\ per\ row.\ If\ the\ method}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01161}01161\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ is\ 'exact',\ X\ may\ be\ a\ sparse\ matrix\ of\ type\ 'csr',\ 'csc'}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01162}01162\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ or\ 'coo'.\ If\ the\ method\ is\ 'barnes\_hut'\ and\ the\ metric\ is}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01163}01163\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ 'precomputed',\ X\ may\ be\ a\ precomputed\ sparse\ graph.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01164}01164\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01165}01165\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ y\ :\ None}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01166}01166\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Ignored.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01167}01167\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01168}01168\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01169}01169\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01170}01170\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ self\ :\ object}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01171}01171\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Fitted\ estimator.}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01172}01172\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01173}01173\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1base_1_1TransformerMixin_a39681898f62e68ccdd2df4bbcdb61542}{fit\_transform}}(X)}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01174}01174\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01175}01175\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01176}01176\ \ \ \ \ \textcolor{preprocessor}{@property}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01177}\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_a2cef50c735adb7bfb5cbdb19c5912183}{01177}}\ \ \ \ \ \textcolor{keyword}{def\ }\_n\_features\_out(self):}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01178}01178\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Number\ of\ transformed\ output\ features."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01179}01179\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_aa8ace68776ef7e8b90c79032d8f05713}{embedding\_}}.shape[1]}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01180}01180\ }
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01181}01181\ \ \ \ \ \textcolor{keyword}{def\ }\_\_sklearn\_tags\_\_(self):}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01182}01182\ \ \ \ \ \ \ \ \ tags\ =\ super().\_\_sklearn\_tags\_\_()}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01183}01183\ \ \ \ \ \ \ \ \ tags.input\_tags.pairwise\ =\ self.\mbox{\hyperlink{classsklearn_1_1manifold_1_1__t__sne_1_1TSNE_aeb75f5bbc9a7df12ec7127474b4d1c84}{metric}}\ ==\ \textcolor{stringliteral}{"{}precomputed"{}}}
+\DoxyCodeLine{\Hypertarget{__t__sne_8py_source_l01184}01184\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ tags}
+
+\end{DoxyCode}

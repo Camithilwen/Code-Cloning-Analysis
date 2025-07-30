@@ -1,0 +1,26 @@
+var namespacescipy_1_1signal_1_1tests_1_1test__windows =
+[
+    [ "TestBartHann", "d0/d8e/classscipy_1_1signal_1_1tests_1_1test__windows_1_1TestBartHann.html", null ],
+    [ "TestBartlett", "d1/ddc/classscipy_1_1signal_1_1tests_1_1test__windows_1_1TestBartlett.html", null ],
+    [ "TestBlackman", "d1/dcb/classscipy_1_1signal_1_1tests_1_1test__windows_1_1TestBlackman.html", null ],
+    [ "TestBlackmanHarris", "d9/d9f/classscipy_1_1signal_1_1tests_1_1test__windows_1_1TestBlackmanHarris.html", null ],
+    [ "TestBohman", "db/da6/classscipy_1_1signal_1_1tests_1_1test__windows_1_1TestBohman.html", null ],
+    [ "TestBoxcar", "d2/d7a/classscipy_1_1signal_1_1tests_1_1test__windows_1_1TestBoxcar.html", null ],
+    [ "TestChebWin", "d5/d2b/classscipy_1_1signal_1_1tests_1_1test__windows_1_1TestChebWin.html", null ],
+    [ "TestDPSS", "da/d12/classscipy_1_1signal_1_1tests_1_1test__windows_1_1TestDPSS.html", null ],
+    [ "TestFlatTop", "db/d7f/classscipy_1_1signal_1_1tests_1_1test__windows_1_1TestFlatTop.html", null ],
+    [ "TestGaussian", "d0/d36/classscipy_1_1signal_1_1tests_1_1test__windows_1_1TestGaussian.html", null ],
+    [ "TestGeneralCosine", "d4/de5/classscipy_1_1signal_1_1tests_1_1test__windows_1_1TestGeneralCosine.html", null ],
+    [ "TestGeneralHamming", "dc/d32/classscipy_1_1signal_1_1tests_1_1test__windows_1_1TestGeneralHamming.html", null ],
+    [ "TestGetWindow", "d4/d61/classscipy_1_1signal_1_1tests_1_1test__windows_1_1TestGetWindow.html", null ],
+    [ "TestHamming", "dc/d34/classscipy_1_1signal_1_1tests_1_1test__windows_1_1TestHamming.html", null ],
+    [ "TestHann", "d7/df6/classscipy_1_1signal_1_1tests_1_1test__windows_1_1TestHann.html", null ],
+    [ "TestKaiser", "d0/df2/classscipy_1_1signal_1_1tests_1_1test__windows_1_1TestKaiser.html", null ],
+    [ "TestKaiserBesselDerived", "d1/de5/classscipy_1_1signal_1_1tests_1_1test__windows_1_1TestKaiserBesselDerived.html", null ],
+    [ "TestLanczos", "d6/d0c/classscipy_1_1signal_1_1tests_1_1test__windows_1_1TestLanczos.html", null ],
+    [ "TestNuttall", "d2/df5/classscipy_1_1signal_1_1tests_1_1test__windows_1_1TestNuttall.html", null ],
+    [ "TestParzen", "d3/dec/classscipy_1_1signal_1_1tests_1_1test__windows_1_1TestParzen.html", null ],
+    [ "TestTaylor", "d7/de4/classscipy_1_1signal_1_1tests_1_1test__windows_1_1TestTaylor.html", "d7/de4/classscipy_1_1signal_1_1tests_1_1test__windows_1_1TestTaylor" ],
+    [ "TestTriang", "dc/d51/classscipy_1_1signal_1_1tests_1_1test__windows_1_1TestTriang.html", null ],
+    [ "TestTukey", "d4/df8/classscipy_1_1signal_1_1tests_1_1test__windows_1_1TestTukey.html", null ]
+];

@@ -1,0 +1,624 @@
+\doxysection{\+\_\+newton\+\_\+solver.\+py}
+\hypertarget{__newton__solver_8py_source}{}\label{__newton__solver_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/sklearn/linear\_model/\_glm/\_newton\_solver.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/sklearn/linear\_model/\_glm/\_newton\_solver.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00001}\mbox{\hyperlink{namespacesklearn_1_1linear__model_1_1__glm_1_1__newton__solver}{00001}}\ \textcolor{comment}{\#\ Authors:\ The\ scikit-\/learn\ developers}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00002}00002\ \textcolor{comment}{\#\ SPDX-\/License-\/Identifier:\ BSD-\/3-\/Clause}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00003}00003\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00004}00004\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00005}00005\ \textcolor{stringliteral}{Newton\ solver\ for\ Generalized\ Linear\ Models}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00006}00006\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00007}00007\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00008}00008\ \textcolor{keyword}{import}\ warnings}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00009}00009\ \textcolor{keyword}{from}\ abc\ \textcolor{keyword}{import}\ ABC,\ abstractmethod}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00010}00010\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00011}00011\ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00012}00012\ \textcolor{keyword}{import}\ \mbox{\hyperlink{namespacescipy_1_1linalg}{scipy.linalg}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00013}00013\ \textcolor{keyword}{import}\ \mbox{\hyperlink{namespacescipy_1_1optimize}{scipy.optimize}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00014}00014\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00015}00015\ \textcolor{keyword}{from}\ ...\_loss.loss\ \textcolor{keyword}{import}\ HalfSquaredError}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00016}00016\ \textcolor{keyword}{from}\ ...exceptions\ \textcolor{keyword}{import}\ ConvergenceWarning}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00017}00017\ \textcolor{keyword}{from}\ ...utils.fixes\ \textcolor{keyword}{import}\ \_get\_additional\_lbfgs\_options\_dict}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00018}00018\ \textcolor{keyword}{from}\ ...utils.optimize\ \textcolor{keyword}{import}\ \_check\_optimize\_result}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00019}00019\ \textcolor{keyword}{from}\ ..\_linear\_loss\ \textcolor{keyword}{import}\ LinearModelLoss}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00020}00020\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00021}00021\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00022}\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver}{00022}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver}{NewtonSolver}}(\mbox{\hyperlink{classABC}{ABC}}):}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00023}00023\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Newton\ solver\ for\ GLMs.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00024}00024\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00025}00025\ \textcolor{stringliteral}{\ \ \ \ This\ class\ implements\ Newton/2nd-\/order\ optimization\ routines\ for\ GLMs.\ Each\ Newton}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00026}00026\ \textcolor{stringliteral}{\ \ \ \ iteration\ aims\ at\ finding\ the\ Newton\ step\ which\ is\ done\ by\ the\ inner\ solver.\ With}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00027}00027\ \textcolor{stringliteral}{\ \ \ \ Hessian\ H,\ gradient\ g\ and\ coefficients\ coef,\ one\ step\ solves:}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00028}00028\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00029}00029\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ H\ @\ coef\_newton\ =\ -\/g}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00030}00030\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00031}00031\ \textcolor{stringliteral}{\ \ \ \ For\ our\ GLM\ /\ LinearModelLoss,\ we\ have\ gradient\ g\ and\ Hessian\ H:}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00032}00032\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00033}00033\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ g\ =\ X.T\ @\ loss.gradient\ +\ l2\_reg\_strength\ *\ coef}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00034}00034\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ H\ =\ X.T\ @\ diag(loss.hessian)\ @\ X\ +\ l2\_reg\_strength\ *\ identity}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00035}00035\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00036}00036\ \textcolor{stringliteral}{\ \ \ \ Backtracking\ line\ search\ updates\ coef\ =\ coef\_old\ +\ t\ *\ coef\_newton\ for\ some\ t\ in}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00037}00037\ \textcolor{stringliteral}{\ \ \ \ (0,\ 1].}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00038}00038\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00039}00039\ \textcolor{stringliteral}{\ \ \ \ This\ is\ a\ base\ class,\ actual\ implementations\ (child\ classes)\ may\ deviate\ from\ the}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00040}00040\ \textcolor{stringliteral}{\ \ \ \ above\ pattern\ and\ use\ structure\ specific\ tricks.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00041}00041\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00042}00042\ \textcolor{stringliteral}{\ \ \ \ Usage\ pattern:}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00043}00043\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ initialize\ solver:\ sol\ =\ NewtonSolver(...)}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00044}00044\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ solve\ the\ problem:\ sol.solve(X,\ y,\ sample\_weight)}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00045}00045\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00046}00046\ \textcolor{stringliteral}{\ \ \ \ References}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00047}00047\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00048}00048\ \textcolor{stringliteral}{\ \ \ \ -\/\ Jorge\ Nocedal,\ Stephen\ J.\ Wright.\ (2006)\ "{}Numerical\ Optimization"{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00049}00049\ \textcolor{stringliteral}{\ \ \ \ \ \ 2nd\ edition}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00050}00050\ \textcolor{stringliteral}{\ \ \ \ \ \ https://doi.org/10.1007/978-\/0-\/387-\/40065-\/5}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00051}00051\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00052}00052\ \textcolor{stringliteral}{\ \ \ \ -\/\ Stephen\ P.\ Boyd,\ Lieven\ Vandenberghe.\ (2004)\ "{}Convex\ Optimization."{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00053}00053\ \textcolor{stringliteral}{\ \ \ \ \ \ Cambridge\ University\ Press,\ 2004.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00054}00054\ \textcolor{stringliteral}{\ \ \ \ \ \ https://web.stanford.edu/\string~boyd/cvxbook/bv\_cvxbook.pdf}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00055}00055\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00056}00056\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00057}00057\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00058}00058\ \textcolor{stringliteral}{\ \ \ \ coef\ :\ ndarray\ of\ shape\ (n\_dof,),\ (n\_classes,\ n\_dof)\ or\ (n\_classes\ *\ n\_dof,)}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00059}00059\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Initial\ coefficients\ of\ a\ linear\ model.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00060}00060\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ shape\ (n\_classes\ *\ n\_dof,),\ the\ classes\ of\ one\ feature\ are\ contiguous,}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00061}00061\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ i.e.\ one\ reconstructs\ the\ 2d-\/array\ via}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00062}00062\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ coef.reshape((n\_classes,\ -\/1),\ order="{}F"{}).}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00063}00063\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00064}00064\ \textcolor{stringliteral}{\ \ \ \ linear\_loss\ :\ LinearModelLoss}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00065}00065\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ loss\ to\ be\ minimized.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00066}00066\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00067}00067\ \textcolor{stringliteral}{\ \ \ \ l2\_reg\_strength\ :\ float,\ default=0.0}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00068}00068\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ L2\ regularization\ strength.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00069}00069\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00070}00070\ \textcolor{stringliteral}{\ \ \ \ tol\ :\ float,\ default=1e-\/4}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00071}00071\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ optimization\ problem\ is\ solved\ when\ each\ of\ the\ following\ condition\ is}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00072}00072\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ fulfilled:}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00073}00073\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 1.\ maximum\ |gradient|\ <=\ tol}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00074}00074\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 2.\ Newton\ decrement\ d:\ 1/2\ *\ d\string^2\ <=\ tol}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00075}00075\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00076}00076\ \textcolor{stringliteral}{\ \ \ \ max\_iter\ :\ int,\ default=100}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00077}00077\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Maximum\ number\ of\ Newton\ steps\ allowed.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00078}00078\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00079}00079\ \textcolor{stringliteral}{\ \ \ \ n\_threads\ :\ int,\ default=1}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00080}00080\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ OpenMP\ threads\ to\ use\ for\ the\ computation\ of\ the\ Hessian\ and\ gradient}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00081}00081\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ of\ the\ loss\ function.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00082}00082\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00083}00083\ \textcolor{stringliteral}{\ \ \ \ Attributes}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00084}00084\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00085}00085\ \textcolor{stringliteral}{\ \ \ \ coef\_old\ :\ ndarray\ of\ shape\ coef.shape}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00086}00086\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Coefficient\ of\ previous\ iteration.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00087}00087\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00088}00088\ \textcolor{stringliteral}{\ \ \ \ coef\_newton\ :\ ndarray\ of\ shape\ coef.shape}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00089}00089\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Newton\ step.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00090}00090\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00091}00091\ \textcolor{stringliteral}{\ \ \ \ gradient\ :\ ndarray\ of\ shape\ coef.shape}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00092}00092\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Gradient\ of\ the\ loss\ w.r.t.\ the\ coefficients.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00093}00093\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00094}00094\ \textcolor{stringliteral}{\ \ \ \ gradient\_old\ :\ ndarray\ of\ shape\ coef.shape}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00095}00095\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Gradient\ of\ previous\ iteration.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00096}00096\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00097}00097\ \textcolor{stringliteral}{\ \ \ \ loss\_value\ :\ float}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00098}00098\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Value\ of\ objective\ function\ =\ loss\ +\ penalty.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00099}00099\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00100}00100\ \textcolor{stringliteral}{\ \ \ \ loss\_value\_old\ :\ float}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00101}00101\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Value\ of\ objective\ function\ of\ previous\ itertion.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00102}00102\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00103}00103\ \textcolor{stringliteral}{\ \ \ \ raw\_prediction\ :\ ndarray\ of\ shape\ (n\_samples,)\ or\ (n\_samples,\ n\_classes)}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00104}00104\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00105}00105\ \textcolor{stringliteral}{\ \ \ \ converged\ :\ bool}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00106}00106\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Indicator\ for\ convergence\ of\ the\ solver.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00107}00107\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00108}00108\ \textcolor{stringliteral}{\ \ \ \ iteration\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00109}00109\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ Newton\ steps,\ i.e.\ calls\ to\ inner\_solve}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00110}00110\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00111}00111\ \textcolor{stringliteral}{\ \ \ \ use\_fallback\_lbfgs\_solve\ :\ bool}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00112}00112\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ set\ to\ True,\ the\ solver\ will\ resort\ to\ call\ LBFGS\ to\ finish\ the\ optimisation}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00113}00113\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ procedure\ in\ case\ of\ convergence\ issues.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00114}00114\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00115}00115\ \textcolor{stringliteral}{\ \ \ \ gradient\_times\_newton\ :\ float}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00116}00116\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ gradient\ @\ coef\_newton,\ set\ in\ inner\_solve\ and\ used\ by\ line\_search.\ If\ the}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00117}00117\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Newton\ step\ is\ a\ descent\ direction,\ this\ is\ negative.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00118}00118\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00119}00119\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00120}00120\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00121}00121\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00122}00122\ \ \ \ \ \ \ \ \ *,}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00123}00123\ \ \ \ \ \ \ \ \ coef,}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00124}00124\ \ \ \ \ \ \ \ \ linear\_loss=LinearModelLoss(base\_loss=\mbox{\hyperlink{classsklearn_1_1__loss_1_1loss_1_1HalfSquaredError}{HalfSquaredError}}(),\ fit\_intercept=\textcolor{keyword}{True}),}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00125}00125\ \ \ \ \ \ \ \ \ l2\_reg\_strength=0.0,}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00126}00126\ \ \ \ \ \ \ \ \ tol=1e-\/4,}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00127}00127\ \ \ \ \ \ \ \ \ max\_iter=100,}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00128}00128\ \ \ \ \ \ \ \ \ n\_threads=1,}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00129}00129\ \ \ \ \ \ \ \ \ verbose=0,}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00130}00130\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00131}00131\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_ae736ceaa4a8c890b71fff1dbdf97c0b4}{coef}}\ =\ coef}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00132}00132\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_aa67fd00d91accf59e020316d3598f7b5}{linear\_loss}}\ =\ linear\_loss}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00133}00133\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_aec1bc58cdcba99dff2ee78b5fb912536}{l2\_reg\_strength}}\ =\ l2\_reg\_strength}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00134}00134\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a21ce26ae6cf5285ac160a36e86a0bc52}{tol}}\ =\ tol}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00135}00135\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a5a83bef9fdedb14e56e0ef8ee2675339}{max\_iter}}\ =\ max\_iter}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00136}00136\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a276efa3ddde4a9aa74379488f036d228}{n\_threads}}\ =\ n\_threads}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00137}00137\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_aae63e7e9c76f8951d00635266c567ed7}{verbose}}\ =\ verbose}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00138}00138\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00139}\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a018f263e5b5c4ebdbfcd74ab09a7b8f5}{00139}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesetup}{setup}}(self,\ X,\ y,\ sample\_weight):}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00140}00140\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Precomputations}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00141}00141\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00142}00142\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ None,\ initializes:}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00143}00143\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ -\/\ self.coef}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00144}00144\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Sets:}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00145}00145\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ -\/\ self.raw\_prediction}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00146}00146\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ -\/\ self.loss\_value}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00147}00147\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00148}00148\ \ \ \ \ \ \ \ \ \_,\ \_,\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a2f969626bf7f84185e36a898fac035be}{raw\_prediction}}\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_aa67fd00d91accf59e020316d3598f7b5}{linear\_loss}}.weight\_intercept\_raw(self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_ae736ceaa4a8c890b71fff1dbdf97c0b4}{coef}},\ X)}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00149}00149\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a91d4f6fb67bcbfc01b0c7d88bef31eba}{loss\_value}}\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_aa67fd00d91accf59e020316d3598f7b5}{linear\_loss}}.loss(}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00150}00150\ \ \ \ \ \ \ \ \ \ \ \ \ coef=self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_ae736ceaa4a8c890b71fff1dbdf97c0b4}{coef}},}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00151}00151\ \ \ \ \ \ \ \ \ \ \ \ \ X=X,}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00152}00152\ \ \ \ \ \ \ \ \ \ \ \ \ y=y,}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00153}00153\ \ \ \ \ \ \ \ \ \ \ \ \ sample\_weight=sample\_weight,}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00154}00154\ \ \ \ \ \ \ \ \ \ \ \ \ l2\_reg\_strength=self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_aec1bc58cdcba99dff2ee78b5fb912536}{l2\_reg\_strength}},}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00155}00155\ \ \ \ \ \ \ \ \ \ \ \ \ n\_threads=self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a276efa3ddde4a9aa74379488f036d228}{n\_threads}},}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00156}00156\ \ \ \ \ \ \ \ \ \ \ \ \ raw\_prediction=self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a2f969626bf7f84185e36a898fac035be}{raw\_prediction}},}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00157}00157\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00158}00158\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00159}00159\ \ \ \ \ \textcolor{preprocessor}{@abstractmethod}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00160}\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a6cc27f40afa980a9998f93a31f01d7b3}{00160}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a6cc27f40afa980a9998f93a31f01d7b3}{update\_gradient\_hessian}}(self,\ X,\ y,\ sample\_weight):}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00161}00161\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Update\ gradient\ and\ Hessian."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00162}00162\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00163}00163\ \ \ \ \ \textcolor{preprocessor}{@abstractmethod}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00164}\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a77173954401dccc4ef6851055373bcc7}{00164}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a77173954401dccc4ef6851055373bcc7}{inner\_solve}}(self,\ X,\ y,\ sample\_weight):}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00165}00165\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Compute\ Newton\ step.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00166}00166\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00167}00167\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Sets:}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00168}00168\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ -\/\ self.coef\_newton}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00169}00169\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ -\/\ self.gradient\_times\_newton}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00170}00170\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00171}00171\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00172}\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_ae6be0a16666e17d07d9e5bdf48a87db6}{00172}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_ae6be0a16666e17d07d9e5bdf48a87db6}{fallback\_lbfgs\_solve}}(self,\ X,\ y,\ sample\_weight):}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00173}00173\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Fallback\ solver\ in\ case\ of\ emergency.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00174}00174\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00175}00175\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ a\ solver\ detects\ convergence\ problems,\ it\ may\ fall\ back\ to\ this\ methods\ in}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00176}00176\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ hope\ to\ exit\ with\ success\ instead\ of\ raising\ an\ error.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00177}00177\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00178}00178\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Sets:}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00179}00179\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ -\/\ self.coef}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00180}00180\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ -\/\ self.converged}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00181}00181\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00182}00182\ \ \ \ \ \ \ \ \ max\_iter\ =\ self.max\_iter\ -\/\ self.iteration}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00183}00183\ \ \ \ \ \ \ \ \ opt\_res\ =\ scipy.optimize.minimize(}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00184}00184\ \ \ \ \ \ \ \ \ \ \ \ \ self.linear\_loss.loss\_gradient,}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00185}00185\ \ \ \ \ \ \ \ \ \ \ \ \ self.coef,}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00186}00186\ \ \ \ \ \ \ \ \ \ \ \ \ method=\textcolor{stringliteral}{"{}L-\/BFGS-\/B"{}},}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00187}00187\ \ \ \ \ \ \ \ \ \ \ \ \ jac=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00188}00188\ \ \ \ \ \ \ \ \ \ \ \ \ options=\{}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00189}00189\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}maxiter"{}}:\ max\_iter,}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00190}00190\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}maxls"{}}:\ 50,\ \ \textcolor{comment}{\#\ default\ is\ 20}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00191}00191\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}gtol"{}}:\ self.tol,}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00192}00192\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}ftol"{}}:\ 64\ *\ np.finfo(np.float64).eps,}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00193}00193\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ **\_get\_additional\_lbfgs\_options\_dict(\textcolor{stringliteral}{"{}iprint"{}},\ self.verbose\ -\/\ 1),}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00194}00194\ \ \ \ \ \ \ \ \ \ \ \ \ \},}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00195}00195\ \ \ \ \ \ \ \ \ \ \ \ \ args=(X,\ y,\ sample\_weight,\ self.l2\_reg\_strength,\ self.n\_threads),}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00196}00196\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00197}00197\ \ \ \ \ \ \ \ \ self.iteration\ +=\ \_check\_optimize\_result(\textcolor{stringliteral}{"{}lbfgs"{}},\ opt\_res,\ max\_iter=max\_iter)}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00198}00198\ \ \ \ \ \ \ \ \ self.coef\ =\ opt\_res.x}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00199}00199\ \ \ \ \ \ \ \ \ self.converged\ =\ opt\_res.status\ ==\ 0}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00200}00200\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00201}\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a946740cb5aed60da08065c7d155091b0}{00201}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a946740cb5aed60da08065c7d155091b0}{line\_search}}(self,\ X,\ y,\ sample\_weight):}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00202}00202\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Backtracking\ line\ search.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00203}00203\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00204}00204\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Sets:}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00205}00205\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ -\/\ self.coef\_old}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00206}00206\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ -\/\ self.coef}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00207}00207\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ -\/\ self.loss\_value\_old}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00208}00208\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ -\/\ self.loss\_value}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00209}00209\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ -\/\ self.gradient\_old}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00210}00210\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ -\/\ self.gradient}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00211}00211\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ -\/\ self.raw\_prediction}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00212}00212\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00213}00213\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ line\ search\ parameters}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00214}00214\ \ \ \ \ \ \ \ \ beta,\ sigma\ =\ 0.5,\ 0.00048828125\ \ \textcolor{comment}{\#\ 1/2,\ 1/2**11}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00215}00215\ \ \ \ \ \ \ \ \ eps\ =\ 16\ *\ np.finfo(self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a91d4f6fb67bcbfc01b0c7d88bef31eba}{loss\_value}}.dtype).eps}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00216}00216\ \ \ \ \ \ \ \ \ t\ =\ 1\ \ \textcolor{comment}{\#\ step\ size}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00217}00217\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00218}00218\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ gradient\_times\_newton\ =\ self.gradient\ @\ self.coef\_newton}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00219}00219\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ was\ computed\ in\ inner\_solve.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00220}00220\ \ \ \ \ \ \ \ \ armijo\_term\ =\ sigma\ *\ self.gradient\_times\_newton}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00221}00221\ \ \ \ \ \ \ \ \ \_,\ \_,\ raw\_prediction\_newton\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_aa67fd00d91accf59e020316d3598f7b5}{linear\_loss}}.weight\_intercept\_raw(}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00222}00222\ \ \ \ \ \ \ \ \ \ \ \ \ self.coef\_newton,\ X}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00223}00223\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00224}00224\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00225}00225\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a34604298154642715bbafae73fb780d7}{coef\_old}}\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_ae736ceaa4a8c890b71fff1dbdf97c0b4}{coef}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00226}00226\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a3e951814675c32a90054aefd96a3669e}{loss\_value\_old}}\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a91d4f6fb67bcbfc01b0c7d88bef31eba}{loss\_value}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00227}00227\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a5da6908ca8f3d9be1768f3958a238c39}{gradient\_old}}\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a10fef40919e04bb3e4d71d8ea728093d}{gradient}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00228}00228\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00229}00229\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ np.sum(np.abs(self.gradient\_old))}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00230}00230\ \ \ \ \ \ \ \ \ sum\_abs\_grad\_old\ =\ -\/1}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00231}00231\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00232}00232\ \ \ \ \ \ \ \ \ is\_verbose\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_aae63e7e9c76f8951d00635266c567ed7}{verbose}}\ >=\ 2}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00233}00233\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ is\_verbose:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00234}00234\ \ \ \ \ \ \ \ \ \ \ \ \ print(\textcolor{stringliteral}{"{}\ \ Backtracking\ Line\ Search"{}})}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00235}00235\ \ \ \ \ \ \ \ \ \ \ \ \ print(f\textcolor{stringliteral}{"{}\ \ \ \ eps=16\ *\ finfo.eps=\{eps\}"{}})}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00236}00236\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00237}00237\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(21):\ \ \textcolor{comment}{\#\ until\ and\ including\ t\ =\ beta**20\ \string~\ 1e-\/6}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00238}00238\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_ae736ceaa4a8c890b71fff1dbdf97c0b4}{coef}}\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a34604298154642715bbafae73fb780d7}{coef\_old}}\ +\ t\ *\ self.coef\_newton}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00239}00239\ \ \ \ \ \ \ \ \ \ \ \ \ raw\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a2f969626bf7f84185e36a898fac035be}{raw\_prediction}}\ +\ t\ *\ raw\_prediction\_newton}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00240}00240\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a91d4f6fb67bcbfc01b0c7d88bef31eba}{loss\_value}},\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a10fef40919e04bb3e4d71d8ea728093d}{gradient}}\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_aa67fd00d91accf59e020316d3598f7b5}{linear\_loss}}.loss\_gradient(}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00241}00241\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ coef=self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_ae736ceaa4a8c890b71fff1dbdf97c0b4}{coef}},}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00242}00242\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ X=X,}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00243}00243\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ y=y,}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00244}00244\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ sample\_weight=sample\_weight,}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00245}00245\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ l2\_reg\_strength=self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_aec1bc58cdcba99dff2ee78b5fb912536}{l2\_reg\_strength}},}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00246}00246\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ n\_threads=self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a276efa3ddde4a9aa74379488f036d228}{n\_threads}},}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00247}00247\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ raw\_prediction=raw,}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00248}00248\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00249}00249\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Note:\ If\ coef\_newton\ is\ too\ large,\ loss\_gradient\ may\ produce\ inf\ values,}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00250}00250\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ potentially\ accompanied\ by\ a\ RuntimeWarning.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00251}00251\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ This\ case\ will\ be\ captured\ by\ the\ Armijo\ condition.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00252}00252\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00253}00253\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ 1.\ Check\ Armijo\ /\ sufficient\ decrease\ condition.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00254}00254\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ smaller\ (more\ negative)\ the\ better.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00255}00255\ \ \ \ \ \ \ \ \ \ \ \ \ loss\_improvement\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a91d4f6fb67bcbfc01b0c7d88bef31eba}{loss\_value}}\ -\/\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a3e951814675c32a90054aefd96a3669e}{loss\_value\_old}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00256}00256\ \ \ \ \ \ \ \ \ \ \ \ \ check\ =\ loss\_improvement\ <=\ t\ *\ armijo\_term}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00257}00257\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ is\_verbose:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00258}00258\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00259}00259\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\ \ \ \ line\ search\ iteration=\{i\ +\ 1\},\ step\ size=\{t\}\(\backslash\)n"{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00260}00260\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\ \ \ \ \ \ check\ loss\ improvement\ <=\ armijo\ term:\ \{loss\_improvement\}\ "{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00261}00261\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}<=\ \{t\ *\ armijo\_term\}\ \{check\}"{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00262}00262\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00263}00263\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ check:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00264}00264\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00265}00265\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ 2.\ Deal\ with\ relative\ loss\ differences\ around\ machine\ precision.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00266}00266\ \ \ \ \ \ \ \ \ \ \ \ \ tiny\_loss\ =\ np.abs(self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a3e951814675c32a90054aefd96a3669e}{loss\_value\_old}}\ *\ eps)}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00267}00267\ \ \ \ \ \ \ \ \ \ \ \ \ check\ =\ np.abs(loss\_improvement)\ <=\ tiny\_loss}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00268}00268\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ is\_verbose:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00269}00269\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00270}00270\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ \ \ \ \ \ check\ loss\ |improvement|\ <=\ eps\ *\ |loss\_old|:"{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00271}00271\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\ \{np.abs(loss\_improvement)\}\ <=\ \{tiny\_loss\}\ \{check\}"{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00272}00272\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00273}00273\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ check:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00274}00274\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ sum\_abs\_grad\_old\ <\ 0:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00275}00275\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ sum\_abs\_grad\_old\ =\ scipy.linalg.norm(self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a5da6908ca8f3d9be1768f3958a238c39}{gradient\_old}},\ ord=1)}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00276}00276\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ 2.1\ Check\ sum\ of\ absolute\ gradients\ as\ alternative\ condition.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00277}00277\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ sum\_abs\_grad\ =\ scipy.linalg.norm(self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a10fef40919e04bb3e4d71d8ea728093d}{gradient}},\ ord=1)}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00278}00278\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ check\ =\ sum\_abs\_grad\ <\ sum\_abs\_grad\_old}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00279}00279\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ is\_verbose:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00280}00280\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00281}00281\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ \ \ \ \ \ check\ sum(|gradient|)\ <\ sum(|gradient\_old|):\ "{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00282}00282\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\{sum\_abs\_grad\}\ <\ \{sum\_abs\_grad\_old\}\ \{check\}"{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00283}00283\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00284}00284\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ check:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00285}00285\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00286}00286\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00287}00287\ \ \ \ \ \ \ \ \ \ \ \ \ t\ *=\ beta}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00288}00288\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00289}00289\ \ \ \ \ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00290}00290\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00291}00291\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}Line\ search\ of\ Newton\ solver\ \{self.\_\_class\_\_.\_\_name\_\_\}\ at"{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00292}00292\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\ iteration\ \#\{self.iteration\}\ did\ no\ converge\ after\ 21\ line\ search"{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00293}00293\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ refinement\ iterations.\ It\ will\ now\ resort\ to\ lbfgs\ instead."{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00294}00294\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00295}00295\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ConvergenceWarning,}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00296}00296\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00297}00297\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_aae63e7e9c76f8951d00635266c567ed7}{verbose}}:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00298}00298\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(\textcolor{stringliteral}{"{}\ \ Line\ search\ did\ not\ converge\ and\ resorts\ to\ lbfgs\ instead."{}})}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00299}00299\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a20bb53f3072324ea22903b967ff40938}{use\_fallback\_lbfgs\_solve}}\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00300}00300\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00301}00301\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00302}00302\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a2f969626bf7f84185e36a898fac035be}{raw\_prediction}}\ =\ raw}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00303}00303\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ is\_verbose:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00304}00304\ \ \ \ \ \ \ \ \ \ \ \ \ print(}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00305}00305\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\ \ \ \ line\ search\ successful\ after\ \{i\ +\ 1\}\ iterations\ with\ "{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00306}00306\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}loss=\{self.loss\_value\}."{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00307}00307\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00308}00308\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00309}\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a7e2afd84fb188695300dcc2dd1327215}{00309}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a7e2afd84fb188695300dcc2dd1327215}{check\_convergence}}(self,\ X,\ y,\ sample\_weight):}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00310}00310\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Check\ for\ convergence.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00311}00311\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00312}00312\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Sets\ self.converged.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00313}00313\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00314}00314\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_aae63e7e9c76f8951d00635266c567ed7}{verbose}}:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00315}00315\ \ \ \ \ \ \ \ \ \ \ \ \ print(\textcolor{stringliteral}{"{}\ \ Check\ Convergence"{}})}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00316}00316\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Note:\ Checking\ maximum\ relative\ change\ of\ coefficient\ <=\ tol\ is\ a\ bad}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00317}00317\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ convergence\ criterion\ because\ even\ a\ large\ step\ could\ have\ brought\ us\ close}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00318}00318\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ to\ the\ true\ minimum.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00319}00319\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ coef\_step\ =\ self.coef\ -\/\ self.coef\_old}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00320}00320\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ change\ =\ np.max(np.abs(coef\_step)\ /\ np.maximum(1,\ np.abs(self.coef\_old)))}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00321}00321\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ check\ =\ change\ <=\ tol}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00322}00322\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00323}00323\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ 1.\ Criterion:\ maximum\ |gradient|\ <=\ tol}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00324}00324\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ The\ gradient\ was\ already\ updated\ in\ line\_search()}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00325}00325\ \ \ \ \ \ \ \ \ g\_max\_abs\ =\ np.max(np.abs(self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a10fef40919e04bb3e4d71d8ea728093d}{gradient}}))}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00326}00326\ \ \ \ \ \ \ \ \ check\ =\ g\_max\_abs\ <=\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a21ce26ae6cf5285ac160a36e86a0bc52}{tol}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00327}00327\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_aae63e7e9c76f8951d00635266c567ed7}{verbose}}:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00328}00328\ \ \ \ \ \ \ \ \ \ \ \ \ print(f\textcolor{stringliteral}{"{}\ \ \ \ 1.\ max\ |gradient|\ \{g\_max\_abs\}\ <=\ \{self.tol\}\ \{check\}"{}})}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00329}00329\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ check:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00330}00330\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00331}00331\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00332}00332\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ 2.\ Criterion:\ For\ Newton\ decrement\ d,\ check\ 1/2\ *\ d\string^2\ <=\ tol}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00333}00333\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ \ \ \ d\ =\ sqrt(grad\ @\ hessian\string^-\/1\ @\ grad)}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00334}00334\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ \ \ \ \ \ =\ sqrt(coef\_newton\ @\ hessian\ @\ coef\_newton)}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00335}00335\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ See\ Boyd,\ Vanderberghe\ (2009)\ "{}Convex\ Optimization"{}\ Chapter\ 9.5.1.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00336}00336\ \ \ \ \ \ \ \ \ d2\ =\ self.coef\_newton\ @\ self.hessian\ @\ self.coef\_newton}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00337}00337\ \ \ \ \ \ \ \ \ check\ =\ 0.5\ *\ d2\ <=\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a21ce26ae6cf5285ac160a36e86a0bc52}{tol}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00338}00338\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_aae63e7e9c76f8951d00635266c567ed7}{verbose}}:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00339}00339\ \ \ \ \ \ \ \ \ \ \ \ \ print(f\textcolor{stringliteral}{"{}\ \ \ \ 2.\ Newton\ decrement\ \{0.5\ *\ d2\}\ <=\ \{self.tol\}\ \{check\}"{}})}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00340}00340\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ check:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00341}00341\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00342}00342\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00343}00343\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_aae63e7e9c76f8951d00635266c567ed7}{verbose}}:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00344}00344\ \ \ \ \ \ \ \ \ \ \ \ \ loss\_value\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_aa67fd00d91accf59e020316d3598f7b5}{linear\_loss}}.loss(}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00345}00345\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ coef=self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_ae736ceaa4a8c890b71fff1dbdf97c0b4}{coef}},}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00346}00346\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ X=X,}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00347}00347\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ y=y,}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00348}00348\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ sample\_weight=sample\_weight,}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00349}00349\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ l2\_reg\_strength=self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_aec1bc58cdcba99dff2ee78b5fb912536}{l2\_reg\_strength}},}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00350}00350\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ n\_threads=self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a276efa3ddde4a9aa74379488f036d228}{n\_threads}},}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00351}00351\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00352}00352\ \ \ \ \ \ \ \ \ \ \ \ \ print(f\textcolor{stringliteral}{"{}\ \ Solver\ did\ converge\ at\ loss\ =\ \{loss\_value\}."{}})}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00353}00353\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a979025f2408b3584df78d656468fbe2d}{converged}}\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00354}00354\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00355}\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a19fb3857506122739a96953a76fdc568}{00355}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a19fb3857506122739a96953a76fdc568}{finalize}}(self,\ X,\ y,\ sample\_weight):}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00356}00356\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Finalize\ the\ solvers\ results.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00357}00357\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00358}00358\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Some\ solvers\ may\ need\ this,\ others\ not.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00359}00359\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00360}00360\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{pass}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00361}00361\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00362}\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_abfc89a4ddae3c65326782f96b8fcf7e2}{00362}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_abfc89a4ddae3c65326782f96b8fcf7e2}{solve}}(self,\ X,\ y,\ sample\_weight):}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00363}00363\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Solve\ the\ optimization\ problem.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00364}00364\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00365}00365\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ This\ is\ the\ main\ routine.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00366}00366\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00367}00367\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Order\ of\ calls:}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00368}00368\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ self.setup()}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00369}00369\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ while\ iteration:}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00370}00370\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.update\_gradient\_hessian()}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00371}00371\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.inner\_solve()}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00372}00372\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.line\_search()}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00373}00373\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.check\_convergence()}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00374}00374\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ self.finalize()}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00375}00375\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00376}00376\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00377}00377\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00378}00378\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ coef\ :\ ndarray\ of\ shape\ (n\_dof,),\ (n\_classes,\ n\_dof)\ or\ (n\_classes\ *\ n\_dof,)}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00379}00379\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Solution\ of\ the\ optimization\ problem.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00380}00380\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00381}00381\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ setup\ usually:}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00382}00382\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ -\/\ initializes\ self.coef\ if\ needed}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00383}00383\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ -\/\ initializes\ and\ calculates\ self.raw\_predictions,\ self.loss\_value}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00384}00384\ \ \ \ \ \ \ \ \ self.setup(X=X,\ y=y,\ sample\_weight=sample\_weight)}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00385}00385\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00386}00386\ \ \ \ \ \ \ \ \ self.iteration\ =\ 1}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00387}00387\ \ \ \ \ \ \ \ \ self.converged\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00388}00388\ \ \ \ \ \ \ \ \ self.use\_fallback\_lbfgs\_solve\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00389}00389\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00390}00390\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{while}\ self.iteration\ <=\ self.max\_iter\ \textcolor{keywordflow}{and}\ \textcolor{keywordflow}{not}\ self.converged:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00391}00391\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.verbose:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00392}00392\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(f\textcolor{stringliteral}{"{}Newton\ iter=\{self.iteration\}"{}})}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00393}00393\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00394}00394\ \ \ \ \ \ \ \ \ \ \ \ \ self.use\_fallback\_lbfgs\_solve\ =\ \textcolor{keyword}{False}\ \ \textcolor{comment}{\#\ Fallback\ solver.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00395}00395\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00396}00396\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ 1.\ Update\ Hessian\ and\ gradient}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00397}00397\ \ \ \ \ \ \ \ \ \ \ \ \ self.update\_gradient\_hessian(X=X,\ y=y,\ sample\_weight=sample\_weight)}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00398}00398\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00399}00399\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ TODO:}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00400}00400\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ if\ iteration\ ==\ 1:}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00401}00401\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ We\ might\ stop\ early,\ e.g.\ we\ already\ are\ close\ to\ the\ optimum,}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00402}00402\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ usually\ detected\ by\ zero\ gradients\ at\ this\ stage.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00403}00403\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00404}00404\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ 2.\ Inner\ solver}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00405}00405\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ Calculate\ Newton\ step/direction}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00406}00406\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ This\ usually\ sets\ self.coef\_newton\ and\ self.gradient\_times\_newton.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00407}00407\ \ \ \ \ \ \ \ \ \ \ \ \ self.inner\_solve(X=X,\ y=y,\ sample\_weight=sample\_weight)}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00408}00408\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.use\_fallback\_lbfgs\_solve:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00409}00409\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00410}00410\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00411}00411\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ 3.\ Backtracking\ line\ search}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00412}00412\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ This\ usually\ sets\ self.coef\_old,\ self.coef,\ self.loss\_value\_old}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00413}00413\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ self.loss\_value,\ self.gradient\_old,\ self.gradient,}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00414}00414\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ self.raw\_prediction.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00415}00415\ \ \ \ \ \ \ \ \ \ \ \ \ self.line\_search(X=X,\ y=y,\ sample\_weight=sample\_weight)}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00416}00416\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.use\_fallback\_lbfgs\_solve:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00417}00417\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00418}00418\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00419}00419\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ 4.\ Check\ convergence}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00420}00420\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ Sets\ self.converged.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00421}00421\ \ \ \ \ \ \ \ \ \ \ \ \ self.check\_convergence(X=X,\ y=y,\ sample\_weight=sample\_weight)}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00422}00422\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00423}00423\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ 5.\ Next\ iteration}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00424}00424\ \ \ \ \ \ \ \ \ \ \ \ \ self.iteration\ +=\ 1}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00425}00425\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00426}00426\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ self.converged:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00427}00427\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.use\_fallback\_lbfgs\_solve:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00428}00428\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Note:\ The\ fallback\ solver\ circumvents\ check\_convergence\ and\ relies\ on}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00429}00429\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ the\ convergence\ checks\ of\ lbfgs\ instead.\ Enough\ warnings\ have\ been}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00430}00430\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ raised\ on\ the\ way.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00431}00431\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.fallback\_lbfgs\_solve(X=X,\ y=y,\ sample\_weight=sample\_weight)}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00432}00432\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00433}00433\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00434}00434\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00435}00435\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}Newton\ solver\ did\ not\ converge\ after\ \{self.iteration\ -\/\ 1\}\ "{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00436}00436\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}iterations."{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00437}00437\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00438}00438\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ConvergenceWarning,}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00439}00439\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00440}00440\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00441}00441\ \ \ \ \ \ \ \ \ self.iteration\ -\/=\ 1}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00442}00442\ \ \ \ \ \ \ \ \ self.finalize(X=X,\ y=y,\ sample\_weight=sample\_weight)}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00443}00443\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.coef}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00444}00444\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00445}00445\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00446}\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonCholeskySolver}{00446}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonCholeskySolver}{NewtonCholeskySolver}}(\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver}{NewtonSolver}}):}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00447}00447\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Cholesky\ based\ Newton\ solver.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00448}00448\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00449}00449\ \textcolor{stringliteral}{\ \ \ \ Inner\ solver\ for\ finding\ the\ Newton\ step\ H\ w\_newton\ =\ -\/g\ uses\ Cholesky\ based\ linear}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00450}00450\ \textcolor{stringliteral}{\ \ \ \ solver.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00451}00451\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00452}00452\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00453}\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonCholeskySolver_acccf448cd64f3a122f8c52c8ecb8c254}{00453}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesetup}{setup}}(self,\ X,\ y,\ sample\_weight):}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00454}00454\ \ \ \ \ \ \ \ \ super().\mbox{\hyperlink{namespacesetup}{setup}}(X=X,\ y=y,\ sample\_weight=sample\_weight)}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00455}00455\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_aa67fd00d91accf59e020316d3598f7b5}{linear\_loss}}.base\_loss.is\_multiclass:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00456}00456\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Easier\ with\ ravelled\ arrays,\ e.g.,\ for\ scipy.linalg.solve.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00457}00457\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ As\ with\ LinearModelLoss,\ we\ always\ are\ contiguous\ in\ n\_classes.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00458}00458\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_ae736ceaa4a8c890b71fff1dbdf97c0b4}{coef}}\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_ae736ceaa4a8c890b71fff1dbdf97c0b4}{coef}}.ravel(order=\textcolor{stringliteral}{"{}F"{}})}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00459}00459\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Note\ that\ the\ computation\ of\ gradient\ in\ LinearModelLoss\ follows\ the\ shape\ of}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00460}00460\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ coef.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00461}00461\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a10fef40919e04bb3e4d71d8ea728093d}{gradient}}\ =\ np.empty\_like(self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_ae736ceaa4a8c890b71fff1dbdf97c0b4}{coef}})}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00462}00462\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ But\ the\ hessian\ is\ always\ 2d.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00463}00463\ \ \ \ \ \ \ \ \ n\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_ae736ceaa4a8c890b71fff1dbdf97c0b4}{coef}}.size}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00464}00464\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonCholeskySolver_a34875d6dfc2f36987f61b6212607ef96}{hessian}}\ =\ np.empty\_like(self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_ae736ceaa4a8c890b71fff1dbdf97c0b4}{coef}},\ shape=(n,\ n))}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00465}00465\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ To\ help\ case\ distinctions.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00466}00466\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonCholeskySolver_afa0c3412b27116a97bf24e8fc4ffa38b}{is\_multinomial\_with\_intercept}}\ =\ (}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00467}00467\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_aa67fd00d91accf59e020316d3598f7b5}{linear\_loss}}.base\_loss.is\_multiclass\ \textcolor{keywordflow}{and}\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_aa67fd00d91accf59e020316d3598f7b5}{linear\_loss}}.fit\_intercept}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00468}00468\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00469}00469\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonCholeskySolver_a1abc72ddd917e694e28cddf224cb2d6d}{is\_multinomial\_no\_penalty}}\ =\ (}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00470}00470\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_aa67fd00d91accf59e020316d3598f7b5}{linear\_loss}}.base\_loss.is\_multiclass\ \textcolor{keywordflow}{and}\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_aec1bc58cdcba99dff2ee78b5fb912536}{l2\_reg\_strength}}\ ==\ 0}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00471}00471\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00472}00472\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00473}\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonCholeskySolver_a4ea666421425aef211d6d01fe99829f8}{00473}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonCholeskySolver_a4ea666421425aef211d6d01fe99829f8}{update\_gradient\_hessian}}(self,\ X,\ y,\ sample\_weight):}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00474}00474\ \ \ \ \ \ \ \ \ \_,\ \_,\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonCholeskySolver_a912b9e2dcf8134ae2a948ff9e9be1ef6}{hessian\_warning}}\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_aa67fd00d91accf59e020316d3598f7b5}{linear\_loss}}.gradient\_hessian(}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00475}00475\ \ \ \ \ \ \ \ \ \ \ \ \ coef=self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_ae736ceaa4a8c890b71fff1dbdf97c0b4}{coef}},}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00476}00476\ \ \ \ \ \ \ \ \ \ \ \ \ X=X,}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00477}00477\ \ \ \ \ \ \ \ \ \ \ \ \ y=y,}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00478}00478\ \ \ \ \ \ \ \ \ \ \ \ \ sample\_weight=sample\_weight,}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00479}00479\ \ \ \ \ \ \ \ \ \ \ \ \ l2\_reg\_strength=self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_aec1bc58cdcba99dff2ee78b5fb912536}{l2\_reg\_strength}},}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00480}00480\ \ \ \ \ \ \ \ \ \ \ \ \ n\_threads=self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a276efa3ddde4a9aa74379488f036d228}{n\_threads}},}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00481}00481\ \ \ \ \ \ \ \ \ \ \ \ \ gradient\_out=self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a10fef40919e04bb3e4d71d8ea728093d}{gradient}},}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00482}00482\ \ \ \ \ \ \ \ \ \ \ \ \ hessian\_out=self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonCholeskySolver_a34875d6dfc2f36987f61b6212607ef96}{hessian}},}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00483}00483\ \ \ \ \ \ \ \ \ \ \ \ \ raw\_prediction=self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a2f969626bf7f84185e36a898fac035be}{raw\_prediction}},\ \ \textcolor{comment}{\#\ this\ was\ updated\ in\ line\_search}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00484}00484\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00485}00485\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00486}\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonCholeskySolver_a20cba4f78445a9d3bee2deea7ae8b83e}{00486}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonCholeskySolver_a20cba4f78445a9d3bee2deea7ae8b83e}{inner\_solve}}(self,\ X,\ y,\ sample\_weight):}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00487}00487\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonCholeskySolver_a912b9e2dcf8134ae2a948ff9e9be1ef6}{hessian\_warning}}:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00488}00488\ \ \ \ \ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00489}00489\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00490}00490\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}The\ inner\ solver\ of\ \{self.\_\_class\_\_.\_\_name\_\_\}\ detected\ a\ "{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00491}00491\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}pointwise\ hessian\ with\ many\ negative\ values\ at\ iteration\ "{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00492}00492\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\#\{self.iteration\}.\ It\ will\ now\ resort\ to\ lbfgs\ instead."{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00493}00493\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00494}00494\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ConvergenceWarning,}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00495}00495\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00496}00496\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_aae63e7e9c76f8951d00635266c567ed7}{verbose}}:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00497}00497\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00498}00498\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ \ The\ inner\ solver\ detected\ a\ pointwise\ Hessian\ with\ many\ "{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00499}00499\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}negative\ values\ and\ resorts\ to\ lbfgs\ instead."{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00500}00500\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00501}00501\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a20bb53f3072324ea22903b967ff40938}{use\_fallback\_lbfgs\_solve}}\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00502}00502\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00503}00503\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00504}00504\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Note:\ The\ following\ case\ distinction\ could\ also\ be\ shifted\ to\ the}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00505}00505\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ implementation\ of\ HalfMultinomialLoss\ instead\ of\ here\ within\ the\ solver.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00506}00506\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonCholeskySolver_a1abc72ddd917e694e28cddf224cb2d6d}{is\_multinomial\_no\_penalty}}:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00507}00507\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ multinomial\ loss\ is\ overparametrized\ for\ each\ unpenalized\ feature,\ so}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00508}00508\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ at\ least\ the\ intercepts.\ This\ can\ be\ seen\ by\ noting\ that\ predicted}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00509}00509\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ probabilities\ are\ invariant\ under\ shifting\ all\ coefficients\ of\ a\ single}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00510}00510\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ feature\ j\ for\ all\ classes\ by\ the\ same\ amount\ c:}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00511}00511\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ coef[k,\ :]\ -\/>\ coef[k,\ :]\ +\ c\ \ \ \ =>\ \ \ \ proba\ stays\ the\ same}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00512}00512\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ where\ we\ have\ assumed\ coef.shape\ =\ (n\_classes,\ n\_features).}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00513}00513\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Therefore,\ also\ the\ loss\ (-\/log-\/likelihood),\ gradient\ and\ hessian\ stay\ the}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00514}00514\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ same,\ see}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00515}00515\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Noah\ Simon\ and\ Jerome\ Friedman\ and\ Trevor\ Hastie.\ (2013)\ "{}A\ Blockwise}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00516}00516\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Descent\ Algorithm\ for\ Group-\/penalized\ Multiresponse\ and\ Multinomial}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00517}00517\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Regression"{}.\ https://doi.org/10.48550/arXiv.1311.6529}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00518}00518\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00519}00519\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ We\ choose\ the\ standard\ approach\ and\ set\ all\ the\ coefficients\ of\ the\ last}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00520}00520\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ class\ to\ zero,\ for\ all\ features\ including\ the\ intercept.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00521}00521\ \ \ \ \ \ \ \ \ \ \ \ \ n\_classes\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_aa67fd00d91accf59e020316d3598f7b5}{linear\_loss}}.base\_loss.n\_classes}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00522}00522\ \ \ \ \ \ \ \ \ \ \ \ \ n\_dof\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_ae736ceaa4a8c890b71fff1dbdf97c0b4}{coef}}.size\ //\ n\_classes\ \ \textcolor{comment}{\#\ degree\ of\ freedom\ per\ class}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00523}00523\ \ \ \ \ \ \ \ \ \ \ \ \ n\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_ae736ceaa4a8c890b71fff1dbdf97c0b4}{coef}}.size\ -\/\ n\_dof\ \ \textcolor{comment}{\#\ effective\ size}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00524}00524\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_ae736ceaa4a8c890b71fff1dbdf97c0b4}{coef}}[n\_classes\ -\/\ 1\ ::\ n\_classes]\ =\ 0}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00525}00525\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a10fef40919e04bb3e4d71d8ea728093d}{gradient}}[n\_classes\ -\/\ 1\ ::\ n\_classes]\ =\ 0}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00526}00526\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonCholeskySolver_a34875d6dfc2f36987f61b6212607ef96}{hessian}}[n\_classes\ -\/\ 1\ ::\ n\_classes,\ :]\ =\ 0}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00527}00527\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonCholeskySolver_a34875d6dfc2f36987f61b6212607ef96}{hessian}}[:,\ n\_classes\ -\/\ 1\ ::\ n\_classes]\ =\ 0}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00528}00528\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ We\ also\ need\ the\ reduced\ variants\ of\ gradient\ and\ hessian\ where\ the}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00529}00529\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ entries\ set\ to\ zero\ are\ removed.\ For\ 2\ features\ and\ 3\ classes\ with}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00530}00530\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ arbitrary\ values,\ "{}x"{}\ means\ removed:}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00531}00531\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ gradient\ =\ [0,\ 1,\ x,\ 3,\ 4,\ x]}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00532}00532\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00533}00533\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ hessian\ =\ [0,\ \ 1,\ x,\ \ 3,\ \ 4,\ x]}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00534}00534\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ \ \ \ \ \ \ \ \ \ [1,\ \ 7,\ x,\ \ 9,\ 10,\ x]}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00535}00535\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ \ \ \ \ \ \ \ \ \ [x,\ \ x,\ x,\ \ x,\ \ x,\ x]}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00536}00536\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ \ \ \ \ \ \ \ \ \ [3,\ \ 9,\ x,\ 21,\ 22,\ x]}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00537}00537\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ \ \ \ \ \ \ \ \ \ [4,\ 10,\ x,\ 22,\ 28,\ x]}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00538}00538\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ \ \ \ \ \ \ \ \ \ [x,\ \ x,\ x,\ \ x,\ x,\ \ x]}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00539}00539\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ following\ slicing\ triggers\ copies\ of\ gradient\ and\ hessian.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00540}00540\ \ \ \ \ \ \ \ \ \ \ \ \ gradient\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a10fef40919e04bb3e4d71d8ea728093d}{gradient}}.reshape(-\/1,\ n\_classes)[:,\ :-\/1].flatten()}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00541}00541\ \ \ \ \ \ \ \ \ \ \ \ \ hessian\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonCholeskySolver_a34875d6dfc2f36987f61b6212607ef96}{hessian}}.reshape(n\_dof,\ n\_classes,\ n\_dof,\ n\_classes)[}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00542}00542\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ :,\ :-\/1,\ :,\ :-\/1}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00543}00543\ \ \ \ \ \ \ \ \ \ \ \ \ ].reshape(n,\ n)}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00544}00544\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonCholeskySolver_afa0c3412b27116a97bf24e8fc4ffa38b}{is\_multinomial\_with\_intercept}}:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00545}00545\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Here,\ only\ intercepts\ are\ unpenalized.\ We\ again\ choose\ the\ last\ class\ and}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00546}00546\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ set\ its\ intercept\ to\ zero.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00547}00547\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_ae736ceaa4a8c890b71fff1dbdf97c0b4}{coef}}[-\/1]\ =\ 0}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00548}00548\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a10fef40919e04bb3e4d71d8ea728093d}{gradient}}[-\/1]\ =\ 0}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00549}00549\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonCholeskySolver_a34875d6dfc2f36987f61b6212607ef96}{hessian}}[-\/1,\ :]\ =\ 0}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00550}00550\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonCholeskySolver_a34875d6dfc2f36987f61b6212607ef96}{hessian}}[:,\ -\/1]\ =\ 0}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00551}00551\ \ \ \ \ \ \ \ \ \ \ \ \ gradient,\ hessian\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a10fef40919e04bb3e4d71d8ea728093d}{gradient}}[:-\/1],\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonCholeskySolver_a34875d6dfc2f36987f61b6212607ef96}{hessian}}[:-\/1,\ :-\/1]}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00552}00552\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00553}00553\ \ \ \ \ \ \ \ \ \ \ \ \ gradient,\ hessian\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a10fef40919e04bb3e4d71d8ea728093d}{gradient}},\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonCholeskySolver_a34875d6dfc2f36987f61b6212607ef96}{hessian}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00554}00554\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00555}00555\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00556}00556\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ warnings.catch\_warnings():}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00557}00557\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ warnings.simplefilter(\textcolor{stringliteral}{"{}error"{}},\ \mbox{\hyperlink{classscipy_1_1linalg_1_1__misc_1_1LinAlgWarning}{scipy.linalg.LinAlgWarning}})}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00558}00558\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonCholeskySolver_ab391457710ff8359b9c63f8c9d2596ad}{coef\_newton}}\ =\ scipy.linalg.solve(}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00559}00559\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ hessian,\ -\/gradient,\ check\_finite=\textcolor{keyword}{False},\ assume\_a=\textcolor{stringliteral}{"{}sym"{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00560}00560\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00561}00561\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonCholeskySolver_a1abc72ddd917e694e28cddf224cb2d6d}{is\_multinomial\_no\_penalty}}:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00562}00562\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonCholeskySolver_ab391457710ff8359b9c63f8c9d2596ad}{coef\_newton}}\ =\ np.c\_[}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00563}00563\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonCholeskySolver_ab391457710ff8359b9c63f8c9d2596ad}{coef\_newton}}.reshape(n\_dof,\ n\_classes\ -\/\ 1),\ np.zeros(n\_dof)}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00564}00564\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ].reshape(-\/1)}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00565}00565\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonCholeskySolver_ab391457710ff8359b9c63f8c9d2596ad}{coef\_newton}}.flags.f\_contiguous}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00566}00566\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonCholeskySolver_afa0c3412b27116a97bf24e8fc4ffa38b}{is\_multinomial\_with\_intercept}}:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00567}00567\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonCholeskySolver_ab391457710ff8359b9c63f8c9d2596ad}{coef\_newton}}\ =\ np.r\_[self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonCholeskySolver_ab391457710ff8359b9c63f8c9d2596ad}{coef\_newton}},\ 0]}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00568}00568\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonCholeskySolver_a8af59d9b0f584c040f4394c860be1905}{gradient\_times\_newton}}\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a10fef40919e04bb3e4d71d8ea728093d}{gradient}}\ @\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonCholeskySolver_ab391457710ff8359b9c63f8c9d2596ad}{coef\_newton}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00569}00569\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonCholeskySolver_a8af59d9b0f584c040f4394c860be1905}{gradient\_times\_newton}}\ >\ 0:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00570}00570\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_aae63e7e9c76f8951d00635266c567ed7}{verbose}}:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00571}00571\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00572}00572\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ \ The\ inner\ solver\ found\ a\ Newton\ step\ that\ is\ not\ a\ "{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00573}00573\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}descent\ direction\ and\ resorts\ to\ LBFGS\ steps\ instead."{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00574}00574\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00575}00575\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a20bb53f3072324ea22903b967ff40938}{use\_fallback\_lbfgs\_solve}}\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00576}00576\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00577}00577\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ (\mbox{\hyperlink{classnp_1_1linalg_1_1LinAlgError}{np.linalg.LinAlgError}},\ \mbox{\hyperlink{classscipy_1_1linalg_1_1__misc_1_1LinAlgWarning}{scipy.linalg.LinAlgWarning}})\ \textcolor{keyword}{as}\ e:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00578}00578\ \ \ \ \ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00579}00579\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}The\ inner\ solver\ of\ \{self.\_\_class\_\_.\_\_name\_\_\}\ stumbled\ upon\ a\ "{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00580}00580\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}singular\ or\ very\ ill-\/conditioned\ Hessian\ matrix\ at\ iteration\ "{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00581}00581\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\{self.iteration\}.\ It\ will\ now\ resort\ to\ lbfgs\ instead.\(\backslash\)n"{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00582}00582\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Further\ options\ are\ to\ use\ another\ solver\ or\ to\ avoid\ such\ situation\ "{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00583}00583\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}in\ the\ first\ place.\ Possible\ remedies\ are\ removing\ collinear\ features"{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00584}00584\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ of\ X\ or\ increasing\ the\ penalization\ strengths.\(\backslash\)n"{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00585}00585\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}The\ original\ Linear\ Algebra\ message\ was:\(\backslash\)n"{}}\ +\ str(e),}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00586}00586\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classscipy_1_1linalg_1_1__misc_1_1LinAlgWarning}{scipy.linalg.LinAlgWarning}},}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00587}00587\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00588}00588\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Possible\ causes:}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00589}00589\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ 1.\ hess\_pointwise\ is\ negative.\ But\ this\ is\ already\ taken\ care\ in}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00590}00590\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ LinearModelLoss.gradient\_hessian.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00591}00591\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ 2.\ X\ is\ singular\ or\ ill-\/conditioned}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00592}00592\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ \ \ This\ might\ be\ the\ most\ probable\ cause.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00593}00593\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00594}00594\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ There\ are\ many\ possible\ ways\ to\ deal\ with\ this\ situation.\ Most\ of\ them}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00595}00595\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ add,\ explicitly\ or\ implicitly,\ a\ matrix\ to\ the\ hessian\ to\ make\ it}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00596}00596\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ positive\ definite,\ confer\ to\ Chapter\ 3.4\ of\ Nocedal\ \&\ Wright\ 2nd\ ed.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00597}00597\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Instead,\ we\ resort\ to\ lbfgs.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00598}00598\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_aae63e7e9c76f8951d00635266c567ed7}{verbose}}:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00599}00599\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00600}00600\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ \ The\ inner\ solver\ stumbled\ upon\ an\ singular\ or\ ill-\/conditioned\ "{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00601}00601\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Hessian\ matrix\ and\ resorts\ to\ LBFGS\ instead."{}}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00602}00602\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00603}00603\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_a20bb53f3072324ea22903b967ff40938}{use\_fallback\_lbfgs\_solve}}\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00604}00604\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00605}00605\ }
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00606}\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonCholeskySolver_a2266e0907e67bab458f69139b5823130}{00606}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonCholeskySolver_a2266e0907e67bab458f69139b5823130}{finalize}}(self,\ X,\ y,\ sample\_weight):}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00607}00607\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonCholeskySolver_a1abc72ddd917e694e28cddf224cb2d6d}{is\_multinomial\_no\_penalty}}:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00608}00608\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Our\ convention\ is\ usually\ the\ symmetric\ parametrization\ where}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00609}00609\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ sum(coef[classes,\ features],\ axis=0)\ =\ 0.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00610}00610\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ We\ convert\ now\ to\ this\ convention.\ Note\ that\ it\ does\ not\ change}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00611}00611\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ the\ predicted\ probabilities.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00612}00612\ \ \ \ \ \ \ \ \ \ \ \ \ n\_classes\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_aa67fd00d91accf59e020316d3598f7b5}{linear\_loss}}.base\_loss.n\_classes}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00613}00613\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_ae736ceaa4a8c890b71fff1dbdf97c0b4}{coef}}\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_ae736ceaa4a8c890b71fff1dbdf97c0b4}{coef}}.reshape(n\_classes,\ -\/1,\ order=\textcolor{stringliteral}{"{}F"{}})}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00614}00614\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_ae736ceaa4a8c890b71fff1dbdf97c0b4}{coef}}\ -\/=\ np.mean(self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_ae736ceaa4a8c890b71fff1dbdf97c0b4}{coef}},\ axis=0)}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00615}00615\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonCholeskySolver_afa0c3412b27116a97bf24e8fc4ffa38b}{is\_multinomial\_with\_intercept}}:}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00616}00616\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Only\ the\ intercept\ needs\ an\ update\ to\ the\ symmetric\ parametrization.}}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00617}00617\ \ \ \ \ \ \ \ \ \ \ \ \ n\_classes\ =\ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_aa67fd00d91accf59e020316d3598f7b5}{linear\_loss}}.base\_loss.n\_classes}
+\DoxyCodeLine{\Hypertarget{__newton__solver_8py_source_l00618}00618\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_ae736ceaa4a8c890b71fff1dbdf97c0b4}{coef}}[-\/n\_classes:]\ -\/=\ np.mean(self.\mbox{\hyperlink{classsklearn_1_1linear__model_1_1__glm_1_1__newton__solver_1_1NewtonSolver_ae736ceaa4a8c890b71fff1dbdf97c0b4}{coef}}[-\/n\_classes:])}
+
+\end{DoxyCode}

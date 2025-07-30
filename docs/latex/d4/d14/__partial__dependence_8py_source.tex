@@ -1,0 +1,781 @@
+\doxysection{\+\_\+partial\+\_\+dependence.\+py}
+\hypertarget{__partial__dependence_8py_source}{}\label{__partial__dependence_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/sklearn/inspection/\_partial\_dependence.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/sklearn/inspection/\_partial\_dependence.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00001}\mbox{\hyperlink{namespacesklearn_1_1inspection_1_1__partial__dependence}{00001}}\ \textcolor{stringliteral}{"{}"{}"{}Partial\ dependence\ plots\ for\ regression\ and\ classification\ models."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00002}00002\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00003}00003\ \textcolor{comment}{\#\ Authors:\ The\ scikit-\/learn\ developers}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00004}00004\ \textcolor{comment}{\#\ SPDX-\/License-\/Identifier:\ BSD-\/3-\/Clause}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00005}00005\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00006}00006\ \textcolor{keyword}{import}\ warnings}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00007}00007\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacecollections_1_1abc}{collections.abc}}\ \textcolor{keyword}{import}\ Iterable}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00008}00008\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00009}00009\ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00010}00010\ \textcolor{keyword}{from}\ scipy\ \textcolor{keyword}{import}\ sparse}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00011}00011\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacescipy_1_1stats_1_1mstats}{scipy.stats.mstats}}\ \textcolor{keyword}{import}\ mquantiles}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00012}00012\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00013}00013\ \textcolor{keyword}{from}\ ..base\ \textcolor{keyword}{import}\ is\_classifier,\ is\_regressor}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00014}00014\ \textcolor{keyword}{from}\ ..ensemble\ \textcolor{keyword}{import}\ RandomForestRegressor}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00015}00015\ \textcolor{keyword}{from}\ ..ensemble.\_gb\ \textcolor{keyword}{import}\ BaseGradientBoosting}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00016}00016\ \textcolor{keyword}{from}\ ..ensemble.\_hist\_gradient\_boosting.gradient\_boosting\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00017}00017\ \ \ \ \ BaseHistGradientBoosting,}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00018}00018\ )}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00019}00019\ \textcolor{keyword}{from}\ ..tree\ \textcolor{keyword}{import}\ DecisionTreeRegressor}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00020}00020\ \textcolor{keyword}{from}\ ..utils\ \textcolor{keyword}{import}\ Bunch,\ \_safe\_indexing,\ check\_array}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00021}00021\ \textcolor{keyword}{from}\ ..utils.\_indexing\ \textcolor{keyword}{import}\ \_determine\_key\_type,\ \_get\_column\_indices,\ \_safe\_assign}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00022}00022\ \textcolor{keyword}{from}\ ..utils.\_optional\_dependencies\ \textcolor{keyword}{import}\ check\_matplotlib\_support\ \ \textcolor{comment}{\#\ noqa:\ F401}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00023}00023\ \textcolor{keyword}{from}\ ..utils.\_param\_validation\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00024}00024\ \ \ \ \ HasMethods,}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00025}00025\ \ \ \ \ Integral,}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00026}00026\ \ \ \ \ Interval,}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00027}00027\ \ \ \ \ StrOptions,}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00028}00028\ \ \ \ \ validate\_params,}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00029}00029\ )}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00030}00030\ \textcolor{keyword}{from}\ ..utils.\_response\ \textcolor{keyword}{import}\ \_get\_response\_values}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00031}00031\ \textcolor{keyword}{from}\ ..utils.extmath\ \textcolor{keyword}{import}\ cartesian}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00032}00032\ \textcolor{keyword}{from}\ ..utils.validation\ \textcolor{keyword}{import}\ \_check\_sample\_weight,\ check\_is\_fitted}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00033}00033\ \textcolor{keyword}{from}\ .\_pd\_utils\ \textcolor{keyword}{import}\ \_check\_feature\_names,\ \_get\_feature\_index}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00034}00034\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00035}00035\ \_\_all\_\_\ =\ [}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00036}00036\ \ \ \ \ \textcolor{stringliteral}{"{}partial\_dependence"{}},}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00037}00037\ ]}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00038}00038\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00039}00039\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00040}\mbox{\hyperlink{namespacesklearn_1_1inspection_1_1__partial__dependence_a0b534d4f30b7dd8df8fd2dfb3550b45c}{00040}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1inspection_1_1__partial__dependence_a0b534d4f30b7dd8df8fd2dfb3550b45c}{\_grid\_from\_X}}(X,\ percentiles,\ is\_categorical,\ grid\_resolution,\ custom\_values):}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00041}00041\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Generate\ a\ grid\ of\ points\ based\ on\ the\ percentiles\ of\ X.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00042}00042\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00043}00043\ \textcolor{stringliteral}{\ \ \ \ The\ grid\ is\ a\ cartesian\ product\ between\ the\ columns\ of\ \`{}\`{}values\`{}\`{}.\ The}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00044}00044\ \textcolor{stringliteral}{\ \ \ \ ith\ column\ of\ \`{}\`{}values\`{}\`{}\ consists\ in\ \`{}\`{}grid\_resolution\`{}\`{}\ equally-\/spaced}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00045}00045\ \textcolor{stringliteral}{\ \ \ \ points\ between\ the\ percentiles\ of\ the\ jth\ column\ of\ X.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00046}00046\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00047}00047\ \textcolor{stringliteral}{\ \ \ \ If\ \`{}\`{}grid\_resolution\`{}\`{}\ is\ bigger\ than\ the\ number\ of\ unique\ values\ in\ the}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00048}00048\ \textcolor{stringliteral}{\ \ \ \ j-\/th\ column\ of\ X\ or\ if\ the\ feature\ is\ a\ categorical\ feature\ (by\ inspecting}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00049}00049\ \textcolor{stringliteral}{\ \ \ \ \`{}is\_categorical\`{})\ ,\ then\ those\ unique\ values\ will\ be\ used\ instead.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00050}00050\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00051}00051\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00052}00052\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00053}00053\ \textcolor{stringliteral}{\ \ \ \ X\ :\ array-\/like\ of\ shape\ (n\_samples,\ n\_target\_features)}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00054}00054\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ data.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00055}00055\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00056}00056\ \textcolor{stringliteral}{\ \ \ \ percentiles\ :\ tuple\ of\ float}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00057}00057\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ percentiles\ which\ are\ used\ to\ construct\ the\ extreme\ values\ of}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00058}00058\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ grid.\ Must\ be\ in\ [0,\ 1].}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00059}00059\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00060}00060\ \textcolor{stringliteral}{\ \ \ \ is\_categorical\ :\ list\ of\ bool}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00061}00061\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ For\ each\ feature,\ tells\ whether\ it\ is\ categorical\ or\ not.\ If\ a\ feature}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00062}00062\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ is\ categorical,\ then\ the\ values\ used\ will\ be\ the\ unique\ ones}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00063}00063\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ (i.e.\ categories)\ instead\ of\ the\ percentiles.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00064}00064\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00065}00065\ \textcolor{stringliteral}{\ \ \ \ grid\_resolution\ :\ int}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00066}00066\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ number\ of\ equally\ spaced\ points\ to\ be\ placed\ on\ the\ grid\ for\ each}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00067}00067\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ feature.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00068}00068\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00069}00069\ \textcolor{stringliteral}{\ \ \ \ custom\_values:\ dict}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00070}00070\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Mapping\ from\ column\ index\ of\ X\ to\ an\ array-\/like\ of\ values\ where}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00071}00071\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ partial\ dependence\ should\ be\ calculated\ for\ that\ feature}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00072}00072\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00073}00073\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00074}00074\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00075}00075\ \textcolor{stringliteral}{\ \ \ \ grid\ :\ ndarray\ of\ shape\ (n\_points,\ n\_target\_features)}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00076}00076\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ A\ value\ for\ each\ feature\ at\ each\ point\ in\ the\ grid.\ \`{}\`{}n\_points\`{}\`{}\ is}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00077}00077\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ always\ \`{}\`{}<=\ grid\_resolution\ **\ X.shape[1]\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00078}00078\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00079}00079\ \textcolor{stringliteral}{\ \ \ \ values\ :\ list\ of\ 1d\ ndarrays}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00080}00080\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ values\ with\ which\ the\ grid\ has\ been\ created.\ The\ size\ of\ each}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00081}00081\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ array\ \`{}\`{}values[j]\`{}\`{}\ is\ either\ \`{}\`{}grid\_resolution\`{}\`{},\ the\ number\ of}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00082}00082\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ unique\ values\ in\ \`{}\`{}X[:,\ j]\`{}\`{},\ if\ j\ is\ not\ in\ \`{}\`{}custom\_range\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00083}00083\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ j\ is\ in\ \`{}\`{}custom\_range\`{}\`{},\ then\ it\ is\ the\ length\ of\ \`{}\`{}custom\_range[j]\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00084}00084\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00085}00085\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ isinstance(percentiles,\ Iterable)\ \textcolor{keywordflow}{or}\ len(percentiles)\ !=\ 2:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00086}00086\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}'percentiles'\ must\ be\ a\ sequence\ of\ 2\ elements."{}})}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00087}00087\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ all(0\ <=\ x\ <=\ 1\ \textcolor{keywordflow}{for}\ x\ \textcolor{keywordflow}{in}\ percentiles):}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00088}00088\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}'percentiles'\ values\ must\ be\ in\ [0,\ 1]."{}})}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00089}00089\ \ \ \ \ \textcolor{keywordflow}{if}\ percentiles[0]\ >=\ percentiles[1]:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00090}00090\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}percentiles[0]\ must\ be\ strictly\ less\ than\ percentiles[1]."{}})}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00091}00091\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00092}00092\ \ \ \ \ \textcolor{keywordflow}{if}\ grid\_resolution\ <=\ 1:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00093}00093\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}'grid\_resolution'\ must\ be\ strictly\ greater\ than\ 1."{}})}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00094}00094\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00095}00095\ \ \ \ \ \textcolor{keyword}{def\ }\_convert\_custom\_values(values):}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00096}00096\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Convert\ custom\ types\ such\ that\ object\ types\ are\ always\ used\ for\ string\ arrays}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00097}00097\ \ \ \ \ \ \ \ \ dtype\ =\ object\ \textcolor{keywordflow}{if}\ any(isinstance(v,\ str)\ \textcolor{keywordflow}{for}\ v\ \textcolor{keywordflow}{in}\ values)\ \textcolor{keywordflow}{else}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00098}00098\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ np.asarray(values,\ dtype=dtype)}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00099}00099\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00100}00100\ \ \ \ \ custom\_values\ =\ \{k:\ \_convert\_custom\_values(v)\ \textcolor{keywordflow}{for}\ k,\ v\ \textcolor{keywordflow}{in}\ custom\_values.items()\}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00101}00101\ \ \ \ \ \textcolor{keywordflow}{if}\ any(v.ndim\ !=\ 1\ \textcolor{keywordflow}{for}\ v\ \textcolor{keywordflow}{in}\ custom\_values.values()):}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00102}00102\ \ \ \ \ \ \ \ \ error\_string\ =\ \textcolor{stringliteral}{"{},\ "{}}.join(}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00103}00103\ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}Feature\ \{k\}:\ \{v.ndim\}\ dimensions"{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00104}00104\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ k,\ v\ \textcolor{keywordflow}{in}\ custom\_values.items()}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00105}00105\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ v.ndim\ !=\ 1}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00106}00106\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00107}00107\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00108}00108\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00109}00109\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}The\ custom\ grid\ for\ some\ features\ is\ not\ a\ one-\/dimensional\ array.\ "{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00110}00110\ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\{error\_string\}"{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00111}00111\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00112}00112\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00113}00113\ \ \ \ \ values\ =\ []}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00114}00114\ \ \ \ \ \textcolor{comment}{\#\ TODO:\ we\ should\ handle\ missing\ values\ (i.e.\ \`{}np.nan`)\ specifically\ and\ store\ them}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00115}00115\ \ \ \ \ \textcolor{comment}{\#\ in\ a\ different\ Bunch\ attribute.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00116}00116\ \ \ \ \ \textcolor{keywordflow}{for}\ feature,\ is\_cat\ \textcolor{keywordflow}{in}\ enumerate(is\_categorical):}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00117}00117\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ feature\ \textcolor{keywordflow}{in}\ custom\_values:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00118}00118\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Use\ values\ in\ the\ custom\ range}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00119}00119\ \ \ \ \ \ \ \ \ \ \ \ \ axis\ =\ custom\_values[feature]}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00120}00120\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00121}00121\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00122}00122\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ uniques\ =\ np.unique(\_safe\_indexing(X,\ feature,\ axis=1))}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00123}00123\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ TypeError\ \textcolor{keyword}{as}\ exc:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00124}00124\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \`{}np.unique`\ will\ fail\ in\ the\ presence\ of\ \`{}np.nan`\ and\ \`{}str`\ categories}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00125}00125\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ due\ to\ sorting.\ Temporary,\ we\ reraise\ an\ error\ explaining\ the\ problem.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00126}00126\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00127}00127\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}The\ column\ \#\{feature\}\ contains\ mixed\ data\ types.\ Finding\ unique\ "{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00128}00128\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}categories\ fail\ due\ to\ sorting.\ It\ usually\ means\ that\ the\ column\ "{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00129}00129\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}contains\ \`{}np.nan`\ values\ together\ with\ \`{}str`\ categories.\ Such\ use\ "{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00130}00130\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}case\ is\ not\ yet\ supported\ in\ scikit-\/learn."{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00131}00131\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )\ \textcolor{keyword}{from}\ exc}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00132}00132\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00133}00133\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ is\_cat\ \textcolor{keywordflow}{or}\ uniques.shape[0]\ <\ grid\_resolution:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00134}00134\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Use\ the\ unique\ values\ either\ because:}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00135}00135\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ -\/\ feature\ has\ low\ resolution\ use\ unique\ values}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00136}00136\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ -\/\ feature\ is\ categorical}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00137}00137\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ axis\ =\ uniques}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00138}00138\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00139}00139\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ create\ axis\ based\ on\ percentiles\ and\ grid\ resolution}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00140}00140\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ emp\_percentiles\ =\ mquantiles(}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00141}00141\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_safe\_indexing(X,\ feature,\ axis=1),\ prob=percentiles,\ axis=0}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00142}00142\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00143}00143\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ np.allclose(emp\_percentiles[0],\ emp\_percentiles[1]):}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00144}00144\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00145}00145\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}percentiles\ are\ too\ close\ to\ each\ other,\ "{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00146}00146\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}unable\ to\ build\ the\ grid.\ Please\ choose\ percentiles\ "{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00147}00147\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}that\ are\ further\ apart."{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00148}00148\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00149}00149\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ axis\ =\ np.linspace(}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00150}00150\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ emp\_percentiles[0],}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00151}00151\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ emp\_percentiles[1],}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00152}00152\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ num=grid\_resolution,}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00153}00153\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ endpoint=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00154}00154\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00155}00155\ \ \ \ \ \ \ \ \ values.append(axis)}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00156}00156\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00157}00157\ \ \ \ \ \textcolor{keywordflow}{return}\ cartesian(values),\ values}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00158}00158\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00159}00159\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00160}\mbox{\hyperlink{namespacesklearn_1_1inspection_1_1__partial__dependence_a2efd20fe885379a42a2deb7c4aec67be}{00160}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1inspection_1_1__partial__dependence_a2efd20fe885379a42a2deb7c4aec67be}{\_partial\_dependence\_recursion}}(est,\ grid,\ features):}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00161}00161\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Calculate\ partial\ dependence\ via\ the\ recursion\ method.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00162}00162\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00163}00163\ \textcolor{stringliteral}{\ \ \ \ The\ recursion\ method\ is\ in\ particular\ enabled\ for\ tree-\/based\ estimators.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00164}00164\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00165}00165\ \textcolor{stringliteral}{\ \ \ \ For\ each\ \`{}grid\`{}\ value,\ a\ weighted\ tree\ traversal\ is\ performed:\ if\ a\ split\ node}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00166}00166\ \textcolor{stringliteral}{\ \ \ \ involves\ an\ input\ feature\ of\ interest,\ the\ corresponding\ left\ or\ right\ branch}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00167}00167\ \textcolor{stringliteral}{\ \ \ \ is\ followed;\ otherwise\ both\ branches\ are\ followed,\ each\ branch\ being\ weighted}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00168}00168\ \textcolor{stringliteral}{\ \ \ \ by\ the\ fraction\ of\ training\ samples\ that\ entered\ that\ branch.\ Finally,\ the}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00169}00169\ \textcolor{stringliteral}{\ \ \ \ partial\ dependence\ is\ given\ by\ a\ weighted\ average\ of\ all\ the\ visited\ leaves}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00170}00170\ \textcolor{stringliteral}{\ \ \ \ values.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00171}00171\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00172}00172\ \textcolor{stringliteral}{\ \ \ \ This\ method\ is\ more\ efficient\ in\ terms\ of\ speed\ than\ the\ \`{}'brute'\`{}\ method}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00173}00173\ \textcolor{stringliteral}{\ \ \ \ (:func:\`{}\string~sklearn.inspection.\_partial\_dependence.\_partial\_dependence\_brute\`{}).}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00174}00174\ \textcolor{stringliteral}{\ \ \ \ However,\ here,\ the\ partial\ dependence\ computation\ is\ done\ explicitly\ with\ the}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00175}00175\ \textcolor{stringliteral}{\ \ \ \ \`{}X\`{}\ used\ during\ training\ of\ \`{}est\`{}.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00176}00176\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00177}00177\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00178}00178\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00179}00179\ \textcolor{stringliteral}{\ \ \ \ est\ :\ BaseEstimator}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00180}00180\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ A\ fitted\ estimator\ object\ implementing\ :term:\`{}predict\`{}\ or}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00181}00181\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :term:\`{}decision\_function\`{}.\ Multioutput-\/multiclass\ classifiers\ are\ not}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00182}00182\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ supported.\ Note\ that\ \`{}'recursion'\`{}\ is\ only\ supported\ for\ some\ tree-\/based}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00183}00183\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ estimators\ (namely}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00184}00184\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :class:\`{}\string~sklearn.ensemble.GradientBoostingClassifier\`{},}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00185}00185\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :class:\`{}\string~sklearn.ensemble.GradientBoostingRegressor\`{},}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00186}00186\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :class:\`{}\string~sklearn.ensemble.HistGradientBoostingClassifier\`{},}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00187}00187\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :class:\`{}\string~sklearn.ensemble.HistGradientBoostingRegressor\`{},}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00188}00188\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :class:\`{}\string~sklearn.tree.DecisionTreeRegressor\`{},}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00189}00189\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :class:\`{}\string~sklearn.ensemble.RandomForestRegressor\`{},}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00190}00190\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ).}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00191}00191\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00192}00192\ \textcolor{stringliteral}{\ \ \ \ grid\ :\ array-\/like\ of\ shape\ (n\_points,\ n\_target\_features)}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00193}00193\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ grid\ of\ feature\ values\ for\ which\ the\ partial\ dependence\ is\ calculated.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00194}00194\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Note\ that\ \`{}n\_points\`{}\ is\ the\ number\ of\ points\ in\ the\ grid\ and\ \`{}n\_target\_features\`{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00195}00195\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ is\ the\ number\ of\ features\ you\ are\ doing\ partial\ dependence\ at.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00196}00196\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00197}00197\ \textcolor{stringliteral}{\ \ \ \ features\ :\ array-\/like\ of\ \{int,\ str\}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00198}00198\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ feature\ (e.g.\ \`{}[0]\`{})\ or\ pair\ of\ interacting\ features}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00199}00199\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ (e.g.\ \`{}[(0,\ 1)]\`{})\ for\ which\ the\ partial\ dependency\ should\ be\ computed.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00200}00200\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00201}00201\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00202}00202\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00203}00203\ \textcolor{stringliteral}{\ \ \ \ averaged\_predictions\ :\ array-\/like\ of\ shape\ (n\_targets,\ n\_points)}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00204}00204\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ averaged\ predictions\ for\ the\ given\ \`{}grid\`{}\ of\ features\ values.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00205}00205\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Note\ that\ \`{}n\_targets\`{}\ is\ the\ number\ of\ targets\ (e.g.\ 1\ for\ binary}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00206}00206\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ classification,\ \`{}n\_tasks\`{}\ for\ multi-\/output\ regression,\ and\ \`{}n\_classes\`{}\ for}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00207}00207\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ multiclass\ classification)\ and\ \`{}n\_points\`{}\ is\ the\ number\ of\ points\ in\ the\ \`{}grid\`{}.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00208}00208\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00209}00209\ \ \ \ \ averaged\_predictions\ =\ est.\_compute\_partial\_dependence\_recursion(grid,\ features)}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00210}00210\ \ \ \ \ \textcolor{keywordflow}{if}\ averaged\_predictions.ndim\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00211}00211\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ reshape\ to\ (1,\ n\_points)\ for\ consistency\ with}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00212}00212\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \_partial\_dependence\_brute}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00213}00213\ \ \ \ \ \ \ \ \ averaged\_predictions\ =\ averaged\_predictions.reshape(1,\ -\/1)}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00214}00214\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00215}00215\ \ \ \ \ \textcolor{keywordflow}{return}\ averaged\_predictions}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00216}00216\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00217}00217\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00218}\mbox{\hyperlink{namespacesklearn_1_1inspection_1_1__partial__dependence_afdeaff408e05b819e07c334d2b3e2235}{00218}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1inspection_1_1__partial__dependence_afdeaff408e05b819e07c334d2b3e2235}{\_partial\_dependence\_brute}}(}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00219}00219\ \ \ \ \ est,\ grid,\ features,\ X,\ response\_method,\ sample\_weight=None}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00220}00220\ ):}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00221}00221\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Calculate\ partial\ dependence\ via\ the\ brute\ force\ method.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00222}00222\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00223}00223\ \textcolor{stringliteral}{\ \ \ \ The\ brute\ method\ explicitly\ averages\ the\ predictions\ of\ an\ estimator\ over\ a}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00224}00224\ \textcolor{stringliteral}{\ \ \ \ grid\ of\ feature\ values.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00225}00225\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00226}00226\ \textcolor{stringliteral}{\ \ \ \ For\ each\ \`{}grid\`{}\ value,\ all\ the\ samples\ from\ \`{}X\`{}\ have\ their\ variables\ of}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00227}00227\ \textcolor{stringliteral}{\ \ \ \ interest\ replaced\ by\ that\ specific\ \`{}grid\`{}\ value.\ The\ predictions\ are\ then\ made}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00228}00228\ \textcolor{stringliteral}{\ \ \ \ and\ averaged\ across\ the\ samples.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00229}00229\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00230}00230\ \textcolor{stringliteral}{\ \ \ \ This\ method\ is\ slower\ than\ the\ \`{}'recursion'\`{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00231}00231\ \textcolor{stringliteral}{\ \ \ \ (:func:\`{}\string~sklearn.inspection.\_partial\_dependence.\_partial\_dependence\_recursion\`{})}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00232}00232\ \textcolor{stringliteral}{\ \ \ \ version\ for\ estimators\ with\ this\ second\ option.\ However,\ with\ the\ \`{}'brute'\`{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00233}00233\ \textcolor{stringliteral}{\ \ \ \ force\ method,\ the\ average\ will\ be\ done\ with\ the\ given\ \`{}X\`{}\ and\ not\ the\ \`{}X\`{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00234}00234\ \textcolor{stringliteral}{\ \ \ \ used\ during\ training,\ as\ it\ is\ done\ in\ the\ \`{}'recursion'\`{}\ version.\ Therefore}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00235}00235\ \textcolor{stringliteral}{\ \ \ \ the\ average\ can\ always\ accept\ \`{}sample\_weight\`{}\ (even\ when\ the\ estimator\ was}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00236}00236\ \textcolor{stringliteral}{\ \ \ \ fitted\ without).}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00237}00237\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00238}00238\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00239}00239\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00240}00240\ \textcolor{stringliteral}{\ \ \ \ est\ :\ BaseEstimator}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00241}00241\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ A\ fitted\ estimator\ object\ implementing\ :term:\`{}predict\`{},}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00242}00242\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :term:\`{}predict\_proba\`{},\ or\ :term:\`{}decision\_function\`{}.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00243}00243\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Multioutput-\/multiclass\ classifiers\ are\ not\ supported.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00244}00244\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00245}00245\ \textcolor{stringliteral}{\ \ \ \ grid\ :\ array-\/like\ of\ shape\ (n\_points,\ n\_target\_features)}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00246}00246\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ grid\ of\ feature\ values\ for\ which\ the\ partial\ dependence\ is\ calculated.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00247}00247\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Note\ that\ \`{}n\_points\`{}\ is\ the\ number\ of\ points\ in\ the\ grid\ and\ \`{}n\_target\_features\`{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00248}00248\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ is\ the\ number\ of\ features\ you\ are\ doing\ partial\ dependence\ at.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00249}00249\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00250}00250\ \textcolor{stringliteral}{\ \ \ \ features\ :\ array-\/like\ of\ \{int,\ str\}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00251}00251\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ feature\ (e.g.\ \`{}[0]\`{})\ or\ pair\ of\ interacting\ features}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00252}00252\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ (e.g.\ \`{}[(0,\ 1)]\`{})\ for\ which\ the\ partial\ dependency\ should\ be\ computed.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00253}00253\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00254}00254\ \textcolor{stringliteral}{\ \ \ \ X\ :\ array-\/like\ of\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00255}00255\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}X\`{}\ is\ used\ to\ generate\ values\ for\ the\ complement\ features.\ That\ is,\ for}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00256}00256\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ each\ value\ in\ \`{}grid\`{},\ the\ method\ will\ average\ the\ prediction\ of\ each}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00257}00257\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ sample\ from\ \`{}X\`{}\ having\ that\ grid\ value\ for\ \`{}features\`{}.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00258}00258\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00259}00259\ \textcolor{stringliteral}{\ \ \ \ response\_method\ :\ \{'auto',\ 'predict\_proba',\ 'decision\_function'\},\ \(\backslash\)}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00260}00260\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ default='auto'}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00261}00261\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Specifies\ whether\ to\ use\ :term:\`{}predict\_proba\`{}\ or}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00262}00262\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :term:\`{}decision\_function\`{}\ as\ the\ target\ response.\ For\ regressors}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00263}00263\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ this\ parameter\ is\ ignored\ and\ the\ response\ is\ always\ the\ output\ of}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00264}00264\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :term:\`{}predict\`{}.\ By\ default,\ :term:\`{}predict\_proba\`{}\ is\ tried\ first}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00265}00265\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ and\ we\ revert\ to\ :term:\`{}decision\_function\`{}\ if\ it\ doesn't\ exist.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00266}00266\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00267}00267\ \textcolor{stringliteral}{\ \ \ \ sample\_weight\ :\ array-\/like\ of\ shape\ (n\_samples,),\ default=None}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00268}00268\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Sample\ weights\ are\ used\ to\ calculate\ weighted\ means\ when\ averaging\ the}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00269}00269\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ model\ output.\ If\ \`{}None\`{},\ then\ samples\ are\ equally\ weighted.\ Note\ that}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00270}00270\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}sample\_weight\`{}\ does\ not\ change\ the\ individual\ predictions.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00271}00271\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00272}00272\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00273}00273\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00274}00274\ \textcolor{stringliteral}{\ \ \ \ averaged\_predictions\ :\ array-\/like\ of\ shape\ (n\_targets,\ n\_points)}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00275}00275\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ averaged\ predictions\ for\ the\ given\ \`{}grid\`{}\ of\ features\ values.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00276}00276\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Note\ that\ \`{}n\_targets\`{}\ is\ the\ number\ of\ targets\ (e.g.\ 1\ for\ binary}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00277}00277\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ classification,\ \`{}n\_tasks\`{}\ for\ multi-\/output\ regression,\ and\ \`{}n\_classes\`{}\ for}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00278}00278\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ multiclass\ classification)\ and\ \`{}n\_points\`{}\ is\ the\ number\ of\ points\ in\ the\ \`{}grid\`{}.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00279}00279\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00280}00280\ \textcolor{stringliteral}{\ \ \ \ predictions\ :\ array-\/like}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00281}00281\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ predictions\ for\ the\ given\ \`{}grid\`{}\ of\ features\ values\ over\ the\ samples}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00282}00282\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ from\ \`{}X\`{}.\ For\ non-\/multioutput\ regression\ and\ binary\ classification\ the}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00283}00283\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ shape\ is\ \`{}(n\_instances,\ n\_points)\`{}\ and\ for\ multi-\/output\ regression\ and}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00284}00284\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ multiclass\ classification\ the\ shape\ is\ \`{}(n\_targets,\ n\_instances,\ n\_points)\`{},}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00285}00285\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ where\ \`{}n\_targets\`{}\ is\ the\ number\ of\ targets\ (\`{}n\_tasks\`{}\ for\ multi-\/output}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00286}00286\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ regression,\ and\ \`{}n\_classes\`{}\ for\ multiclass\ classification),\ \`{}n\_instances\`{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00287}00287\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ is\ the\ number\ of\ instances\ in\ \`{}X\`{},\ and\ \`{}n\_points\`{}\ is\ the\ number\ of\ points}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00288}00288\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ in\ the\ \`{}grid\`{}.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00289}00289\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00290}00290\ \ \ \ \ predictions\ =\ []}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00291}00291\ \ \ \ \ averaged\_predictions\ =\ []}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00292}00292\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00293}00293\ \ \ \ \ \textcolor{keywordflow}{if}\ response\_method\ ==\ \textcolor{stringliteral}{"{}auto"{}}:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00294}00294\ \ \ \ \ \ \ \ \ response\_method\ =\ (}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00295}00295\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}predict"{}}\ \textcolor{keywordflow}{if}\ is\_regressor(est)\ \textcolor{keywordflow}{else}\ [\textcolor{stringliteral}{"{}predict\_proba"{}},\ \textcolor{stringliteral}{"{}decision\_function"{}}]}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00296}00296\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00297}00297\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00298}00298\ \ \ \ \ X\_eval\ =\ X.copy()}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00299}00299\ \ \ \ \ \textcolor{keywordflow}{for}\ new\_values\ \textcolor{keywordflow}{in}\ grid:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00300}00300\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ i,\ variable\ \textcolor{keywordflow}{in}\ enumerate(features):}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00301}00301\ \ \ \ \ \ \ \ \ \ \ \ \ \_safe\_assign(X\_eval,\ new\_values[i],\ column\_indexer=variable)}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00302}00302\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00303}00303\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Note:\ predictions\ is\ of\ shape}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00304}00304\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ (n\_points,)\ for\ non-\/multioutput\ regressors}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00305}00305\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ (n\_points,\ n\_tasks)\ for\ multioutput\ regressors}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00306}00306\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ (n\_points,\ 1)\ for\ the\ regressors\ in\ cross\_decomposition\ (I\ think)}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00307}00307\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ (n\_points,\ 1)\ for\ binary\ classification\ (positive\ class\ already\ selected)}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00308}00308\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ (n\_points,\ n\_classes)\ for\ multiclass\ classification}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00309}00309\ \ \ \ \ \ \ \ \ pred,\ \_\ =\ \_get\_response\_values(est,\ X\_eval,\ response\_method=response\_method)}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00310}00310\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00311}00311\ \ \ \ \ \ \ \ \ predictions.append(pred)}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00312}00312\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ average\ over\ samples}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00313}00313\ \ \ \ \ \ \ \ \ averaged\_predictions.append(np.average(pred,\ axis=0,\ weights=sample\_weight))}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00314}00314\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00315}00315\ \ \ \ \ n\_samples\ =\ X.shape[0]}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00316}00316\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00317}00317\ \ \ \ \ \textcolor{comment}{\#\ reshape\ to\ (n\_targets,\ n\_instances,\ n\_points)\ where\ n\_targets\ is:}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00318}00318\ \ \ \ \ \textcolor{comment}{\#\ -\/\ 1\ for\ non-\/multioutput\ regression\ and\ binary\ classification\ (shape\ is}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00319}00319\ \ \ \ \ \textcolor{comment}{\#\ \ \ already\ correct\ in\ those\ cases)}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00320}00320\ \ \ \ \ \textcolor{comment}{\#\ -\/\ n\_tasks\ for\ multi-\/output\ regression}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00321}00321\ \ \ \ \ \textcolor{comment}{\#\ -\/\ n\_classes\ for\ multiclass\ classification.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00322}00322\ \ \ \ \ predictions\ =\ np.array(predictions).T}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00323}00323\ \ \ \ \ \textcolor{keywordflow}{if}\ is\_regressor(est)\ \textcolor{keywordflow}{and}\ predictions.ndim\ ==\ 2:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00324}00324\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ non-\/multioutput\ regression,\ shape\ is\ (n\_instances,\ n\_points,)}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00325}00325\ \ \ \ \ \ \ \ \ predictions\ =\ predictions.reshape(n\_samples,\ -\/1)}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00326}00326\ \ \ \ \ \textcolor{keywordflow}{elif}\ is\_classifier(est)\ \textcolor{keywordflow}{and}\ predictions.shape[0]\ ==\ 2:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00327}00327\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Binary\ classification,\ shape\ is\ (2,\ n\_instances,\ n\_points).}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00328}00328\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ we\ output\ the\ effect\ of\ **positive**\ class}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00329}00329\ \ \ \ \ \ \ \ \ predictions\ =\ predictions[1]}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00330}00330\ \ \ \ \ \ \ \ \ predictions\ =\ predictions.reshape(n\_samples,\ -\/1)}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00331}00331\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00332}00332\ \ \ \ \ \textcolor{comment}{\#\ reshape\ averaged\_predictions\ to\ (n\_targets,\ n\_points)\ where\ n\_targets\ is:}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00333}00333\ \ \ \ \ \textcolor{comment}{\#\ -\/\ 1\ for\ non-\/multioutput\ regression\ and\ binary\ classification\ (shape\ is}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00334}00334\ \ \ \ \ \textcolor{comment}{\#\ \ \ already\ correct\ in\ those\ cases)}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00335}00335\ \ \ \ \ \textcolor{comment}{\#\ -\/\ n\_tasks\ for\ multi-\/output\ regression}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00336}00336\ \ \ \ \ \textcolor{comment}{\#\ -\/\ n\_classes\ for\ multiclass\ classification.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00337}00337\ \ \ \ \ averaged\_predictions\ =\ np.array(averaged\_predictions).T}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00338}00338\ \ \ \ \ \textcolor{keywordflow}{if}\ averaged\_predictions.ndim\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00339}00339\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ reshape\ to\ (1,\ n\_points)\ for\ consistency\ with}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00340}00340\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \_partial\_dependence\_recursion}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00341}00341\ \ \ \ \ \ \ \ \ averaged\_predictions\ =\ averaged\_predictions.reshape(1,\ -\/1)}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00342}00342\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00343}00343\ \ \ \ \ \textcolor{keywordflow}{return}\ averaged\_predictions,\ predictions}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00344}00344\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00345}00345\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00346}00346\ \textcolor{preprocessor}{@validate\_params}(}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00347}00347\ \ \ \ \ \{}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00348}00348\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}estimator"{}}:\ [}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00349}00349\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1HasMethods}{HasMethods}}([\textcolor{stringliteral}{"{}fit"{}},\ \textcolor{stringliteral}{"{}predict"{}}]),}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00350}00350\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1HasMethods}{HasMethods}}([\textcolor{stringliteral}{"{}fit"{}},\ \textcolor{stringliteral}{"{}predict\_proba"{}}]),}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00351}00351\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1HasMethods}{HasMethods}}([\textcolor{stringliteral}{"{}fit"{}},\ \textcolor{stringliteral}{"{}decision\_function"{}}]),}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00352}00352\ \ \ \ \ \ \ \ \ ],}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00353}00353\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}X"{}}:\ [\textcolor{stringliteral}{"{}array-\/like"{}},\ \textcolor{stringliteral}{"{}sparse\ matrix"{}}],}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00354}00354\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}features"{}}:\ [\textcolor{stringliteral}{"{}array-\/like"{}},\ Integral,\ str],}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00355}00355\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}sample\_weight"{}}:\ [\textcolor{stringliteral}{"{}array-\/like"{}},\ \textcolor{keywordtype}{None}],}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00356}00356\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}categorical\_features"{}}:\ [\textcolor{stringliteral}{"{}array-\/like"{}},\ \textcolor{keywordtype}{None}],}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00357}00357\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}feature\_names"{}}:\ [\textcolor{stringliteral}{"{}array-\/like"{}},\ \textcolor{keywordtype}{None}],}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00358}00358\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}response\_method"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1StrOptions}{StrOptions}}(\{\textcolor{stringliteral}{"{}auto"{}},\ \textcolor{stringliteral}{"{}predict\_proba"{}},\ \textcolor{stringliteral}{"{}decision\_function"{}}\})],}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00359}00359\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}percentiles"{}}:\ [tuple],}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00360}00360\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}grid\_resolution"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1Interval}{Interval}}(Integral,\ 1,\ \textcolor{keywordtype}{None},\ closed=\textcolor{stringliteral}{"{}left"{}})],}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00361}00361\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}method"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1StrOptions}{StrOptions}}(\{\textcolor{stringliteral}{"{}auto"{}},\ \textcolor{stringliteral}{"{}recursion"{}},\ \textcolor{stringliteral}{"{}brute"{}}\})],}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00362}00362\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}kind"{}}:\ [\mbox{\hyperlink{classsklearn_1_1utils_1_1__param__validation_1_1StrOptions}{StrOptions}}(\{\textcolor{stringliteral}{"{}average"{}},\ \textcolor{stringliteral}{"{}individual"{}},\ \textcolor{stringliteral}{"{}both"{}}\})],}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00363}00363\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}custom\_values"{}}:\ [dict,\ \textcolor{keywordtype}{None}],}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00364}00364\ \ \ \ \ \},}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00365}00365\ \ \ \ \ prefer\_skip\_nested\_validation=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00366}00366\ )}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00367}\mbox{\hyperlink{namespacesklearn_1_1inspection_1_1__partial__dependence_af2ee78bd4dbd71afaf47b4721f77af94}{00367}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1inspection_1_1__partial__dependence_af2ee78bd4dbd71afaf47b4721f77af94}{partial\_dependence}}(}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00368}00368\ \ \ \ \ estimator,}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00369}00369\ \ \ \ \ X,}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00370}00370\ \ \ \ \ features,}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00371}00371\ \ \ \ \ *,}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00372}00372\ \ \ \ \ sample\_weight=None,}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00373}00373\ \ \ \ \ categorical\_features=None,}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00374}00374\ \ \ \ \ feature\_names=None,}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00375}00375\ \ \ \ \ response\_method="{}auto"{},}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00376}00376\ \ \ \ \ percentiles=(0.05,\ 0.95),}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00377}00377\ \ \ \ \ grid\_resolution=100,}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00378}00378\ \ \ \ \ custom\_values=\textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00379}00379\ \ \ \ \ method=\textcolor{stringliteral}{"{}auto"{}},}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00380}00380\ \ \ \ \ kind=\textcolor{stringliteral}{"{}average"{}},}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00381}00381\ ):}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00382}00382\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Partial\ dependence\ of\ \`{}\`{}features\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00383}00383\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00384}00384\ \textcolor{stringliteral}{\ \ \ \ Partial\ dependence\ of\ a\ feature\ (or\ a\ set\ of\ features)\ corresponds\ to}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00385}00385\ \textcolor{stringliteral}{\ \ \ \ the\ average\ response\ of\ an\ estimator\ for\ each\ possible\ value\ of\ the}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00386}00386\ \textcolor{stringliteral}{\ \ \ \ feature.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00387}00387\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00388}00388\ \textcolor{stringliteral}{\ \ \ \ Read\ more\ in}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00389}00389\ \textcolor{stringliteral}{\ \ \ \ :ref:\`{}sphx\_glr\_auto\_examples\_inspection\_plot\_partial\_dependence.py\`{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00390}00390\ \textcolor{stringliteral}{\ \ \ \ and\ the\ :ref:\`{}User\ Guide\ <partial\_dependence>\`{}.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00391}00391\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00392}00392\ \textcolor{stringliteral}{\ \ \ \ ..\ warning::}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00393}00393\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00394}00394\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ For\ :class:\`{}\string~sklearn.ensemble.GradientBoostingClassifier\`{}\ and}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00395}00395\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :class:\`{}\string~sklearn.ensemble.GradientBoostingRegressor\`{},\ the}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00396}00396\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}'recursion'\`{}\ method\ (used\ by\ default)\ will\ not\ account\ for\ the\ \`{}init\`{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00397}00397\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ predictor\ of\ the\ boosting\ process.\ In\ practice,\ this\ will\ produce}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00398}00398\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ same\ values\ as\ \`{}'brute'\`{}\ up\ to\ a\ constant\ offset\ in\ the\ target}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00399}00399\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ response,\ provided\ that\ \`{}init\`{}\ is\ a\ constant\ estimator\ (which\ is\ the}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00400}00400\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ default).\ However,\ if\ \`{}init\`{}\ is\ not\ a\ constant\ estimator,\ the}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00401}00401\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ partial\ dependence\ values\ are\ incorrect\ for\ \`{}'recursion'\`{}\ because\ the}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00402}00402\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ offset\ will\ be\ sample-\/dependent.\ It\ is\ preferable\ to\ use\ the\ \`{}'brute'\`{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00403}00403\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ method.\ Note\ that\ this\ only\ applies\ to}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00404}00404\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :class:\`{}\string~sklearn.ensemble.GradientBoostingClassifier\`{}\ and}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00405}00405\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :class:\`{}\string~sklearn.ensemble.GradientBoostingRegressor\`{},\ not\ to}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00406}00406\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :class:\`{}\string~sklearn.ensemble.HistGradientBoostingClassifier\`{}\ and}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00407}00407\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :class:\`{}\string~sklearn.ensemble.HistGradientBoostingRegressor\`{}.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00408}00408\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00409}00409\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00410}00410\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00411}00411\ \textcolor{stringliteral}{\ \ \ \ estimator\ :\ BaseEstimator}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00412}00412\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ A\ fitted\ estimator\ object\ implementing\ :term:\`{}predict\`{},}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00413}00413\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :term:\`{}predict\_proba\`{},\ or\ :term:\`{}decision\_function\`{}.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00414}00414\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Multioutput-\/multiclass\ classifiers\ are\ not\ supported.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00415}00415\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00416}00416\ \textcolor{stringliteral}{\ \ \ \ X\ :\ \{array-\/like,\ sparse\ matrix\ or\ dataframe\}\ of\ shape\ (n\_samples,\ n\_features)}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00417}00417\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}X\`{}\`{}\ is\ used\ to\ generate\ a\ grid\ of\ values\ for\ the\ target}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00418}00418\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}features\`{}\`{}\ (where\ the\ partial\ dependence\ will\ be\ evaluated),\ and}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00419}00419\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ also\ to\ generate\ values\ for\ the\ complement\ features\ when\ the}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00420}00420\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}method\`{}\ is\ 'brute'.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00421}00421\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00422}00422\ \textcolor{stringliteral}{\ \ \ \ features\ :\ array-\/like\ of\ \{int,\ str,\ bool\}\ or\ int\ or\ str}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00423}00423\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ feature\ (e.g.\ \`{}[0]\`{})\ or\ pair\ of\ interacting\ features}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00424}00424\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ (e.g.\ \`{}[(0,\ 1)]\`{})\ for\ which\ the\ partial\ dependency\ should\ be\ computed.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00425}00425\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00426}00426\ \textcolor{stringliteral}{\ \ \ \ sample\_weight\ :\ array-\/like\ of\ shape\ (n\_samples,),\ default=None}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00427}00427\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Sample\ weights\ are\ used\ to\ calculate\ weighted\ means\ when\ averaging\ the}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00428}00428\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ model\ output.\ If\ \`{}None\`{},\ then\ samples\ are\ equally\ weighted.\ If}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00429}00429\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}sample\_weight\`{}\ is\ not\ \`{}None\`{},\ then\ \`{}method\`{}\ will\ be\ set\ to\ \`{}'brute'\`{}.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00430}00430\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Note\ that\ \`{}sample\_weight\`{}\ is\ ignored\ for\ \`{}kind='individual'\`{}.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00431}00431\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00432}00432\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 1.3}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00433}00433\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00434}00434\ \textcolor{stringliteral}{\ \ \ \ categorical\_features\ :\ array-\/like\ of\ shape\ (n\_features,)\ or\ shape\ \(\backslash\)}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00435}00435\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ (n\_categorical\_features,),\ dtype=\{bool,\ int,\ str\},\ default=None}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00436}00436\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Indicates\ the\ categorical\ features.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00437}00437\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00438}00438\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ \`{}None\`{}:\ no\ feature\ will\ be\ considered\ categorical;}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00439}00439\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ boolean\ array-\/like:\ boolean\ mask\ of\ shape\ \`{}(n\_features,)\`{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00440}00440\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ indicating\ which\ features\ are\ categorical.\ Thus,\ this\ array\ has}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00441}00441\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ the\ same\ shape\ has\ \`{}X.shape[1]\`{};}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00442}00442\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ integer\ or\ string\ array-\/like:\ integer\ indices\ or\ strings}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00443}00443\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ indicating\ categorical\ features.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00444}00444\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00445}00445\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 1.2}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00446}00446\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00447}00447\ \textcolor{stringliteral}{\ \ \ \ feature\_names\ :\ array-\/like\ of\ shape\ (n\_features,),\ dtype=str,\ default=None}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00448}00448\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Name\ of\ each\ feature;\ \`{}feature\_names[i]\`{}\ holds\ the\ name\ of\ the\ feature}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00449}00449\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ with\ index\ \`{}i\`{}.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00450}00450\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ By\ default,\ the\ name\ of\ the\ feature\ corresponds\ to\ their\ numerical}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00451}00451\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ index\ for\ NumPy\ array\ and\ their\ column\ name\ for\ pandas\ dataframe.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00452}00452\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00453}00453\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 1.2}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00454}00454\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00455}00455\ \textcolor{stringliteral}{\ \ \ \ response\_method\ :\ \{'auto',\ 'predict\_proba',\ 'decision\_function'\},\ \(\backslash\)}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00456}00456\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ default='auto'}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00457}00457\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Specifies\ whether\ to\ use\ :term:\`{}predict\_proba\`{}\ or}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00458}00458\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :term:\`{}decision\_function\`{}\ as\ the\ target\ response.\ For\ regressors}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00459}00459\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ this\ parameter\ is\ ignored\ and\ the\ response\ is\ always\ the\ output\ of}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00460}00460\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :term:\`{}predict\`{}.\ By\ default,\ :term:\`{}predict\_proba\`{}\ is\ tried\ first}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00461}00461\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ and\ we\ revert\ to\ :term:\`{}decision\_function\`{}\ if\ it\ doesn't\ exist.\ If}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00462}00462\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}method\`{}\`{}\ is\ 'recursion',\ the\ response\ is\ always\ the\ output\ of}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00463}00463\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ :term:\`{}decision\_function\`{}.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00464}00464\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00465}00465\ \textcolor{stringliteral}{\ \ \ \ percentiles\ :\ tuple\ of\ float,\ default=(0.05,\ 0.95)}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00466}00466\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ lower\ and\ upper\ percentile\ used\ to\ create\ the\ extreme\ values}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00467}00467\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ for\ the\ grid.\ Must\ be\ in\ [0,\ 1].}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00468}00468\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ This\ parameter\ is\ overridden\ by\ \`{}custom\_values\`{}\ if\ that\ parameter\ is\ set.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00469}00469\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00470}00470\ \textcolor{stringliteral}{\ \ \ \ grid\_resolution\ :\ int,\ default=100}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00471}00471\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ number\ of\ equally\ spaced\ points\ on\ the\ grid,\ for\ each\ target}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00472}00472\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ feature.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00473}00473\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ This\ parameter\ is\ overridden\ by\ \`{}custom\_values\`{}\ if\ that\ parameter\ is\ set.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00474}00474\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00475}00475\ \textcolor{stringliteral}{\ \ \ \ custom\_values\ :\ dict}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00476}00476\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ A\ dictionary\ mapping\ the\ index\ of\ an\ element\ of\ \`{}features\`{}\ to\ an\ array}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00477}00477\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ of\ values\ where\ the\ partial\ dependence\ should\ be\ calculated}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00478}00478\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ for\ that\ feature.\ Setting\ a\ range\ of\ values\ for\ a\ feature\ overrides}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00479}00479\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}grid\_resolution\`{}\ and\ \`{}percentiles\`{}.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00480}00480\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00481}00481\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ See\ :ref:\`{}how\ to\ use\ partial\_dependence}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00482}00482\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ <plt\_partial\_dependence\_custom\_values>\`{}\ for\ an\ example\ of\ how\ this\ parameter\ can}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00483}00483\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ be\ used.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00484}00484\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00485}00485\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 1.7}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00486}00486\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00487}00487\ \textcolor{stringliteral}{\ \ \ \ method\ :\ \{'auto',\ 'recursion',\ 'brute'\},\ default='auto'}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00488}00488\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ method\ used\ to\ calculate\ the\ averaged\ predictions:}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00489}00489\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00490}00490\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ \`{}'recursion'\`{}\ is\ only\ supported\ for\ some\ tree-\/based\ estimators}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00491}00491\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ (namely}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00492}00492\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ :class:\`{}\string~sklearn.ensemble.GradientBoostingClassifier\`{},}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00493}00493\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ :class:\`{}\string~sklearn.ensemble.GradientBoostingRegressor\`{},}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00494}00494\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ :class:\`{}\string~sklearn.ensemble.HistGradientBoostingClassifier\`{},}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00495}00495\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ :class:\`{}\string~sklearn.ensemble.HistGradientBoostingRegressor\`{},}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00496}00496\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ :class:\`{}\string~sklearn.tree.DecisionTreeRegressor\`{},}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00497}00497\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ :class:\`{}\string~sklearn.ensemble.RandomForestRegressor\`{},}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00498}00498\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ )\ when\ \`{}kind='average'\`{}.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00499}00499\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ This\ is\ more\ efficient\ in\ terms\ of\ speed.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00500}00500\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ With\ this\ method,\ the\ target\ response\ of\ a}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00501}00501\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ classifier\ is\ always\ the\ decision\ function,\ not\ the\ predicted}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00502}00502\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ probabilities.\ Since\ the\ \`{}'recursion'\`{}\ method\ implicitly\ computes}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00503}00503\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ the\ average\ of\ the\ Individual\ Conditional\ Expectation\ (ICE)\ by}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00504}00504\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ design,\ it\ is\ not\ compatible\ with\ ICE\ and\ thus\ \`{}kind\`{}\ must\ be}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00505}00505\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \`{}'average'\`{}.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00506}00506\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00507}00507\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ \`{}'brute'\`{}\ is\ supported\ for\ any\ estimator,\ but\ is\ more}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00508}00508\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ computationally\ intensive.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00509}00509\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00510}00510\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/\ \`{}'auto'\`{}:\ the\ \`{}'recursion'\`{}\ is\ used\ for\ estimators\ that\ support\ it,}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00511}00511\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ and\ \`{}'brute'\`{}\ is\ used\ otherwise.\ If\ \`{}sample\_weight\`{}\ is\ not\ \`{}None\`{},}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00512}00512\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ then\ \`{}'brute'\`{}\ is\ used\ regardless\ of\ the\ estimator.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00513}00513\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00514}00514\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Please\ see\ :ref:\`{}this\ note\ <pdp\_method\_differences>\`{}\ for}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00515}00515\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ differences\ between\ the\ \`{}'brute'\`{}\ and\ \`{}'recursion'\`{}\ method.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00516}00516\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00517}00517\ \textcolor{stringliteral}{\ \ \ \ kind\ :\ \{'average',\ 'individual',\ 'both'\},\ default='average'}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00518}00518\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Whether\ to\ return\ the\ partial\ dependence\ averaged\ across\ all\ the}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00519}00519\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ samples\ in\ the\ dataset\ or\ one\ value\ per\ sample\ or\ both.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00520}00520\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ See\ Returns\ below.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00521}00521\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00522}00522\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Note\ that\ the\ fast\ \`{}method='recursion'\`{}\ option\ is\ only\ available\ for}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00523}00523\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}kind='average'\`{}\ and\ \`{}sample\_weights=None\`{}.\ Computing\ individual}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00524}00524\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ dependencies\ and\ doing\ weighted\ averages\ requires\ using\ the\ slower}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00525}00525\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}method='brute'\`{}.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00526}00526\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00527}00527\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ ..\ versionadded::\ 0.24}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00528}00528\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00529}00529\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00530}00530\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00531}00531\ \textcolor{stringliteral}{\ \ \ \ predictions\ :\ :class:\`{}\string~sklearn.utils.Bunch\`{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00532}00532\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Dictionary-\/like\ object,\ with\ the\ following\ attributes.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00533}00533\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00534}00534\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ individual\ :\ ndarray\ of\ shape\ (n\_outputs,\ n\_instances,\ \(\backslash\)}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00535}00535\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ len(values[0]),\ len(values[1]),\ ...)}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00536}00536\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ predictions\ for\ all\ the\ points\ in\ the\ grid\ for\ all}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00537}00537\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ samples\ in\ X.\ This\ is\ also\ known\ as\ Individual}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00538}00538\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Conditional\ Expectation\ (ICE).}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00539}00539\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Only\ available\ when\ \`{}kind='individual'\`{}\ or\ \`{}kind='both'\`{}.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00540}00540\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00541}00541\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ average\ :\ ndarray\ of\ shape\ (n\_outputs,\ len(values[0]),\ \(\backslash\)}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00542}00542\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ len(values[1]),\ ...)}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00543}00543\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ predictions\ for\ all\ the\ points\ in\ the\ grid,\ averaged}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00544}00544\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ over\ all\ samples\ in\ X\ (or\ over\ the\ training\ data\ if}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00545}00545\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \`{}method\`{}\ is\ 'recursion').}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00546}00546\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Only\ available\ when\ \`{}kind='average'\`{}\ or\ \`{}kind='both'\`{}.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00547}00547\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00548}00548\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ grid\_values\ :\ seq\ of\ 1d\ ndarrays}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00549}00549\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ values\ with\ which\ the\ grid\ has\ been\ created.\ The\ generated}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00550}00550\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ grid\ is\ a\ cartesian\ product\ of\ the\ arrays\ in\ \`{}grid\_values\`{}\ where}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00551}00551\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \`{}len(grid\_values)\ ==\ len(features)\`{}.\ The\ size\ of\ each\ array}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00552}00552\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \`{}grid\_values[j]\`{}\ is\ either\ \`{}grid\_resolution\`{},\ or\ the\ number\ of}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00553}00553\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ unique\ values\ in\ \`{}X[:,\ j]\`{},\ whichever\ is\ smaller.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00554}00554\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00555}00555\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ ..\ versionadded::\ 1.3}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00556}00556\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00557}00557\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}n\_outputs\`{}\ corresponds\ to\ the\ number\ of\ classes\ in\ a\ multi-\/class}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00558}00558\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ setting,\ or\ to\ the\ number\ of\ tasks\ for\ multi-\/output\ regression.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00559}00559\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ For\ classical\ regression\ and\ binary\ classification\ \`{}n\_outputs==1\`{}.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00560}00560\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}n\_values\_feature\_j\`{}\ corresponds\ to\ the\ size\ \`{}grid\_values[j]\`{}.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00561}00561\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00562}00562\ \textcolor{stringliteral}{\ \ \ \ See\ Also}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00563}00563\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00564}00564\ \textcolor{stringliteral}{\ \ \ \ PartialDependenceDisplay.from\_estimator\ :\ Plot\ Partial\ Dependence.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00565}00565\ \textcolor{stringliteral}{\ \ \ \ PartialDependenceDisplay\ :\ Partial\ Dependence\ visualization.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00566}00566\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00567}00567\ \textcolor{stringliteral}{\ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00568}00568\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00569}00569\ \textcolor{stringliteral}{\ \ \ \ >>>\ X\ =\ [[0,\ 0,\ 2],\ [1,\ 0,\ 0]]}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00570}00570\ \textcolor{stringliteral}{\ \ \ \ >>>\ y\ =\ [0,\ 1]}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00571}00571\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ sklearn.ensemble\ import\ GradientBoostingClassifier}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00572}00572\ \textcolor{stringliteral}{\ \ \ \ >>>\ gb\ =\ GradientBoostingClassifier(random\_state=0).fit(X,\ y)}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00573}00573\ \textcolor{stringliteral}{\ \ \ \ >>>\ partial\_dependence(gb,\ features=[0],\ X=X,\ percentiles=(0,\ 1),}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00574}00574\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ grid\_resolution=2)\ \#\ doctest:\ +SKIP}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00575}00575\ \textcolor{stringliteral}{\ \ \ \ (array([[-\/4.52,\ \ 4.52]]),\ [array([\ 0.,\ \ 1.])])}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00576}00576\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00577}00577\ \ \ \ \ check\_is\_fitted(estimator)}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00578}00578\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00579}00579\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ (is\_classifier(estimator)\ \textcolor{keywordflow}{or}\ is\_regressor(estimator)):}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00580}00580\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}'estimator'\ must\ be\ a\ fitted\ regressor\ or\ classifier."{}})}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00581}00581\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00582}00582\ \ \ \ \ \textcolor{keywordflow}{if}\ is\_classifier(estimator)\ \textcolor{keywordflow}{and}\ isinstance(estimator.classes\_[0],\ np.ndarray):}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00583}00583\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}Multiclass-\/multioutput\ estimators\ are\ not\ supported"{}})}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00584}00584\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00585}00585\ \ \ \ \ \textcolor{comment}{\#\ Use\ check\_array\ only\ on\ lists\ and\ other\ non-\/array-\/likes\ /\ sparse.\ Do\ not}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00586}00586\ \ \ \ \ \textcolor{comment}{\#\ convert\ DataFrame\ into\ a\ NumPy\ array.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00587}00587\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ (hasattr(X,\ \textcolor{stringliteral}{"{}\_\_array\_\_"{}})\ \textcolor{keywordflow}{or}\ sparse.issparse(X)):}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00588}00588\ \ \ \ \ \ \ \ \ X\ =\ check\_array(X,\ ensure\_all\_finite=\textcolor{stringliteral}{"{}allow-\/nan"{}},\ dtype=object)}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00589}00589\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00590}00590\ \ \ \ \ \textcolor{keywordflow}{if}\ is\_regressor(estimator)\ \textcolor{keywordflow}{and}\ response\_method\ !=\ \textcolor{stringliteral}{"{}auto"{}}:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00591}00591\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00592}00592\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}The\ response\_method\ parameter\ is\ ignored\ for\ regressors\ and\ "{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00593}00593\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}must\ be\ 'auto'."{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00594}00594\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00595}00595\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00596}00596\ \ \ \ \ \textcolor{keywordflow}{if}\ kind\ !=\ \textcolor{stringliteral}{"{}average"{}}:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00597}00597\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ method\ ==\ \textcolor{stringliteral}{"{}recursion"{}}:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00598}00598\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00599}00599\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}The\ 'recursion'\ method\ only\ applies\ when\ 'kind'\ is\ set\ to\ 'average'"{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00600}00600\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00601}00601\ \ \ \ \ \ \ \ \ method\ =\ \textcolor{stringliteral}{"{}brute"{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00602}00602\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00603}00603\ \ \ \ \ \textcolor{keywordflow}{if}\ method\ ==\ \textcolor{stringliteral}{"{}recursion"{}}\ \textcolor{keywordflow}{and}\ sample\_weight\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00604}00604\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00605}00605\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}The\ 'recursion'\ method\ can\ only\ be\ applied\ when\ sample\_weight\ is\ None."{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00606}00606\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00607}00607\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00608}00608\ \ \ \ \ \textcolor{keywordflow}{if}\ method\ ==\ \textcolor{stringliteral}{"{}auto"{}}:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00609}00609\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ sample\_weight\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00610}00610\ \ \ \ \ \ \ \ \ \ \ \ \ method\ =\ \textcolor{stringliteral}{"{}brute"{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00611}00611\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ isinstance(estimator,\ BaseGradientBoosting)\ \textcolor{keywordflow}{and}\ estimator.init\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00612}00612\ \ \ \ \ \ \ \ \ \ \ \ \ method\ =\ \textcolor{stringliteral}{"{}recursion"{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00613}00613\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ isinstance(}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00614}00614\ \ \ \ \ \ \ \ \ \ \ \ \ estimator,}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00615}00615\ \ \ \ \ \ \ \ \ \ \ \ \ (BaseHistGradientBoosting,\ DecisionTreeRegressor,\ RandomForestRegressor),}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00616}00616\ \ \ \ \ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00617}00617\ \ \ \ \ \ \ \ \ \ \ \ \ method\ =\ \textcolor{stringliteral}{"{}recursion"{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00618}00618\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00619}00619\ \ \ \ \ \ \ \ \ \ \ \ \ method\ =\ \textcolor{stringliteral}{"{}brute"{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00620}00620\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00621}00621\ \ \ \ \ \textcolor{keywordflow}{if}\ method\ ==\ \textcolor{stringliteral}{"{}recursion"{}}:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00622}00622\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ isinstance(}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00623}00623\ \ \ \ \ \ \ \ \ \ \ \ \ estimator,}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00624}00624\ \ \ \ \ \ \ \ \ \ \ \ \ (}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00625}00625\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ BaseGradientBoosting,}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00626}00626\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ BaseHistGradientBoosting,}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00627}00627\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ DecisionTreeRegressor,}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00628}00628\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ RandomForestRegressor,}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00629}00629\ \ \ \ \ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00630}00630\ \ \ \ \ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00631}00631\ \ \ \ \ \ \ \ \ \ \ \ \ supported\_classes\_recursion\ =\ (}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00632}00632\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}GradientBoostingClassifier"{}},}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00633}00633\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}GradientBoostingRegressor"{}},}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00634}00634\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}HistGradientBoostingClassifier"{}},}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00635}00635\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}HistGradientBoostingRegressor"{}},}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00636}00636\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}HistGradientBoostingRegressor"{}},}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00637}00637\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}DecisionTreeRegressor"{}},}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00638}00638\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}RandomForestRegressor"{}},}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00639}00639\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00640}00640\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00641}00641\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Only\ the\ following\ estimators\ support\ the\ 'recursion'\ "{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00642}00642\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}method:\ \{\}.\ Try\ using\ method='brute'."{}}.format(}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00643}00643\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{},\ "{}}.join(supported\_classes\_recursion)}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00644}00644\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00645}00645\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00646}00646\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ response\_method\ ==\ \textcolor{stringliteral}{"{}auto"{}}:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00647}00647\ \ \ \ \ \ \ \ \ \ \ \ \ response\_method\ =\ \textcolor{stringliteral}{"{}decision\_function"{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00648}00648\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00649}00649\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ response\_method\ !=\ \textcolor{stringliteral}{"{}decision\_function"{}}:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00650}00650\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00651}00651\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}With\ the\ 'recursion'\ method,\ the\ response\_method\ must\ be\ "{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00652}00652\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}'decision\_function'.\ Got\ \{\}."{}}.format(response\_method)}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00653}00653\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00654}00654\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00655}00655\ \ \ \ \ \textcolor{keywordflow}{if}\ sample\_weight\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00656}00656\ \ \ \ \ \ \ \ \ sample\_weight\ =\ \_check\_sample\_weight(sample\_weight,\ X)}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00657}00657\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00658}00658\ \ \ \ \ \textcolor{keywordflow}{if}\ \_determine\_key\_type(features,\ accept\_slice=\textcolor{keyword}{False})\ ==\ \textcolor{stringliteral}{"{}int"{}}:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00659}00659\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \_get\_column\_indices()\ supports\ negative\ indexing.\ Here,\ we\ limit}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00660}00660\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ the\ indexing\ to\ be\ positive.\ The\ upper\ bound\ will\ be\ checked}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00661}00661\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ by\ \_get\_column\_indices()}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00662}00662\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ np.any(np.less(features,\ 0)):}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00663}00663\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}all\ features\ must\ be\ in\ [0,\ \{\}]"{}}.format(X.shape[1]\ -\/\ 1))}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00664}00664\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00665}00665\ \ \ \ \ features\_indices\ =\ np.asarray(}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00666}00666\ \ \ \ \ \ \ \ \ \_get\_column\_indices(X,\ features),\ dtype=np.intp,\ order=\textcolor{stringliteral}{"{}C"{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00667}00667\ \ \ \ \ ).ravel()}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00668}00668\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00669}00669\ \ \ \ \ feature\_names\ =\ \_check\_feature\_names(X,\ feature\_names)}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00670}00670\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00671}00671\ \ \ \ \ n\_features\ =\ X.shape[1]}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00672}00672\ \ \ \ \ \textcolor{keywordflow}{if}\ categorical\_features\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00673}00673\ \ \ \ \ \ \ \ \ is\_categorical\ =\ [\textcolor{keyword}{False}]\ *\ len(features\_indices)}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00674}00674\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00675}00675\ \ \ \ \ \ \ \ \ categorical\_features\ =\ np.asarray(categorical\_features)}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00676}00676\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ categorical\_features.size\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00677}00677\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00678}00678\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Passing\ an\ empty\ list\ (`[]`)\ to\ \`{}categorical\_features`\ is\ not\ "{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00679}00679\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}supported.\ Use\ \`{}None`\ instead\ to\ indicate\ that\ there\ are\ no\ "{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00680}00680\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}categorical\ features."{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00681}00681\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00682}00682\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ categorical\_features.dtype.kind\ ==\ \textcolor{stringliteral}{"{}b"{}}:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00683}00683\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ categorical\ features\ provided\ as\ a\ list\ of\ boolean}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00684}00684\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ categorical\_features.size\ !=\ n\_features:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00685}00685\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00686}00686\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}When\ \`{}categorical\_features`\ is\ a\ boolean\ array-\/like,\ "{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00687}00687\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}the\ array\ should\ be\ of\ shape\ (n\_features,).\ Got\ "{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00688}00688\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\{categorical\_features.size\}\ elements\ while\ \`{}X`\ contains\ "{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00689}00689\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\{n\_features\}\ features."{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00690}00690\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00691}00691\ \ \ \ \ \ \ \ \ \ \ \ \ is\_categorical\ =\ [categorical\_features[idx]\ \textcolor{keywordflow}{for}\ idx\ \textcolor{keywordflow}{in}\ features\_indices]}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00692}00692\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ categorical\_features.dtype.kind\ \textcolor{keywordflow}{in}\ (\textcolor{stringliteral}{"{}i"{}},\ \textcolor{stringliteral}{"{}O"{}},\ \textcolor{stringliteral}{"{}U"{}}):}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00693}00693\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ categorical\ features\ provided\ as\ a\ list\ of\ indices\ or\ feature\ names}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00694}00694\ \ \ \ \ \ \ \ \ \ \ \ \ categorical\_features\_idx\ =\ [}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00695}00695\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_get\_feature\_index(cat,\ feature\_names=feature\_names)}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00696}00696\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ cat\ \textcolor{keywordflow}{in}\ categorical\_features}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00697}00697\ \ \ \ \ \ \ \ \ \ \ \ \ ]}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00698}00698\ \ \ \ \ \ \ \ \ \ \ \ \ is\_categorical\ =\ [}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00699}00699\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ idx\ \textcolor{keywordflow}{in}\ categorical\_features\_idx\ \textcolor{keywordflow}{for}\ idx\ \textcolor{keywordflow}{in}\ features\_indices}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00700}00700\ \ \ \ \ \ \ \ \ \ \ \ \ ]}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00701}00701\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00702}00702\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00703}00703\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Expected\ \`{}categorical\_features`\ to\ be\ an\ array-\/like\ of\ boolean,"{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00704}00704\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\ integer,\ or\ string.\ Got\ \{categorical\_features.dtype\}\ instead."{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00705}00705\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00706}00706\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00707}00707\ \ \ \ \ custom\_values\ =\ custom\_values\ \textcolor{keywordflow}{or}\ \{\}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00708}00708\ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(features,\ (str,\ int)):}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00709}00709\ \ \ \ \ \ \ \ \ features\ =\ [features]}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00710}00710\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00711}00711\ \ \ \ \ \textcolor{keywordflow}{for}\ feature\_idx,\ feature,\ is\_cat\ \textcolor{keywordflow}{in}\ zip(features\_indices,\ features,\ is\_categorical):}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00712}00712\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ is\_cat:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00713}00713\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00714}00714\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00715}00715\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \_safe\_indexing(X,\ feature\_idx,\ axis=1).dtype.kind\ \textcolor{keywordflow}{in}\ \textcolor{stringliteral}{"{}iu"{}}:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00716}00716\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ TODO(1.9):\ raise\ a\ ValueError\ instead.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00717}00717\ \ \ \ \ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00718}00718\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}The\ column\ \{feature!r\}\ contains\ integer\ data.\ Partial\ "{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00719}00719\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}dependence\ plots\ are\ not\ supported\ for\ integer\ data:\ this\ "{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00720}00720\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}can\ lead\ to\ implicit\ rounding\ with\ NumPy\ arrays\ or\ even\ errors\ "{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00721}00721\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}with\ newer\ pandas\ versions.\ Please\ convert\ numerical\ features"{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00722}00722\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}to\ floating\ point\ dtypes\ ahead\ of\ time\ to\ avoid\ problems.\ "{}}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00723}00723\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}This\ will\ raise\ ValueError\ in\ scikit-\/learn\ 1.9."{}},}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00724}00724\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ FutureWarning,}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00725}00725\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00726}00726\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Do\ not\ warn\ again\ for\ other\ features\ to\ avoid\ spamming\ the\ caller.}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00727}00727\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00728}00728\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00729}00729\ \ \ \ \ X\_subset\ =\ \_safe\_indexing(X,\ features\_indices,\ axis=1)}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00730}00730\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00731}00731\ \ \ \ \ custom\_values\_for\_X\_subset\ =\ \{}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00732}00732\ \ \ \ \ \ \ \ \ index:\ custom\_values.get(feature)}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00733}00733\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ index,\ feature\ \textcolor{keywordflow}{in}\ enumerate(features)}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00734}00734\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ feature\ \textcolor{keywordflow}{in}\ custom\_values}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00735}00735\ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00736}00736\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00737}00737\ \ \ \ \ grid,\ values\ =\ \mbox{\hyperlink{namespacesklearn_1_1inspection_1_1__partial__dependence_a0b534d4f30b7dd8df8fd2dfb3550b45c}{\_grid\_from\_X}}(}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00738}00738\ \ \ \ \ \ \ \ \ X\_subset,}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00739}00739\ \ \ \ \ \ \ \ \ percentiles,}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00740}00740\ \ \ \ \ \ \ \ \ is\_categorical,}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00741}00741\ \ \ \ \ \ \ \ \ grid\_resolution,}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00742}00742\ \ \ \ \ \ \ \ \ custom\_values\_for\_X\_subset,}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00743}00743\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00744}00744\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00745}00745\ \ \ \ \ \textcolor{keywordflow}{if}\ method\ ==\ \textcolor{stringliteral}{"{}brute"{}}:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00746}00746\ \ \ \ \ \ \ \ \ averaged\_predictions,\ predictions\ =\ \mbox{\hyperlink{namespacesklearn_1_1inspection_1_1__partial__dependence_afdeaff408e05b819e07c334d2b3e2235}{\_partial\_dependence\_brute}}(}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00747}00747\ \ \ \ \ \ \ \ \ \ \ \ \ estimator,\ grid,\ features\_indices,\ X,\ response\_method,\ sample\_weight}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00748}00748\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00749}00749\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00750}00750\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ reshape\ predictions\ to}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00751}00751\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ (n\_outputs,\ n\_instances,\ n\_values\_feature\_0,\ n\_values\_feature\_1,\ ...)}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00752}00752\ \ \ \ \ \ \ \ \ predictions\ =\ predictions.reshape(}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00753}00753\ \ \ \ \ \ \ \ \ \ \ \ \ -\/1,\ X.shape[0],\ *[val.shape[0]\ \textcolor{keywordflow}{for}\ val\ \textcolor{keywordflow}{in}\ values]}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00754}00754\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00755}00755\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00756}00756\ \ \ \ \ \ \ \ \ averaged\_predictions\ =\ \mbox{\hyperlink{namespacesklearn_1_1inspection_1_1__partial__dependence_a2efd20fe885379a42a2deb7c4aec67be}{\_partial\_dependence\_recursion}}(}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00757}00757\ \ \ \ \ \ \ \ \ \ \ \ \ estimator,\ grid,\ features\_indices}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00758}00758\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00759}00759\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00760}00760\ \ \ \ \ \textcolor{comment}{\#\ reshape\ averaged\_predictions\ to}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00761}00761\ \ \ \ \ \textcolor{comment}{\#\ (n\_outputs,\ n\_values\_feature\_0,\ n\_values\_feature\_1,\ ...)}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00762}00762\ \ \ \ \ averaged\_predictions\ =\ averaged\_predictions.reshape(}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00763}00763\ \ \ \ \ \ \ \ \ -\/1,\ *[val.shape[0]\ \textcolor{keywordflow}{for}\ val\ \textcolor{keywordflow}{in}\ values]}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00764}00764\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00765}00765\ \ \ \ \ pdp\_results\ =\ \mbox{\hyperlink{classsklearn_1_1utils_1_1__bunch_1_1Bunch}{Bunch}}(grid\_values=values)}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00766}00766\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00767}00767\ \ \ \ \ \textcolor{keywordflow}{if}\ kind\ ==\ \textcolor{stringliteral}{"{}average"{}}:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00768}00768\ \ \ \ \ \ \ \ \ pdp\_results[\textcolor{stringliteral}{"{}average"{}}]\ =\ averaged\_predictions}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00769}00769\ \ \ \ \ \textcolor{keywordflow}{elif}\ kind\ ==\ \textcolor{stringliteral}{"{}individual"{}}:}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00770}00770\ \ \ \ \ \ \ \ \ pdp\_results[\textcolor{stringliteral}{"{}individual"{}}]\ =\ predictions}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00771}00771\ \ \ \ \ \textcolor{keywordflow}{else}:\ \ \textcolor{comment}{\#\ kind='both'}}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00772}00772\ \ \ \ \ \ \ \ \ pdp\_results[\textcolor{stringliteral}{"{}average"{}}]\ =\ averaged\_predictions}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00773}00773\ \ \ \ \ \ \ \ \ pdp\_results[\textcolor{stringliteral}{"{}individual"{}}]\ =\ predictions}
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00774}00774\ }
+\DoxyCodeLine{\Hypertarget{__partial__dependence_8py_source_l00775}00775\ \ \ \ \ \textcolor{keywordflow}{return}\ pdp\_results}
+
+\end{DoxyCode}

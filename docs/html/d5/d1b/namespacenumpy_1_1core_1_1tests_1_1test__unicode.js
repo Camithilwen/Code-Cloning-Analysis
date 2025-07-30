@@ -1,0 +1,28 @@
+var namespacenumpy_1_1core_1_1tests_1_1test__unicode =
+[
+    [ "AssignValues", "d3/d2c/classnumpy_1_1core_1_1tests_1_1test__unicode_1_1AssignValues.html", null ],
+    [ "ByteorderValues", "d5/dfe/classnumpy_1_1core_1_1tests_1_1test__unicode_1_1ByteorderValues.html", null ],
+    [ "CreateValues", "d4/dcf/classnumpy_1_1core_1_1tests_1_1test__unicode_1_1CreateValues.html", null ],
+    [ "CreateZeros", "d0/dec/classnumpy_1_1core_1_1tests_1_1test__unicode_1_1CreateZeros.html", null ],
+    [ "TestAssignValues_1009_UCS2", "d4/dc0/classnumpy_1_1core_1_1tests_1_1test__unicode_1_1TestAssignValues__1009__UCS2.html", null ],
+    [ "TestAssignValues_1009_UCS4", "d7/d55/classnumpy_1_1core_1_1tests_1_1test__unicode_1_1TestAssignValues__1009__UCS4.html", null ],
+    [ "TestAssignValues_1_UCS2", "d4/d1b/classnumpy_1_1core_1_1tests_1_1test__unicode_1_1TestAssignValues__1__UCS2.html", null ],
+    [ "TestAssignValues_1_UCS4", "d1/df9/classnumpy_1_1core_1_1tests_1_1test__unicode_1_1TestAssignValues__1__UCS4.html", null ],
+    [ "TestAssignValues_2_UCS2", "d9/d08/classnumpy_1_1core_1_1tests_1_1test__unicode_1_1TestAssignValues__2__UCS2.html", null ],
+    [ "TestAssignValues_2_UCS4", "d6/d68/classnumpy_1_1core_1_1tests_1_1test__unicode_1_1TestAssignValues__2__UCS4.html", null ],
+    [ "TestByteorder_1009_UCS2", "df/de4/classnumpy_1_1core_1_1tests_1_1test__unicode_1_1TestByteorder__1009__UCS2.html", null ],
+    [ "TestByteorder_1009_UCS4", "d4/dd8/classnumpy_1_1core_1_1tests_1_1test__unicode_1_1TestByteorder__1009__UCS4.html", null ],
+    [ "TestByteorder_1_UCS2", "df/d0b/classnumpy_1_1core_1_1tests_1_1test__unicode_1_1TestByteorder__1__UCS2.html", null ],
+    [ "TestByteorder_1_UCS4", "d7/d5d/classnumpy_1_1core_1_1tests_1_1test__unicode_1_1TestByteorder__1__UCS4.html", null ],
+    [ "TestByteorder_2_UCS2", "df/df6/classnumpy_1_1core_1_1tests_1_1test__unicode_1_1TestByteorder__2__UCS2.html", null ],
+    [ "TestByteorder_2_UCS4", "d0/d78/classnumpy_1_1core_1_1tests_1_1test__unicode_1_1TestByteorder__2__UCS4.html", null ],
+    [ "TestCreateValues_1009_UCS2", "d4/d8d/classnumpy_1_1core_1_1tests_1_1test__unicode_1_1TestCreateValues__1009__UCS2.html", null ],
+    [ "TestCreateValues_1009_UCS4", "dc/d58/classnumpy_1_1core_1_1tests_1_1test__unicode_1_1TestCreateValues__1009__UCS4.html", null ],
+    [ "TestCreateValues_1_UCS2", "d9/dfc/classnumpy_1_1core_1_1tests_1_1test__unicode_1_1TestCreateValues__1__UCS2.html", null ],
+    [ "TestCreateValues_1_UCS4", "dd/d4c/classnumpy_1_1core_1_1tests_1_1test__unicode_1_1TestCreateValues__1__UCS4.html", null ],
+    [ "TestCreateValues_2_UCS2", "d7/d12/classnumpy_1_1core_1_1tests_1_1test__unicode_1_1TestCreateValues__2__UCS2.html", null ],
+    [ "TestCreateValues_2_UCS4", "d8/d7f/classnumpy_1_1core_1_1tests_1_1test__unicode_1_1TestCreateValues__2__UCS4.html", null ],
+    [ "TestCreateZeros_1", "dd/d69/classnumpy_1_1core_1_1tests_1_1test__unicode_1_1TestCreateZeros__1.html", null ],
+    [ "TestCreateZeros_1009", "de/d16/classnumpy_1_1core_1_1tests_1_1test__unicode_1_1TestCreateZeros__1009.html", null ],
+    [ "TestCreateZeros_2", "dc/da5/classnumpy_1_1core_1_1tests_1_1test__unicode_1_1TestCreateZeros__2.html", null ]
+];

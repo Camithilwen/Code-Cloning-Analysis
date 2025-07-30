@@ -1,0 +1,26 @@
+var classnumpy_1_1matrixlib_1_1defmatrix_1_1matrix =
+[
+    [ "_align", "dd/db8/classnumpy_1_1matrixlib_1_1defmatrix_1_1matrix.html#a903fbc896a3639f001226db5a37043b1", null ],
+    [ "_collapse", "dd/db8/classnumpy_1_1matrixlib_1_1defmatrix_1_1matrix.html#a639daf97c98758ef0ed6b7680bafe7a8", null ],
+    [ "A", "dd/db8/classnumpy_1_1matrixlib_1_1defmatrix_1_1matrix.html#a3eb89a6a82c9fea4d93e6847d02ead93", null ],
+    [ "A1", "dd/db8/classnumpy_1_1matrixlib_1_1defmatrix_1_1matrix.html#a4b7920423f12f895a84e5ed8fc772da8", null ],
+    [ "all", "dd/db8/classnumpy_1_1matrixlib_1_1defmatrix_1_1matrix.html#a7257a5c6bfaf2dd6216c3c272a82d548", null ],
+    [ "any", "dd/db8/classnumpy_1_1matrixlib_1_1defmatrix_1_1matrix.html#a7623319bbd81c57c436768bd3a2e1e60", null ],
+    [ "argmax", "dd/db8/classnumpy_1_1matrixlib_1_1defmatrix_1_1matrix.html#a9fd4a338f3dfa89abce55dba1507db6f", null ],
+    [ "argmin", "dd/db8/classnumpy_1_1matrixlib_1_1defmatrix_1_1matrix.html#afd8932650b05989895b33954a1c13e45", null ],
+    [ "flatten", "dd/db8/classnumpy_1_1matrixlib_1_1defmatrix_1_1matrix.html#a5b1a7b4df991d0ef29813892f916f3f3", null ],
+    [ "H", "dd/db8/classnumpy_1_1matrixlib_1_1defmatrix_1_1matrix.html#af8643eeca98bf0d82e43c51a4ae78802", null ],
+    [ "I", "dd/db8/classnumpy_1_1matrixlib_1_1defmatrix_1_1matrix.html#af9c75225c5fd8dbda1ec27049ff9f75e", null ],
+    [ "max", "dd/db8/classnumpy_1_1matrixlib_1_1defmatrix_1_1matrix.html#a90296a5b76075a39219e9c453a9c1d13", null ],
+    [ "mean", "dd/db8/classnumpy_1_1matrixlib_1_1defmatrix_1_1matrix.html#aa3f90c93ae0ba590bb637a9dd0761375", null ],
+    [ "min", "dd/db8/classnumpy_1_1matrixlib_1_1defmatrix_1_1matrix.html#ab55718be51e9b441e37076ace60cbc65", null ],
+    [ "prod", "dd/db8/classnumpy_1_1matrixlib_1_1defmatrix_1_1matrix.html#ae87a5ac95394b86d16caaf3856e46dbc", null ],
+    [ "ptp", "dd/db8/classnumpy_1_1matrixlib_1_1defmatrix_1_1matrix.html#a753af1b9d81b01f4fb9f9999f76f9144", null ],
+    [ "ravel", "dd/db8/classnumpy_1_1matrixlib_1_1defmatrix_1_1matrix.html#a66e43a68b600db1782d9b5951b50bd11", null ],
+    [ "squeeze", "dd/db8/classnumpy_1_1matrixlib_1_1defmatrix_1_1matrix.html#a32e1abfaeb6e7260fa803d2f46661d70", null ],
+    [ "std", "dd/db8/classnumpy_1_1matrixlib_1_1defmatrix_1_1matrix.html#aa4b2feafd8add4c9040c5d3aefa864f0", null ],
+    [ "sum", "dd/db8/classnumpy_1_1matrixlib_1_1defmatrix_1_1matrix.html#a7ae9c6498010780ce4c9a8459b28a90c", null ],
+    [ "T", "dd/db8/classnumpy_1_1matrixlib_1_1defmatrix_1_1matrix.html#a02b54504023334adb42b3300a14dfcdf", null ],
+    [ "tolist", "dd/db8/classnumpy_1_1matrixlib_1_1defmatrix_1_1matrix.html#a7775ca7d896b01c94f9d344f02851b19", null ],
+    [ "var", "dd/db8/classnumpy_1_1matrixlib_1_1defmatrix_1_1matrix.html#a72b00fb7d1e9080c5df256a23017e6ab", null ]
+];

@@ -1,0 +1,395 @@
+\doxysection{optimize.\+py}
+\hypertarget{sklearn_2utils_2optimize_8py_source}{}\label{sklearn_2utils_2optimize_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/sklearn/utils/optimize.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/sklearn/utils/optimize.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00001}\mbox{\hyperlink{namespacesklearn_1_1utils_1_1optimize}{00001}}\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00002}00002\ \textcolor{stringliteral}{Our\ own\ implementation\ of\ the\ Newton\ algorithm}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00003}00003\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00004}00004\ \textcolor{stringliteral}{Unlike\ the\ scipy.optimize\ version,\ this\ version\ of\ the\ Newton\ conjugate}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00005}00005\ \textcolor{stringliteral}{gradient\ solver\ uses\ only\ one\ function\ call\ to\ retrieve\ the}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00006}00006\ \textcolor{stringliteral}{func\ value,\ the\ gradient\ value\ and\ a\ callable\ for\ the\ Hessian\ matvec}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00007}00007\ \textcolor{stringliteral}{product.\ If\ the\ function\ call\ is\ very\ expensive\ (e.g.\ for\ logistic}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00008}00008\ \textcolor{stringliteral}{regression\ with\ large\ design\ matrix),\ this\ approach\ gives\ very}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00009}00009\ \textcolor{stringliteral}{significant\ speedups.}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00010}00010\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00011}00011\ }
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00012}00012\ \textcolor{comment}{\#\ Authors:\ The\ scikit-\/learn\ developers}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00013}00013\ \textcolor{comment}{\#\ SPDX-\/License-\/Identifier:\ BSD-\/3-\/Clause}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00014}00014\ }
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00015}00015\ \textcolor{comment}{\#\ This\ is\ a\ modified\ file\ from\ scipy.optimize}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00016}00016\ \textcolor{comment}{\#\ Original\ authors:\ Travis\ Oliphant,\ Eric\ Jones}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00017}00017\ }
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00018}00018\ \textcolor{keyword}{import}\ warnings}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00019}00019\ }
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00020}00020\ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00021}00021\ \textcolor{keyword}{import}\ scipy}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00022}00022\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacescipy_1_1optimize_1_1__linesearch}{scipy.optimize.\_linesearch}}\ \textcolor{keyword}{import}\ line\_search\_wolfe1,\ line\_search\_wolfe2}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00023}00023\ }
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00024}00024\ \textcolor{keyword}{from}\ ..exceptions\ \textcolor{keyword}{import}\ ConvergenceWarning}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00025}00025\ }
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00026}00026\ }
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00027}\mbox{\hyperlink{classsklearn_1_1utils_1_1optimize_1_1__LineSearchError}{00027}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classsklearn_1_1utils_1_1optimize_1_1__LineSearchError}{\_LineSearchError}}(\mbox{\hyperlink{classRuntimeError}{RuntimeError}}):}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00028}00028\ \ \ \ \ \textcolor{keywordflow}{pass}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00029}00029\ }
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00030}00030\ }
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00031}\mbox{\hyperlink{namespacesklearn_1_1utils_1_1optimize_a1b63523ac4b53d9cf55517ac928732e2}{00031}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1utils_1_1optimize_a1b63523ac4b53d9cf55517ac928732e2}{\_line\_search\_wolfe12}}(}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00032}00032\ \ \ \ \ f,\ fprime,\ xk,\ pk,\ gfk,\ old\_fval,\ old\_old\_fval,\ verbose=0,\ **kwargs}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00033}00033\ ):}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00034}00034\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00035}00035\ \textcolor{stringliteral}{\ \ \ \ Same\ as\ line\_search\_wolfe1,\ but\ fall\ back\ to\ line\_search\_wolfe2\ if}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00036}00036\ \textcolor{stringliteral}{\ \ \ \ suitable\ step\ length\ is\ not\ found,\ and\ raise\ an\ exception\ if\ a}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00037}00037\ \textcolor{stringliteral}{\ \ \ \ suitable\ step\ length\ is\ not\ found.}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00038}00038\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00039}00039\ \textcolor{stringliteral}{\ \ \ \ Raises}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00040}00040\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00041}00041\ \textcolor{stringliteral}{\ \ \ \ \_LineSearchError}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00042}00042\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ no\ suitable\ step\ size\ is\ found.}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00043}00043\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00044}00044\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00045}00045\ \ \ \ \ is\_verbose\ =\ verbose\ >=\ 2}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00046}00046\ \ \ \ \ eps\ =\ 16\ *\ np.finfo(np.asarray(old\_fval).dtype).eps}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00047}00047\ \ \ \ \ \textcolor{keywordflow}{if}\ is\_verbose:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00048}00048\ \ \ \ \ \ \ \ \ print(\textcolor{stringliteral}{"{}\ \ Line\ Search"{}})}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00049}00049\ \ \ \ \ \ \ \ \ print(f\textcolor{stringliteral}{"{}\ \ \ \ eps=16\ *\ finfo.eps=\{eps\}"{}})}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00050}00050\ \ \ \ \ \ \ \ \ print(\textcolor{stringliteral}{"{}\ \ \ \ try\ line\ search\ wolfe1"{}})}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00051}00051\ }
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00052}00052\ \ \ \ \ ret\ =\ line\_search\_wolfe1(f,\ fprime,\ xk,\ pk,\ gfk,\ old\_fval,\ old\_old\_fval,\ **kwargs)}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00053}00053\ }
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00054}00054\ \ \ \ \ \textcolor{keywordflow}{if}\ is\_verbose:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00055}00055\ \ \ \ \ \ \ \ \ \_not\_\ =\ \textcolor{stringliteral}{"{}not\ "{}}\ \textcolor{keywordflow}{if}\ ret[0]\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{else}\ \textcolor{stringliteral}{"{}"{}}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00056}00056\ \ \ \ \ \ \ \ \ print(\textcolor{stringliteral}{"{}\ \ \ \ wolfe1\ line\ search\ was\ "{}}\ +\ \_not\_\ +\ \textcolor{stringliteral}{"{}successful"{}})}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00057}00057\ }
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00058}00058\ \ \ \ \ \textcolor{keywordflow}{if}\ ret[0]\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00059}00059\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Have\ a\ look\ at\ the\ line\_search\ method\ of\ our\ NewtonSolver\ class.\ We\ borrow}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00060}00060\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ the\ logic\ from\ there}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00061}00061\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Deal\ with\ relative\ loss\ differences\ around\ machine\ precision.}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00062}00062\ \ \ \ \ \ \ \ \ args\ =\ kwargs.get(\textcolor{stringliteral}{"{}args"{}},\ tuple())}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00063}00063\ \ \ \ \ \ \ \ \ fval\ =\ f(xk\ +\ pk,\ *args)}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00064}00064\ \ \ \ \ \ \ \ \ tiny\_loss\ =\ np.abs(old\_fval\ *\ eps)}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00065}00065\ \ \ \ \ \ \ \ \ loss\_improvement\ =\ fval\ -\/\ old\_fval}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00066}00066\ \ \ \ \ \ \ \ \ check\ =\ np.abs(loss\_improvement)\ <=\ tiny\_loss}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00067}00067\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ is\_verbose:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00068}00068\ \ \ \ \ \ \ \ \ \ \ \ \ print(}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00069}00069\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ \ \ \ check\ loss\ |improvement|\ <=\ eps\ *\ |loss\_old|:"{}}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00070}00070\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\ \{np.abs(loss\_improvement)\}\ <=\ \{tiny\_loss\}\ \{check\}"{}}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00071}00071\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00072}00072\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ check:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00073}00073\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ 2.1\ Check\ sum\ of\ absolute\ gradients\ as\ alternative\ condition.}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00074}00074\ \ \ \ \ \ \ \ \ \ \ \ \ sum\_abs\_grad\_old\ =\ scipy.linalg.norm(gfk,\ ord=1)}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00075}00075\ \ \ \ \ \ \ \ \ \ \ \ \ grad\ =\ fprime(xk\ +\ pk,\ *args)}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00076}00076\ \ \ \ \ \ \ \ \ \ \ \ \ sum\_abs\_grad\ =\ scipy.linalg.norm(grad,\ ord=1)}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00077}00077\ \ \ \ \ \ \ \ \ \ \ \ \ check\ =\ sum\_abs\_grad\ <\ sum\_abs\_grad\_old}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00078}00078\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ is\_verbose:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00079}00079\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00080}00080\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ \ \ \ check\ sum(|gradient|)\ <\ sum(|gradient\_old|):\ "{}}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00081}00081\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\{sum\_abs\_grad\}\ <\ \{sum\_abs\_grad\_old\}\ \{check\}"{}}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00082}00082\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00083}00083\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ check:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00084}00084\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ret\ =\ (}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00085}00085\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ 1.0,\ \ \textcolor{comment}{\#\ step\ size}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00086}00086\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ret[1]\ +\ 1,\ \ \textcolor{comment}{\#\ number\ of\ function\ evaluations}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00087}00087\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ret[2]\ +\ 1,\ \ \textcolor{comment}{\#\ number\ of\ gradient\ evaluations}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00088}00088\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ fval,}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00089}00089\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ old\_fval,}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00090}00090\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ grad,}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00091}00091\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00092}00092\ }
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00093}00093\ \ \ \ \ \textcolor{keywordflow}{if}\ ret[0]\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00094}00094\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ line\ search\ failed:\ try\ different\ one.}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00095}00095\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ TODO:\ It\ seems\ that\ the\ new\ check\ for\ the\ sum\ of\ absolute\ gradients\ above}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00096}00096\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ catches\ all\ cases\ that,\ earlier,\ ended\ up\ here.\ In\ fact,\ our\ tests\ never}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00097}00097\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ trigger\ this\ "{}if\ branch"{}\ here\ and\ we\ can\ consider\ to\ remove\ it.}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00098}00098\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ is\_verbose:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00099}00099\ \ \ \ \ \ \ \ \ \ \ \ \ print(\textcolor{stringliteral}{"{}\ \ \ \ last\ resort:\ try\ line\ search\ wolfe2"{}})}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00100}00100\ \ \ \ \ \ \ \ \ ret\ =\ line\_search\_wolfe2(}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00101}00101\ \ \ \ \ \ \ \ \ \ \ \ \ f,\ fprime,\ xk,\ pk,\ gfk,\ old\_fval,\ old\_old\_fval,\ **kwargs}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00102}00102\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00103}00103\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ is\_verbose:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00104}00104\ \ \ \ \ \ \ \ \ \ \ \ \ \_not\_\ =\ \textcolor{stringliteral}{"{}not\ "{}}\ \textcolor{keywordflow}{if}\ ret[0]\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{else}\ \textcolor{stringliteral}{"{}"{}}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00105}00105\ \ \ \ \ \ \ \ \ \ \ \ \ print(\textcolor{stringliteral}{"{}\ \ \ \ wolfe2\ line\ search\ was\ "{}}\ +\ \_not\_\ +\ \textcolor{stringliteral}{"{}successful"{}})}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00106}00106\ }
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00107}00107\ \ \ \ \ \textcolor{keywordflow}{if}\ ret[0]\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00108}00108\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \_LineSearchError()}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00109}00109\ }
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00110}00110\ \ \ \ \ \textcolor{keywordflow}{return}\ ret}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00111}00111\ }
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00112}00112\ }
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00113}\mbox{\hyperlink{namespacesklearn_1_1utils_1_1optimize_a1d3a69cf2ce1bf36552401dc57af16ed}{00113}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1utils_1_1optimize_a1d3a69cf2ce1bf36552401dc57af16ed}{\_cg}}(fhess\_p,\ fgrad,\ maxiter,\ tol,\ verbose=0):}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00114}00114\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00115}00115\ \textcolor{stringliteral}{\ \ \ \ Solve\ iteratively\ the\ linear\ system\ 'fhess\_p\ .\ xsupi\ =\ fgrad'}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00116}00116\ \textcolor{stringliteral}{\ \ \ \ with\ a\ conjugate\ gradient\ descent.}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00117}00117\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00118}00118\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00119}00119\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00120}00120\ \textcolor{stringliteral}{\ \ \ \ fhess\_p\ :\ callable}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00121}00121\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Function\ that\ takes\ the\ gradient\ as\ a\ parameter\ and\ returns\ the}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00122}00122\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ matrix\ product\ of\ the\ Hessian\ and\ gradient.}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00123}00123\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00124}00124\ \textcolor{stringliteral}{\ \ \ \ fgrad\ :\ ndarray\ of\ shape\ (n\_features,)\ or\ (n\_features\ +\ 1,)}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00125}00125\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Gradient\ vector.}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00126}00126\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00127}00127\ \textcolor{stringliteral}{\ \ \ \ maxiter\ :\ int}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00128}00128\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ CG\ iterations.}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00129}00129\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00130}00130\ \textcolor{stringliteral}{\ \ \ \ tol\ :\ float}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00131}00131\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Stopping\ criterion.}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00132}00132\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00133}00133\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00134}00134\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00135}00135\ \textcolor{stringliteral}{\ \ \ \ xsupi\ :\ ndarray\ of\ shape\ (n\_features,)\ or\ (n\_features\ +\ 1,)}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00136}00136\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Estimated\ solution.}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00137}00137\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00138}00138\ \ \ \ \ eps\ =\ 16\ *\ np.finfo(np.float64).eps}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00139}00139\ \ \ \ \ xsupi\ =\ np.zeros(len(fgrad),\ dtype=fgrad.dtype)}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00140}00140\ \ \ \ \ ri\ =\ np.copy(fgrad)\ \ \textcolor{comment}{\#\ residual\ =\ fgrad\ -\/\ fhess\_p\ @\ xsupi}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00141}00141\ \ \ \ \ psupi\ =\ -\/ri}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00142}00142\ \ \ \ \ i\ =\ 0}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00143}00143\ \ \ \ \ dri0\ =\ np.dot(ri,\ ri)}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00144}00144\ \ \ \ \ \textcolor{comment}{\#\ We\ also\ keep\ track\ of\ |p\_i|\string^2.}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00145}00145\ \ \ \ \ psupi\_norm2\ =\ dri0}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00146}00146\ \ \ \ \ is\_verbose\ =\ verbose\ >=\ 2}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00147}00147\ }
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00148}00148\ \ \ \ \ \textcolor{keywordflow}{while}\ i\ <=\ maxiter:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00149}00149\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ np.sum(np.abs(ri))\ <=\ tol:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00150}00150\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ is\_verbose:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00151}00151\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00152}00152\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\ \ Inner\ CG\ solver\ iteration\ \{i\}\ stopped\ with\(\backslash\)n"{}}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00153}00153\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\ \ \ \ sum(|residuals|)\ <=\ tol:\ \{np.sum(np.abs(ri))\}\ <=\ \{tol\}"{}}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00154}00154\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00155}00155\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00156}00156\ }
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00157}00157\ \ \ \ \ \ \ \ \ Ap\ =\ fhess\_p(psupi)}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00158}00158\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ check\ curvature}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00159}00159\ \ \ \ \ \ \ \ \ curv\ =\ np.dot(psupi,\ Ap)}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00160}00160\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ 0\ <=\ curv\ <=\ eps\ *\ psupi\_norm2:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00161}00161\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ See\ https://arxiv.org/abs/1803.02924,\ Algo\ 1\ Capped\ Conjugate\ Gradient.}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00162}00162\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ is\_verbose:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00163}00163\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00164}00164\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\ \ Inner\ CG\ solver\ iteration\ \{i\}\ stopped\ with\(\backslash\)n"{}}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00165}00165\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\ \ \ \ tiny\_|p|\ =\ eps\ *\ ||p||\string^2,\ eps\ =\ \{eps\},\ "{}}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00166}00166\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}squared\ L2\ norm\ ||p||\string^2\ =\ \{psupi\_norm2\}\(\backslash\)n"{}}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00167}00167\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\ \ \ \ curvature\ <=\ tiny\_|p|:\ \{curv\}\ <=\ \{eps\ *\ psupi\_norm2\}"{}}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00168}00168\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00169}00169\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00170}00170\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ curv\ <\ 0:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00171}00171\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ i\ >\ 0:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00172}00172\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ is\_verbose:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00173}00173\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00174}00174\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\ \ Inner\ CG\ solver\ iteration\ \{i\}\ stopped\ with\ negative\ "{}}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00175}00175\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}curvature,\ curvature\ =\ \{curv\}"{}}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00176}00176\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00177}00177\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00178}00178\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00179}00179\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ fall\ back\ to\ steepest\ descent\ direction}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00180}00180\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ xsupi\ +=\ dri0\ /\ curv\ *\ psupi}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00181}00181\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ is\_verbose:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00182}00182\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ print(\textcolor{stringliteral}{"{}\ \ Inner\ CG\ solver\ iteration\ 0\ fell\ back\ to\ steepest\ descent"{}})}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00183}00183\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00184}00184\ \ \ \ \ \ \ \ \ alphai\ =\ dri0\ /\ curv}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00185}00185\ \ \ \ \ \ \ \ \ xsupi\ +=\ alphai\ *\ psupi}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00186}00186\ \ \ \ \ \ \ \ \ ri\ +=\ alphai\ *\ Ap}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00187}00187\ \ \ \ \ \ \ \ \ dri1\ =\ np.dot(ri,\ ri)}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00188}00188\ \ \ \ \ \ \ \ \ betai\ =\ dri1\ /\ dri0}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00189}00189\ \ \ \ \ \ \ \ \ psupi\ =\ -\/ri\ +\ betai\ *\ psupi}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00190}00190\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ We\ use\ \ |p\_i|\string^2\ =\ |r\_i|\string^2\ +\ beta\_i\string^2\ |p\_\{i-\/1\}|\string^2}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00191}00191\ \ \ \ \ \ \ \ \ psupi\_norm2\ =\ dri1\ +\ betai**2\ *\ psupi\_norm2}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00192}00192\ \ \ \ \ \ \ \ \ i\ =\ i\ +\ 1}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00193}00193\ \ \ \ \ \ \ \ \ dri0\ =\ dri1\ \ \textcolor{comment}{\#\ update\ np.dot(ri,ri)\ for\ next\ time.}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00194}00194\ \ \ \ \ \textcolor{keywordflow}{if}\ is\_verbose\ \textcolor{keywordflow}{and}\ i\ >\ maxiter:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00195}00195\ \ \ \ \ \ \ \ \ print(}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00196}00196\ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\ \ Inner\ CG\ solver\ stopped\ reaching\ maxiter=\{i\ -\/\ 1\}\ with\ "{}}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00197}00197\ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}sum(|residuals|)\ =\ \{np.sum(np.abs(ri))\}"{}}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00198}00198\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00199}00199\ \ \ \ \ \textcolor{keywordflow}{return}\ xsupi}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00200}00200\ }
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00201}00201\ }
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00202}\mbox{\hyperlink{namespacesklearn_1_1utils_1_1optimize_a42743d736355106c237c8297987ea4bf}{00202}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1utils_1_1optimize_a42743d736355106c237c8297987ea4bf}{\_newton\_cg}}(}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00203}00203\ \ \ \ \ grad\_hess,}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00204}00204\ \ \ \ \ func,}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00205}00205\ \ \ \ \ grad,}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00206}00206\ \ \ \ \ x0,}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00207}00207\ \ \ \ \ args=(),}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00208}00208\ \ \ \ \ tol=1e-\/4,}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00209}00209\ \ \ \ \ maxiter=100,}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00210}00210\ \ \ \ \ maxinner=200,}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00211}00211\ \ \ \ \ line\_search=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00212}00212\ \ \ \ \ warn=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00213}00213\ \ \ \ \ verbose=0,}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00214}00214\ ):}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00215}00215\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00216}00216\ \textcolor{stringliteral}{\ \ \ \ Minimization\ of\ scalar\ function\ of\ one\ or\ more\ variables\ using\ the}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00217}00217\ \textcolor{stringliteral}{\ \ \ \ Newton-\/CG\ algorithm.}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00218}00218\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00219}00219\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00220}00220\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00221}00221\ \textcolor{stringliteral}{\ \ \ \ grad\_hess\ :\ callable}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00222}00222\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Should\ return\ the\ gradient\ and\ a\ callable\ returning\ the\ matvec\ product}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00223}00223\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ of\ the\ Hessian.}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00224}00224\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00225}00225\ \textcolor{stringliteral}{\ \ \ \ func\ :\ callable}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00226}00226\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Should\ return\ the\ value\ of\ the\ function.}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00227}00227\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00228}00228\ \textcolor{stringliteral}{\ \ \ \ grad\ :\ callable}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00229}00229\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Should\ return\ the\ function\ value\ and\ the\ gradient.\ This\ is\ used}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00230}00230\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ by\ the\ linesearch\ functions.}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00231}00231\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00232}00232\ \textcolor{stringliteral}{\ \ \ \ x0\ :\ array\ of\ float}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00233}00233\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Initial\ guess.}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00234}00234\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00235}00235\ \textcolor{stringliteral}{\ \ \ \ args\ :\ tuple,\ default=()}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00236}00236\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Arguments\ passed\ to\ func\_grad\_hess,\ func\ and\ grad.}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00237}00237\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00238}00238\ \textcolor{stringliteral}{\ \ \ \ tol\ :\ float,\ default=1e-\/4}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00239}00239\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Stopping\ criterion.\ The\ iteration\ will\ stop\ when}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00240}00240\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}max\{|g\_i\ |\ i\ =\ 1,\ ...,\ n\}\ <=\ tol\`{}\`{}}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00241}00241\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ where\ \`{}\`{}g\_i\`{}\`{}\ is\ the\ i-\/th\ component\ of\ the\ gradient.}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00242}00242\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00243}00243\ \textcolor{stringliteral}{\ \ \ \ maxiter\ :\ int,\ default=100}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00244}00244\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ Newton\ iterations.}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00245}00245\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00246}00246\ \textcolor{stringliteral}{\ \ \ \ maxinner\ :\ int,\ default=200}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00247}00247\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Number\ of\ CG\ iterations.}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00248}00248\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00249}00249\ \textcolor{stringliteral}{\ \ \ \ line\_search\ :\ bool,\ default=True}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00250}00250\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Whether\ to\ use\ a\ line\ search\ or\ not.}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00251}00251\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00252}00252\ \textcolor{stringliteral}{\ \ \ \ warn\ :\ bool,\ default=True}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00253}00253\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Whether\ to\ warn\ when\ didn't\ converge.}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00254}00254\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00255}00255\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00256}00256\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00257}00257\ \textcolor{stringliteral}{\ \ \ \ xk\ :\ ndarray\ of\ float}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00258}00258\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Estimated\ minimum.}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00259}00259\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00260}00260\ \ \ \ \ x0\ =\ np.asarray(x0).flatten()}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00261}00261\ \ \ \ \ xk\ =\ np.copy(x0)}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00262}00262\ \ \ \ \ k\ =\ 0}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00263}00263\ }
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00264}00264\ \ \ \ \ \textcolor{keywordflow}{if}\ line\_search:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00265}00265\ \ \ \ \ \ \ \ \ old\_fval\ =\ func(x0,\ *args)}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00266}00266\ \ \ \ \ \ \ \ \ old\_old\_fval\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00267}00267\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00268}00268\ \ \ \ \ \ \ \ \ old\_fval\ =\ 0}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00269}00269\ }
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00270}00270\ \ \ \ \ is\_verbose\ =\ verbose\ >\ 0}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00271}00271\ }
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00272}00272\ \ \ \ \ \textcolor{comment}{\#\ Outer\ loop:\ our\ Newton\ iteration}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00273}00273\ \ \ \ \ \textcolor{keywordflow}{while}\ k\ <\ maxiter:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00274}00274\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Compute\ a\ search\ direction\ pk\ by\ applying\ the\ CG\ method\ to}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00275}00275\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ del2\ f(xk)\ p\ =\ -\/\ fgrad\ f(xk)\ starting\ from\ 0.}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00276}00276\ \ \ \ \ \ \ \ \ fgrad,\ fhess\_p\ =\ grad\_hess(xk,\ *args)}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00277}00277\ }
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00278}00278\ \ \ \ \ \ \ \ \ absgrad\ =\ np.abs(fgrad)}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00279}00279\ \ \ \ \ \ \ \ \ max\_absgrad\ =\ np.max(absgrad)}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00280}00280\ \ \ \ \ \ \ \ \ check\ =\ max\_absgrad\ <=\ tol}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00281}00281\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ is\_verbose:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00282}00282\ \ \ \ \ \ \ \ \ \ \ \ \ print(f\textcolor{stringliteral}{"{}Newton-\/CG\ iter\ =\ \{k\}"{}})}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00283}00283\ \ \ \ \ \ \ \ \ \ \ \ \ print(\textcolor{stringliteral}{"{}\ \ Check\ Convergence"{}})}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00284}00284\ \ \ \ \ \ \ \ \ \ \ \ \ print(f\textcolor{stringliteral}{"{}\ \ \ \ max\ |gradient|\ <=\ tol:\ \{max\_absgrad\}\ <=\ \{tol\}\ \{check\}"{}})}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00285}00285\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ check:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00286}00286\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00287}00287\ }
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00288}00288\ \ \ \ \ \ \ \ \ maggrad\ =\ np.sum(absgrad)}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00289}00289\ \ \ \ \ \ \ \ \ eta\ =\ min([0.5,\ np.sqrt(maggrad)])}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00290}00290\ \ \ \ \ \ \ \ \ termcond\ =\ eta\ *\ maggrad}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00291}00291\ }
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00292}00292\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Inner\ loop:\ solve\ the\ Newton\ update\ by\ conjugate\ gradient,\ to}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00293}00293\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ avoid\ inverting\ the\ Hessian}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00294}00294\ \ \ \ \ \ \ \ \ xsupi\ =\ \mbox{\hyperlink{namespacesklearn_1_1utils_1_1optimize_a1d3a69cf2ce1bf36552401dc57af16ed}{\_cg}}(fhess\_p,\ fgrad,\ maxiter=maxinner,\ tol=termcond,\ verbose=verbose)}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00295}00295\ }
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00296}00296\ \ \ \ \ \ \ \ \ alphak\ =\ 1.0}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00297}00297\ }
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00298}00298\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ line\_search:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00299}00299\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00300}00300\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ alphak,\ fc,\ gc,\ old\_fval,\ old\_old\_fval,\ gfkp1\ =\ \mbox{\hyperlink{namespacesklearn_1_1utils_1_1optimize_a1b63523ac4b53d9cf55517ac928732e2}{\_line\_search\_wolfe12}}(}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00301}00301\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ func,}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00302}00302\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ grad,}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00303}00303\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ xk,}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00304}00304\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ xsupi,}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00305}00305\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ fgrad,}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00306}00306\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ old\_fval,}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00307}00307\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ old\_old\_fval,}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00308}00308\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ verbose=verbose,}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00309}00309\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ args=args,}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00310}00310\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00311}00311\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ \_LineSearchError:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00312}00312\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ warnings.warn(\textcolor{stringliteral}{"{}Line\ Search\ failed"{}})}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00313}00313\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00314}00314\ }
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00315}00315\ \ \ \ \ \ \ \ \ xk\ +=\ alphak\ *\ xsupi\ \ \textcolor{comment}{\#\ upcast\ if\ necessary}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00316}00316\ \ \ \ \ \ \ \ \ k\ +=\ 1}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00317}00317\ }
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00318}00318\ \ \ \ \ \textcolor{keywordflow}{if}\ warn\ \textcolor{keywordflow}{and}\ k\ >=\ maxiter:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00319}00319\ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00320}00320\ \ \ \ \ \ \ \ \ \ \ \ \ (}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00321}00321\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}newton-\/cg\ failed\ to\ converge\ at\ loss\ =\ \{old\_fval\}.\ Increase\ the"{}}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00322}00322\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ number\ of\ iterations."{}}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00323}00323\ \ \ \ \ \ \ \ \ \ \ \ \ ),}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00324}00324\ \ \ \ \ \ \ \ \ \ \ \ \ ConvergenceWarning,}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00325}00325\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00326}00326\ \ \ \ \ \textcolor{keywordflow}{elif}\ is\_verbose:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00327}00327\ \ \ \ \ \ \ \ \ print(f\textcolor{stringliteral}{"{}\ \ Solver\ did\ converge\ at\ loss\ =\ \{old\_fval\}."{}})}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00328}00328\ \ \ \ \ \textcolor{keywordflow}{return}\ xk,\ k}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00329}00329\ }
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00330}00330\ }
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00331}\mbox{\hyperlink{namespacesklearn_1_1utils_1_1optimize_a5a2e6509b4cb8d5ffb9a5a8ac39ef9e9}{00331}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacesklearn_1_1utils_1_1optimize_a5a2e6509b4cb8d5ffb9a5a8ac39ef9e9}{\_check\_optimize\_result}}(solver,\ result,\ max\_iter=None,\ extra\_warning\_msg=None):}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00332}00332\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Check\ the\ OptimizeResult\ for\ successful\ convergence}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00333}00333\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00334}00334\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00335}00335\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00336}00336\ \textcolor{stringliteral}{\ \ \ \ solver\ :\ str}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00337}00337\ \textcolor{stringliteral}{\ \ \ \ \ \ \ Solver\ name.\ Currently\ only\ \`{}lbfgs\`{}\ is\ supported.}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00338}00338\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00339}00339\ \textcolor{stringliteral}{\ \ \ \ result\ :\ OptimizeResult}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00340}00340\ \textcolor{stringliteral}{\ \ \ \ \ \ \ Result\ of\ the\ scipy.optimize.minimize\ function.}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00341}00341\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00342}00342\ \textcolor{stringliteral}{\ \ \ \ max\_iter\ :\ int,\ default=None}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00343}00343\ \textcolor{stringliteral}{\ \ \ \ \ \ \ Expected\ maximum\ number\ of\ iterations.}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00344}00344\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00345}00345\ \textcolor{stringliteral}{\ \ \ \ extra\_warning\_msg\ :\ str,\ default=None}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00346}00346\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Extra\ warning\ message.}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00347}00347\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00348}00348\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00349}00349\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00350}00350\ \textcolor{stringliteral}{\ \ \ \ n\_iter\ :\ int}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00351}00351\ \textcolor{stringliteral}{\ \ \ \ \ \ \ Number\ of\ iterations.}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00352}00352\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00353}00353\ \ \ \ \ \textcolor{comment}{\#\ handle\ both\ scipy\ and\ scikit-\/learn\ solver\ names}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00354}00354\ \ \ \ \ \textcolor{keywordflow}{if}\ solver\ ==\ \textcolor{stringliteral}{"{}lbfgs"{}}:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00355}00355\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ max\_iter\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00356}00356\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ In\ scipy\ <=\ 1.0.0,\ nit\ may\ exceed\ maxiter\ for\ lbfgs.}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00357}00357\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ See\ https://github.com/scipy/scipy/issues/7854}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00358}00358\ \ \ \ \ \ \ \ \ \ \ \ \ n\_iter\_i\ =\ min(result.nit,\ max\_iter)}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00359}00359\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00360}00360\ \ \ \ \ \ \ \ \ \ \ \ \ n\_iter\_i\ =\ result.nit}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00361}00361\ }
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00362}00362\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ result.status\ !=\ 0:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00363}00363\ \ \ \ \ \ \ \ \ \ \ \ \ warning\_msg\ =\ (}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00364}00364\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\{solver\}\ failed\ to\ converge\ after\ \{n\_iter\_i\}\ iteration(s)\ "{}}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00365}00365\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}(status=\{result.status\}):\(\backslash\)n"{}}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00366}00366\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\{result.message\}\(\backslash\)n"{}}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00367}00367\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00368}00368\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Append\ a\ recommendation\ to\ increase\ iterations\ only\ when\ the}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00369}00369\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ number\ of\ iterations\ reaches\ the\ maximum\ allowed\ (max\_iter),}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00370}00370\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ as\ this\ suggests\ the\ optimization\ may\ have\ been\ prematurely}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00371}00371\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ terminated\ due\ to\ the\ iteration\ limit.}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00372}00372\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ max\_iter\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{and}\ n\_iter\_i\ ==\ max\_iter:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00373}00373\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ warning\_msg\ +=\ (}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00374}00374\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\(\backslash\)nIncrease\ the\ number\ of\ iterations\ to\ improve\ the\ "{}}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00375}00375\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}convergence\ (max\_iter=\{max\_iter\})."{}}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00376}00376\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00377}00377\ \ \ \ \ \ \ \ \ \ \ \ \ warning\_msg\ +=\ (}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00378}00378\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\(\backslash\)nYou\ might\ also\ want\ to\ scale\ the\ data\ as\ shown\ in:\(\backslash\)n"{}}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00379}00379\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ \ \ \ https://scikit-\/learn.org/stable/modules/"{}}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00380}00380\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}preprocessing.html"{}}}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00381}00381\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00382}00382\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ extra\_warning\_msg\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00383}00383\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ warning\_msg\ +=\ \textcolor{stringliteral}{"{}\(\backslash\)n"{}}\ +\ extra\_warning\_msg}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00384}00384\ \ \ \ \ \ \ \ \ \ \ \ \ warnings.warn(warning\_msg,\ ConvergenceWarning,\ stacklevel=2)}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00385}00385\ }
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00386}00386\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00387}00387\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ NotImplementedError}
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00388}00388\ }
+\DoxyCodeLine{\Hypertarget{sklearn_2utils_2optimize_8py_source_l00389}00389\ \ \ \ \ \textcolor{keywordflow}{return}\ n\_iter\_i}
+
+\end{DoxyCode}

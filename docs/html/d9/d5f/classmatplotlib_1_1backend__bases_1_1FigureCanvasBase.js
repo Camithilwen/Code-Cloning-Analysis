@@ -1,0 +1,28 @@
+var classmatplotlib_1_1backend__bases_1_1FigureCanvasBase =
+[
+    [ "_set_device_pixel_ratio", "d9/d5f/classmatplotlib_1_1backend__bases_1_1FigureCanvasBase.html#a27df613245160d8e3991eb3b2040c271", null ],
+    [ "_switch_canvas_and_return_print_method", "d9/d5f/classmatplotlib_1_1backend__bases_1_1FigureCanvasBase.html#a5cc6bebae18d36e816da9a9c3bf70ecc", null ],
+    [ "blit", "d9/d5f/classmatplotlib_1_1backend__bases_1_1FigureCanvasBase.html#a2e096a05389f490c1bbc5523a7b25b91", null ],
+    [ "device_pixel_ratio", "d9/d5f/classmatplotlib_1_1backend__bases_1_1FigureCanvasBase.html#a900c926a10cb88f713dbe0727c40ffdd", null ],
+    [ "draw", "d9/d5f/classmatplotlib_1_1backend__bases_1_1FigureCanvasBase.html#a5debb575f7cedabc81ddf6ebf1a3d610", null ],
+    [ "draw_idle", "d9/d5f/classmatplotlib_1_1backend__bases_1_1FigureCanvasBase.html#a0084dedad744111c7f6593070921b67a", null ],
+    [ "flush_events", "d9/d5f/classmatplotlib_1_1backend__bases_1_1FigureCanvasBase.html#a22eb758edfda6b2c27261aab5bc420d8", null ],
+    [ "get_default_filename", "d9/d5f/classmatplotlib_1_1backend__bases_1_1FigureCanvasBase.html#abe0abb01507c960c2c65c1d7a84f0d6c", null ],
+    [ "get_default_filetype", "d9/d5f/classmatplotlib_1_1backend__bases_1_1FigureCanvasBase.html#a2db93b943915932295af68a12660cbf3", null ],
+    [ "get_supported_filetypes", "d9/d5f/classmatplotlib_1_1backend__bases_1_1FigureCanvasBase.html#a4ef8e5d1485a92aa490b9e7f75b78bf1", null ],
+    [ "get_supported_filetypes_grouped", "d9/d5f/classmatplotlib_1_1backend__bases_1_1FigureCanvasBase.html#a32542b2ab3fa1d045ddaea7c90f59f2d", null ],
+    [ "get_width_height", "d9/d5f/classmatplotlib_1_1backend__bases_1_1FigureCanvasBase.html#aab4446deac32b145d5f7f1cf255b11f8", null ],
+    [ "grab_mouse", "d9/d5f/classmatplotlib_1_1backend__bases_1_1FigureCanvasBase.html#af0f16e83011e56323471934204eda9be", null ],
+    [ "inaxes", "d9/d5f/classmatplotlib_1_1backend__bases_1_1FigureCanvasBase.html#ab68bfbfa1d12d10b0c94f787401f8eef", null ],
+    [ "is_saving", "d9/d5f/classmatplotlib_1_1backend__bases_1_1FigureCanvasBase.html#adcfacef29f8bd4030a3ac9d1a5990257", null ],
+    [ "mpl_connect", "d9/d5f/classmatplotlib_1_1backend__bases_1_1FigureCanvasBase.html#a674e2acb7b286c77c687bd4747d2a4f0", null ],
+    [ "mpl_disconnect", "d9/d5f/classmatplotlib_1_1backend__bases_1_1FigureCanvasBase.html#a38d69faa9c92592a6ee6ceea8d7032b1", null ],
+    [ "new_manager", "d9/d5f/classmatplotlib_1_1backend__bases_1_1FigureCanvasBase.html#adda799b13e351be4482b93fbac73f34b", null ],
+    [ "new_timer", "d9/d5f/classmatplotlib_1_1backend__bases_1_1FigureCanvasBase.html#a0b26b1d67c9729f4a5e2ae29af90df13", null ],
+    [ "print_figure", "d9/d5f/classmatplotlib_1_1backend__bases_1_1FigureCanvasBase.html#a587052566cf71e1c4145e5dfc66cbf7c", null ],
+    [ "release_mouse", "d9/d5f/classmatplotlib_1_1backend__bases_1_1FigureCanvasBase.html#a0f75e860824320d67a99201a6585ab06", null ],
+    [ "set_cursor", "d9/d5f/classmatplotlib_1_1backend__bases_1_1FigureCanvasBase.html#a81fc070722a891a1542087e70cc1941c", null ],
+    [ "start_event_loop", "d9/d5f/classmatplotlib_1_1backend__bases_1_1FigureCanvasBase.html#a55aff03dd282d7911b4cc157015eee35", null ],
+    [ "stop_event_loop", "d9/d5f/classmatplotlib_1_1backend__bases_1_1FigureCanvasBase.html#a440064a84ddd944476843ac9e56b26dd", null ],
+    [ "supports_blit", "d9/d5f/classmatplotlib_1_1backend__bases_1_1FigureCanvasBase.html#aca6517f26b411bc34d596e822ad8e0e3", null ]
+];

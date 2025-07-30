@@ -1,0 +1,4 @@
+var namespacepandas_1_1tests_1_1plotting_1_1frame_1_1test__frame__subplots =
+[
+    [ "TestDataFramePlotsSubplots", "db/d3e/classpandas_1_1tests_1_1plotting_1_1frame_1_1test__frame__subplots_1_1TestDataFramePlotsSubplots.html", "db/d3e/classpandas_1_1tests_1_1plotting_1_1frame_1_1test__frame__subplots_1_1TestDataFramePlotsSubplots" ]
+];

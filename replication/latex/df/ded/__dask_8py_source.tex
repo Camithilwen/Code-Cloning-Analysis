@@ -1,0 +1,387 @@
+\doxysection{\+\_\+dask.\+py}
+\hypertarget{__dask_8py_source}{}\label{__dask_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/joblib/\_dask.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/joblib/\_dask.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00001}\mbox{\hyperlink{namespacejoblib_1_1__dask}{00001}}\ \textcolor{keyword}{from}\ \_\_future\_\_\ \textcolor{keyword}{import}\ absolute\_import,\ division,\ print\_function}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00002}00002\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00003}00003\ \textcolor{keyword}{import}\ asyncio}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00004}00004\ \textcolor{keyword}{import}\ concurrent.futures}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00005}00005\ \textcolor{keyword}{import}\ contextlib}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00006}00006\ \textcolor{keyword}{import}\ time}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00007}00007\ \textcolor{keyword}{import}\ weakref}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00008}00008\ \textcolor{keyword}{from}\ uuid\ \textcolor{keyword}{import}\ uuid4}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00009}00009\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00010}00010\ \textcolor{keyword}{from}\ .\_utils\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00011}00011\ \ \ \ \ \_retrieve\_traceback\_capturing\_wrapped\_call,}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00012}00012\ \ \ \ \ \_TracebackCapturingWrapper,}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00013}00013\ )}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00014}00014\ \textcolor{keyword}{from}\ .parallel\ \textcolor{keyword}{import}\ AutoBatchingMixin,\ ParallelBackendBase,\ parallel\_config}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00015}00015\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00016}00016\ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00017}00017\ \ \ \ \ \textcolor{keyword}{import}\ dask}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00018}00018\ \ \ \ \ \textcolor{keyword}{import}\ distributed}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00019}00019\ \textcolor{keywordflow}{except}\ ImportError:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00020}00020\ \ \ \ \ dask\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00021}00021\ \ \ \ \ distributed\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00022}00022\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00023}00023\ \textcolor{keywordflow}{if}\ dask\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{and}\ distributed\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00024}00024\ \ \ \ \ \textcolor{keyword}{from}\ dask.distributed\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00025}00025\ \ \ \ \ \ \ \ \ Client,}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00026}00026\ \ \ \ \ \ \ \ \ as\_completed,}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00027}00027\ \ \ \ \ \ \ \ \ get\_client,}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00028}00028\ \ \ \ \ \ \ \ \ rejoin,}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00029}00029\ \ \ \ \ \ \ \ \ secede,}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00030}00030\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00031}00031\ \ \ \ \ \textcolor{keyword}{from}\ dask.sizeof\ \textcolor{keyword}{import}\ sizeof}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00032}00032\ \ \ \ \ \textcolor{keyword}{from}\ dask.utils\ \textcolor{keyword}{import}\ funcname}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00033}00033\ \ \ \ \ \textcolor{keyword}{from}\ distributed.utils\ \textcolor{keyword}{import}\ thread\_state}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00034}00034\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00035}00035\ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00036}00036\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ asyncio.TimeoutError,\ Python3-\/only\ error\ thrown\ by\ recent\ versions\ of}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00037}00037\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ distributed}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00038}00038\ \ \ \ \ \ \ \ \ \textcolor{keyword}{from}\ distributed.utils\ \textcolor{keyword}{import}\ TimeoutError\ \textcolor{keyword}{as}\ \_TimeoutError}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00039}00039\ \ \ \ \ \textcolor{keywordflow}{except}\ ImportError:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00040}00040\ \ \ \ \ \ \ \ \ \textcolor{keyword}{from}\ tornado.gen\ \textcolor{keyword}{import}\ TimeoutError\ \textcolor{keyword}{as}\ \_TimeoutError}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00041}00041\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00042}00042\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00043}00043\ \textcolor{keyword}{def\ }is\_weakrefable(obj):}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00044}00044\ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00045}00045\ \ \ \ \ \ \ \ \ weakref.ref(obj)}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00046}00046\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00047}00047\ \ \ \ \ \textcolor{keywordflow}{except}\ TypeError:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00048}00048\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00049}00049\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00050}00050\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00051}\mbox{\hyperlink{classjoblib_1_1__dask_1_1__WeakKeyDictionary}{00051}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classjoblib_1_1__dask_1_1__WeakKeyDictionary}{\_WeakKeyDictionary}}:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00052}00052\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}A\ variant\ of\ weakref.WeakKeyDictionary\ for\ unhashable\ objects.}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00053}00053\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00054}00054\ \textcolor{stringliteral}{\ \ \ \ This\ datastructure\ is\ used\ to\ store\ futures\ for\ broadcasted\ data\ objects}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00055}00055\ \textcolor{stringliteral}{\ \ \ \ such\ as\ large\ numpy\ arrays\ or\ pandas\ dataframes\ that\ are\ not\ hashable\ and}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00056}00056\ \textcolor{stringliteral}{\ \ \ \ therefore\ cannot\ be\ used\ as\ keys\ of\ traditional\ python\ dicts.}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00057}00057\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00058}00058\ \textcolor{stringliteral}{\ \ \ \ Furthermore\ using\ a\ dict\ with\ id(array)\ as\ key\ is\ not\ safe\ because\ the}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00059}00059\ \textcolor{stringliteral}{\ \ \ \ Python\ is\ likely\ to\ reuse\ id\ of\ recently\ collected\ arrays.}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00060}00060\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00061}00061\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00062}00062\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self):}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00063}00063\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1__WeakKeyDictionary_aa538a41efadfbab8a88efa609f56a126}{\_data}}\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00064}00064\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00065}00065\ \ \ \ \ \textcolor{keyword}{def\ }\_\_getitem\_\_(self,\ obj):}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00066}00066\ \ \ \ \ \ \ \ \ ref,\ val\ =\ self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1__WeakKeyDictionary_aa538a41efadfbab8a88efa609f56a126}{\_data}}[id(obj)]}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00067}00067\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ ref()\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ obj:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00068}00068\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ In\ case\ of\ a\ race\ condition\ with\ on\_destroy.}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00069}00069\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classKeyError}{KeyError}}(obj)}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00070}00070\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ val}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00071}00071\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00072}00072\ \ \ \ \ \textcolor{keyword}{def\ }\_\_setitem\_\_(self,\ obj,\ value):}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00073}00073\ \ \ \ \ \ \ \ \ key\ =\ id(obj)}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00074}00074\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00075}00075\ \ \ \ \ \ \ \ \ \ \ \ \ ref,\ \_\ =\ self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1__WeakKeyDictionary_aa538a41efadfbab8a88efa609f56a126}{\_data}}[key]}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00076}00076\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ ref()\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ obj:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00077}00077\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ In\ case\ of\ race\ condition\ with\ on\_destroy.}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00078}00078\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classKeyError}{KeyError}}(obj)}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00079}00079\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ KeyError:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00080}00080\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Insert\ the\ new\ entry\ in\ the\ mapping\ along\ with\ a\ weakref}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00081}00081\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ callback\ to\ automatically\ delete\ the\ entry\ from\ the\ mapping}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00082}00082\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ as\ soon\ as\ the\ object\ used\ as\ key\ is\ garbage\ collected.}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00083}00083\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }on\_destroy(\_):}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00084}00084\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ del\ self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1__WeakKeyDictionary_aa538a41efadfbab8a88efa609f56a126}{\_data}}[key]}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00085}00085\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00086}00086\ \ \ \ \ \ \ \ \ \ \ \ \ ref\ =\ weakref.ref(obj,\ on\_destroy)}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00087}00087\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1__WeakKeyDictionary_aa538a41efadfbab8a88efa609f56a126}{\_data}}[key]\ =\ ref,\ value}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00088}00088\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00089}00089\ \ \ \ \ \textcolor{keyword}{def\ }\_\_len\_\_(self):}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00090}00090\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ len(self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1__WeakKeyDictionary_aa538a41efadfbab8a88efa609f56a126}{\_data}})}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00091}00091\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00092}00092\ \ \ \ \ \textcolor{keyword}{def\ }clear(self):}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00093}00093\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1__WeakKeyDictionary_aa538a41efadfbab8a88efa609f56a126}{\_data}}.clear()}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00094}00094\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00095}00095\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00096}00096\ \textcolor{keyword}{def\ }\_funcname(x):}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00097}00097\ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00098}00098\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(x,\ list):}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00099}00099\ \ \ \ \ \ \ \ \ \ \ \ \ x\ =\ x[0][0]}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00100}00100\ \ \ \ \ \textcolor{keywordflow}{except}\ Exception:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00101}00101\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{pass}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00102}00102\ \ \ \ \ \textcolor{keywordflow}{return}\ funcname(x)}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00103}00103\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00104}00104\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00105}\mbox{\hyperlink{namespacejoblib_1_1__dask_a8b2b7905fbf029edf59dd34cb3c82ecb}{00105}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacejoblib_1_1__dask_a8b2b7905fbf029edf59dd34cb3c82ecb}{\_make\_tasks\_summary}}(tasks):}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00106}00106\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Summarize\ of\ list\ of\ (func,\ args,\ kwargs)\ function\ calls"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00107}00107\ \ \ \ \ unique\_funcs\ =\ \{func\ \textcolor{keywordflow}{for}\ func,\ args,\ kwargs\ \textcolor{keywordflow}{in}\ tasks\}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00108}00108\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00109}00109\ \ \ \ \ \textcolor{keywordflow}{if}\ len(unique\_funcs)\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00110}00110\ \ \ \ \ \ \ \ \ mixed\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00111}00111\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00112}00112\ \ \ \ \ \ \ \ \ mixed\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00113}00113\ \ \ \ \ \textcolor{keywordflow}{return}\ len(tasks),\ mixed,\ \_funcname(tasks)}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00114}00114\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00115}00115\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00116}\mbox{\hyperlink{classjoblib_1_1__dask_1_1Batch}{00116}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classjoblib_1_1__dask_1_1Batch}{Batch}}:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00117}00117\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}dask-\/compatible\ wrapper\ that\ executes\ a\ batch\ of\ tasks"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00118}00118\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00119}00119\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ tasks):}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00120}00120\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ collect\ some\ metadata\ from\ the\ tasks\ to\ ease\ Batch\ calls}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00121}00121\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ introspection\ when\ debugging}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00122}00122\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1Batch_a4758b73c11f395506366934652b6cd94}{\_num\_tasks}},\ self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1Batch_a93b798cffc7bce19a468f6730061154b}{\_mixed}},\ self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1Batch_a0de9918aa9fec6b0a92ecc4320109180}{\_funcname}}\ =\ \mbox{\hyperlink{namespacejoblib_1_1__dask_a8b2b7905fbf029edf59dd34cb3c82ecb}{\_make\_tasks\_summary}}(tasks)}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00123}00123\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00124}00124\ \ \ \ \ \textcolor{keyword}{def\ }\_\_call\_\_(self,\ tasks=None):}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00125}00125\ \ \ \ \ \ \ \ \ results\ =\ []}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00126}00126\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ \mbox{\hyperlink{classjoblib_1_1parallel_1_1parallel__config}{parallel\_config}}(backend=\textcolor{stringliteral}{"{}dask"{}}):}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00127}00127\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ func,\ args,\ kwargs\ \textcolor{keywordflow}{in}\ tasks:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00128}00128\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ results.append(func(*args,\ **kwargs))}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00129}00129\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ results}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00130}00130\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00131}00131\ \ \ \ \ \textcolor{keyword}{def\ }\_\_repr\_\_(self):}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00132}00132\ \ \ \ \ \ \ \ \ descr\ =\ f\textcolor{stringliteral}{"{}batch\_of\_\{self.\_funcname\}\_\{self.\_num\_tasks\}\_calls"{}}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00133}00133\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1Batch_a93b798cffc7bce19a468f6730061154b}{\_mixed}}:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00134}00134\ \ \ \ \ \ \ \ \ \ \ \ \ descr\ =\ \textcolor{stringliteral}{"{}mixed\_"{}}\ +\ descr}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00135}00135\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ descr}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00136}00136\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00137}00137\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00138}00138\ \textcolor{keyword}{def\ }\_joblib\_probe\_task():}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00139}00139\ \ \ \ \ \textcolor{comment}{\#\ Noop\ used\ by\ the\ joblib\ connector\ to\ probe\ when\ workers\ are\ ready.}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00140}00140\ \ \ \ \ \textcolor{keywordflow}{pass}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00141}00141\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00142}00142\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00143}\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend}{00143}}\ \textcolor{keyword}{class\ }DaskDistributedBackend(\mbox{\hyperlink{classAutoBatchingMixin}{AutoBatchingMixin}},\ ParallelBackendBase):}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00144}00144\ \ \ \ \ MIN\_IDEAL\_BATCH\_DURATION\ =\ 0.2}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00145}00145\ \ \ \ \ MAX\_IDEAL\_BATCH\_DURATION\ =\ 1.0}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00146}00146\ \ \ \ \ supports\_retrieve\_callback\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00147}00147\ \ \ \ \ default\_n\_jobs\ =\ -\/1}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00148}00148\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00149}00149\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00150}00150\ \ \ \ \ \ \ \ \ self,}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00151}00151\ \ \ \ \ \ \ \ \ scheduler\_host=None,}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00152}00152\ \ \ \ \ \ \ \ \ scatter=None,}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00153}00153\ \ \ \ \ \ \ \ \ client=None,}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00154}00154\ \ \ \ \ \ \ \ \ loop=None,}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00155}00155\ \ \ \ \ \ \ \ \ wait\_for\_workers\_timeout=10,}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00156}00156\ \ \ \ \ \ \ \ \ **submit\_kwargs,}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00157}00157\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00158}00158\ \ \ \ \ \ \ \ \ super().\_\_init\_\_()}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00159}00159\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00160}00160\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ distributed\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00161}00161\ \ \ \ \ \ \ \ \ \ \ \ \ msg\ =\ (}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00162}00162\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}You\ are\ trying\ to\ use\ 'dask'\ as\ a\ joblib\ parallel\ backend\ "{}}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00163}00163\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}but\ dask\ is\ not\ installed.\ Please\ install\ dask\ "{}}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00164}00164\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}to\ fix\ this\ error."{}}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00165}00165\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00166}00166\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(msg)}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00167}00167\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00168}00168\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ client\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00169}00169\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ scheduler\_host:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00170}00170\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ client\ =\ Client(scheduler\_host,\ loop=loop,\ set\_as\_default=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00171}00171\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00172}00172\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00173}00173\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ client\ =\ get\_client()}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00174}00174\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ ValueError\ \textcolor{keyword}{as}\ e:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00175}00175\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ msg\ =\ (}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00176}00176\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}To\ use\ Joblib\ with\ Dask\ first\ create\ a\ Dask\ Client"{}}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00177}00177\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\(\backslash\)n\(\backslash\)n"{}}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00178}00178\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ \ \ \ from\ dask.distributed\ import\ Client\(\backslash\)n"{}}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00179}00179\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ \ \ \ client\ =\ Client()\(\backslash\)n"{}}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00180}00180\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}or\(\backslash\)n"{}}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00181}00181\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\ \ \ \ client\ =\ Client('scheduler-\/address:8786')"{}}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00182}00182\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00183}00183\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(msg)\ \textcolor{keyword}{from}\ e}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00184}00184\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00185}00185\ \ \ \ \ \ \ \ \ self.client\ =\ client}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00186}00186\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00187}00187\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ scatter\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{and}\ \textcolor{keywordflow}{not}\ isinstance(scatter,\ (list,\ tuple)):}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00188}00188\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classTypeError}{TypeError}}(}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00189}00189\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}scatter\ must\ be\ a\ list/tuple,\ got\ \`{}\%s`"{}}\ \%\ type(scatter).\_\_name\_\_}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00190}00190\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00191}00191\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00192}00192\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ scatter\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{and}\ len(scatter)\ >\ 0:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00193}00193\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Keep\ a\ reference\ to\ the\ scattered\ data\ to\ keep\ the\ ids\ the\ same}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00194}00194\ \ \ \ \ \ \ \ \ \ \ \ \ self.\_scatter\ =\ list(scatter)}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00195}00195\ \ \ \ \ \ \ \ \ \ \ \ \ scattered\ =\ self.client.scatter(scatter,\ broadcast=\textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00196}00196\ \ \ \ \ \ \ \ \ \ \ \ \ self.data\_futures\ =\ \{id(x):\ f\ \textcolor{keywordflow}{for}\ x,\ f\ \textcolor{keywordflow}{in}\ zip(scatter,\ scattered)\}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00197}00197\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00198}00198\ \ \ \ \ \ \ \ \ \ \ \ \ self.\_scatter\ =\ []}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00199}00199\ \ \ \ \ \ \ \ \ \ \ \ \ self.data\_futures\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00200}00200\ \ \ \ \ \ \ \ \ self.wait\_for\_workers\_timeout\ =\ wait\_for\_workers\_timeout}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00201}00201\ \ \ \ \ \ \ \ \ self.submit\_kwargs\ =\ submit\_kwargs}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00202}00202\ \ \ \ \ \ \ \ \ self.waiting\_futures\ =\ as\_completed(}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00203}00203\ \ \ \ \ \ \ \ \ \ \ \ \ [],\ loop=client.loop,\ with\_results=\textcolor{keyword}{True},\ raise\_errors=\textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00204}00204\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00205}00205\ \ \ \ \ \ \ \ \ self.\_results\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00206}00206\ \ \ \ \ \ \ \ \ self.\_callbacks\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00207}00207\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00208}00208\ \ \ \ \ \textcolor{keyword}{async\ def\ }\_collect(self):}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00209}00209\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{while}\ self.\_continue:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00210}00210\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{async}\ \textcolor{keywordflow}{for}\ future,\ result\ \textcolor{keywordflow}{in}\ self.waiting\_futures:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00211}00211\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ cf\_future\ =\ self.\_results.pop(future)}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00212}00212\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ callback\ =\ self.\_callbacks.pop(future)}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00213}00213\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ future.status\ ==\ \textcolor{stringliteral}{"{}error"{}}:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00214}00214\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ typ,\ exc,\ tb\ =\ result}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00215}00215\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ cf\_future.set\_exception(exc)}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00216}00216\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00217}00217\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ cf\_future.set\_result(result)}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00218}00218\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ callback(result)}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00219}00219\ \ \ \ \ \ \ \ \ \ \ \ \ await\ asyncio.sleep(0.01)}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00220}00220\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00221}00221\ \ \ \ \ \textcolor{keyword}{def\ }\_\_reduce\_\_(self):}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00222}00222\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ (DaskDistributedBackend,\ ())}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00223}00223\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00224}\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_a3f553e2fb033fd6e0b712a8ebeea604b}{00224}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_a3f553e2fb033fd6e0b712a8ebeea604b}{get\_nested\_backend}}(self):}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00225}00225\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend}{DaskDistributedBackend}}(client=self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_a74021a266046f1c4e89b4e11b06b498f}{client}}),\ -\/1}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00226}00226\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00227}\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_a4634f98c93e3edd492e4b758df369821}{00227}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_a4634f98c93e3edd492e4b758df369821}{configure}}(self,\ n\_jobs=1,\ parallel=None,\ **backend\_args):}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00228}00228\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend}{parallel}}\ =\ parallel}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00229}00229\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_a9a398ef11ff31e364ce8aa7bb2fb30be}{effective\_n\_jobs}}(n\_jobs)}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00230}00230\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00231}\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_ab8596e671e45f869867f563323db0a9c}{00231}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_ab8596e671e45f869867f563323db0a9c}{start\_call}}(self):}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00232}00232\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_ac8cc26999ef5779accf2f126dd937e35}{\_continue}}\ =\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00233}00233\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_a74021a266046f1c4e89b4e11b06b498f}{client}}.loop.add\_callback(self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_a3a60a9ec37e547df58e3e3e580e86314}{\_collect}})}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00234}00234\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_ab28c4a8530a177e5de4d83b77f0b9a65}{call\_data\_futures}}\ =\ \mbox{\hyperlink{classjoblib_1_1__dask_1_1__WeakKeyDictionary}{\_WeakKeyDictionary}}()}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00235}00235\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00236}\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_ad04923b255df5843ba442924bcdce8fc}{00236}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_ad04923b255df5843ba442924bcdce8fc}{stop\_call}}(self):}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00237}00237\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ explicit\ call\ to\ clear\ is\ required\ to\ break\ a\ cycling\ reference}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00238}00238\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ to\ the\ futures.}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00239}00239\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_ac8cc26999ef5779accf2f126dd937e35}{\_continue}}\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00240}00240\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ wait\ for\ the\ future\ collection\ routine\ (self.\_backend.\_collect)\ to}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00241}00241\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ finish\ in\ order\ to\ limit\ asyncio\ warnings\ due\ to\ aborting\ \_collect}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00242}00242\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ during\ a\ following\ backend\ termination\ call}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00243}00243\ \ \ \ \ \ \ \ \ time.sleep(0.01)}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00244}00244\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_ab28c4a8530a177e5de4d83b77f0b9a65}{call\_data\_futures}}.clear()}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00245}00245\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00246}\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_a9a398ef11ff31e364ce8aa7bb2fb30be}{00246}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_a9a398ef11ff31e364ce8aa7bb2fb30be}{effective\_n\_jobs}}(self,\ n\_jobs):}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00247}00247\ \ \ \ \ \ \ \ \ effective\_n\_jobs\ =\ sum(self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_a74021a266046f1c4e89b4e11b06b498f}{client}}.ncores().values())}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00248}00248\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ effective\_n\_jobs\ !=\ 0\ \textcolor{keywordflow}{or}\ \textcolor{keywordflow}{not}\ self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_ad177425aceb0b9a2e364843a47a40337}{wait\_for\_workers\_timeout}}:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00249}00249\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ effective\_n\_jobs}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00250}00250\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00251}00251\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ If\ there\ is\ no\ worker,\ schedule\ a\ probe\ task\ to\ wait\ for\ the\ workers}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00252}00252\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ to\ come\ up\ and\ be\ available.\ If\ the\ dask\ cluster\ is\ in\ adaptive\ mode}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00253}00253\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ task\ might\ cause\ the\ cluster\ to\ provision\ some\ workers.}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00254}00254\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00255}00255\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_a74021a266046f1c4e89b4e11b06b498f}{client}}.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_a9cc552795d7d4023ec7b0be6863e0f5a}{submit}}(\_joblib\_probe\_task).result(}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00256}00256\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ timeout=self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_ad177425aceb0b9a2e364843a47a40337}{wait\_for\_workers\_timeout}}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00257}00257\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00258}00258\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ \_TimeoutError\ \textcolor{keyword}{as}\ e:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00259}00259\ \ \ \ \ \ \ \ \ \ \ \ \ error\_msg\ =\ (}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00260}00260\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}DaskDistributedBackend\ has\ no\ worker\ after\ \{\}\ seconds.\ "{}}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00261}00261\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}Make\ sure\ that\ workers\ are\ started\ and\ can\ properly\ connect\ "{}}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00262}00262\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}to\ the\ scheduler\ and\ increase\ the\ joblib/dask\ connection\ "{}}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00263}00263\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}timeout\ with:\(\backslash\)n\(\backslash\)n"{}}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00264}00264\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}parallel\_config(backend='dask',\ wait\_for\_workers\_timeout=\{\})"{}}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00265}00265\ \ \ \ \ \ \ \ \ \ \ \ \ ).format(}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00266}00266\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_ad177425aceb0b9a2e364843a47a40337}{wait\_for\_workers\_timeout}},}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00267}00267\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ max(10,\ 2\ *\ self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_ad177425aceb0b9a2e364843a47a40337}{wait\_for\_workers\_timeout}}),}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00268}00268\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00269}00269\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ TimeoutError(error\_msg)\ \textcolor{keyword}{from}\ e}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00270}00270\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ sum(self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_a74021a266046f1c4e89b4e11b06b498f}{client}}.ncores().values())}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00271}00271\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00272}00272\ \ \ \ \ \textcolor{keyword}{async\ def\ }\_to\_func\_args(self,\ func):}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00273}00273\ \ \ \ \ \ \ \ \ itemgetters\ =\ dict()}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00274}00274\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00275}00275\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Futures\ that\ are\ dynamically\ generated\ during\ a\ single\ call\ to}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00276}00276\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Parallel.\_\_call\_\_.}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00277}00277\ \ \ \ \ \ \ \ \ call\_data\_futures\ =\ getattr(self,\ \textcolor{stringliteral}{"{}call\_data\_futures"{}},\ \textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00278}00278\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00279}00279\ \ \ \ \ \ \ \ \ \textcolor{keyword}{async\ def\ }maybe\_to\_futures(args):}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00280}00280\ \ \ \ \ \ \ \ \ \ \ \ \ out\ =\ []}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00281}00281\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ arg\ \textcolor{keywordflow}{in}\ args:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00282}00282\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ arg\_id\ =\ id(arg)}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00283}00283\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ arg\_id\ \textcolor{keywordflow}{in}\ itemgetters:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00284}00284\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ out.append(itemgetters[arg\_id])}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00285}00285\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00286}00286\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00287}00287\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\ =\ self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_a9ba873b7a95d96b8ac6d7fa36504d30f}{data\_futures}}.get(arg\_id,\ \textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00288}00288\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ f\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{and}\ call\_data\_futures\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00289}00289\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00290}00290\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\ =\ await\ call\_data\_futures[arg]}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00291}00291\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ KeyError:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00292}00292\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{pass}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00293}00293\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ f\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00294}00294\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ is\_weakrefable(arg)\ \textcolor{keywordflow}{and}\ sizeof(arg)\ >\ 1e3:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00295}00295\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Automatically\ scatter\ large\ objects\ to\ some\ of}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00296}00296\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ the\ workers\ to\ avoid\ duplicated\ data\ transfers.}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00297}00297\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Rely\ on\ automated\ inter-\/worker\ data\ stealing\ if}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00298}00298\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ more\ workers\ need\ to\ reuse\ this\ data}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00299}00299\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ concurrently.}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00300}00300\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ set\ hash=False\ -\/\ nested\ scatter\ calls\ (i.e}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00301}00301\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ calling\ client.scatter\ inside\ a\ dask\ worker)}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00302}00302\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ using\ hash=True\ often\ raise\ CancelledError,}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00303}00303\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ see\ dask/distributed\#3703}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00304}00304\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_coro\ =\ self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_a74021a266046f1c4e89b4e11b06b498f}{client}}.scatter(}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00305}00305\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ arg,\ asynchronous=\textcolor{keyword}{True},\ hash=\textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00306}00306\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00307}00307\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Centralize\ the\ scattering\ of\ identical\ arguments}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00308}00308\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ between\ concurrent\ apply\_async\ callbacks\ by}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00309}00309\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ exposing\ the\ running\ coroutine\ in}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00310}00310\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ call\_data\_futures\ before\ it\ completes.}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00311}00311\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ t\ =\ asyncio.Task(\_coro)}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00312}00312\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ call\_data\_futures[arg]\ =\ t}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00313}00313\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00314}00314\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\ =\ await\ t}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00315}00315\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00316}00316\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ f\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00317}00317\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ out.append(f)}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00318}00318\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00319}00319\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ out.append(arg)}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00320}00320\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ out}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00321}00321\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00322}00322\ \ \ \ \ \ \ \ \ tasks\ =\ []}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00323}00323\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ f,\ args,\ kwargs\ \textcolor{keywordflow}{in}\ func.items:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00324}00324\ \ \ \ \ \ \ \ \ \ \ \ \ args\ =\ list(await\ maybe\_to\_futures(args))}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00325}00325\ \ \ \ \ \ \ \ \ \ \ \ \ kwargs\ =\ dict(zip(kwargs.keys(),\ await\ maybe\_to\_futures(kwargs.values())))}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00326}00326\ \ \ \ \ \ \ \ \ \ \ \ \ tasks.append((f,\ args,\ kwargs))}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00327}00327\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00328}00328\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ (\mbox{\hyperlink{classjoblib_1_1__dask_1_1Batch}{Batch}}(tasks),\ tasks)}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00329}00329\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00330}\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_ae16c44b642d5f8ca22aed3a74789e1d1}{00330}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_ae16c44b642d5f8ca22aed3a74789e1d1}{apply\_async}}(self,\ func,\ callback=None):}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00331}00331\ \ \ \ \ \ \ \ \ cf\_future\ =\ concurrent.futures.Future()}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00332}00332\ \ \ \ \ \ \ \ \ cf\_future.get\ =\ cf\_future.result\ \ \textcolor{comment}{\#\ achieve\ AsyncResult\ API}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00333}00333\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00334}00334\ \ \ \ \ \ \ \ \ \textcolor{keyword}{async\ def\ }f(func,\ callback):}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00335}00335\ \ \ \ \ \ \ \ \ \ \ \ \ batch,\ tasks\ =\ await\ self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_ac557a464dec33bd54e96d29cdddd6a88}{\_to\_func\_args}}(func)}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00336}00336\ \ \ \ \ \ \ \ \ \ \ \ \ key\ =\ f\textcolor{stringliteral}{"{}\{repr(batch)\}-\/\{uuid4().hex\}"{}}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00337}00337\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00338}00338\ \ \ \ \ \ \ \ \ \ \ \ \ dask\_future\ =\ self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_a74021a266046f1c4e89b4e11b06b498f}{client}}.\mbox{\hyperlink{classjoblib_1_1__parallel__backends_1_1ParallelBackendBase_a9cc552795d7d4023ec7b0be6863e0f5a}{submit}}(}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00339}00339\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classjoblib_1_1__utils_1_1__TracebackCapturingWrapper}{\_TracebackCapturingWrapper}}(batch),}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00340}00340\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ tasks=tasks,}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00341}00341\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ key=key,}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00342}00342\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ **self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_a644f536567b8301d76c28f49e8254e4d}{submit\_kwargs}},}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00343}00343\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00344}00344\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_ac9a05c4560b2f832ed6b1675ff7aec59}{waiting\_futures}}.add(dask\_future)}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00345}00345\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_aca6c26aeaeba363cad306bc86be87b24}{\_callbacks}}[dask\_future]\ =\ callback}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00346}00346\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_a8dd6bab4ea43ca1ca14bcfdaac7a4784}{\_results}}[dask\_future]\ =\ cf\_future}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00347}00347\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00348}00348\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_a74021a266046f1c4e89b4e11b06b498f}{client}}.loop.add\_callback(f,\ func,\ callback)}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00349}00349\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00350}00350\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ cf\_future}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00351}00351\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00352}\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_ab5d0836c69186910e7b48ded3477907b}{00352}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_ab5d0836c69186910e7b48ded3477907b}{retrieve\_result\_callback}}(self,\ out):}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00353}00353\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \_retrieve\_traceback\_capturing\_wrapped\_call(out)}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00354}00354\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00355}\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_a284149006c8c608ba7750bb763765bdf}{00355}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_a284149006c8c608ba7750bb763765bdf}{abort\_everything}}(self,\ ensure\_ready=True):}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00356}00356\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Tell\ the\ client\ to\ cancel\ any\ task\ submitted\ via\ this\ instance}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00357}00357\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00358}00358\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ joblib.Parallel\ will\ never\ access\ those\ results}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00359}00359\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00360}00360\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_ac9a05c4560b2f832ed6b1675ff7aec59}{waiting\_futures}}.lock:}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00361}00361\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_ac9a05c4560b2f832ed6b1675ff7aec59}{waiting\_futures}}.futures.clear()}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00362}00362\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{while}\ \textcolor{keywordflow}{not}\ self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_ac9a05c4560b2f832ed6b1675ff7aec59}{waiting\_futures}}.queue.empty():}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00363}00363\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_ac9a05c4560b2f832ed6b1675ff7aec59}{waiting\_futures}}.queue.get()}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00364}00364\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00365}00365\ \ \ \ \ \textcolor{preprocessor}{@contextlib.contextmanager}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00366}\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_ac43302f58ad7f02107fd5365f459607f}{00366}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classjoblib_1_1__dask_1_1DaskDistributedBackend_ac43302f58ad7f02107fd5365f459607f}{retrieval\_context}}(self):}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00367}00367\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Override\ ParallelBackendBase.retrieval\_context\ to\ avoid\ deadlocks.}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00368}00368\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00369}00369\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ This\ removes\ thread\ from\ the\ worker's\ thread\ pool\ (using\ 'secede').}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00370}00370\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Seceding\ avoids\ deadlock\ in\ nested\ parallelism\ settings.}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00371}00371\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00372}00372\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ See\ 'joblib.Parallel.\_\_call\_\_'\ and\ 'joblib.Parallel.retrieve'\ for\ how}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00373}00373\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ this\ is\ used.}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00374}00374\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ hasattr(thread\_state,\ \textcolor{stringliteral}{"{}execution\_state"{}}):}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00375}00375\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ we\ are\ in\ a\ worker.\ Secede\ to\ avoid\ deadlock.}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00376}00376\ \ \ \ \ \ \ \ \ \ \ \ \ secede()}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00377}00377\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00378}00378\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{yield}}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00379}00379\ }
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00380}00380\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ hasattr(thread\_state,\ \textcolor{stringliteral}{"{}execution\_state"{}}):}
+\DoxyCodeLine{\Hypertarget{__dask_8py_source_l00381}00381\ \ \ \ \ \ \ \ \ \ \ \ \ rejoin()}
+
+\end{DoxyCode}

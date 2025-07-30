@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['setup_5fcollections_5ffor_5fpair_0',['setup_collections_for_pair',['../d5/d06/classmain_1_1RepositoryEmbedder.html#a2632314ce37a503aad1b180fbe7b7b31',1,'main::RepositoryEmbedder']]]
+  ['main_0',['main',['../d2/dc1/namespacemain.html#a3140e9a5b6a71ffbf498198cfc471b88',1,'main.main()'],['../d4/d34/namespacecomplete__repo__results.html#a228256cbb23da3dd43d06b827cfd0b1a',1,'complete_repo_results.main()']]]
 ];

@@ -1,0 +1,25 @@
+var dir_5a8268127c7643f2510e7be99364a80b =
+[
+    [ "clipboard", "dir_92daa42cd0906bd77bf0cbb25fe3040c.html", "dir_92daa42cd0906bd77bf0cbb25fe3040c" ],
+    [ "excel", "dir_2fbe7b06e08c12d85f3622cb2e791107.html", "dir_2fbe7b06e08c12d85f3622cb2e791107" ],
+    [ "formats", "dir_05fe34bf6ca792182614856e0be3b2b4.html", "dir_05fe34bf6ca792182614856e0be3b2b4" ],
+    [ "json", "dir_886ad1468a9539d6ff3ba8325edf4995.html", "dir_886ad1468a9539d6ff3ba8325edf4995" ],
+    [ "parsers", "dir_a21c4e8293e665718f87643c990f3efc.html", "dir_a21c4e8293e665718f87643c990f3efc" ],
+    [ "sas", "dir_c9b70260929ca6bef0febae4ad998b0d.html", "dir_c9b70260929ca6bef0febae4ad998b0d" ],
+    [ "__init__.py", "dd/daf/pandas_2io_2____init_____8py_source.html", null ],
+    [ "_util.py", "db/d16/pandas_2io_2__util_8py_source.html", null ],
+    [ "api.py", "d3/d6e/pandas_2io_2api_8py_source.html", null ],
+    [ "clipboards.py", "d0/dfb/clipboards_8py_source.html", null ],
+    [ "common.py", "d8/dbc/pandas_2io_2common_8py_source.html", null ],
+    [ "feather_format.py", "dd/d91/feather__format_8py_source.html", null ],
+    [ "gbq.py", "db/da2/gbq_8py_source.html", null ],
+    [ "html.py", "d5/daa/pandas_2io_2html_8py_source.html", null ],
+    [ "orc.py", "da/dee/orc_8py_source.html", null ],
+    [ "parquet.py", "de/d5a/parquet_8py_source.html", null ],
+    [ "pickle.py", "d8/d10/pickle_8py_source.html", null ],
+    [ "pytables.py", "d6/d42/io_2pytables_8py_source.html", null ],
+    [ "spss.py", "d9/de9/spss_8py_source.html", null ],
+    [ "sql.py", "d9/d3c/sql_8py_source.html", null ],
+    [ "stata.py", "d8/dad/stata_8py_source.html", null ],
+    [ "xml.py", "d1/df3/xml_8py_source.html", null ]
+];

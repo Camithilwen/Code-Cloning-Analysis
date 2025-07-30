@@ -1,0 +1,119 @@
+\doxysection{hvar.\+py}
+\hypertarget{hvar_8py_source}{}\label{hvar_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/fontTools/varLib/hvar.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/fontTools/varLib/hvar.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00001}\mbox{\hyperlink{namespacefontTools_1_1varLib_1_1hvar}{00001}}\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1misc_1_1roundTools}{fontTools.misc.roundTools}}\ \textcolor{keyword}{import}\ noRound}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00002}00002\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1ttLib}{fontTools.ttLib}}\ \textcolor{keyword}{import}\ TTFont,\ newTable}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00003}00003\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1ttLib_1_1tables}{fontTools.ttLib.tables}}\ \textcolor{keyword}{import}\ otTables\ \textcolor{keyword}{as}\ ot}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00004}00004\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1ttLib_1_1tables_1_1otBase}{fontTools.ttLib.tables.otBase}}\ \textcolor{keyword}{import}\ OTTableWriter}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00005}00005\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1varLib}{fontTools.varLib}}\ \textcolor{keyword}{import}\ HVAR\_FIELDS,\ VVAR\_FIELDS,\ \_add\_VHVAR}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00006}00006\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1varLib}{fontTools.varLib}}\ \textcolor{keyword}{import}\ builder,\ models,\ varStore}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00007}00007\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1misc_1_1fixedTools}{fontTools.misc.fixedTools}}\ \textcolor{keyword}{import}\ fixedToFloat\ \textcolor{keyword}{as}\ fi2fl}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00008}00008\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1misc_1_1cliTools}{fontTools.misc.cliTools}}\ \textcolor{keyword}{import}\ makeOutputFileName}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00009}00009\ \textcolor{keyword}{from}\ functools\ \textcolor{keyword}{import}\ partial}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00010}00010\ \textcolor{keyword}{import}\ logging}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00011}00011\ }
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00012}00012\ log\ =\ logging.getLogger(\textcolor{stringliteral}{"{}fontTools.varLib.avar"{}})}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00013}00013\ }
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00014}00014\ }
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00015}00015\ \textcolor{keyword}{def\ }\_get\_advance\_metrics(font,\ axisTags,\ tableFields):}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00016}00016\ \ \ \ \ \textcolor{comment}{\#\ There's\ two\ ways\ we\ can\ go\ from\ here:}}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00017}00017\ \ \ \ \ \textcolor{comment}{\#\ 1.\ For\ each\ glyph,\ at\ each\ master\ peak,\ compute\ the\ value\ of\ the}}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00018}00018\ \ \ \ \ \textcolor{comment}{\#\ \ \ \ advance\ width\ at\ that\ peak.\ \ Then\ pass\ these\ all\ to\ a\ VariationModel}}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00019}00019\ \ \ \ \ \textcolor{comment}{\#\ \ \ \ builder\ to\ compute\ back\ the\ deltas.}}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00020}00020\ \ \ \ \ \textcolor{comment}{\#\ 2.\ For\ each\ master\ peak,\ pull\ out\ the\ deltas\ of\ the\ advance\ width\ directly,}}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00021}00021\ \ \ \ \ \textcolor{comment}{\#\ \ \ \ and\ feed\ these\ to\ the\ VarStoreBuilder,\ forgoing\ the\ remodeling\ step.}}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00022}00022\ \ \ \ \ \textcolor{comment}{\#\ We'll\ go\ with\ the\ second\ option,\ as\ it's\ simpler,\ faster,\ and\ more\ direct.}}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00023}00023\ \ \ \ \ gvar\ =\ font[\textcolor{stringliteral}{"{}gvar"{}}]}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00024}00024\ \ \ \ \ vhAdvanceDeltasAndSupports\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00025}00025\ \ \ \ \ glyphOrder\ =\ font.getGlyphOrder()}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00026}00026\ \ \ \ \ phantomIndex\ =\ tableFields.phantomIndex}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00027}00027\ \ \ \ \ \textcolor{keywordflow}{for}\ glyphName\ \textcolor{keywordflow}{in}\ glyphOrder:}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00028}00028\ \ \ \ \ \ \ \ \ supports\ =\ []}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00029}00029\ \ \ \ \ \ \ \ \ deltas\ =\ []}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00030}00030\ \ \ \ \ \ \ \ \ variations\ =\ gvar.variations.get(glyphName,\ [])}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00031}00031\ }
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00032}00032\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ tv\ \textcolor{keywordflow}{in}\ variations:}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00033}00033\ \ \ \ \ \ \ \ \ \ \ \ \ supports.append(tv.axes)}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00034}00034\ \ \ \ \ \ \ \ \ \ \ \ \ phantoms\ =\ tv.coordinates[-\/4:]}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00035}00035\ \ \ \ \ \ \ \ \ \ \ \ \ phantoms\ =\ phantoms[phantomIndex\ *\ 2\ :\ phantomIndex\ *\ 2\ +\ 2]}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00036}00036\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ len(phantoms)\ ==\ 2}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00037}00037\ \ \ \ \ \ \ \ \ \ \ \ \ phantoms[0]\ =\ phantoms[0][phantomIndex]\ \textcolor{keywordflow}{if}\ phantoms[0]\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{else}\ 0}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00038}00038\ \ \ \ \ \ \ \ \ \ \ \ \ phantoms[1]\ =\ phantoms[1][phantomIndex]\ \textcolor{keywordflow}{if}\ phantoms[1]\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{else}\ 0}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00039}00039\ \ \ \ \ \ \ \ \ \ \ \ \ deltas.append(phantoms[1]\ -\/\ phantoms[0])}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00040}00040\ }
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00041}00041\ \ \ \ \ \ \ \ \ vhAdvanceDeltasAndSupports[glyphName]\ =\ (deltas,\ supports)}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00042}00042\ }
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00043}00043\ \ \ \ \ vOrigDeltasAndSupports\ =\ \textcolor{keywordtype}{None}\ \ \textcolor{comment}{\#\ TODO}}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00044}00044\ }
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00045}00045\ \ \ \ \ \textcolor{keywordflow}{return}\ vhAdvanceDeltasAndSupports,\ vOrigDeltasAndSupports}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00046}00046\ }
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00047}00047\ }
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00048}00048\ \textcolor{keyword}{def\ }add\_HVAR(font):}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00049}00049\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{stringliteral}{"{}HVAR"{}}\ \textcolor{keywordflow}{in}\ font:}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00050}00050\ \ \ \ \ \ \ \ \ del\ font[\textcolor{stringliteral}{"{}HVAR"{}}]}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00051}00051\ \ \ \ \ axisTags\ =\ [axis.axisTag\ \textcolor{keywordflow}{for}\ axis\ \textcolor{keywordflow}{in}\ font[\textcolor{stringliteral}{"{}fvar"{}}].axes]}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00052}00052\ \ \ \ \ getAdvanceMetrics\ =\ partial(\_get\_advance\_metrics,\ font,\ axisTags,\ HVAR\_FIELDS)}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00053}00053\ \ \ \ \ \_add\_VHVAR(font,\ axisTags,\ HVAR\_FIELDS,\ getAdvanceMetrics)}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00054}00054\ }
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00055}00055\ }
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00056}00056\ \textcolor{keyword}{def\ }add\_VVAR(font):}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00057}00057\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{stringliteral}{"{}VVAR"{}}\ \textcolor{keywordflow}{in}\ font:}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00058}00058\ \ \ \ \ \ \ \ \ del\ font[\textcolor{stringliteral}{"{}VVAR"{}}]}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00059}00059\ \ \ \ \ getAdvanceMetrics\ =\ partial(\_get\_advance\_metrics,\ font,\ axisTags,\ VVAR\_FIELDS)}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00060}00060\ \ \ \ \ axisTags\ =\ [axis.axisTag\ \textcolor{keywordflow}{for}\ axis\ \textcolor{keywordflow}{in}\ font[\textcolor{stringliteral}{"{}fvar"{}}].axes]}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00061}00061\ \ \ \ \ \_add\_VHVAR(font,\ axisTags,\ VVAR\_FIELDS,\ getAdvanceMetrics)}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00062}00062\ }
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00063}00063\ }
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00064}\mbox{\hyperlink{namespacefontTools_1_1varLib_1_1hvar_af7685c88e0a5dcb7055e228b5f912850}{00064}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacemain}{main}}(args=None):}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00065}00065\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Add\ \`{}HVAR\`{}\ table\ to\ variable\ font."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00066}00066\ }
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00067}00067\ \ \ \ \ \textcolor{keywordflow}{if}\ args\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00068}00068\ \ \ \ \ \ \ \ \ \textcolor{keyword}{import}\ sys}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00069}00069\ }
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00070}00070\ \ \ \ \ \ \ \ \ args\ =\ sys.argv[1:]}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00071}00071\ }
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00072}00072\ \ \ \ \ \textcolor{keyword}{from}\ fontTools\ \textcolor{keyword}{import}\ configLogger}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00073}00073\ \ \ \ \ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1designspaceLib}{fontTools.designspaceLib}}\ \textcolor{keyword}{import}\ DesignSpaceDocument}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00074}00074\ \ \ \ \ \textcolor{keyword}{import}\ argparse}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00075}00075\ }
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00076}00076\ \ \ \ \ parser\ =\ argparse.ArgumentParser(}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00077}00077\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}fonttools\ varLib.hvar"{}},}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00078}00078\ \ \ \ \ \ \ \ \ description=\textcolor{stringliteral}{"{}Add\ \`{}HVAR`\ table\ from\ to\ variable\ font."{}},}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00079}00079\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00080}00080\ \ \ \ \ parser.add\_argument(\textcolor{stringliteral}{"{}font"{}},\ metavar=\textcolor{stringliteral}{"{}varfont.ttf"{}},\ help=\textcolor{stringliteral}{"{}Variable-\/font\ file."{}})}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00081}00081\ \ \ \ \ parser.add\_argument(}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00082}00082\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}-\/o"{}},}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00083}00083\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}-\/-\/output-\/file"{}},}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00084}00084\ \ \ \ \ \ \ \ \ type=str,}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00085}00085\ \ \ \ \ \ \ \ \ help=\textcolor{stringliteral}{"{}Output\ font\ file\ name."{}},}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00086}00086\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00087}00087\ }
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00088}00088\ \ \ \ \ options\ =\ parser.parse\_args(args)}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00089}00089\ }
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00090}00090\ \ \ \ \ configLogger(level=\textcolor{stringliteral}{"{}WARNING"{}})}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00091}00091\ }
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00092}00092\ \ \ \ \ font\ =\ \mbox{\hyperlink{classfontTools_1_1ttLib_1_1ttFont_1_1TTFont}{TTFont}}(options.font)}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00093}00093\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ \textcolor{stringliteral}{"{}fvar"{}}\ \textcolor{keywordflow}{in}\ font:}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00094}00094\ \ \ \ \ \ \ \ \ log.error(\textcolor{stringliteral}{"{}Not\ a\ variable\ font."{}})}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00095}00095\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ 1}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00096}00096\ }
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00097}00097\ \ \ \ \ add\_HVAR(font)}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00098}00098\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{stringliteral}{"{}vmtx"{}}\ \textcolor{keywordflow}{in}\ font:}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00099}00099\ \ \ \ \ \ \ \ \ add\_VVAR(font)}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00100}00100\ }
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00101}00101\ \ \ \ \ \textcolor{keywordflow}{if}\ options.output\_file\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00102}00102\ \ \ \ \ \ \ \ \ outfile\ =\ makeOutputFileName(options.font,\ overWrite=\textcolor{keyword}{True},\ suffix=\textcolor{stringliteral}{"{}.hvar"{}})}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00103}00103\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00104}00104\ \ \ \ \ \ \ \ \ outfile\ =\ options.output\_file}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00105}00105\ \ \ \ \ \textcolor{keywordflow}{if}\ outfile:}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00106}00106\ \ \ \ \ \ \ \ \ log.info(\textcolor{stringliteral}{"{}Saving\ \%s"{}},\ outfile)}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00107}00107\ \ \ \ \ \ \ \ \ font.save(outfile)}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00108}00108\ }
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00109}00109\ }
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00110}00110\ \textcolor{keywordflow}{if}\ \_\_name\_\_\ ==\ \textcolor{stringliteral}{"{}\_\_main\_\_"{}}:}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00111}00111\ \ \ \ \ \textcolor{keyword}{import}\ sys}
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00112}00112\ }
+\DoxyCodeLine{\Hypertarget{hvar_8py_source_l00113}00113\ \ \ \ \ sys.exit(\mbox{\hyperlink{namespacemain}{main}}())}
+
+\end{DoxyCode}

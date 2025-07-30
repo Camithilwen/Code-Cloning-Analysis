@@ -1,0 +1,590 @@
+\doxysection{\+\_\+constraints.\+py}
+\hypertarget{__constraints_8py_source}{}\label{__constraints_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/scipy/optimize/\_constraints.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/scipy/optimize/\_constraints.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00001}\mbox{\hyperlink{namespacescipy_1_1optimize_1_1__constraints}{00001}}\ \textcolor{stringliteral}{"{}"{}"{}Constraints\ definition\ for\ minimize."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00002}00002\ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00003}00003\ \textcolor{keyword}{from}\ .\_hessian\_update\_strategy\ \textcolor{keyword}{import}\ BFGS}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00004}00004\ \textcolor{keyword}{from}\ .\_differentiable\_functions\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00005}00005\ \ \ \ \ VectorFunction,\ LinearVectorFunction,\ IdentityVectorFunction)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00006}00006\ \textcolor{keyword}{from}\ .\_optimize\ \textcolor{keyword}{import}\ OptimizeWarning}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00007}00007\ \textcolor{keyword}{from}\ warnings\ \textcolor{keyword}{import}\ warn,\ catch\_warnings,\ simplefilter}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00008}00008\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacenumpy_1_1testing}{numpy.testing}}\ \textcolor{keyword}{import}\ suppress\_warnings}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00009}00009\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacescipy_1_1sparse}{scipy.sparse}}\ \textcolor{keyword}{import}\ issparse}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00010}00010\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00011}00011\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00012}00012\ \textcolor{keyword}{def\ }\_arr\_to\_scalar(x):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00013}00013\ \ \ \ \ \textcolor{comment}{\#\ If\ x\ is\ a\ numpy\ array,\ return\ x.item().\ \ This\ will}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00014}00014\ \ \ \ \ \textcolor{comment}{\#\ fail\ if\ the\ array\ has\ more\ than\ one\ element.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00015}00015\ \ \ \ \ \textcolor{keywordflow}{return}\ x.item()\ \textcolor{keywordflow}{if}\ isinstance(x,\ np.ndarray)\ \textcolor{keywordflow}{else}\ x}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00016}00016\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00017}00017\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00018}\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1NonlinearConstraint}{00018}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1NonlinearConstraint}{NonlinearConstraint}}:}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00019}00019\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Nonlinear\ constraint\ on\ the\ variables.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00020}00020\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00021}00021\ \textcolor{stringliteral}{\ \ \ \ The\ constraint\ has\ the\ general\ inequality\ form::}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00022}00022\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00023}00023\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ lb\ <=\ fun(x)\ <=\ ub}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00024}00024\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00025}00025\ \textcolor{stringliteral}{\ \ \ \ Here\ the\ vector\ of\ independent\ variables\ x\ is\ passed\ as\ ndarray\ of\ shape}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00026}00026\ \textcolor{stringliteral}{\ \ \ \ (n,)\ and\ \`{}\`{}fun\`{}\`{}\ returns\ a\ vector\ with\ m\ components.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00027}00027\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00028}00028\ \textcolor{stringliteral}{\ \ \ \ It\ is\ possible\ to\ use\ equal\ bounds\ to\ represent\ an\ equality\ constraint\ or}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00029}00029\ \textcolor{stringliteral}{\ \ \ \ infinite\ bounds\ to\ represent\ a\ one-\/sided\ constraint.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00030}00030\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00031}00031\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00032}00032\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00033}00033\ \textcolor{stringliteral}{\ \ \ \ fun\ :\ callable}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00034}00034\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ function\ defining\ the\ constraint.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00035}00035\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ The\ signature\ is\ \`{}\`{}fun(x)\ -\/>\ array\_like,\ shape\ (m,)\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00036}00036\ \textcolor{stringliteral}{\ \ \ \ lb,\ ub\ :\ array\_like}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00037}00037\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Lower\ and\ upper\ bounds\ on\ the\ constraint.\ Each\ array\ must\ have\ the}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00038}00038\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ shape\ (m,)\ or\ be\ a\ scalar,\ in\ the\ latter\ case\ a\ bound\ will\ be\ the\ same}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00039}00039\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ for\ all\ components\ of\ the\ constraint.\ Use\ \`{}\`{}np.inf\`{}\`{}\ with\ an}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00040}00040\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ appropriate\ sign\ to\ specify\ a\ one-\/sided\ constraint.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00041}00041\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Set\ components\ of\ \`{}lb\`{}\ and\ \`{}ub\`{}\ equal\ to\ represent\ an\ equality}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00042}00042\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ constraint.\ Note\ that\ you\ can\ mix\ constraints\ of\ different\ types:}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00043}00043\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ interval,\ one-\/sided\ or\ equality,\ by\ setting\ different\ components\ of}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00044}00044\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}lb\`{}\ and\ \`{}ub\`{}\ as\ \ necessary.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00045}00045\ \textcolor{stringliteral}{\ \ \ \ jac\ :\ \{callable,\ \ '2-\/point',\ '3-\/point',\ 'cs'\},\ optional}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00046}00046\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Method\ of\ computing\ the\ Jacobian\ matrix\ (an\ m-\/by-\/n\ matrix,}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00047}00047\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ where\ element\ (i,\ j)\ is\ the\ partial\ derivative\ of\ f[i]\ with}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00048}00048\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ respect\ to\ x[j]).\ \ The\ keywords\ \{'2-\/point',\ '3-\/point',}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00049}00049\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ 'cs'\}\ select\ a\ finite\ difference\ scheme\ for\ the\ numerical\ estimation.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00050}00050\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ A\ callable\ must\ have\ the\ following\ signature:}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00051}00051\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}jac(x)\ -\/>\ \{ndarray,\ sparse\ matrix\},\ shape\ (m,\ n)\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00052}00052\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Default\ is\ '2-\/point'.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00053}00053\ \textcolor{stringliteral}{\ \ \ \ hess\ :\ \{callable,\ '2-\/point',\ '3-\/point',\ 'cs',\ HessianUpdateStrategy,\ None\},\ optional}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00054}00054\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Method\ for\ computing\ the\ Hessian\ matrix.\ The\ keywords}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00055}00055\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \{'2-\/point',\ '3-\/point',\ 'cs'\}\ select\ a\ finite\ difference\ scheme\ for}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00056}00056\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ numerical\ \ estimation.\ \ Alternatively,\ objects\ implementing}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00057}00057\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}HessianUpdateStrategy\`{}\ interface\ can\ be\ used\ to\ approximate\ the}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00058}00058\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Hessian.\ Currently\ available\ implementations\ are:}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00059}00059\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00060}00060\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ -\/\ \`{}BFGS\`{}\ (default\ option)}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00061}00061\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ -\/\ \`{}SR1\`{}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00062}00062\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00063}00063\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ A\ callable\ must\ return\ the\ Hessian\ matrix\ of\ \`{}\`{}dot(fun,\ v)\`{}\`{}\ and}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00064}00064\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ must\ have\ the\ following\ signature:}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00065}00065\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}hess(x,\ v)\ -\/>\ \{LinearOperator,\ sparse\ matrix,\ array\_like\},\ shape\ (n,\ n)\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00066}00066\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Here\ \`{}\`{}v\`{}\`{}\ is\ ndarray\ with\ shape\ (m,)\ containing\ Lagrange\ multipliers.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00067}00067\ \textcolor{stringliteral}{\ \ \ \ keep\_feasible\ :\ array\_like\ of\ bool,\ optional}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00068}00068\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Whether\ to\ keep\ the\ constraint\ components\ feasible\ throughout}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00069}00069\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ iterations.\ A\ single\ value\ set\ this\ property\ for\ all\ components.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00070}00070\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Default\ is\ False.\ Has\ no\ effect\ for\ equality\ constraints.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00071}00071\ \textcolor{stringliteral}{\ \ \ \ finite\_diff\_rel\_step:\ None\ or\ array\_like,\ optional}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00072}00072\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Relative\ step\ size\ for\ the\ finite\ difference\ approximation.\ Default\ is}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00073}00073\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ None,\ which\ will\ select\ a\ reasonable\ value\ automatically\ depending}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00074}00074\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ on\ a\ finite\ difference\ scheme.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00075}00075\ \textcolor{stringliteral}{\ \ \ \ finite\_diff\_jac\_sparsity:\ \{None,\ array\_like,\ sparse\ matrix\},\ optional}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00076}00076\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Defines\ the\ sparsity\ structure\ of\ the\ Jacobian\ matrix\ for\ finite}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00077}00077\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ difference\ estimation,\ its\ shape\ must\ be\ (m,\ n).\ If\ the\ Jacobian\ has}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00078}00078\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ only\ few\ non-\/zero\ elements\ in\ *each*\ row,\ providing\ the\ sparsity}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00079}00079\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ structure\ will\ greatly\ speed\ up\ the\ computations.\ A\ zero\ entry\ means}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00080}00080\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ that\ a\ corresponding\ element\ in\ the\ Jacobian\ is\ identically\ zero.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00081}00081\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ provided,\ forces\ the\ use\ of\ 'lsmr'\ trust-\/region\ solver.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00082}00082\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ None\ (default)\ then\ dense\ differencing\ will\ be\ used.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00083}00083\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00084}00084\ \textcolor{stringliteral}{\ \ \ \ Notes}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00085}00085\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00086}00086\ \textcolor{stringliteral}{\ \ \ \ Finite\ difference\ schemes\ \{'2-\/point',\ '3-\/point',\ 'cs'\}\ may\ be\ used\ for}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00087}00087\ \textcolor{stringliteral}{\ \ \ \ approximating\ either\ the\ Jacobian\ or\ the\ Hessian.\ We,\ however,\ do\ not\ allow}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00088}00088\ \textcolor{stringliteral}{\ \ \ \ its\ use\ for\ approximating\ both\ simultaneously.\ Hence\ whenever\ the\ Jacobian}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00089}00089\ \textcolor{stringliteral}{\ \ \ \ is\ estimated\ via\ finite-\/differences,\ we\ require\ the\ Hessian\ to\ be\ estimated}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00090}00090\ \textcolor{stringliteral}{\ \ \ \ using\ one\ of\ the\ quasi-\/Newton\ strategies.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00091}00091\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00092}00092\ \textcolor{stringliteral}{\ \ \ \ The\ scheme\ 'cs'\ is\ potentially\ the\ most\ accurate,\ but\ requires\ the\ function}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00093}00093\ \textcolor{stringliteral}{\ \ \ \ to\ correctly\ handles\ complex\ inputs\ and\ be\ analytically\ continuable\ to\ the}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00094}00094\ \textcolor{stringliteral}{\ \ \ \ complex\ plane.\ The\ scheme\ '3-\/point'\ is\ more\ accurate\ than\ '2-\/point'\ but}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00095}00095\ \textcolor{stringliteral}{\ \ \ \ requires\ twice\ as\ many\ operations.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00096}00096\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00097}00097\ \textcolor{stringliteral}{\ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00098}00098\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00099}00099\ \textcolor{stringliteral}{\ \ \ \ Constrain\ \`{}\`{}x[0]\ <\ sin(x[1])\ +\ 1.9\`{}\`{}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00100}00100\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00101}00101\ \textcolor{stringliteral}{\ \ \ \ >>>\ from\ scipy.optimize\ import\ NonlinearConstraint}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00102}00102\ \textcolor{stringliteral}{\ \ \ \ >>>\ import\ numpy\ as\ np}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00103}00103\ \textcolor{stringliteral}{\ \ \ \ >>>\ con\ =\ lambda\ x:\ x[0]\ -\/\ np.sin(x[1])}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00104}00104\ \textcolor{stringliteral}{\ \ \ \ >>>\ nlc\ =\ NonlinearConstraint(con,\ -\/np.inf,\ 1.9)}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00105}00105\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00106}00106\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00107}00107\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ fun,\ lb,\ ub,\ jac='2-\/point',\ hess=BFGS(),}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00108}00108\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ keep\_feasible=\textcolor{keyword}{False},\ finite\_diff\_rel\_step=\textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00109}00109\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ finite\_diff\_jac\_sparsity=\textcolor{keywordtype}{None}):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00110}00110\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1NonlinearConstraint_ae4c8ff377793c27be3f26d080b9fc12c}{fun}}\ =\ fun}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00111}00111\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1NonlinearConstraint_a0424cb9f7f77c98d224555dd18d96535}{lb}}\ =\ lb}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00112}00112\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1NonlinearConstraint_aa8ad81dcb7f2af806ce54cd7545da1f5}{ub}}\ =\ ub}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00113}00113\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1NonlinearConstraint_af013f806505fb7a76e758e1fa426620e}{finite\_diff\_rel\_step}}\ =\ finite\_diff\_rel\_step}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00114}00114\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1NonlinearConstraint_a58afff84f63fd51f3bdf1f749edcecae}{finite\_diff\_jac\_sparsity}}\ =\ finite\_diff\_jac\_sparsity}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00115}00115\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1NonlinearConstraint_a1c9fff90e092254c97821310428b1ca4}{jac}}\ =\ jac}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00116}00116\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1NonlinearConstraint_a4ba22f609ea81e23f1e4fdb6eb978310}{hess}}\ =\ hess}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00117}00117\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1NonlinearConstraint_a337b6fdbc8e45268c4f2b87a9ecb45da}{keep\_feasible}}\ =\ keep\_feasible}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00118}00118\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00119}00119\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00120}\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1LinearConstraint}{00120}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1LinearConstraint}{LinearConstraint}}:}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00121}00121\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Linear\ constraint\ on\ the\ variables.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00122}00122\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00123}00123\ \textcolor{stringliteral}{\ \ \ \ The\ constraint\ has\ the\ general\ inequality\ form::}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00124}00124\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00125}00125\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ lb\ <=\ A.dot(x)\ <=\ ub}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00126}00126\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00127}00127\ \textcolor{stringliteral}{\ \ \ \ Here\ the\ vector\ of\ independent\ variables\ x\ is\ passed\ as\ ndarray\ of\ shape}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00128}00128\ \textcolor{stringliteral}{\ \ \ \ (n,)\ and\ the\ matrix\ A\ has\ shape\ (m,\ n).}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00129}00129\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00130}00130\ \textcolor{stringliteral}{\ \ \ \ It\ is\ possible\ to\ use\ equal\ bounds\ to\ represent\ an\ equality\ constraint\ or}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00131}00131\ \textcolor{stringliteral}{\ \ \ \ infinite\ bounds\ to\ represent\ a\ one-\/sided\ constraint.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00132}00132\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00133}00133\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00134}00134\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00135}00135\ \textcolor{stringliteral}{\ \ \ \ A\ :\ \{array\_like,\ sparse\ matrix\},\ shape\ (m,\ n)}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00136}00136\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Matrix\ defining\ the\ constraint.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00137}00137\ \textcolor{stringliteral}{\ \ \ \ lb,\ ub\ :\ dense\ array\_like,\ optional}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00138}00138\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Lower\ and\ upper\ limits\ on\ the\ constraint.\ Each\ array\ must\ have\ the}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00139}00139\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ shape\ (m,)\ or\ be\ a\ scalar,\ in\ the\ latter\ case\ a\ bound\ will\ be\ the\ same}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00140}00140\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ for\ all\ components\ of\ the\ constraint.\ Use\ \`{}\`{}np.inf\`{}\`{}\ with\ an}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00141}00141\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ appropriate\ sign\ to\ specify\ a\ one-\/sided\ constraint.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00142}00142\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Set\ components\ of\ \`{}lb\`{}\ and\ \`{}ub\`{}\ equal\ to\ represent\ an\ equality}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00143}00143\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ constraint.\ Note\ that\ you\ can\ mix\ constraints\ of\ different\ types:}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00144}00144\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ interval,\ one-\/sided\ or\ equality,\ by\ setting\ different\ components\ of}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00145}00145\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}lb\`{}\ and\ \`{}ub\`{}\ as\ \ necessary.\ Defaults\ to\ \`{}\`{}lb\ =\ -\/np.inf\`{}\`{}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00146}00146\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ and\ \`{}\`{}ub\ =\ np.inf\`{}\`{}\ (no\ limits).}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00147}00147\ \textcolor{stringliteral}{\ \ \ \ keep\_feasible\ :\ dense\ array\_like\ of\ bool,\ optional}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00148}00148\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Whether\ to\ keep\ the\ constraint\ components\ feasible\ throughout}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00149}00149\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ iterations.\ A\ single\ value\ set\ this\ property\ for\ all\ components.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00150}00150\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Default\ is\ False.\ Has\ no\ effect\ for\ equality\ constraints.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00151}00151\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00152}00152\ \ \ \ \ \textcolor{keyword}{def\ }\_input\_validation(self):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00153}00153\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1LinearConstraint_a5d077ccdee46126c60750afbd056d30f}{A}}.ndim\ !=\ 2:}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00154}00154\ \ \ \ \ \ \ \ \ \ \ \ \ message\ =\ \textcolor{stringliteral}{"{}\`{}A`\ must\ have\ exactly\ two\ dimensions."{}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00155}00155\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(message)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00156}00156\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00157}00157\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00158}00158\ \ \ \ \ \ \ \ \ \ \ \ \ shape\ =\ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1LinearConstraint_a5d077ccdee46126c60750afbd056d30f}{A}}.shape[0:1]}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00159}00159\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1LinearConstraint_a66d7742004a583da9a1fa7c464276dfe}{lb}}\ =\ np.broadcast\_to(self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1LinearConstraint_a66d7742004a583da9a1fa7c464276dfe}{lb}},\ shape)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00160}00160\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1LinearConstraint_aaa6276b0ba684c3ddb671f7125709515}{ub}}\ =\ np.broadcast\_to(self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1LinearConstraint_aaa6276b0ba684c3ddb671f7125709515}{ub}},\ shape)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00161}00161\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1LinearConstraint_a1c9280e151a75e7bdb87d7b7c61c3f22}{keep\_feasible}}\ =\ np.broadcast\_to(self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1LinearConstraint_a1c9280e151a75e7bdb87d7b7c61c3f22}{keep\_feasible}},\ shape)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00162}00162\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ ValueError:}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00163}00163\ \ \ \ \ \ \ \ \ \ \ \ \ message\ =\ (\textcolor{stringliteral}{"{}\`{}lb`,\ \`{}ub`,\ and\ \`{}keep\_feasible`\ must\ be\ broadcastable\ "{}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00164}00164\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}to\ shape\ \`{}A.shape[0:1]`"{}})}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00165}00165\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(message)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00166}00166\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00167}00167\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ A,\ lb=-\/np.inf,\ ub=np.inf,\ keep\_feasible=False):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00168}00168\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ issparse(A):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00169}00169\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ In\ some\ cases,\ if\ the\ constraint\ is\ not\ valid,\ this\ emits\ a}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00170}00170\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ VisibleDeprecationWarning\ about\ ragged\ nested\ sequences}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00171}00171\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ before\ eventually\ causing\ an\ error.\ \`{}scipy.optimize.milp`\ would}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00172}00172\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ prefer\ that\ this\ just\ error\ out\ immediately\ so\ it\ can\ handle\ it}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00173}00173\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ rather\ than\ concerning\ the\ user.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00174}00174\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ catch\_warnings():}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00175}00175\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ simplefilter(\textcolor{stringliteral}{"{}error"{}})}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00176}00176\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1LinearConstraint_a5d077ccdee46126c60750afbd056d30f}{A}}\ =\ np.atleast\_2d(A).astype(np.float64)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00177}00177\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00178}00178\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1LinearConstraint_a5d077ccdee46126c60750afbd056d30f}{A}}\ =\ A}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00179}00179\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ issparse(lb)\ \textcolor{keywordflow}{or}\ issparse(ub):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00180}00180\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}Constraint\ limits\ must\ be\ dense\ arrays."{}})}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00181}00181\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1LinearConstraint_a66d7742004a583da9a1fa7c464276dfe}{lb}}\ =\ np.atleast\_1d(lb).astype(np.float64)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00182}00182\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1LinearConstraint_aaa6276b0ba684c3ddb671f7125709515}{ub}}\ =\ np.atleast\_1d(ub).astype(np.float64)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00183}00183\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00184}00184\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ issparse(keep\_feasible):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00185}00185\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}\`{}keep\_feasible`\ must\ be\ a\ dense\ array."{}})}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00186}00186\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1LinearConstraint_a1c9280e151a75e7bdb87d7b7c61c3f22}{keep\_feasible}}\ =\ np.atleast\_1d(keep\_feasible).astype(bool)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00187}00187\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1LinearConstraint_a1b8339aa839a1ea67a75febce32ac128}{\_input\_validation}}()}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00188}00188\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00189}\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1LinearConstraint_a8782e752ad2daf223b4cfb9ac5137f05}{00189}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1LinearConstraint_a8782e752ad2daf223b4cfb9ac5137f05}{residual}}(self,\ x):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00190}00190\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00191}00191\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Calculate\ the\ residual\ between\ the\ constraint\ function\ and\ the\ limits}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00192}00192\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00193}00193\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ For\ a\ linear\ constraint\ of\ the\ form::}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00194}00194\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00195}00195\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ lb\ <=\ A@x\ <=\ ub}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00196}00196\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00197}00197\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ lower\ and\ upper\ residuals\ between\ \`{}\`{}A@x\`{}\`{}\ and\ the\ limits\ are\ values}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00198}00198\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}sl\`{}\`{}\ and\ \`{}\`{}sb\`{}\`{}\ such\ that::}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00199}00199\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00200}00200\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ lb\ +\ sl\ ==\ A@x\ ==\ ub\ -\/\ sb}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00201}00201\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00202}00202\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ When\ all\ elements\ of\ \`{}\`{}sl\`{}\`{}\ and\ \`{}\`{}sb\`{}\`{}\ are\ positive,\ all\ elements\ of}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00203}00203\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ constraint\ are\ satisfied;\ a\ negative\ element\ in\ \`{}\`{}sl\`{}\`{}\ or\ \`{}\`{}sb\`{}\`{}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00204}00204\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ indicates\ that\ the\ corresponding\ element\ of\ the\ constraint\ is\ not}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00205}00205\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ satisfied.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00206}00206\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00207}00207\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00208}00208\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00209}00209\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ x:\ array\_like}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00210}00210\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Vector\ of\ independent\ variables}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00211}00211\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00212}00212\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00213}00213\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00214}00214\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ sl,\ sb\ :\ array-\/like}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00215}00215\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ lower\ and\ upper\ residuals}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00216}00216\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00217}00217\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1LinearConstraint_a5d077ccdee46126c60750afbd056d30f}{A}}\textcolor{preprocessor}{@x}\ -\/\ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1LinearConstraint_a66d7742004a583da9a1fa7c464276dfe}{lb}},\ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1LinearConstraint_aaa6276b0ba684c3ddb671f7125709515}{ub}}\ -\/\ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1LinearConstraint_a5d077ccdee46126c60750afbd056d30f}{A}}\textcolor{preprocessor}{@x}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00218}00218\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00219}00219\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00220}\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1Bounds}{00220}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1Bounds}{Bounds}}:}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00221}00221\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Bounds\ constraint\ on\ the\ variables.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00222}00222\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00223}00223\ \textcolor{stringliteral}{\ \ \ \ The\ constraint\ has\ the\ general\ inequality\ form::}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00224}00224\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00225}00225\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ lb\ <=\ x\ <=\ ub}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00226}00226\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00227}00227\ \textcolor{stringliteral}{\ \ \ \ It\ is\ possible\ to\ use\ equal\ bounds\ to\ represent\ an\ equality\ constraint\ or}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00228}00228\ \textcolor{stringliteral}{\ \ \ \ infinite\ bounds\ to\ represent\ a\ one-\/sided\ constraint.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00229}00229\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00230}00230\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00231}00231\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00232}00232\ \textcolor{stringliteral}{\ \ \ \ lb,\ ub\ :\ dense\ array\_like,\ optional}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00233}00233\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Lower\ and\ upper\ bounds\ on\ independent\ variables.\ \`{}lb\`{},\ \`{}ub\`{},\ and}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00234}00234\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}keep\_feasible\`{}\ must\ be\ the\ same\ shape\ or\ broadcastable.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00235}00235\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Set\ components\ of\ \`{}lb\`{}\ and\ \`{}ub\`{}\ equal}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00236}00236\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ to\ fix\ a\ variable.\ Use\ \`{}\`{}np.inf\`{}\`{}\ with\ an\ appropriate\ sign\ to\ disable}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00237}00237\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ bounds\ on\ all\ or\ some\ variables.\ Note\ that\ you\ can\ mix\ constraints\ of}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00238}00238\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ different\ types:\ interval,\ one-\/sided\ or\ equality,\ by\ setting\ different}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00239}00239\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ components\ of\ \`{}lb\`{}\ and\ \`{}ub\`{}\ as\ necessary.\ Defaults\ to\ \`{}\`{}lb\ =\ -\/np.inf\`{}\`{}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00240}00240\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ and\ \`{}\`{}ub\ =\ np.inf\`{}\`{}\ (no\ bounds).}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00241}00241\ \textcolor{stringliteral}{\ \ \ \ keep\_feasible\ :\ dense\ array\_like\ of\ bool,\ optional}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00242}00242\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Whether\ to\ keep\ the\ constraint\ components\ feasible\ throughout}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00243}00243\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ iterations.\ Must\ be\ broadcastable\ with\ \`{}lb\`{}\ and\ \`{}ub\`{}.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00244}00244\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Default\ is\ False.\ Has\ no\ effect\ for\ equality\ constraints.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00245}00245\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00246}00246\ \ \ \ \ \textcolor{keyword}{def\ }\_input\_validation(self):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00247}00247\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00248}00248\ \ \ \ \ \ \ \ \ \ \ \ \ res\ =\ np.broadcast\_arrays(self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1Bounds_a7bab3e46771bc13b19e26170347a5d6c}{lb}},\ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1Bounds_a6cd41e9940f0eb93f9450306e2e2ed27}{ub}},\ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1Bounds_a43ab28f02dbfb27e3bf9edf91f58730e}{keep\_feasible}})}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00249}00249\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1Bounds_a7bab3e46771bc13b19e26170347a5d6c}{lb}},\ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1Bounds_a6cd41e9940f0eb93f9450306e2e2ed27}{ub}},\ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1Bounds_a43ab28f02dbfb27e3bf9edf91f58730e}{keep\_feasible}}\ =\ res}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00250}00250\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ ValueError:}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00251}00251\ \ \ \ \ \ \ \ \ \ \ \ \ message\ =\ \textcolor{stringliteral}{"{}\`{}lb`,\ \`{}ub`,\ and\ \`{}keep\_feasible`\ must\ be\ broadcastable."{}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00252}00252\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(message)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00253}00253\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00254}00254\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ lb=-\/np.inf,\ ub=np.inf,\ keep\_feasible=False):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00255}00255\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ issparse(lb)\ \textcolor{keywordflow}{or}\ issparse(ub):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00256}00256\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}Lower\ and\ upper\ bounds\ must\ be\ dense\ arrays."{}})}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00257}00257\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1Bounds_a7bab3e46771bc13b19e26170347a5d6c}{lb}}\ =\ np.atleast\_1d(lb)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00258}00258\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1Bounds_a6cd41e9940f0eb93f9450306e2e2ed27}{ub}}\ =\ np.atleast\_1d(ub)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00259}00259\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00260}00260\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ issparse(keep\_feasible):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00261}00261\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}\`{}keep\_feasible`\ must\ be\ a\ dense\ array."{}})}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00262}00262\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1Bounds_a43ab28f02dbfb27e3bf9edf91f58730e}{keep\_feasible}}\ =\ np.atleast\_1d(keep\_feasible).astype(bool)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00263}00263\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1Bounds_a942bc3e7346a5dc58eef3472352a1158}{\_input\_validation}}()}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00264}00264\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00265}00265\ \ \ \ \ \textcolor{keyword}{def\ }\_\_repr\_\_(self):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00266}00266\ \ \ \ \ \ \ \ \ start\ =\ f\textcolor{stringliteral}{"{}\{type(self).\_\_name\_\_\}(\{self.lb!r\},\ \{self.ub!r\}"{}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00267}00267\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ np.any(self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1Bounds_a43ab28f02dbfb27e3bf9edf91f58730e}{keep\_feasible}}):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00268}00268\ \ \ \ \ \ \ \ \ \ \ \ \ end\ =\ f\textcolor{stringliteral}{"{},\ keep\_feasible=\{self.keep\_feasible!r\})"{}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00269}00269\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00270}00270\ \ \ \ \ \ \ \ \ \ \ \ \ end\ =\ \textcolor{stringliteral}{"{})"{}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00271}00271\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ start\ +\ end}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00272}00272\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00273}\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1Bounds_ab16e9a740cfae62a900caad503ed0a4d}{00273}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1Bounds_ab16e9a740cfae62a900caad503ed0a4d}{residual}}(self,\ x):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00274}00274\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Calculate\ the\ residual\ (slack)\ between\ the\ input\ and\ the\ bounds}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00275}00275\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00276}00276\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ For\ a\ bound\ constraint\ of\ the\ form::}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00277}00277\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00278}00278\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ lb\ <=\ x\ <=\ ub}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00279}00279\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00280}00280\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ lower\ and\ upper\ residuals\ between\ \`{}x\`{}\ and\ the\ bounds\ are\ values}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00281}00281\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}sl\`{}\`{}\ and\ \`{}\`{}sb\`{}\`{}\ such\ that::}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00282}00282\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00283}00283\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ lb\ +\ sl\ ==\ x\ ==\ ub\ -\/\ sb}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00284}00284\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00285}00285\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ When\ all\ elements\ of\ \`{}\`{}sl\`{}\`{}\ and\ \`{}\`{}sb\`{}\`{}\ are\ positive,\ all\ elements\ of}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00286}00286\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \`{}\`{}x\`{}\`{}\ lie\ within\ the\ bounds;\ a\ negative\ element\ in\ \`{}\`{}sl\`{}\`{}\ or\ \`{}\`{}sb\`{}\`{}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00287}00287\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ indicates\ that\ the\ corresponding\ element\ of\ \`{}\`{}x\`{}\`{}\ is\ out\ of\ bounds.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00288}00288\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00289}00289\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00290}00290\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00291}00291\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ x:\ array\_like}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00292}00292\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Vector\ of\ independent\ variables}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00293}00293\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00294}00294\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00295}00295\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00296}00296\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ sl,\ sb\ :\ array-\/like}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00297}00297\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ lower\ and\ upper\ residuals}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00298}00298\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00299}00299\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ x\ -\/\ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1Bounds_a7bab3e46771bc13b19e26170347a5d6c}{lb}},\ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1Bounds_a6cd41e9940f0eb93f9450306e2e2ed27}{ub}}\ -\/\ x}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00300}00300\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00301}00301\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00302}\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1PreparedConstraint}{00302}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1PreparedConstraint}{PreparedConstraint}}:}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00303}00303\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Constraint\ prepared\ from\ a\ user\ defined\ constraint.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00304}00304\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00305}00305\ \textcolor{stringliteral}{\ \ \ \ On\ creation\ it\ will\ check\ whether\ a\ constraint\ definition\ is\ valid\ and}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00306}00306\ \textcolor{stringliteral}{\ \ \ \ the\ initial\ point\ is\ feasible.\ If\ created\ successfully,\ it\ will\ contain}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00307}00307\ \textcolor{stringliteral}{\ \ \ \ the\ attributes\ listed\ below.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00308}00308\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00309}00309\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00310}00310\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00311}00311\ \textcolor{stringliteral}{\ \ \ \ constraint\ :\ \{NonlinearConstraint,\ LinearConstraint\`{},\ Bounds\}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00312}00312\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Constraint\ to\ check\ and\ prepare.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00313}00313\ \textcolor{stringliteral}{\ \ \ \ x0\ :\ array\_like}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00314}00314\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Initial\ vector\ of\ independent\ variables.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00315}00315\ \textcolor{stringliteral}{\ \ \ \ sparse\_jacobian\ :\ bool\ or\ None,\ optional}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00316}00316\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ If\ bool,\ then\ the\ Jacobian\ of\ the\ constraint\ will\ be\ converted}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00317}00317\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ to\ the\ corresponded\ format\ if\ necessary.\ If\ None\ (default),\ such}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00318}00318\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ conversion\ is\ not\ made.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00319}00319\ \textcolor{stringliteral}{\ \ \ \ finite\_diff\_bounds\ :\ 2-\/tuple,\ optional}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00320}00320\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Lower\ and\ upper\ bounds\ on\ the\ independent\ variables\ for\ the\ finite}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00321}00321\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ difference\ approximation,\ if\ applicable.\ Defaults\ to\ no\ bounds.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00322}00322\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00323}00323\ \textcolor{stringliteral}{\ \ \ \ Attributes}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00324}00324\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00325}00325\ \textcolor{stringliteral}{\ \ \ \ fun\ :\ \{VectorFunction,\ LinearVectorFunction,\ IdentityVectorFunction\}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00326}00326\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Function\ defining\ the\ constraint\ wrapped\ by\ one\ of\ the\ convenience}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00327}00327\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ classes.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00328}00328\ \textcolor{stringliteral}{\ \ \ \ bounds\ :\ 2-\/tuple}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00329}00329\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Contains\ lower\ and\ upper\ bounds\ for\ the\ constraints\ -\/-\/-\/\ lb\ and\ ub.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00330}00330\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ These\ are\ converted\ to\ ndarray\ and\ have\ a\ size\ equal\ to\ the\ number\ of}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00331}00331\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ the\ constraints.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00332}00332\ \textcolor{stringliteral}{\ \ \ \ keep\_feasible\ :\ ndarray}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00333}00333\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ Array\ indicating\ which\ components\ must\ be\ kept\ feasible\ with\ a\ size}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00334}00334\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ equal\ to\ the\ number\ of\ the\ constraints.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00335}00335\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00336}00336\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ constraint,\ x0,\ sparse\_jacobian=None,}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00337}00337\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ finite\_diff\_bounds=(-\/np.inf,\ np.inf)):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00338}00338\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(constraint,\ NonlinearConstraint):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00339}00339\ \ \ \ \ \ \ \ \ \ \ \ \ fun\ =\ \mbox{\hyperlink{classscipy_1_1optimize_1_1__differentiable__functions_1_1VectorFunction}{VectorFunction}}(constraint.fun,\ x0,}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00340}00340\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ constraint.jac,\ constraint.hess,}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00341}00341\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ constraint.finite\_diff\_rel\_step,}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00342}00342\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ constraint.finite\_diff\_jac\_sparsity,}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00343}00343\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ finite\_diff\_bounds,\ sparse\_jacobian)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00344}00344\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ isinstance(constraint,\ LinearConstraint):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00345}00345\ \ \ \ \ \ \ \ \ \ \ \ \ fun\ =\ \mbox{\hyperlink{classscipy_1_1optimize_1_1__differentiable__functions_1_1LinearVectorFunction}{LinearVectorFunction}}(constraint.A,\ x0,\ sparse\_jacobian)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00346}00346\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ isinstance(constraint,\ Bounds):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00347}00347\ \ \ \ \ \ \ \ \ \ \ \ \ fun\ =\ \mbox{\hyperlink{classscipy_1_1optimize_1_1__differentiable__functions_1_1IdentityVectorFunction}{IdentityVectorFunction}}(x0,\ sparse\_jacobian)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00348}00348\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00349}00349\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}\`{}constraint`\ of\ an\ unknown\ type\ is\ passed."{}})}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00350}00350\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00351}00351\ \ \ \ \ \ \ \ \ m\ =\ fun.m}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00352}00352\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00353}00353\ \ \ \ \ \ \ \ \ lb\ =\ np.asarray(constraint.lb,\ dtype=float)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00354}00354\ \ \ \ \ \ \ \ \ ub\ =\ np.asarray(constraint.ub,\ dtype=float)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00355}00355\ \ \ \ \ \ \ \ \ keep\_feasible\ =\ np.asarray(constraint.keep\_feasible,\ dtype=bool)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00356}00356\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00357}00357\ \ \ \ \ \ \ \ \ lb\ =\ np.broadcast\_to(lb,\ m)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00358}00358\ \ \ \ \ \ \ \ \ ub\ =\ np.broadcast\_to(ub,\ m)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00359}00359\ \ \ \ \ \ \ \ \ keep\_feasible\ =\ np.broadcast\_to(keep\_feasible,\ m)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00360}00360\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00361}00361\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ keep\_feasible.shape\ !=\ (m,):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00362}00362\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}\`{}keep\_feasible`\ has\ a\ wrong\ shape."{}})}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00363}00363\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00364}00364\ \ \ \ \ \ \ \ \ mask\ =\ keep\_feasible\ \&\ (lb\ !=\ ub)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00365}00365\ \ \ \ \ \ \ \ \ f0\ =\ fun.f}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00366}00366\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ np.any(f0[mask]\ <\ lb[mask])\ \textcolor{keywordflow}{or}\ np.any(f0[mask]\ >\ ub[mask]):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00367}00367\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}\`{}x0`\ is\ infeasible\ with\ respect\ to\ some\ "{}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00368}00368\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}inequality\ constraint\ with\ \`{}keep\_feasible`\ "{}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00369}00369\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}set\ to\ True."{}})}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00370}00370\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00371}00371\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1PreparedConstraint_a8eb61be7cb254f1028e0cecd909e890a}{fun}}\ =\ fun}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00372}00372\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1PreparedConstraint_a092822e984d6d435406ee79fe1bd7198}{bounds}}\ =\ (lb,\ ub)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00373}00373\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1PreparedConstraint_add939b91006b9350b3a26fa01e266f0f}{keep\_feasible}}\ =\ keep\_feasible}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00374}00374\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00375}\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1PreparedConstraint_a8c8481cbacde5fa3071d6625d937d6da}{00375}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1PreparedConstraint_a8c8481cbacde5fa3071d6625d937d6da}{violation}}(self,\ x):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00376}00376\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}How\ much\ the\ constraint\ is\ exceeded\ by.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00377}00377\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00378}00378\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00379}00379\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00380}00380\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ x\ :\ array-\/like}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00381}00381\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Vector\ of\ independent\ variables}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00382}00382\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00383}00383\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00384}00384\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00385}00385\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ excess\ :\ array-\/like}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00386}00386\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ How\ much\ the\ constraint\ is\ exceeded\ by,\ for\ each\ of\ the}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00387}00387\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ constraints\ specified\ by\ \`{}PreparedConstraint.fun\`{}.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00388}00388\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00389}00389\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ \mbox{\hyperlink{classnumpy_1_1testing_1_1__private_1_1utils_1_1suppress__warnings}{suppress\_warnings}}()\ \textcolor{keyword}{as}\ sup:}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00390}00390\ \ \ \ \ \ \ \ \ \ \ \ \ sup.filter(UserWarning)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00391}00391\ \ \ \ \ \ \ \ \ \ \ \ \ ev\ =\ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1PreparedConstraint_a8eb61be7cb254f1028e0cecd909e890a}{fun}}.fun(np.asarray(x))}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00392}00392\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00393}00393\ \ \ \ \ \ \ \ \ excess\_lb\ =\ np.maximum(self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1PreparedConstraint_a092822e984d6d435406ee79fe1bd7198}{bounds}}[0]\ -\/\ ev,\ 0)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00394}00394\ \ \ \ \ \ \ \ \ excess\_ub\ =\ np.maximum(ev\ -\/\ self.\mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1PreparedConstraint_a092822e984d6d435406ee79fe1bd7198}{bounds}}[1],\ 0)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00395}00395\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00396}00396\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ excess\_lb\ +\ excess\_ub}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00397}00397\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00398}00398\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00399}\mbox{\hyperlink{namespacescipy_1_1optimize_1_1__constraints_aa3ccc22cff7b3115dd5c23c2341f1926}{00399}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacescipy_1_1optimize_1_1__constraints_aa3ccc22cff7b3115dd5c23c2341f1926}{new\_bounds\_to\_old}}(lb,\ ub,\ n):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00400}00400\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Convert\ the\ new\ bounds\ representation\ to\ the\ old\ one.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00401}00401\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00402}00402\ \textcolor{stringliteral}{\ \ \ \ The\ new\ representation\ is\ a\ tuple\ (lb,\ ub)\ and\ the\ old\ one\ is\ a\ list}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00403}00403\ \textcolor{stringliteral}{\ \ \ \ containing\ n\ tuples,\ ith\ containing\ lower\ and\ upper\ bound\ on\ a\ ith}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00404}00404\ \textcolor{stringliteral}{\ \ \ \ variable.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00405}00405\ \textcolor{stringliteral}{\ \ \ \ If\ any\ of\ the\ entries\ in\ lb/ub\ are\ -\/np.inf/np.inf\ they\ are\ replaced\ by}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00406}00406\ \textcolor{stringliteral}{\ \ \ \ None.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00407}00407\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00408}00408\ \ \ \ \ lb\ =\ np.broadcast\_to(lb,\ n)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00409}00409\ \ \ \ \ ub\ =\ np.broadcast\_to(ub,\ n)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00410}00410\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00411}00411\ \ \ \ \ lb\ =\ [float(x)\ \textcolor{keywordflow}{if}\ x\ >\ -\/np.inf\ \textcolor{keywordflow}{else}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{for}\ x\ \textcolor{keywordflow}{in}\ lb]}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00412}00412\ \ \ \ \ ub\ =\ [float(x)\ \textcolor{keywordflow}{if}\ x\ <\ np.inf\ \textcolor{keywordflow}{else}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{for}\ x\ \textcolor{keywordflow}{in}\ ub]}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00413}00413\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00414}00414\ \ \ \ \ \textcolor{keywordflow}{return}\ list(zip(lb,\ ub))}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00415}00415\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00416}00416\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00417}\mbox{\hyperlink{namespacescipy_1_1optimize_1_1__constraints_a5ce0965318323145157780ee6c40dad9}{00417}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacescipy_1_1optimize_1_1__constraints_a5ce0965318323145157780ee6c40dad9}{old\_bound\_to\_new}}(bounds):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00418}00418\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Convert\ the\ old\ bounds\ representation\ to\ the\ new\ one.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00419}00419\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00420}00420\ \textcolor{stringliteral}{\ \ \ \ The\ new\ representation\ is\ a\ tuple\ (lb,\ ub)\ and\ the\ old\ one\ is\ a\ list}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00421}00421\ \textcolor{stringliteral}{\ \ \ \ containing\ n\ tuples,\ ith\ containing\ lower\ and\ upper\ bound\ on\ a\ ith}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00422}00422\ \textcolor{stringliteral}{\ \ \ \ variable.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00423}00423\ \textcolor{stringliteral}{\ \ \ \ If\ any\ of\ the\ entries\ in\ lb/ub\ are\ None\ they\ are\ replaced\ by}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00424}00424\ \textcolor{stringliteral}{\ \ \ \ -\/np.inf/np.inf.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00425}00425\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00426}00426\ \ \ \ \ lb,\ ub\ =\ zip(*bounds)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00427}00427\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00428}00428\ \ \ \ \ \textcolor{comment}{\#\ Convert\ occurrences\ of\ None\ to\ -\/inf\ or\ inf,\ and\ replace\ occurrences\ of}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00429}00429\ \ \ \ \ \textcolor{comment}{\#\ any\ numpy\ array\ x\ with\ x.item().\ Then\ wrap\ the\ results\ in\ numpy\ arrays.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00430}00430\ \ \ \ \ lb\ =\ np.array([float(\_arr\_to\_scalar(x))\ \textcolor{keywordflow}{if}\ x\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{else}\ -\/np.inf}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00431}00431\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ x\ \textcolor{keywordflow}{in}\ lb])}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00432}00432\ \ \ \ \ ub\ =\ np.array([float(\_arr\_to\_scalar(x))\ \textcolor{keywordflow}{if}\ x\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{else}\ np.inf}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00433}00433\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ x\ \textcolor{keywordflow}{in}\ ub])}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00434}00434\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00435}00435\ \ \ \ \ \textcolor{keywordflow}{return}\ lb,\ ub}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00436}00436\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00437}00437\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00438}\mbox{\hyperlink{namespacescipy_1_1optimize_1_1__constraints_ac1fe50ac0f330f0c8defb2747acf242a}{00438}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacescipy_1_1optimize_1_1__constraints_ac1fe50ac0f330f0c8defb2747acf242a}{strict\_bounds}}(lb,\ ub,\ keep\_feasible,\ n\_vars):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00439}00439\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Remove\ bounds\ which\ are\ not\ asked\ to\ be\ kept\ feasible."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00440}00440\ \ \ \ \ strict\_lb\ =\ np.resize(lb,\ n\_vars).astype(float)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00441}00441\ \ \ \ \ strict\_ub\ =\ np.resize(ub,\ n\_vars).astype(float)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00442}00442\ \ \ \ \ keep\_feasible\ =\ np.resize(keep\_feasible,\ n\_vars)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00443}00443\ \ \ \ \ strict\_lb[\string~keep\_feasible]\ =\ -\/np.inf}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00444}00444\ \ \ \ \ strict\_ub[\string~keep\_feasible]\ =\ np.inf}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00445}00445\ \ \ \ \ \textcolor{keywordflow}{return}\ strict\_lb,\ strict\_ub}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00446}00446\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00447}00447\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00448}\mbox{\hyperlink{namespacescipy_1_1optimize_1_1__constraints_a3b8a286ccf994912f2815d236b580613}{00448}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacescipy_1_1optimize_1_1__constraints_a3b8a286ccf994912f2815d236b580613}{new\_constraint\_to\_old}}(con,\ x0):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00449}00449\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00450}00450\ \textcolor{stringliteral}{\ \ \ \ Converts\ new-\/style\ constraint\ objects\ to\ old-\/style\ constraint\ dictionaries.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00451}00451\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00452}00452\ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(con,\ NonlinearConstraint):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00453}00453\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (con.finite\_diff\_jac\_sparsity\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{or}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00454}00454\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ con.finite\_diff\_rel\_step\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{or}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00455}00455\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{not}\ isinstance(con.hess,\ BFGS)\ \textcolor{keywordflow}{or}\ \ \textcolor{comment}{\#\ misses\ user\ specified\ BFGS}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00456}00456\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ con.keep\_feasible):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00457}00457\ \ \ \ \ \ \ \ \ \ \ \ \ warn(\textcolor{stringliteral}{"{}Constraint\ options\ \`{}finite\_diff\_jac\_sparsity`,\ "{}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00458}00458\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\`{}finite\_diff\_rel\_step`,\ \`{}keep\_feasible`,\ and\ \`{}hess`"{}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00459}00459\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}are\ ignored\ by\ this\ method."{}},\ OptimizeWarning)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00460}00460\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00461}00461\ \ \ \ \ \ \ \ \ fun\ =\ con.fun}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00462}00462\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ callable(con.jac):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00463}00463\ \ \ \ \ \ \ \ \ \ \ \ \ jac\ =\ con.jac}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00464}00464\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00465}00465\ \ \ \ \ \ \ \ \ \ \ \ \ jac\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00466}00466\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00467}00467\ \ \ \ \ \textcolor{keywordflow}{else}:\ \ \textcolor{comment}{\#\ LinearConstraint}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00468}00468\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ np.any(con.keep\_feasible):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00469}00469\ \ \ \ \ \ \ \ \ \ \ \ \ warn(\textcolor{stringliteral}{"{}Constraint\ option\ \`{}keep\_feasible`\ is\ ignored\ by\ this\ "{}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00470}00470\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}method."{}},\ OptimizeWarning)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00471}00471\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00472}00472\ \ \ \ \ \ \ \ \ A\ =\ con.A}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00473}00473\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ issparse(A):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00474}00474\ \ \ \ \ \ \ \ \ \ \ \ \ A\ =\ A.toarray()}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00475}00475\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }fun(x):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00476}00476\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ np.dot(A,\ x)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00477}00477\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }jac(x):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00478}00478\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ A}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00479}00479\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00480}00480\ \ \ \ \ \textcolor{comment}{\#\ FIXME:\ when\ bugs\ in\ VectorFunction/LinearVectorFunction\ are\ worked\ out,}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00481}00481\ \ \ \ \ \textcolor{comment}{\#\ use\ pcon.fun.fun\ and\ pcon.fun.jac.\ Until\ then,\ get\ fun/jac\ above.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00482}00482\ \ \ \ \ pcon\ =\ \mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1PreparedConstraint}{PreparedConstraint}}(con,\ x0)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00483}00483\ \ \ \ \ lb,\ ub\ =\ pcon.bounds}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00484}00484\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00485}00485\ \ \ \ \ i\_eq\ =\ lb\ ==\ ub}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00486}00486\ \ \ \ \ i\_bound\_below\ =\ np.logical\_xor(lb\ !=\ -\/np.inf,\ i\_eq)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00487}00487\ \ \ \ \ i\_bound\_above\ =\ np.logical\_xor(ub\ !=\ np.inf,\ i\_eq)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00488}00488\ \ \ \ \ i\_unbounded\ =\ np.logical\_and(lb\ ==\ -\/np.inf,\ ub\ ==\ np.inf)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00489}00489\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00490}00490\ \ \ \ \ \textcolor{keywordflow}{if}\ np.any(i\_unbounded):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00491}00491\ \ \ \ \ \ \ \ \ warn(\textcolor{stringliteral}{"{}At\ least\ one\ constraint\ is\ unbounded\ above\ and\ below.\ Such\ "{}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00492}00492\ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}constraints\ are\ ignored."{}},\ OptimizeWarning)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00493}00493\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00494}00494\ \ \ \ \ ceq\ =\ []}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00495}00495\ \ \ \ \ \textcolor{keywordflow}{if}\ np.any(i\_eq):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00496}00496\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }f\_eq(x):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00497}00497\ \ \ \ \ \ \ \ \ \ \ \ \ y\ =\ np.array(fun(x)).flatten()}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00498}00498\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ y[i\_eq]\ -\/\ lb[i\_eq]}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00499}00499\ \ \ \ \ \ \ \ \ ceq\ =\ [\{\textcolor{stringliteral}{"{}type"{}}:\ \textcolor{stringliteral}{"{}eq"{}},\ \textcolor{stringliteral}{"{}fun"{}}:\ f\_eq\}]}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00500}00500\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00501}00501\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ jac\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00502}00502\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }j\_eq(x):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00503}00503\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ dy\ =\ jac(x)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00504}00504\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ issparse(dy):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00505}00505\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ dy\ =\ dy.toarray()}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00506}00506\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ dy\ =\ np.atleast\_2d(dy)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00507}00507\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ dy[i\_eq,\ :]}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00508}00508\ \ \ \ \ \ \ \ \ \ \ \ \ ceq[0][\textcolor{stringliteral}{"{}jac"{}}]\ =\ j\_eq}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00509}00509\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00510}00510\ \ \ \ \ cineq\ =\ []}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00511}00511\ \ \ \ \ n\_bound\_below\ =\ np.sum(i\_bound\_below)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00512}00512\ \ \ \ \ n\_bound\_above\ =\ np.sum(i\_bound\_above)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00513}00513\ \ \ \ \ \textcolor{keywordflow}{if}\ n\_bound\_below\ +\ n\_bound\_above:}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00514}00514\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }f\_ineq(x):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00515}00515\ \ \ \ \ \ \ \ \ \ \ \ \ y\ =\ np.zeros(n\_bound\_below\ +\ n\_bound\_above)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00516}00516\ \ \ \ \ \ \ \ \ \ \ \ \ y\_all\ =\ np.array(fun(x)).flatten()}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00517}00517\ \ \ \ \ \ \ \ \ \ \ \ \ y[:n\_bound\_below]\ =\ y\_all[i\_bound\_below]\ -\/\ lb[i\_bound\_below]}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00518}00518\ \ \ \ \ \ \ \ \ \ \ \ \ y[n\_bound\_below:]\ =\ -\/(y\_all[i\_bound\_above]\ -\/\ ub[i\_bound\_above])}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00519}00519\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ y}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00520}00520\ \ \ \ \ \ \ \ \ cineq\ =\ [\{\textcolor{stringliteral}{"{}type"{}}:\ \textcolor{stringliteral}{"{}ineq"{}},\ \textcolor{stringliteral}{"{}fun"{}}:\ f\_ineq\}]}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00521}00521\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00522}00522\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ jac\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00523}00523\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }j\_ineq(x):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00524}00524\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ dy\ =\ np.zeros((n\_bound\_below\ +\ n\_bound\_above,\ len(x0)))}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00525}00525\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ dy\_all\ =\ jac(x)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00526}00526\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ issparse(dy\_all):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00527}00527\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ dy\_all\ =\ dy\_all.toarray()}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00528}00528\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ dy\_all\ =\ np.atleast\_2d(dy\_all)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00529}00529\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ dy[:n\_bound\_below,\ :]\ =\ dy\_all[i\_bound\_below]}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00530}00530\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ dy[n\_bound\_below:,\ :]\ =\ -\/dy\_all[i\_bound\_above]}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00531}00531\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ dy}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00532}00532\ \ \ \ \ \ \ \ \ \ \ \ \ cineq[0][\textcolor{stringliteral}{"{}jac"{}}]\ =\ j\_ineq}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00533}00533\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00534}00534\ \ \ \ \ old\_constraints\ =\ ceq\ +\ cineq}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00535}00535\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00536}00536\ \ \ \ \ \textcolor{keywordflow}{if}\ len(old\_constraints)\ >\ 1:}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00537}00537\ \ \ \ \ \ \ \ \ warn(\textcolor{stringliteral}{"{}Equality\ and\ inequality\ constraints\ are\ specified\ in\ the\ same\ "{}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00538}00538\ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}element\ of\ the\ constraint\ list.\ For\ efficient\ use\ with\ this\ "{}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00539}00539\ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}method,\ equality\ and\ inequality\ constraints\ should\ be\ specified\ "{}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00540}00540\ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}in\ separate\ elements\ of\ the\ constraint\ list.\ "{}},\ OptimizeWarning)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00541}00541\ \ \ \ \ \textcolor{keywordflow}{return}\ old\_constraints}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00542}00542\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00543}00543\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00544}\mbox{\hyperlink{namespacescipy_1_1optimize_1_1__constraints_ad4ae7534355a528da1b015c971e04cb8}{00544}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacescipy_1_1optimize_1_1__constraints_ad4ae7534355a528da1b015c971e04cb8}{old\_constraint\_to\_new}}(ic,\ con):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00545}00545\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00546}00546\ \textcolor{stringliteral}{\ \ \ \ Converts\ old-\/style\ constraint\ dictionaries\ to\ new-\/style\ constraint\ objects.}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00547}00547\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00548}00548\ \ \ \ \ \textcolor{comment}{\#\ check\ type}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00549}00549\ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00550}00550\ \ \ \ \ \ \ \ \ ctype\ =\ con[\textcolor{stringliteral}{'type'}].lower()}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00551}00551\ \ \ \ \ \textcolor{keywordflow}{except}\ KeyError\ \textcolor{keyword}{as}\ e:}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00552}00552\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classKeyError}{KeyError}}(\textcolor{stringliteral}{'Constraint\ \%d\ has\ no\ type\ defined.'}\ \%\ ic)\ \textcolor{keyword}{from}\ e}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00553}00553\ \ \ \ \ \textcolor{keywordflow}{except}\ TypeError\ \textcolor{keyword}{as}\ e:}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00554}00554\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classTypeError}{TypeError}}(}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00555}00555\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'Constraints\ must\ be\ a\ sequence\ of\ dictionaries.'}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00556}00556\ \ \ \ \ \ \ \ \ )\ \textcolor{keyword}{from}\ e}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00557}00557\ \ \ \ \ \textcolor{keywordflow}{except}\ AttributeError\ \textcolor{keyword}{as}\ e:}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00558}00558\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classTypeError}{TypeError}}(\textcolor{stringliteral}{"{}Constraint's\ type\ must\ be\ a\ string."{}})\ \textcolor{keyword}{from}\ e}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00559}00559\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00560}00560\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ ctype\ \textcolor{keywordflow}{not}\ \textcolor{keywordflow}{in}\ [\textcolor{stringliteral}{'eq'},\ \textcolor{stringliteral}{'ineq'}]:}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00561}00561\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}Unknown\ constraint\ type\ '\%s'."{}}\ \%\ con[\textcolor{stringliteral}{'type'}])}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00562}00562\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{stringliteral}{'fun'}\ \textcolor{keywordflow}{not}\ \textcolor{keywordflow}{in}\ con:}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00563}00563\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{'Constraint\ \%d\ has\ no\ function\ defined.'}\ \%\ ic)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00564}00564\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00565}00565\ \ \ \ \ lb\ =\ 0}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00566}00566\ \ \ \ \ \textcolor{keywordflow}{if}\ ctype\ ==\ \textcolor{stringliteral}{'eq'}:}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00567}00567\ \ \ \ \ \ \ \ \ ub\ =\ 0}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00568}00568\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00569}00569\ \ \ \ \ \ \ \ \ ub\ =\ np.inf}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00570}00570\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00571}00571\ \ \ \ \ jac\ =\ \textcolor{stringliteral}{'2-\/point'}}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00572}00572\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{stringliteral}{'args'}\ \textcolor{keywordflow}{in}\ con:}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00573}00573\ \ \ \ \ \ \ \ \ args\ =\ con[\textcolor{stringliteral}{'args'}]}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00574}00574\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }fun(x):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00575}00575\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ con[\textcolor{stringliteral}{"{}fun"{}}](x,\ *args)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00576}00576\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{stringliteral}{'jac'}\ \textcolor{keywordflow}{in}\ con:}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00577}00577\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }jac(x):}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00578}00578\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ con[\textcolor{stringliteral}{"{}jac"{}}](x,\ *args)}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00579}00579\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00580}00580\ \ \ \ \ \ \ \ \ fun\ =\ con[\textcolor{stringliteral}{'fun'}]}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00581}00581\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{stringliteral}{'jac'}\ \textcolor{keywordflow}{in}\ con:}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00582}00582\ \ \ \ \ \ \ \ \ \ \ \ \ jac\ =\ con[\textcolor{stringliteral}{'jac'}]}
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00583}00583\ }
+\DoxyCodeLine{\Hypertarget{__constraints_8py_source_l00584}00584\ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classscipy_1_1optimize_1_1__constraints_1_1NonlinearConstraint}{NonlinearConstraint}}(fun,\ lb,\ ub,\ jac)}
+
+\end{DoxyCode}

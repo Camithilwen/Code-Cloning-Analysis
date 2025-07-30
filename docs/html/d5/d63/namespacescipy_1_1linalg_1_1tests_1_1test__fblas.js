@@ -1,0 +1,28 @@
+var namespacescipy_1_1linalg_1_1tests_1_1test__fblas =
+[
+    [ "BaseAxpy", "da/dd5/classscipy_1_1linalg_1_1tests_1_1test__fblas_1_1BaseAxpy.html", "da/dd5/classscipy_1_1linalg_1_1tests_1_1test__fblas_1_1BaseAxpy" ],
+    [ "BaseCopy", "d6/d33/classscipy_1_1linalg_1_1tests_1_1test__fblas_1_1BaseCopy.html", "d6/d33/classscipy_1_1linalg_1_1tests_1_1test__fblas_1_1BaseCopy" ],
+    [ "BaseGemv", "dc/db8/classscipy_1_1linalg_1_1tests_1_1test__fblas_1_1BaseGemv.html", "dc/db8/classscipy_1_1linalg_1_1tests_1_1test__fblas_1_1BaseGemv" ],
+    [ "BaseScal", "dd/dc0/classscipy_1_1linalg_1_1tests_1_1test__fblas_1_1BaseScal.html", "dd/dc0/classscipy_1_1linalg_1_1tests_1_1test__fblas_1_1BaseScal" ],
+    [ "BaseSwap", "d5/d15/classscipy_1_1linalg_1_1tests_1_1test__fblas_1_1BaseSwap.html", "d5/d15/classscipy_1_1linalg_1_1tests_1_1test__fblas_1_1BaseSwap" ],
+    [ "TestCaxpy", "dc/d93/classscipy_1_1linalg_1_1tests_1_1test__fblas_1_1TestCaxpy.html", null ],
+    [ "TestCcopy", "d9/de9/classscipy_1_1linalg_1_1tests_1_1test__fblas_1_1TestCcopy.html", null ],
+    [ "TestCgemv", "d1/dd3/classscipy_1_1linalg_1_1tests_1_1test__fblas_1_1TestCgemv.html", null ],
+    [ "TestCscal", "d5/d0f/classscipy_1_1linalg_1_1tests_1_1test__fblas_1_1TestCscal.html", null ],
+    [ "TestCswap", "d8/d66/classscipy_1_1linalg_1_1tests_1_1test__fblas_1_1TestCswap.html", null ],
+    [ "TestDaxpy", "da/db6/classscipy_1_1linalg_1_1tests_1_1test__fblas_1_1TestDaxpy.html", "da/db6/classscipy_1_1linalg_1_1tests_1_1test__fblas_1_1TestDaxpy" ],
+    [ "TestDcopy", "de/de4/classscipy_1_1linalg_1_1tests_1_1test__fblas_1_1TestDcopy.html", "de/de4/classscipy_1_1linalg_1_1tests_1_1test__fblas_1_1TestDcopy" ],
+    [ "TestDgemv", "de/dfb/classscipy_1_1linalg_1_1tests_1_1test__fblas_1_1TestDgemv.html", "de/dfb/classscipy_1_1linalg_1_1tests_1_1test__fblas_1_1TestDgemv" ],
+    [ "TestDscal", "d7/d1a/classscipy_1_1linalg_1_1tests_1_1test__fblas_1_1TestDscal.html", "d7/d1a/classscipy_1_1linalg_1_1tests_1_1test__fblas_1_1TestDscal" ],
+    [ "TestDswap", "db/dd9/classscipy_1_1linalg_1_1tests_1_1test__fblas_1_1TestDswap.html", "db/dd9/classscipy_1_1linalg_1_1tests_1_1test__fblas_1_1TestDswap" ],
+    [ "TestSaxpy", "db/dc3/classscipy_1_1linalg_1_1tests_1_1test__fblas_1_1TestSaxpy.html", null ],
+    [ "TestScopy", "de/dcc/classscipy_1_1linalg_1_1tests_1_1test__fblas_1_1TestScopy.html", null ],
+    [ "TestSgemv", "d6/df4/classscipy_1_1linalg_1_1tests_1_1test__fblas_1_1TestSgemv.html", null ],
+    [ "TestSscal", "df/d74/classscipy_1_1linalg_1_1tests_1_1test__fblas_1_1TestSscal.html", null ],
+    [ "TestSswap", "da/d22/classscipy_1_1linalg_1_1tests_1_1test__fblas_1_1TestSswap.html", null ],
+    [ "TestZaxpy", "d0/d9b/classscipy_1_1linalg_1_1tests_1_1test__fblas_1_1TestZaxpy.html", null ],
+    [ "TestZcopy", "dd/d86/classscipy_1_1linalg_1_1tests_1_1test__fblas_1_1TestZcopy.html", null ],
+    [ "TestZgemv", "dd/d08/classscipy_1_1linalg_1_1tests_1_1test__fblas_1_1TestZgemv.html", null ],
+    [ "TestZscal", "d7/d08/classscipy_1_1linalg_1_1tests_1_1test__fblas_1_1TestZscal.html", null ],
+    [ "TestZswap", "d1/d45/classscipy_1_1linalg_1_1tests_1_1test__fblas_1_1TestZswap.html", null ]
+];

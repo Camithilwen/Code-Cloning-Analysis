@@ -1,0 +1,266 @@
+\doxysection{avar.\+py}
+\hypertarget{avar_8py_source}{}\label{avar_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/fontTools/varLib/avar.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/fontTools/varLib/avar.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00001}\mbox{\hyperlink{namespacefontTools_1_1varLib_1_1avar}{00001}}\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1varLib}{fontTools.varLib}}\ \textcolor{keyword}{import}\ \_add\_avar,\ load\_designspace}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00002}00002\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1varLib_1_1models}{fontTools.varLib.models}}\ \textcolor{keyword}{import}\ VariationModel}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00003}00003\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1varLib_1_1varStore}{fontTools.varLib.varStore}}\ \textcolor{keyword}{import}\ VarStoreInstancer}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00004}00004\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1misc_1_1fixedTools}{fontTools.misc.fixedTools}}\ \textcolor{keyword}{import}\ fixedToFloat\ \textcolor{keyword}{as}\ fi2fl}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00005}00005\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1misc_1_1cliTools}{fontTools.misc.cliTools}}\ \textcolor{keyword}{import}\ makeOutputFileName}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00006}00006\ \textcolor{keyword}{from}\ itertools\ \textcolor{keyword}{import}\ product}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00007}00007\ \textcolor{keyword}{import}\ logging}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00008}00008\ }
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00009}00009\ log\ =\ logging.getLogger(\textcolor{stringliteral}{"{}fontTools.varLib.avar"{}})}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00010}00010\ }
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00011}00011\ }
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00012}00012\ \textcolor{keyword}{def\ }\_denormalize(v,\ axis):}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00013}00013\ \ \ \ \ \textcolor{keywordflow}{if}\ v\ >=\ 0:}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00014}00014\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ axis.defaultValue\ +\ v\ *\ (axis.maxValue\ -\/\ axis.defaultValue)}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00015}00015\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00016}00016\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ axis.defaultValue\ +\ v\ *\ (axis.defaultValue\ -\/\ axis.minValue)}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00017}00017\ }
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00018}00018\ }
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00019}00019\ \textcolor{keyword}{def\ }\_pruneLocations(locations,\ poles,\ axisTags):}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00020}00020\ \ \ \ \ \textcolor{comment}{\#\ Now\ we\ have\ all\ the\ input\ locations,\ find\ which\ ones\ are}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00021}00021\ \ \ \ \ \textcolor{comment}{\#\ not\ needed\ and\ remove\ them.}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00022}00022\ }
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00023}00023\ \ \ \ \ \textcolor{comment}{\#\ Note:\ This\ algorithm\ is\ heavily\ tied\ to\ how\ VariationModel}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00024}00024\ \ \ \ \ \textcolor{comment}{\#\ is\ implemented.\ \ It\ assumes\ that\ input\ was\ extracted\ from}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00025}00025\ \ \ \ \ \textcolor{comment}{\#\ VariationModel-\/generated\ object,\ like\ an\ ItemVariationStore}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00026}00026\ \ \ \ \ \textcolor{comment}{\#\ created\ by\ fontmake\ using\ varLib.models.VariationModel.}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00027}00027\ \ \ \ \ \textcolor{comment}{\#\ Some\ CoPilot\ blabbering:}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00028}00028\ \ \ \ \ \textcolor{comment}{\#\ I\ *think*\ I\ can\ prove\ that\ this\ algorithm\ is\ correct,\ but}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00029}00029\ \ \ \ \ \textcolor{comment}{\#\ I'm\ not\ 100\%\ sure.\ \ It's\ possible\ that\ there\ are\ edge\ cases}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00030}00030\ \ \ \ \ \textcolor{comment}{\#\ where\ this\ algorithm\ will\ fail.\ \ I'm\ not\ sure\ how\ to\ prove}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00031}00031\ \ \ \ \ \textcolor{comment}{\#\ that\ it's\ correct,\ but\ I'm\ also\ not\ sure\ how\ to\ prove\ that}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00032}00032\ \ \ \ \ \textcolor{comment}{\#\ it's\ incorrect.\ \ I'm\ not\ sure\ how\ to\ write\ a\ test\ case\ that}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00033}00033\ \ \ \ \ \textcolor{comment}{\#\ would\ prove\ that\ it's\ incorrect.\ \ I'm\ not\ sure\ how\ to\ write}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00034}00034\ \ \ \ \ \textcolor{comment}{\#\ a\ test\ case\ that\ would\ prove\ that\ it's\ correct.}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00035}00035\ }
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00036}00036\ \ \ \ \ model\ =\ \mbox{\hyperlink{classfontTools_1_1varLib_1_1models_1_1VariationModel}{VariationModel}}(locations,\ axisTags)}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00037}00037\ \ \ \ \ modelMapping\ =\ model.mapping}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00038}00038\ \ \ \ \ modelSupports\ =\ model.supports}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00039}00039\ \ \ \ \ pins\ =\ \{tuple(k.items()):\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{for}\ k\ \textcolor{keywordflow}{in}\ poles\}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00040}00040\ \ \ \ \ \textcolor{keywordflow}{for}\ location\ \textcolor{keywordflow}{in}\ poles:}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00041}00041\ \ \ \ \ \ \ \ \ i\ =\ locations.index(location)}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00042}00042\ \ \ \ \ \ \ \ \ i\ =\ modelMapping[i]}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00043}00043\ \ \ \ \ \ \ \ \ support\ =\ modelSupports[i]}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00044}00044\ \ \ \ \ \ \ \ \ supportAxes\ =\ set(support.keys())}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00045}00045\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ axisTag,\ (minV,\ \_,\ maxV)\ \textcolor{keywordflow}{in}\ support.items():}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00046}00046\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ v\ \textcolor{keywordflow}{in}\ (minV,\ maxV):}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00047}00047\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ v\ \textcolor{keywordflow}{in}\ (-\/1,\ 0,\ 1):}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00048}00048\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00049}00049\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ pin\ \textcolor{keywordflow}{in}\ pins.keys():}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00050}00050\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ pinLocation\ =\ dict(pin)}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00051}00051\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ pinAxes\ =\ set(pinLocation.keys())}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00052}00052\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ pinAxes\ !=\ supportAxes:}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00053}00053\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00054}00054\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ axisTag\ \textcolor{keywordflow}{not}\ \textcolor{keywordflow}{in}\ pinAxes:}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00055}00055\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00056}00056\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ pinLocation[axisTag]\ ==\ v:}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00057}00057\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00058}00058\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00059}00059\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ No\ pin\ found.\ Go\ through\ the\ previous\ masters}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00060}00060\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ and\ find\ a\ suitable\ pin.\ \ Going\ backwards\ is}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00061}00061\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ better\ because\ it\ can\ find\ a\ pin\ that\ is\ close}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00062}00062\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ to\ the\ pole\ in\ more\ dimensions,\ and\ reducing}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00063}00063\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ the\ total\ number\ of\ pins\ needed.}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00064}00064\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ candidateIdx\ \textcolor{keywordflow}{in}\ range(i\ -\/\ 1,\ -\/1,\ -\/1):}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00065}00065\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ candidate\ =\ modelSupports[candidateIdx]}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00066}00066\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ candidateAxes\ =\ set(candidate.keys())}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00067}00067\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ candidateAxes\ !=\ supportAxes:}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00068}00068\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00069}00069\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ axisTag\ \textcolor{keywordflow}{not}\ \textcolor{keywordflow}{in}\ candidateAxes:}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00070}00070\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00071}00071\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ candidate\ =\ \{}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00072}00072\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ k:\ defaultV\ \textcolor{keywordflow}{for}\ k,\ (\_,\ defaultV,\ \_)\ \textcolor{keywordflow}{in}\ candidate.items()}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00073}00073\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00074}00074\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ candidate[axisTag]\ ==\ v:}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00075}00075\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ pins[tuple(candidate.items())]\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00076}00076\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00077}00077\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00078}00078\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ \textcolor{keyword}{False},\ \textcolor{stringliteral}{"{}No\ pin\ found"{}}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00079}00079\ \ \ \ \ \textcolor{keywordflow}{return}\ [dict(t)\ \textcolor{keywordflow}{for}\ t\ \textcolor{keywordflow}{in}\ pins.keys()]}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00080}00080\ }
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00081}00081\ }
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00082}00082\ \textcolor{keyword}{def\ }mappings\_from\_avar(font,\ denormalize=True):}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00083}00083\ \ \ \ \ fvarAxes\ =\ font[\textcolor{stringliteral}{"{}fvar"{}}].axes}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00084}00084\ \ \ \ \ axisMap\ =\ \{a.axisTag:\ a\ \textcolor{keywordflow}{for}\ a\ \textcolor{keywordflow}{in}\ fvarAxes\}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00085}00085\ \ \ \ \ axisTags\ =\ [a.axisTag\ \textcolor{keywordflow}{for}\ a\ \textcolor{keywordflow}{in}\ fvarAxes]}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00086}00086\ \ \ \ \ axisIndexes\ =\ \{a.axisTag:\ i\ \textcolor{keywordflow}{for}\ i,\ a\ \textcolor{keywordflow}{in}\ enumerate(fvarAxes)\}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00087}00087\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{stringliteral}{"{}avar"{}}\ \textcolor{keywordflow}{not}\ \textcolor{keywordflow}{in}\ font:}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00088}00088\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \{\},\ \{\}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00089}00089\ \ \ \ \ avar\ =\ font[\textcolor{stringliteral}{"{}avar"{}}]}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00090}00090\ \ \ \ \ axisMaps\ =\ \{}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00091}00091\ \ \ \ \ \ \ \ \ tag:\ seg}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00092}00092\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ tag,\ seg\ \textcolor{keywordflow}{in}\ avar.segments.items()}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00093}00093\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ seg\ \textcolor{keywordflow}{and}\ seg\ !=\ \{-\/1:\ -\/1,\ 0:\ 0,\ 1:\ 1\}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00094}00094\ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00095}00095\ \ \ \ \ mappings\ =\ []}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00096}00096\ }
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00097}00097\ \ \ \ \ \textcolor{keywordflow}{if}\ getattr(avar,\ \textcolor{stringliteral}{"{}majorVersion"{}},\ 1)\ ==\ 2:}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00098}00098\ \ \ \ \ \ \ \ \ varStore\ =\ avar.table.VarStore}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00099}00099\ \ \ \ \ \ \ \ \ regions\ =\ varStore.VarRegionList.Region}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00100}00100\ }
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00101}00101\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Find\ all\ the\ input\ locations;\ this\ finds\ "{}poles"{},\ that\ are}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00102}00102\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ locations\ of\ the\ peaks,\ and\ "{}corners"{},\ that\ are\ locations}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00103}00103\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ of\ the\ corners\ of\ the\ regions.\ \ These\ two\ sets\ of\ locations}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00104}00104\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ together\ constitute\ inputLocations\ to\ consider.}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00105}00105\ }
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00106}00106\ \ \ \ \ \ \ \ \ poles\ =\ \{():\ \textcolor{keywordtype}{None}\}\ \ \textcolor{comment}{\#\ Just\ using\ it\ as\ an\ ordered\ set}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00107}00107\ \ \ \ \ \ \ \ \ inputLocations\ =\ set(\{()\})}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00108}00108\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ varData\ \textcolor{keywordflow}{in}\ varStore.VarData:}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00109}00109\ \ \ \ \ \ \ \ \ \ \ \ \ regionIndices\ =\ varData.VarRegionIndex}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00110}00110\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ regionIndex\ \textcolor{keywordflow}{in}\ regionIndices:}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00111}00111\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ peakLocation\ =\ []}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00112}00112\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ corners\ =\ []}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00113}00113\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ region\ =\ regions[regionIndex]}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00114}00114\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ axisIndex,\ axis\ \textcolor{keywordflow}{in}\ enumerate(region.VarRegionAxis):}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00115}00115\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ axis.PeakCoord\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00116}00116\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00117}00117\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ axisTag\ =\ axisTags[axisIndex]}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00118}00118\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ peakLocation.append((axisTag,\ axis.PeakCoord))}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00119}00119\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ corner\ =\ []}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00120}00120\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ axis.StartCoord\ !=\ 0:}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00121}00121\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ corner.append((axisTag,\ axis.StartCoord))}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00122}00122\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ axis.EndCoord\ !=\ 0:}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00123}00123\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ corner.append((axisTag,\ axis.EndCoord))}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00124}00124\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ corners.append(corner)}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00125}00125\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ corners\ =\ set(product(*corners))}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00126}00126\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ peakLocation\ =\ tuple(peakLocation)}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00127}00127\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ poles[peakLocation]\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00128}00128\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ inputLocations.add(peakLocation)}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00129}00129\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ inputLocations.update(corners)}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00130}00130\ }
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00131}00131\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Sort\ them\ by\ number\ of\ axes,\ then\ by\ axis\ order}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00132}00132\ \ \ \ \ \ \ \ \ inputLocations\ =\ [}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00133}00133\ \ \ \ \ \ \ \ \ \ \ \ \ dict(t)}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00134}00134\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ t\ \textcolor{keywordflow}{in}\ sorted(}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00135}00135\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ inputLocations,}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00136}00136\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ key=\textcolor{keyword}{lambda}\ t:\ (len(t),\ tuple(axisIndexes[tag]\ \textcolor{keywordflow}{for}\ tag,\ \_\ \textcolor{keywordflow}{in}\ t)),}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00137}00137\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00138}00138\ \ \ \ \ \ \ \ \ ]}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00139}00139\ \ \ \ \ \ \ \ \ poles\ =\ [dict(t)\ \textcolor{keywordflow}{for}\ t\ \textcolor{keywordflow}{in}\ poles.keys()]}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00140}00140\ \ \ \ \ \ \ \ \ inputLocations\ =\ \_pruneLocations(inputLocations,\ list(poles),\ axisTags)}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00141}00141\ }
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00142}00142\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Find\ the\ output\ locations,\ at\ input\ locations}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00143}00143\ \ \ \ \ \ \ \ \ varIdxMap\ =\ avar.table.VarIdxMap}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00144}00144\ \ \ \ \ \ \ \ \ instancer\ =\ \mbox{\hyperlink{classfontTools_1_1varLib_1_1varStore_1_1VarStoreInstancer}{VarStoreInstancer}}(varStore,\ fvarAxes)}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00145}00145\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ location\ \textcolor{keywordflow}{in}\ inputLocations:}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00146}00146\ \ \ \ \ \ \ \ \ \ \ \ \ instancer.setLocation(location)}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00147}00147\ \ \ \ \ \ \ \ \ \ \ \ \ outputLocation\ =\ \{\}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00148}00148\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ axisIndex,\ axisTag\ \textcolor{keywordflow}{in}\ enumerate(axisTags):}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00149}00149\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ varIdx\ =\ axisIndex}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00150}00150\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ varIdxMap\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00151}00151\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ varIdx\ =\ varIdxMap[varIdx]}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00152}00152\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ delta\ =\ instancer[varIdx]}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00153}00153\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ delta\ !=\ 0:}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00154}00154\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ v\ =\ location.get(axisTag,\ 0)}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00155}00155\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ v\ =\ v\ +\ fi2fl(delta,\ 14)}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00156}00156\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ See\ https://github.com/fonttools/fonttools/pull/3598\#issuecomment-\/2266082009}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00157}00157\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ v\ =\ max(-\/1,\ min(1,\ v))}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00158}00158\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ outputLocation[axisTag]\ =\ v}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00159}00159\ \ \ \ \ \ \ \ \ \ \ \ \ mappings.append((location,\ outputLocation))}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00160}00160\ }
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00161}00161\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Remove\ base\ master\ we\ added,\ if\ it\ maps\ to\ the\ default\ location}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00162}00162\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ mappings[0][0]\ ==\ \{\}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00163}00163\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ mappings[0][1]\ ==\ \{\}:}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00164}00164\ \ \ \ \ \ \ \ \ \ \ \ \ mappings.pop(0)}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00165}00165\ }
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00166}00166\ \ \ \ \ \textcolor{keywordflow}{if}\ denormalize:}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00167}00167\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ tag,\ seg\ \textcolor{keywordflow}{in}\ axisMaps.items():}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00168}00168\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ tag\ \textcolor{keywordflow}{not}\ \textcolor{keywordflow}{in}\ axisMap:}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00169}00169\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(f\textcolor{stringliteral}{"{}Unknown\ axis\ tag\ \{tag\}"{}})}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00170}00170\ \ \ \ \ \ \ \ \ \ \ \ \ denorm\ =\ \textcolor{keyword}{lambda}\ v:\ \_denormalize(v,\ axisMap[tag])}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00171}00171\ \ \ \ \ \ \ \ \ \ \ \ \ axisMaps[tag]\ =\ \{denorm(k):\ denorm(v)\ \textcolor{keywordflow}{for}\ k,\ v\ \textcolor{keywordflow}{in}\ seg.items()\}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00172}00172\ }
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00173}00173\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ i,\ (inputLoc,\ outputLoc)\ \textcolor{keywordflow}{in}\ enumerate(mappings):}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00174}00174\ \ \ \ \ \ \ \ \ \ \ \ \ inputLoc\ =\ \{}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00175}00175\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ tag:\ \_denormalize(val,\ axisMap[tag])\ \textcolor{keywordflow}{for}\ tag,\ val\ \textcolor{keywordflow}{in}\ inputLoc.items()}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00176}00176\ \ \ \ \ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00177}00177\ \ \ \ \ \ \ \ \ \ \ \ \ outputLoc\ =\ \{}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00178}00178\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ tag:\ \_denormalize(val,\ axisMap[tag])\ \textcolor{keywordflow}{for}\ tag,\ val\ \textcolor{keywordflow}{in}\ outputLoc.items()}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00179}00179\ \ \ \ \ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00180}00180\ \ \ \ \ \ \ \ \ \ \ \ \ mappings[i]\ =\ (inputLoc,\ outputLoc)}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00181}00181\ }
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00182}00182\ \ \ \ \ \textcolor{keywordflow}{return}\ axisMaps,\ mappings}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00183}00183\ }
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00184}00184\ }
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00185}\mbox{\hyperlink{namespacefontTools_1_1varLib_1_1avar_a52210b61896cd66cf366503c3b3d7097}{00185}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacemain}{main}}(args=None):}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00186}00186\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Add\ \`{}avar\`{}\ table\ from\ designspace\ file\ to\ variable\ font."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00187}00187\ }
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00188}00188\ \ \ \ \ \textcolor{keywordflow}{if}\ args\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00189}00189\ \ \ \ \ \ \ \ \ \textcolor{keyword}{import}\ sys}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00190}00190\ }
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00191}00191\ \ \ \ \ \ \ \ \ args\ =\ sys.argv[1:]}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00192}00192\ }
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00193}00193\ \ \ \ \ \textcolor{keyword}{from}\ fontTools\ \textcolor{keyword}{import}\ configLogger}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00194}00194\ \ \ \ \ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1ttLib}{fontTools.ttLib}}\ \textcolor{keyword}{import}\ TTFont}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00195}00195\ \ \ \ \ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacefontTools_1_1designspaceLib}{fontTools.designspaceLib}}\ \textcolor{keyword}{import}\ DesignSpaceDocument}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00196}00196\ \ \ \ \ \textcolor{keyword}{import}\ argparse}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00197}00197\ }
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00198}00198\ \ \ \ \ parser\ =\ argparse.ArgumentParser(}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00199}00199\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}fonttools\ varLib.avar"{}},}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00200}00200\ \ \ \ \ \ \ \ \ description=\textcolor{stringliteral}{"{}Add\ \`{}avar`\ table\ from\ designspace\ file\ to\ variable\ font."{}},}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00201}00201\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00202}00202\ \ \ \ \ parser.add\_argument(\textcolor{stringliteral}{"{}font"{}},\ metavar=\textcolor{stringliteral}{"{}varfont.ttf"{}},\ help=\textcolor{stringliteral}{"{}Variable-\/font\ file."{}})}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00203}00203\ \ \ \ \ parser.add\_argument(}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00204}00204\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}designspace"{}},}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00205}00205\ \ \ \ \ \ \ \ \ metavar=\textcolor{stringliteral}{"{}family.designspace"{}},}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00206}00206\ \ \ \ \ \ \ \ \ help=\textcolor{stringliteral}{"{}Designspace\ file."{}},}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00207}00207\ \ \ \ \ \ \ \ \ nargs=\textcolor{stringliteral}{"{}?"{}},}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00208}00208\ \ \ \ \ \ \ \ \ default=\textcolor{keywordtype}{None},}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00209}00209\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00210}00210\ \ \ \ \ parser.add\_argument(}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00211}00211\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}-\/o"{}},}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00212}00212\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}-\/-\/output-\/file"{}},}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00213}00213\ \ \ \ \ \ \ \ \ type=str,}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00214}00214\ \ \ \ \ \ \ \ \ help=\textcolor{stringliteral}{"{}Output\ font\ file\ name."{}},}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00215}00215\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00216}00216\ \ \ \ \ parser.add\_argument(}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00217}00217\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}-\/v"{}},\ \textcolor{stringliteral}{"{}-\/-\/verbose"{}},\ action=\textcolor{stringliteral}{"{}store\_true"{}},\ help=\textcolor{stringliteral}{"{}Run\ more\ verbosely."{}}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00218}00218\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00219}00219\ }
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00220}00220\ \ \ \ \ options\ =\ parser.parse\_args(args)}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00221}00221\ }
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00222}00222\ \ \ \ \ configLogger(level=(\textcolor{stringliteral}{"{}INFO"{}}\ \textcolor{keywordflow}{if}\ options.verbose\ \textcolor{keywordflow}{else}\ \textcolor{stringliteral}{"{}WARNING"{}}))}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00223}00223\ }
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00224}00224\ \ \ \ \ font\ =\ \mbox{\hyperlink{classfontTools_1_1ttLib_1_1ttFont_1_1TTFont}{TTFont}}(options.font)}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00225}00225\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ \textcolor{stringliteral}{"{}fvar"{}}\ \textcolor{keywordflow}{in}\ font:}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00226}00226\ \ \ \ \ \ \ \ \ log.error(\textcolor{stringliteral}{"{}Not\ a\ variable\ font."{}})}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00227}00227\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ 1}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00228}00228\ }
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00229}00229\ \ \ \ \ \textcolor{keywordflow}{if}\ options.designspace\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00230}00230\ \ \ \ \ \ \ \ \ \textcolor{keyword}{from}\ pprint\ \textcolor{keyword}{import}\ pprint}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00231}00231\ }
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00232}00232\ \ \ \ \ \ \ \ \ segments,\ mappings\ =\ mappings\_from\_avar(font)}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00233}00233\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{namespacepprint}{pprint}}(segments)}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00234}00234\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{namespacepprint}{pprint}}(mappings)}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00235}00235\ \ \ \ \ \ \ \ \ print(len(mappings),\ \textcolor{stringliteral}{"{}mappings"{}})}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00236}00236\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00237}00237\ }
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00238}00238\ \ \ \ \ axisTags\ =\ [a.axisTag\ \textcolor{keywordflow}{for}\ a\ \textcolor{keywordflow}{in}\ font[\textcolor{stringliteral}{"{}fvar"{}}].axes]}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00239}00239\ }
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00240}00240\ \ \ \ \ ds\ =\ load\_designspace(options.designspace,\ require\_sources=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00241}00241\ }
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00242}00242\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{stringliteral}{"{}avar"{}}\ \textcolor{keywordflow}{in}\ font:}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00243}00243\ \ \ \ \ \ \ \ \ log.warning(\textcolor{stringliteral}{"{}avar\ table\ already\ present,\ overwriting."{}})}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00244}00244\ \ \ \ \ \ \ \ \ del\ font[\textcolor{stringliteral}{"{}avar"{}}]}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00245}00245\ }
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00246}00246\ \ \ \ \ \mbox{\hyperlink{namespacefontTools_1_1varLib_a6a155e7ab17776b81e2504235a368555}{\_add\_avar}}(font,\ ds.axes,\ ds.axisMappings,\ axisTags)}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00247}00247\ }
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00248}00248\ \ \ \ \ \textcolor{keywordflow}{if}\ options.output\_file\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00249}00249\ \ \ \ \ \ \ \ \ outfile\ =\ makeOutputFileName(options.font,\ overWrite=\textcolor{keyword}{True},\ suffix=\textcolor{stringliteral}{"{}.avar"{}})}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00250}00250\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00251}00251\ \ \ \ \ \ \ \ \ outfile\ =\ options.output\_file}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00252}00252\ \ \ \ \ \textcolor{keywordflow}{if}\ outfile:}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00253}00253\ \ \ \ \ \ \ \ \ log.info(\textcolor{stringliteral}{"{}Saving\ \%s"{}},\ outfile)}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00254}00254\ \ \ \ \ \ \ \ \ font.save(outfile)}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00255}00255\ }
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00256}00256\ }
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00257}00257\ \textcolor{keywordflow}{if}\ \_\_name\_\_\ ==\ \textcolor{stringliteral}{"{}\_\_main\_\_"{}}:}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00258}00258\ \ \ \ \ \textcolor{keyword}{import}\ sys}
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00259}00259\ }
+\DoxyCodeLine{\Hypertarget{avar_8py_source_l00260}00260\ \ \ \ \ sys.exit(\mbox{\hyperlink{namespacemain}{main}}())}
+
+\end{DoxyCode}

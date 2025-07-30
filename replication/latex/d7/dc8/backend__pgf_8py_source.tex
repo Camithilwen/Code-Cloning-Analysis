@@ -1,0 +1,1016 @@
+\doxysection{backend\+\_\+pgf.\+py}
+\hypertarget{backend__pgf_8py_source}{}\label{backend__pgf_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/matplotlib/backends/backend\_pgf.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/matplotlib/backends/backend\_pgf.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00001}\mbox{\hyperlink{namespacematplotlib_1_1backends_1_1backend__pgf}{00001}}\ \textcolor{keyword}{import}\ codecs}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00002}00002\ \textcolor{keyword}{import}\ datetime}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00003}00003\ \textcolor{keyword}{import}\ functools}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00004}00004\ \textcolor{keyword}{from}\ io\ \textcolor{keyword}{import}\ BytesIO}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00005}00005\ \textcolor{keyword}{import}\ logging}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00006}00006\ \textcolor{keyword}{import}\ math}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00007}00007\ \textcolor{keyword}{import}\ os}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00008}00008\ \textcolor{keyword}{import}\ pathlib}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00009}00009\ \textcolor{keyword}{import}\ shutil}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00010}00010\ \textcolor{keyword}{import}\ subprocess}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00011}00011\ \textcolor{keyword}{from}\ tempfile\ \textcolor{keyword}{import}\ TemporaryDirectory}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00012}00012\ \textcolor{keyword}{import}\ weakref}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00013}00013\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00014}00014\ \textcolor{keyword}{from}\ PIL\ \textcolor{keyword}{import}\ Image}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00015}00015\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00016}00016\ \textcolor{keyword}{import}\ matplotlib\ \textcolor{keyword}{as}\ mpl}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00017}00017\ \textcolor{keyword}{from}\ matplotlib\ \textcolor{keyword}{import}\ cbook,\ font\_manager\ \textcolor{keyword}{as}\ fm}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00018}00018\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacematplotlib_1_1backend__bases}{matplotlib.backend\_bases}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00019}00019\ \ \ \ \ \_Backend,\ FigureCanvasBase,\ FigureManagerBase,\ RendererBase}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00020}00020\ )}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00021}00021\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacematplotlib_1_1backends_1_1backend__mixed}{matplotlib.backends.backend\_mixed}}\ \textcolor{keyword}{import}\ MixedModeRenderer}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00022}00022\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacematplotlib_1_1backends_1_1backend__pdf}{matplotlib.backends.backend\_pdf}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00023}00023\ \ \ \ \ \_create\_pdf\_info\_dict,\ \_datetime\_to\_pdf)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00024}00024\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacematplotlib_1_1path}{matplotlib.path}}\ \textcolor{keyword}{import}\ Path}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00025}00025\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacematplotlib_1_1figure}{matplotlib.figure}}\ \textcolor{keyword}{import}\ Figure}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00026}00026\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacematplotlib_1_1font__manager}{matplotlib.font\_manager}}\ \textcolor{keyword}{import}\ FontProperties}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00027}00027\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacematplotlib_1_1__pylab__helpers}{matplotlib.\_pylab\_helpers}}\ \textcolor{keyword}{import}\ Gcf}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00028}00028\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00029}00029\ \_log\ =\ logging.getLogger(\_\_name\_\_)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00030}00030\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00031}00031\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00032}00032\ \_DOCUMENTCLASS\ =\ \textcolor{stringliteral}{r"{}\(\backslash\)documentclass\{article\}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00033}00033\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00034}00034\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00035}00035\ \textcolor{comment}{\#\ Note:\ When\ formatting\ floating\ point\ values,\ it\ is\ important\ to\ use\ the}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00036}00036\ \textcolor{comment}{\#\ \%f/\{:f\}\ format\ rather\ than\ \%s/\{\}\ to\ avoid\ triggering\ scientific\ notation,}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00037}00037\ \textcolor{comment}{\#\ which\ is\ not\ recognized\ by\ TeX.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00038}00038\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00039}\mbox{\hyperlink{namespacematplotlib_1_1backends_1_1backend__pgf_a4b2a0283b5f5cbefb88c4696b1c40a0c}{00039}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacematplotlib_1_1backends_1_1backend__pgf_a4b2a0283b5f5cbefb88c4696b1c40a0c}{\_get\_preamble}}():}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00040}00040\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Prepare\ a\ LaTeX\ preamble\ based\ on\ the\ rcParams\ configuration."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00041}00041\ \ \ \ \ font\_size\_pt\ =\ FontProperties(}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00042}00042\ \ \ \ \ \ \ \ \ size=mpl.rcParams[\textcolor{stringliteral}{"{}font.size"{}}]}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00043}00043\ \ \ \ \ ).get\_size\_in\_points()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00044}00044\ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{stringliteral}{"{}\(\backslash\)n"{}}.join([}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00045}00045\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Remove\ Matplotlib's\ custom\ command\ \(\backslash\)mathdefault.\ \ (Not\ using}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00046}00046\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \(\backslash\)mathnormal\ instead\ since\ this\ looks\ odd\ with\ Computer\ Modern.)}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00047}00047\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)def\(\backslash\)mathdefault\#1\{\#1\}"{}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00048}00048\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Use\ displaystyle\ for\ all\ math.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00049}00049\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)everymath=\(\backslash\)expandafter\{\(\backslash\)the\(\backslash\)everymath\(\backslash\)displaystyle\}"{}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00050}00050\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Set\ up\ font\ sizes\ to\ match\ font.size\ setting.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00051}00051\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ If\ present,\ use\ the\ KOMA\ package\ scrextend\ to\ adjust\ the\ standard}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00052}00052\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ LaTeX\ font\ commands\ (\(\backslash\)tiny,\ ...,\ \(\backslash\)normalsize,\ ...,\ \(\backslash\)Huge)\ accordingly.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00053}00053\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Otherwise,\ only\ set\ \(\backslash\)normalsize,\ manually.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00054}00054\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)IfFileExists\{scrextend.sty\}\{"{}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00055}00055\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\ \ \(\backslash\)usepackage[fontsize=\%fpt]\{scrextend\}"{}}\ \%\ font\_size\_pt,}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00056}00056\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\}\{"{}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00057}00057\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\ \ \(\backslash\)renewcommand\{\(\backslash\)normalsize\}\{\(\backslash\)fontsize\{\%f\}\{\%f\}\(\backslash\)selectfont\}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00058}00058\ \ \ \ \ \ \ \ \ \%\ (font\_size\_pt,\ 1.2\ *\ font\_size\_pt),}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00059}00059\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\ \ \(\backslash\)normalsize"{}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00060}00060\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\}"{}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00061}00061\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Allow\ pgf.preamble\ to\ override\ the\ above\ definitions.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00062}00062\ \ \ \ \ \ \ \ \ mpl.rcParams[\textcolor{stringliteral}{"{}pgf.preamble"{}}],}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00063}00063\ \ \ \ \ \ \ \ \ *([}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00064}00064\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)ifdefined\(\backslash\)pdftexversion\(\backslash\)else\ \ \%\ non-\/pdftex\ case."{}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00065}00065\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\ \ \(\backslash\)usepackage\{fontspec\}"{}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00066}00066\ \ \ \ \ \ \ \ \ ]\ +\ [}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00067}00067\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\ \ \(\backslash\)\%s\{\%s\}[Path=\(\backslash\)detokenize\{\%s/\}]"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00068}00068\ \ \ \ \ \ \ \ \ \ \ \ \ \%\ (command,\ path.name,\ path.parent.as\_posix())}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00069}00069\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ command,\ path\ \textcolor{keywordflow}{in}\ zip(}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00070}00070\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ [\textcolor{stringliteral}{"{}setmainfont"{}},\ \textcolor{stringliteral}{"{}setsansfont"{}},\ \textcolor{stringliteral}{"{}setmonofont"{}}],}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00071}00071\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ [pathlib.Path(fm.findfont(family))}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00072}00072\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ family\ \textcolor{keywordflow}{in}\ [\textcolor{stringliteral}{"{}serif"{}},\ \textcolor{stringliteral}{"{}sans\(\backslash\)\(\backslash\)-\/serif"{}},\ \textcolor{stringliteral}{"{}monospace"{}}]]}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00073}00073\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00074}00074\ \ \ \ \ \ \ \ \ ]\ +\ [\textcolor{stringliteral}{r"{}\(\backslash\)fi"{}}]\ \textcolor{keywordflow}{if}\ mpl.rcParams[\textcolor{stringliteral}{"{}pgf.rcfonts"{}}]\ \textcolor{keywordflow}{else}\ []),}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00075}00075\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Documented\ as\ "{}must\ come\ last"{}.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00076}00076\ \ \ \ \ \ \ \ \ mpl.texmanager.\_usepackage\_if\_not\_loaded(\textcolor{stringliteral}{"{}underscore"{}},\ option=\textcolor{stringliteral}{"{}strings"{}}),}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00077}00077\ \ \ \ \ ])}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00078}00078\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00079}00079\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00080}00080\ \textcolor{comment}{\#\ It's\ better\ to\ use\ only\ one\ unit\ for\ all\ coordinates,\ since\ the}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00081}00081\ \textcolor{comment}{\#\ arithmetic\ in\ latex\ seems\ to\ produce\ inaccurate\ conversions.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00082}00082\ latex\_pt\_to\_in\ =\ 1.\ /\ 72.27}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00083}00083\ latex\_in\_to\_pt\ =\ 1.\ /\ latex\_pt\_to\_in}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00084}00084\ mpl\_pt\_to\_in\ =\ 1.\ /\ 72.}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00085}00085\ mpl\_in\_to\_pt\ =\ 1.\ /\ mpl\_pt\_to\_in}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00086}00086\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00087}00087\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00088}\mbox{\hyperlink{namespacematplotlib_1_1backends_1_1backend__pgf_a3c66a4c15c4f69124fca6f6895370bd1}{00088}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacematplotlib_1_1backends_1_1backend__pgf_a3c66a4c15c4f69124fca6f6895370bd1}{\_tex\_escape}}(text):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00089}00089\ \ \ \ \ \textcolor{stringliteral}{r"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00090}00090\ \textcolor{stringliteral}{\ \ \ \ Do\ some\ necessary\ and/or\ useful\ substitutions\ for\ texts\ to\ be\ included\ in}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00091}00091\ \textcolor{stringliteral}{\ \ \ \ LaTeX\ documents.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00092}00092\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00093}00093\ \ \ \ \ \textcolor{keywordflow}{return}\ text.replace(\textcolor{stringliteral}{"{}\(\backslash\)N\{MINUS\ SIGN\}"{}},\ \textcolor{stringliteral}{r"{}\(\backslash\)ensuremath\{-\/\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00094}00094\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00095}00095\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00096}00096\ \textcolor{keyword}{def\ }\_writeln(fh,\ line):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00097}00097\ \ \ \ \ \textcolor{comment}{\#\ Ending\ lines\ with\ a\ \%\ prevents\ TeX\ from\ inserting\ spurious\ spaces}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00098}00098\ \ \ \ \ \textcolor{comment}{\#\ (https://tex.stackexchange.com/questions/7453).}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00099}00099\ \ \ \ \ fh.write(line)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00100}00100\ \ \ \ \ fh.write(\textcolor{stringliteral}{"{}\%\(\backslash\)n"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00101}00101\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00102}00102\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00103}\mbox{\hyperlink{namespacematplotlib_1_1backends_1_1backend__pgf_a35ab296c9da04704986e3e7c9500bae6}{00103}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacematplotlib_1_1backends_1_1backend__pgf_a35ab296c9da04704986e3e7c9500bae6}{\_escape\_and\_apply\_props}}(s,\ prop):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00104}00104\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00105}00105\ \textcolor{stringliteral}{\ \ \ \ Generate\ a\ TeX\ string\ that\ renders\ string\ *s*\ with\ font\ properties\ *prop*,}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00106}00106\ \textcolor{stringliteral}{\ \ \ \ also\ applying\ any\ required\ escapes\ to\ *s*.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00107}00107\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00108}00108\ \ \ \ \ commands\ =\ []}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00109}00109\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00110}00110\ \ \ \ \ families\ =\ \{\textcolor{stringliteral}{"{}serif"{}}:\ \textcolor{stringliteral}{r"{}\(\backslash\)rmfamily"{}},\ \textcolor{stringliteral}{"{}sans"{}}:\ \textcolor{stringliteral}{r"{}\(\backslash\)sffamily"{}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00111}00111\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}sans-\/serif"{}}:\ \textcolor{stringliteral}{r"{}\(\backslash\)sffamily"{}},\ \textcolor{stringliteral}{"{}monospace"{}}:\ \textcolor{stringliteral}{r"{}\(\backslash\)ttfamily"{}}\}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00112}00112\ \ \ \ \ family\ =\ prop.get\_family()[0]}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00113}00113\ \ \ \ \ \textcolor{keywordflow}{if}\ family\ \textcolor{keywordflow}{in}\ families:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00114}00114\ \ \ \ \ \ \ \ \ commands.append(families[family])}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00115}00115\ \ \ \ \ \textcolor{keywordflow}{elif}\ \textcolor{keywordflow}{not}\ mpl.rcParams[\textcolor{stringliteral}{"{}pgf.rcfonts"{}}]:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00116}00116\ \ \ \ \ \ \ \ \ commands.append(\textcolor{stringliteral}{r"{}\(\backslash\)fontfamily\{\(\backslash\)familydefault\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00117}00117\ \ \ \ \ \textcolor{keywordflow}{elif}\ any(font.name\ ==\ family\ \textcolor{keywordflow}{for}\ font\ \textcolor{keywordflow}{in}\ fm.fontManager.ttflist):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00118}00118\ \ \ \ \ \ \ \ \ commands.append(}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00119}00119\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)ifdefined\(\backslash\)pdftexversion\(\backslash\)else\(\backslash\)setmainfont\{\%s\}\(\backslash\)rmfamily\(\backslash\)fi"{}}\ \%\ family)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00120}00120\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00121}00121\ \ \ \ \ \ \ \ \ \_log.warning(\textcolor{stringliteral}{"{}Ignoring\ unknown\ font:\ \%s"{}},\ family)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00122}00122\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00123}00123\ \ \ \ \ size\ =\ prop.get\_size\_in\_points()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00124}00124\ \ \ \ \ commands.append(\textcolor{stringliteral}{r"{}\(\backslash\)fontsize\{\%f\}\{\%f\}"{}}\ \%\ (size,\ size\ *\ 1.2))}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00125}00125\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00126}00126\ \ \ \ \ styles\ =\ \{\textcolor{stringliteral}{"{}normal"{}}:\ \textcolor{stringliteral}{r"{}"{}},\ \textcolor{stringliteral}{"{}italic"{}}:\ \textcolor{stringliteral}{r"{}\(\backslash\)itshape"{}},\ \textcolor{stringliteral}{"{}oblique"{}}:\ \textcolor{stringliteral}{r"{}\(\backslash\)slshape"{}}\}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00127}00127\ \ \ \ \ commands.append(styles[prop.get\_style()])}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00128}00128\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00129}00129\ \ \ \ \ boldstyles\ =\ [\textcolor{stringliteral}{"{}semibold"{}},\ \textcolor{stringliteral}{"{}demibold"{}},\ \textcolor{stringliteral}{"{}demi"{}},\ \textcolor{stringliteral}{"{}bold"{}},\ \textcolor{stringliteral}{"{}heavy"{}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00130}00130\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}extra\ bold"{}},\ \textcolor{stringliteral}{"{}black"{}}]}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00131}00131\ \ \ \ \ \textcolor{keywordflow}{if}\ prop.get\_weight()\ \textcolor{keywordflow}{in}\ boldstyles:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00132}00132\ \ \ \ \ \ \ \ \ commands.append(\textcolor{stringliteral}{r"{}\(\backslash\)bfseries"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00133}00133\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00134}00134\ \ \ \ \ commands.append(\textcolor{stringliteral}{r"{}\(\backslash\)selectfont"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00135}00135\ \ \ \ \ \textcolor{keywordflow}{return}\ (}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00136}00136\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\{"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00137}00137\ \ \ \ \ \ \ \ \ +\ \textcolor{stringliteral}{"{}"{}}.join(commands)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00138}00138\ \ \ \ \ \ \ \ \ +\ \textcolor{stringliteral}{r"{}\(\backslash\)catcode`\(\backslash\)\string^=\(\backslash\)active\(\backslash\)def\string^\{\(\backslash\)ifmmode\(\backslash\)sp\(\backslash\)else\(\backslash\)\string^\{\}\(\backslash\)fi\}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00139}00139\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ It\ should\ normally\ be\ enough\ to\ set\ the\ catcode\ of\ \%\ to\ 12\ ("{}normal}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00140}00140\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ character"{});\ this\ works\ on\ TeXLive\ 2021\ but\ not\ on\ 2018,\ so\ we\ just}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00141}00141\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ make\ it\ active\ too.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00142}00142\ \ \ \ \ \ \ \ \ +\ \textcolor{stringliteral}{r"{}\(\backslash\)catcode`\(\backslash\)\%=\(\backslash\)active\(\backslash\)def\%\{\(\backslash\)\%\}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00143}00143\ \ \ \ \ \ \ \ \ +\ \mbox{\hyperlink{namespacematplotlib_1_1backends_1_1backend__pgf_a3c66a4c15c4f69124fca6f6895370bd1}{\_tex\_escape}}(s)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00144}00144\ \ \ \ \ \ \ \ \ +\ \textcolor{stringliteral}{"{}\}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00145}00145\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00146}00146\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00147}00147\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00148}\mbox{\hyperlink{namespacematplotlib_1_1backends_1_1backend__pgf_a8adafb4fe07b9d1f316ca36f135a5f20}{00148}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacematplotlib_1_1backends_1_1backend__pgf_a8adafb4fe07b9d1f316ca36f135a5f20}{\_metadata\_to\_str}}(key,\ value):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00149}00149\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Convert\ metadata\ key/value\ to\ a\ form\ that\ hyperref\ accepts."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00150}00150\ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(value,\ datetime.datetime):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00151}00151\ \ \ \ \ \ \ \ \ value\ =\ \_datetime\_to\_pdf(value)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00152}00152\ \ \ \ \ \textcolor{keywordflow}{elif}\ key\ ==\ \textcolor{stringliteral}{'Trapped'}:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00153}00153\ \ \ \ \ \ \ \ \ value\ =\ value.name.decode(\textcolor{stringliteral}{'ascii'})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00154}00154\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00155}00155\ \ \ \ \ \ \ \ \ value\ =\ str(value)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00156}00156\ \ \ \ \ \textcolor{keywordflow}{return}\ f\textcolor{stringliteral}{'\{key\}=\{\{\{value\}\}\}'}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00157}00157\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00158}00158\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00159}\mbox{\hyperlink{namespacematplotlib_1_1backends_1_1backend__pgf_af90519eec0fe60c7f5b7106cd9702139}{00159}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacematplotlib_1_1backends_1_1backend__pgf_af90519eec0fe60c7f5b7106cd9702139}{make\_pdf\_to\_png\_converter}}():}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00160}00160\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Return\ a\ function\ that\ converts\ a\ pdf\ file\ to\ a\ png\ file."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00161}00161\ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00162}00162\ \ \ \ \ \ \ \ \ mpl.\_get\_executable\_info(\textcolor{stringliteral}{"{}pdftocairo"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00163}00163\ \ \ \ \ \textcolor{keywordflow}{except}\ mpl.ExecutableNotFoundError:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00164}00164\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{pass}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00165}00165\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00166}00166\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{lambda}\ pdffile,\ pngfile,\ dpi:\ subprocess.check\_output(}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00167}00167\ \ \ \ \ \ \ \ \ \ \ \ \ [\textcolor{stringliteral}{"{}pdftocairo"{}},\ \textcolor{stringliteral}{"{}-\/singlefile"{}},\ \textcolor{stringliteral}{"{}-\/transp"{}},\ \textcolor{stringliteral}{"{}-\/png"{}},\ \textcolor{stringliteral}{"{}-\/r"{}},\ \textcolor{stringliteral}{"{}\%d"{}}\ \%\ dpi,}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00168}00168\ \ \ \ \ \ \ \ \ \ \ \ \ \ pdffile,\ os.path.splitext(pngfile)[0]],}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00169}00169\ \ \ \ \ \ \ \ \ \ \ \ \ stderr=subprocess.STDOUT)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00170}00170\ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00171}00171\ \ \ \ \ \ \ \ \ gs\_info\ =\ mpl.\_get\_executable\_info(\textcolor{stringliteral}{"{}gs"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00172}00172\ \ \ \ \ \textcolor{keywordflow}{except}\ mpl.ExecutableNotFoundError:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00173}00173\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{pass}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00174}00174\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00175}00175\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{lambda}\ pdffile,\ pngfile,\ dpi:\ subprocess.check\_output(}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00176}00176\ \ \ \ \ \ \ \ \ \ \ \ \ [gs\_info.executable,}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00177}00177\ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'-\/dQUIET'},\ \textcolor{stringliteral}{'-\/dSAFER'},\ \textcolor{stringliteral}{'-\/dBATCH'},\ \textcolor{stringliteral}{'-\/dNOPAUSE'},\ \textcolor{stringliteral}{'-\/dNOPROMPT'},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00178}00178\ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'-\/dUseCIEColor'},\ \textcolor{stringliteral}{'-\/dTextAlphaBits=4'},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00179}00179\ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'-\/dGraphicsAlphaBits=4'},\ \textcolor{stringliteral}{'-\/dDOINTERPOLATE'},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00180}00180\ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'-\/sDEVICE=pngalpha'},\ \textcolor{stringliteral}{'-\/sOutputFile=\%s'}\ \%\ pngfile,}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00181}00181\ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{'-\/r\%d'}\ \%\ dpi,\ pdffile],}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00182}00182\ \ \ \ \ \ \ \ \ \ \ \ \ stderr=subprocess.STDOUT)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00183}00183\ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classRuntimeError}{RuntimeError}}(\textcolor{stringliteral}{"{}No\ suitable\ pdf\ to\ png\ renderer\ found."{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00184}00184\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00185}00185\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00186}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexError}{00186}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexError}{LatexError}}(\mbox{\hyperlink{classException}{Exception}}):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00187}00187\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ message,\ latex\_output="{}"{}):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00188}00188\ \ \ \ \ \ \ \ \ super().\_\_init\_\_(message)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00189}00189\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexError_aee5844cba69f119809f3f04b8e8eb3a0}{latex\_output}}\ =\ latex\_output}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00190}00190\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00191}00191\ \ \ \ \ \textcolor{keyword}{def\ }\_\_str\_\_(self):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00192}00192\ \ \ \ \ \ \ \ \ s,\ =\ self.args}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00193}00193\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexError_aee5844cba69f119809f3f04b8e8eb3a0}{latex\_output}}:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00194}00194\ \ \ \ \ \ \ \ \ \ \ \ \ s\ +=\ \textcolor{stringliteral}{"{}\(\backslash\)n"{}}\ +\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexError_aee5844cba69f119809f3f04b8e8eb3a0}{latex\_output}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00195}00195\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ s}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00196}00196\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00197}00197\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00198}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager}{00198}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager}{LatexManager}}:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00199}00199\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00200}00200\ \textcolor{stringliteral}{\ \ \ \ The\ LatexManager\ opens\ an\ instance\ of\ the\ LaTeX\ application\ for}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00201}00201\ \textcolor{stringliteral}{\ \ \ \ determining\ the\ metrics\ of\ text\ elements.\ The\ LaTeX\ environment\ can\ be}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00202}00202\ \textcolor{stringliteral}{\ \ \ \ modified\ by\ setting\ fonts\ and/or\ a\ custom\ preamble\ in\ \`{}.rcParams\`{}.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00203}00203\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00204}00204\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00205}00205\ \ \ \ \ \textcolor{preprocessor}{@staticmethod}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00206}00206\ \ \ \ \ \textcolor{keyword}{def\ }\_build\_latex\_header():}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00207}00207\ \ \ \ \ \ \ \ \ latex\_header\ =\ [}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00208}00208\ \ \ \ \ \ \ \ \ \ \ \ \ \_DOCUMENTCLASS,}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00209}00209\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Include\ TeX\ program\ name\ as\ a\ comment\ for\ cache\ invalidation.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00210}00210\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ TeX\ does\ not\ allow\ this\ to\ be\ the\ first\ line.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00211}00211\ \ \ \ \ \ \ \ \ \ \ \ \ rf\textcolor{stringliteral}{"{}\%\ !TeX\ program\ =\ \{mpl.rcParams['pgf.texsystem']\}"{}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00212}00212\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Test\ whether\ \(\backslash\)includegraphics\ supports\ interpolate\ option.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00213}00213\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)usepackage\{graphicx\}"{}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00214}00214\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{namespacematplotlib_1_1backends_1_1backend__pgf_a4b2a0283b5f5cbefb88c4696b1c40a0c}{\_get\_preamble}}(),}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00215}00215\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)begin\{document\}"{}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00216}00216\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)typeout\{pgf\_backend\_query\_start\}"{}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00217}00217\ \ \ \ \ \ \ \ \ ]}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00218}00218\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{stringliteral}{"{}\(\backslash\)n"{}}.join(latex\_header)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00219}00219\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00220}00220\ \ \ \ \ \textcolor{preprocessor}{@classmethod}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00221}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_a36ede72d7ff3e729acb9b8dbe8417fe1}{00221}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_a36ede72d7ff3e729acb9b8dbe8417fe1}{\_get\_cached\_or\_new}}(cls):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00222}00222\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00223}00223\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Return\ the\ previous\ LatexManager\ if\ the\ header\ and\ tex\ system\ did\ not}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00224}00224\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ change,\ or\ a\ new\ instance\ otherwise.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00225}00225\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00226}00226\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ cls.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_a1aad64c275e757e1a648aadb07046f44}{\_get\_cached\_or\_new\_impl}}(cls.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_a8646af0b19fd7883df0438219507f790}{\_build\_latex\_header}}())}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00227}00227\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00228}00228\ \ \ \ \ \textcolor{preprocessor}{@classmethod}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00229}00229\ \ \ \ \ \textcolor{preprocessor}{@functools.lru\_cache(1)}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00230}00230\ \ \ \ \ \textcolor{keyword}{def\ }\_get\_cached\_or\_new\_impl(cls,\ header):\ \ \textcolor{comment}{\#\ Helper\ for\ \_get\_cached\_or\_new.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00231}00231\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ cls()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00232}00232\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00233}00233\ \ \ \ \ \textcolor{keyword}{def\ }\_stdin\_writeln(self,\ s):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00234}00234\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_a38f80ceb99b801a819b78591ddae1a1c}{latex}}\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00235}00235\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_a25e14c770f4a02c48c8cc35dbf03690c}{\_setup\_latex\_process}}()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00236}00236\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_a38f80ceb99b801a819b78591ddae1a1c}{latex}}.stdin.write(s)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00237}00237\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_a38f80ceb99b801a819b78591ddae1a1c}{latex}}.stdin.write(\textcolor{stringliteral}{"{}\(\backslash\)n"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00238}00238\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_a38f80ceb99b801a819b78591ddae1a1c}{latex}}.stdin.flush()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00239}00239\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00240}00240\ \ \ \ \ \textcolor{keyword}{def\ }\_expect(self,\ s):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00241}00241\ \ \ \ \ \ \ \ \ s\ =\ list(s)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00242}00242\ \ \ \ \ \ \ \ \ chars\ =\ []}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00243}00243\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{while}\ \textcolor{keyword}{True}:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00244}00244\ \ \ \ \ \ \ \ \ \ \ \ \ c\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_a38f80ceb99b801a819b78591ddae1a1c}{latex}}.stdout.read(1)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00245}00245\ \ \ \ \ \ \ \ \ \ \ \ \ chars.append(c)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00246}00246\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ chars[-\/len(s):]\ ==\ s:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00247}00247\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00248}00248\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ c:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00249}00249\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_a38f80ceb99b801a819b78591ddae1a1c}{latex}}.kill()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00250}00250\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_a38f80ceb99b801a819b78591ddae1a1c}{latex}}\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00251}00251\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexError}{LatexError}}(\textcolor{stringliteral}{"{}LaTeX\ process\ halted"{}},\ \textcolor{stringliteral}{"{}"{}}.join(chars))}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00252}00252\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{stringliteral}{"{}"{}}.join(chars)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00253}00253\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00254}00254\ \ \ \ \ \textcolor{keyword}{def\ }\_expect\_prompt(self):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00255}00255\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_a128e7950ad4a7fead6e89ffcbb45ad4c}{\_expect}}(\textcolor{stringliteral}{"{}\(\backslash\)n*"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00256}00256\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00257}00257\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00258}00258\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ create\ a\ tmp\ directory\ for\ running\ latex,\ register\ it\ for\ deletion}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00259}00259\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_a916f377b905be58f59fba6659ec4819c}{\_tmpdir}}\ =\ TemporaryDirectory()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00260}00260\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_a6377ab21736ae14fc102469e94ecfb4e}{tmpdir}}\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_a916f377b905be58f59fba6659ec4819c}{\_tmpdir}}.name}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00261}00261\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_a5aefe5f9b53626f5d88dd42c16c24f4d}{\_finalize\_tmpdir}}\ =\ weakref.finalize(self,\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_a916f377b905be58f59fba6659ec4819c}{\_tmpdir}}.cleanup)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00262}00262\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00263}00263\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ test\ the\ LaTeX\ setup\ to\ ensure\ a\ clean\ startup\ of\ the\ subprocess}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00264}00264\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_a25e14c770f4a02c48c8cc35dbf03690c}{\_setup\_latex\_process}}(expect\_reply=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00265}00265\ \ \ \ \ \ \ \ \ stdout,\ stderr\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_a38f80ceb99b801a819b78591ddae1a1c}{latex}}.communicate(\textcolor{stringliteral}{"{}\(\backslash\)n\(\backslash\)\(\backslash\)makeatletter\(\backslash\)\(\backslash\)@@end\(\backslash\)n"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00266}00266\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_a38f80ceb99b801a819b78591ddae1a1c}{latex}}.returncode\ !=\ 0:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00267}00267\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexError}{LatexError}}(}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00268}00268\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}LaTeX\ errored\ (probably\ missing\ font\ or\ error\ in\ preamble)\ "{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00269}00269\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}while\ processing\ the\ following\ input:\(\backslash\)n"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00270}00270\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\{self.\_build\_latex\_header()\}"{}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00271}00271\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ stdout)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00272}00272\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_a38f80ceb99b801a819b78591ddae1a1c}{latex}}\ =\ \textcolor{keywordtype}{None}\ \ \textcolor{comment}{\#\ Will\ be\ set\ up\ on\ first\ use.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00273}00273\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Per-\/instance\ cache.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00274}00274\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_a0c7080bc79fc86ee524f8e80c4d2bd22}{\_get\_box\_metrics}}\ =\ functools.lru\_cache(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_a0c7080bc79fc86ee524f8e80c4d2bd22}{\_get\_box\_metrics}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00275}00275\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00276}00276\ \ \ \ \ \textcolor{keyword}{def\ }\_setup\_latex\_process(self,\ *,\ expect\_reply=True):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00277}00277\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Open\ LaTeX\ process\ for\ real\ work;\ register\ it\ for\ deletion.\ \ On}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00278}00278\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Windows,\ we\ must\ ensure\ that\ the\ subprocess\ has\ quit\ before\ being}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00279}00279\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ able\ to\ delete\ the\ tmpdir\ in\ which\ it\ runs;\ in\ order\ to\ do\ so,\ we}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00280}00280\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ must\ first\ \`{}kill()`\ it,\ and\ then\ \`{}communicate()`\ with\ or\ \`{}wait()`\ on}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00281}00281\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ it.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00282}00282\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00283}00283\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_a38f80ceb99b801a819b78591ddae1a1c}{latex}}\ =\ subprocess.Popen(}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00284}00284\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ [mpl.rcParams[\textcolor{stringliteral}{"{}pgf.texsystem"{}}],\ \textcolor{stringliteral}{"{}-\/halt-\/on-\/error"{}}],}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00285}00285\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ stdin=subprocess.PIPE,\ stdout=subprocess.PIPE,}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00286}00286\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ encoding=\textcolor{stringliteral}{"{}utf-\/8"{}},\ cwd=self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_a6377ab21736ae14fc102469e94ecfb4e}{tmpdir}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00287}00287\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ FileNotFoundError\ \textcolor{keyword}{as}\ err:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00288}00288\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classRuntimeError}{RuntimeError}}(}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00289}00289\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}\{mpl.rcParams['pgf.texsystem']!r\}\ not\ found;\ install\ it\ or\ change\ "{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00290}00290\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}rcParams['pgf.texsystem']\ to\ an\ available\ TeX\ implementation"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00291}00291\ \ \ \ \ \ \ \ \ \ \ \ \ )\ \textcolor{keyword}{from}\ err}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00292}00292\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ OSError\ \textcolor{keyword}{as}\ err:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00293}00293\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classRuntimeError}{RuntimeError}}(}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00294}00294\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}Error\ starting\ \{mpl.rcParams['pgf.texsystem']!r\}"{}})\ \textcolor{keyword}{from}\ err}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00295}00295\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00296}00296\ \ \ \ \ \ \ \ \ \textcolor{keyword}{def\ }finalize\_latex(latex):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00297}00297\ \ \ \ \ \ \ \ \ \ \ \ \ latex.kill()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00298}00298\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00299}00299\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ latex.communicate()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00300}00300\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ RuntimeError:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00301}00301\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ latex.wait()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00302}00302\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00303}00303\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_a7350ec5c45c978684663a434aef74260}{\_finalize\_latex}}\ =\ weakref.finalize(}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00304}00304\ \ \ \ \ \ \ \ \ \ \ \ \ self,\ finalize\_latex,\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_a38f80ceb99b801a819b78591ddae1a1c}{latex}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00305}00305\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ write\ header\ with\ 'pgf\_backend\_query\_start'\ token}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00306}00306\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_a8da760a6e981017edf28e2ea708e1017}{\_stdin\_writeln}}(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_a8646af0b19fd7883df0438219507f790}{\_build\_latex\_header}}())}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00307}00307\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ expect\_reply:\ \ \textcolor{comment}{\#\ read\ until\ 'pgf\_backend\_query\_start'\ token\ appears}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00308}00308\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_a128e7950ad4a7fead6e89ffcbb45ad4c}{\_expect}}(\textcolor{stringliteral}{"{}*pgf\_backend\_query\_start"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00309}00309\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_ab342c8cea026d0a09e45148f94c01edf}{\_expect\_prompt}}()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00310}00310\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00311}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_a02bb06a00cc2375ed292d23a4de54c3c}{00311}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_a02bb06a00cc2375ed292d23a4de54c3c}{get\_width\_height\_descent}}(self,\ text,\ prop):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00312}00312\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00313}00313\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Get\ the\ width,\ total\ height,\ and\ descent\ (in\ TeX\ points)\ for\ a\ text}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00314}00314\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ typeset\ by\ the\ current\ LaTeX\ environment.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00315}00315\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00316}00316\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_a0c7080bc79fc86ee524f8e80c4d2bd22}{\_get\_box\_metrics}}(\mbox{\hyperlink{namespacematplotlib_1_1backends_1_1backend__pgf_a35ab296c9da04704986e3e7c9500bae6}{\_escape\_and\_apply\_props}}(text,\ prop))}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00317}00317\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00318}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_a38d3175267cdf2e9739518f8d5b18dfc}{00318}}\ \ \ \ \ \textcolor{keyword}{def\ }\_get\_box\_metrics(self,\ tex):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00319}00319\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00320}00320\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Get\ the\ width,\ total\ height\ and\ descent\ (in\ TeX\ points)\ for\ a\ TeX}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00321}00321\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ command's\ output\ in\ the\ current\ LaTeX\ environment.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00322}00322\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00323}00323\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ This\ method\ gets\ wrapped\ in\ \_\_init\_\_\ for\ per-\/instance\ caching.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00324}00324\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_a8da760a6e981017edf28e2ea708e1017}{\_stdin\_writeln}}(\ \ \textcolor{comment}{\#\ Send\ textbox\ to\ TeX\ \&\ request\ metrics\ typeout.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00325}00325\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \(\backslash\)sbox\ doesn't\ handle\ catcode\ assignments\ inside\ its\ argument,}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00326}00326\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ so\ repeat\ the\ assignment\ of\ the\ catcode\ of\ "{}\string^"{}\ and\ "{}\%"{}\ outside.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00327}00327\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\{\(\backslash\)catcode`\(\backslash\)\string^=\(\backslash\)active\(\backslash\)catcode`\(\backslash\)\%\%=\(\backslash\)active\(\backslash\)sbox0\{\%s\}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00328}00328\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)typeout\{\(\backslash\)the\(\backslash\)wd0,\(\backslash\)the\(\backslash\)ht0,\(\backslash\)the\(\backslash\)dp0\}\}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00329}00329\ \ \ \ \ \ \ \ \ \ \ \ \ \%\ tex)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00330}00330\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00331}00331\ \ \ \ \ \ \ \ \ \ \ \ \ answer\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1LatexManager_ab342c8cea026d0a09e45148f94c01edf}{\_expect\_prompt}}()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00332}00332\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ LatexError\ \textcolor{keyword}{as}\ err:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00333}00333\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Here\ and\ below,\ use\ '\{\}'\ instead\ of\ \{!r\}\ to\ avoid\ doubling\ all}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00334}00334\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ backslashes.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00335}00335\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}Error\ measuring\ \{\}\(\backslash\)nLaTeX\ Output:\(\backslash\)n\{\}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00336}00336\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ .format(tex,\ err.latex\_output))\ \textcolor{keyword}{from}\ err}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00337}00337\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00338}00338\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Parse\ metrics\ from\ the\ answer\ string.\ \ Last\ line\ is\ prompt,\ and}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00339}00339\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ next-\/to-\/last-\/line\ is\ blank\ line\ from\ \(\backslash\)typeout.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00340}00340\ \ \ \ \ \ \ \ \ \ \ \ \ width,\ height,\ offset\ =\ answer.splitlines()[-\/3].split(\textcolor{stringliteral}{"{},"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00341}00341\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{except}\ Exception\ \textcolor{keyword}{as}\ err:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00342}00342\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(\textcolor{stringliteral}{"{}Error\ measuring\ \{\}\(\backslash\)nLaTeX\ Output:\(\backslash\)n\{\}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00343}00343\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ .format(tex,\ answer))\ \textcolor{keyword}{from}\ err}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00344}00344\ \ \ \ \ \ \ \ \ w,\ h,\ o\ =\ float(width[:-\/2]),\ float(height[:-\/2]),\ float(offset[:-\/2])}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00345}00345\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ The\ height\ returned\ from\ LaTeX\ goes\ from\ base\ to\ top;}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00346}00346\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ the\ height\ Matplotlib\ expects\ goes\ from\ bottom\ to\ top.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00347}00347\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ w,\ h\ +\ o,\ o}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00348}00348\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00349}00349\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00350}00350\ \textcolor{preprocessor}{@functools.lru\_cache(1)}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00351}00351\ \textcolor{keyword}{def\ }\_get\_image\_inclusion\_command():}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00352}00352\ \ \ \ \ man\ =\ LatexManager.\_get\_cached\_or\_new()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00353}00353\ \ \ \ \ man.\_stdin\_writeln(}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00354}00354\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)includegraphics[interpolate=true]\{\%s\}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00355}00355\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Don't\ mess\ with\ backslashes\ on\ Windows.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00356}00356\ \ \ \ \ \ \ \ \ \%\ cbook.\_get\_data\_path(\textcolor{stringliteral}{"{}images/matplotlib.png"{}}).as\_posix())}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00357}00357\ \ \ \ \ \textcolor{keywordflow}{try}:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00358}00358\ \ \ \ \ \ \ \ \ man.\_expect\_prompt()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00359}00359\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{stringliteral}{r"{}\(\backslash\)includegraphics"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00360}00360\ \ \ \ \ \textcolor{keywordflow}{except}\ LatexError:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00361}00361\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Discard\ the\ broken\ manager.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00362}00362\ \ \ \ \ \ \ \ \ LatexManager.\_get\_cached\_or\_new\_impl.cache\_clear()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00363}00363\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{stringliteral}{r"{}\(\backslash\)pgfimage"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00364}00364\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00365}00365\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00366}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf}{00366}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf}{RendererPgf}}(\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1RendererBase}{RendererBase}}):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00367}00367\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00368}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab45a78d6c03e2644d625644c09605b67}{00368}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab45a78d6c03e2644d625644c09605b67}{\_\_init\_\_}}(self,\ figure,\ fh):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00369}00369\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00370}00370\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Create\ a\ new\ PGF\ renderer\ that\ translates\ any\ drawing\ instruction}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00371}00371\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ into\ text\ commands\ to\ be\ interpreted\ in\ a\ latex\ pgfpicture\ environment.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00372}00372\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00373}00373\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Attributes}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00374}00374\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00375}00375\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ figure\ :\ \`{}\string~matplotlib.figure.Figure\`{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00376}00376\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Matplotlib\ figure\ to\ initialize\ height,\ width\ and\ dpi\ from.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00377}00377\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ fh\ :\ file-\/like}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00378}00378\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ File\ handle\ for\ the\ output\ of\ the\ drawing\ commands.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00379}00379\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00380}00380\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00381}00381\ \ \ \ \ \ \ \ \ super().\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab45a78d6c03e2644d625644c09605b67}{\_\_init\_\_}}()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00382}00382\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a5d4bc4af6a4380e185908caf4ae8f077}{dpi}}\ =\ figure.dpi}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00383}00383\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}}\ =\ fh}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00384}00384\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a485a85245a232fc23e71ab5bd7525db7}{figure}}\ =\ figure}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00385}00385\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a6358b08df7838fd888daab58ab142909}{image\_counter}}\ =\ 0}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00386}00386\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00387}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a4ff1cc5df393693c89e2b557e65c615d}{00387}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a4ff1cc5df393693c89e2b557e65c615d}{draw\_markers}}(self,\ gc,\ marker\_path,\ marker\_trans,\ path,\ trans,}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00388}00388\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ rgbFace=None):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00389}00389\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ docstring\ inherited}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00390}00390\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00391}00391\ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)begin\{pgfscope\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00392}00392\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00393}00393\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ convert\ from\ display\ units\ to\ in}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00394}00394\ \ \ \ \ \ \ \ \ f\ =\ 1.\ /\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a5d4bc4af6a4380e185908caf4ae8f077}{dpi}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00395}00395\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00396}00396\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ set\ style\ and\ clip}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00397}00397\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a47f52e98b55d905a951169f158eb4948}{\_print\_pgf\_clip}}(gc)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00398}00398\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a8822e45675258974bfeb4fcb7adbc0d5}{\_print\_pgf\_path\_styles}}(gc,\ rgbFace)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00399}00399\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00400}00400\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ build\ marker\ definition}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00401}00401\ \ \ \ \ \ \ \ \ bl,\ tr\ =\ marker\_path.get\_extents(marker\_trans).get\_points()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00402}00402\ \ \ \ \ \ \ \ \ coords\ =\ bl[0]\ *\ f,\ bl[1]\ *\ f,\ tr[0]\ *\ f,\ tr[1]\ *\ f}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00403}00403\ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00404}00404\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)pgfsys@defobject\{currentmarker\}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00405}00405\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\{\(\backslash\)pgfqpoint\{\%fin\}\{\%fin\}\}\{\(\backslash\)pgfqpoint\{\%fin\}\{\%fin\}\}\{"{}}\ \%\ coords)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00406}00406\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_aceff83d675ea1e909fa4d2ec628f3a57}{\_print\_pgf\_path}}(\textcolor{keywordtype}{None},\ marker\_path,\ marker\_trans)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00407}00407\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a6643a76a8035e4fa157eec2e48cd414a}{\_pgf\_path\_draw}}(stroke=gc.get\_linewidth()\ !=\ 0.0,}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00408}00408\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ fill=rgbFace\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00409}00409\ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00410}00410\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00411}00411\ \ \ \ \ \ \ \ \ maxcoord\ =\ 16383\ /\ 72.27\ *\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a5d4bc4af6a4380e185908caf4ae8f077}{dpi}}\ \ \textcolor{comment}{\#\ Max\ dimensions\ in\ LaTeX.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00412}00412\ \ \ \ \ \ \ \ \ clip\ =\ (-\/maxcoord,\ -\/maxcoord,\ maxcoord,\ maxcoord)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00413}00413\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00414}00414\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ draw\ marker\ for\ each\ vertex}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00415}00415\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ point,\ code\ \textcolor{keywordflow}{in}\ path.iter\_segments(trans,\ simplify=\textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00416}00416\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ clip=clip):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00417}00417\ \ \ \ \ \ \ \ \ \ \ \ \ x,\ y\ =\ point[0]\ *\ f,\ point[1]\ *\ f}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00418}00418\ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)begin\{pgfscope\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00419}00419\ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)pgfsys@transformshift\{\%fin\}\{\%fin\}"{}}\ \%\ (x,\ y))}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00420}00420\ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)pgfsys@useobject\{currentmarker\}\{\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00421}00421\ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)end\{pgfscope\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00422}00422\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00423}00423\ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)end\{pgfscope\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00424}00424\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00425}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a3e4bdd39b3e80a051c3e4b13316836cf}{00425}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a3e4bdd39b3e80a051c3e4b13316836cf}{draw\_path}}(self,\ gc,\ path,\ transform,\ rgbFace=None):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00426}00426\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ docstring\ inherited}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00427}00427\ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)begin\{pgfscope\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00428}00428\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ draw\ the\ path}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00429}00429\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a47f52e98b55d905a951169f158eb4948}{\_print\_pgf\_clip}}(gc)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00430}00430\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a8822e45675258974bfeb4fcb7adbc0d5}{\_print\_pgf\_path\_styles}}(gc,\ rgbFace)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00431}00431\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_aceff83d675ea1e909fa4d2ec628f3a57}{\_print\_pgf\_path}}(gc,\ path,\ transform,\ rgbFace)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00432}00432\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a6643a76a8035e4fa157eec2e48cd414a}{\_pgf\_path\_draw}}(stroke=gc.get\_linewidth()\ !=\ 0.0,}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00433}00433\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ fill=rgbFace\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00434}00434\ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)end\{pgfscope\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00435}00435\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00436}00436\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ if\ present,\ draw\ pattern\ on\ top}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00437}00437\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ gc.get\_hatch():}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00438}00438\ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)begin\{pgfscope\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00439}00439\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a8822e45675258974bfeb4fcb7adbc0d5}{\_print\_pgf\_path\_styles}}(gc,\ rgbFace)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00440}00440\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00441}00441\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ combine\ clip\ and\ path\ for\ clipping}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00442}00442\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a47f52e98b55d905a951169f158eb4948}{\_print\_pgf\_clip}}(gc)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00443}00443\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_aceff83d675ea1e909fa4d2ec628f3a57}{\_print\_pgf\_path}}(gc,\ path,\ transform,\ rgbFace)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00444}00444\ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)pgfusepath\{clip\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00445}00445\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00446}00446\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ build\ pattern\ definition}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00447}00447\ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00448}00448\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)pgfsys@defobject\{currentpattern\}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00449}00449\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\{\(\backslash\)pgfqpoint\{0in\}\{0in\}\}\{\(\backslash\)pgfqpoint\{1in\}\{1in\}\}\{"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00450}00450\ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)begin\{pgfscope\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00451}00451\ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00452}00452\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)pgfpathrectangle"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00453}00453\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\{\(\backslash\)pgfqpoint\{0in\}\{0in\}\}\{\(\backslash\)pgfqpoint\{1in\}\{1in\}\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00454}00454\ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)pgfusepath\{clip\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00455}00455\ \ \ \ \ \ \ \ \ \ \ \ \ scale\ =\ mpl.transforms.Affine2D().scale(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a5d4bc4af6a4380e185908caf4ae8f077}{dpi}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00456}00456\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_aceff83d675ea1e909fa4d2ec628f3a57}{\_print\_pgf\_path}}(\textcolor{keywordtype}{None},\ gc.get\_hatch\_path(),\ scale)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00457}00457\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a6643a76a8035e4fa157eec2e48cd414a}{\_pgf\_path\_draw}}(stroke=\textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00458}00458\ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)end\{pgfscope\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00459}00459\ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00460}00460\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ repeat\ pattern,\ filling\ the\ bounding\ rect\ of\ the\ path}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00461}00461\ \ \ \ \ \ \ \ \ \ \ \ \ f\ =\ 1.\ /\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a5d4bc4af6a4380e185908caf4ae8f077}{dpi}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00462}00462\ \ \ \ \ \ \ \ \ \ \ \ \ (xmin,\ ymin),\ (xmax,\ ymax)\ =\ \(\backslash\)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00463}00463\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ path.get\_extents(transform).get\_points()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00464}00464\ \ \ \ \ \ \ \ \ \ \ \ \ xmin,\ xmax\ =\ f\ *\ xmin,\ f\ *\ xmax}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00465}00465\ \ \ \ \ \ \ \ \ \ \ \ \ ymin,\ ymax\ =\ f\ *\ ymin,\ f\ *\ ymax}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00466}00466\ \ \ \ \ \ \ \ \ \ \ \ \ repx,\ repy\ =\ math.ceil(xmax\ -\/\ xmin),\ math.ceil(ymax\ -\/\ ymin)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00467}00467\ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00468}00468\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)pgfsys@transformshift\{\%fin\}\{\%fin\}"{}}\ \%\ (xmin,\ ymin))}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00469}00469\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ iy\ \textcolor{keywordflow}{in}\ range(repy):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00470}00470\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ ix\ \textcolor{keywordflow}{in}\ range(repx):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00471}00471\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)pgfsys@useobject\{currentpattern\}\{\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00472}00472\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)pgfsys@transformshift\{1in\}\{0in\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00473}00473\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)pgfsys@transformshift\{-\/\%din\}\{0in\}"{}}\ \%\ repx)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00474}00474\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)pgfsys@transformshift\{0in\}\{1in\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00475}00475\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00476}00476\ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)end\{pgfscope\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00477}00477\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00478}00478\ \ \ \ \ \textcolor{keyword}{def\ }\_print\_pgf\_clip(self,\ gc):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00479}00479\ \ \ \ \ \ \ \ \ f\ =\ 1.\ /\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a5d4bc4af6a4380e185908caf4ae8f077}{dpi}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00480}00480\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ check\ for\ clip\ box}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00481}00481\ \ \ \ \ \ \ \ \ bbox\ =\ gc.get\_clip\_rectangle()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00482}00482\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ bbox:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00483}00483\ \ \ \ \ \ \ \ \ \ \ \ \ p1,\ p2\ =\ bbox.get\_points()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00484}00484\ \ \ \ \ \ \ \ \ \ \ \ \ w,\ h\ =\ p2\ -\/\ p1}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00485}00485\ \ \ \ \ \ \ \ \ \ \ \ \ coords\ =\ p1[0]\ *\ f,\ p1[1]\ *\ f,\ w\ *\ f,\ h\ *\ f}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00486}00486\ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00487}00487\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)pgfpathrectangle"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00488}00488\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\{\(\backslash\)pgfqpoint\{\%fin\}\{\%fin\}\}\{\(\backslash\)pgfqpoint\{\%fin\}\{\%fin\}\}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00489}00489\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \%\ coords)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00490}00490\ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)pgfusepath\{clip\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00491}00491\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00492}00492\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ check\ for\ clip\ path}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00493}00493\ \ \ \ \ \ \ \ \ clippath,\ clippath\_trans\ =\ gc.get\_clip\_path()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00494}00494\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ clippath\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00495}00495\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_aceff83d675ea1e909fa4d2ec628f3a57}{\_print\_pgf\_path}}(gc,\ clippath,\ clippath\_trans)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00496}00496\ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)pgfusepath\{clip\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00497}00497\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00498}00498\ \ \ \ \ \textcolor{keyword}{def\ }\_print\_pgf\_path\_styles(self,\ gc,\ rgbFace):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00499}00499\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ cap\ style}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00500}00500\ \ \ \ \ \ \ \ \ capstyles\ =\ \{\textcolor{stringliteral}{"{}butt"{}}:\ \textcolor{stringliteral}{r"{}\(\backslash\)pgfsetbuttcap"{}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00501}00501\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}round"{}}:\ \textcolor{stringliteral}{r"{}\(\backslash\)pgfsetroundcap"{}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00502}00502\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}projecting"{}}:\ \textcolor{stringliteral}{r"{}\(\backslash\)pgfsetrectcap"{}}\}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00503}00503\ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ capstyles[gc.get\_capstyle()])}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00504}00504\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00505}00505\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ join\ style}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00506}00506\ \ \ \ \ \ \ \ \ joinstyles\ =\ \{\textcolor{stringliteral}{"{}miter"{}}:\ \textcolor{stringliteral}{r"{}\(\backslash\)pgfsetmiterjoin"{}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00507}00507\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}round"{}}:\ \textcolor{stringliteral}{r"{}\(\backslash\)pgfsetroundjoin"{}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00508}00508\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}bevel"{}}:\ \textcolor{stringliteral}{r"{}\(\backslash\)pgfsetbeveljoin"{}}\}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00509}00509\ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ joinstyles[gc.get\_joinstyle()])}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00510}00510\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00511}00511\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ filling}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00512}00512\ \ \ \ \ \ \ \ \ has\_fill\ =\ rgbFace\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00513}00513\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00514}00514\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ gc.get\_forced\_alpha():}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00515}00515\ \ \ \ \ \ \ \ \ \ \ \ \ fillopacity\ =\ strokeopacity\ =\ gc.get\_alpha()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00516}00516\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00517}00517\ \ \ \ \ \ \ \ \ \ \ \ \ strokeopacity\ =\ gc.get\_rgb()[3]}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00518}00518\ \ \ \ \ \ \ \ \ \ \ \ \ fillopacity\ =\ rgbFace[3]\ \textcolor{keywordflow}{if}\ has\_fill\ \textcolor{keywordflow}{and}\ len(rgbFace)\ >\ 3\ \textcolor{keywordflow}{else}\ 1.0}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00519}00519\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00520}00520\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ has\_fill:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00521}00521\ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00522}00522\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)definecolor\{currentfill\}\{rgb\}\{\%f,\%f,\%f\}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00523}00523\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \%\ tuple(rgbFace[:3]))}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00524}00524\ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)pgfsetfillcolor\{currentfill\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00525}00525\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ has\_fill\ \textcolor{keywordflow}{and}\ fillopacity\ !=\ 1.0:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00526}00526\ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)pgfsetfillopacity\{\%f\}"{}}\ \%\ fillopacity)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00527}00527\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00528}00528\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ linewidth\ and\ color}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00529}00529\ \ \ \ \ \ \ \ \ lw\ =\ gc.get\_linewidth()\ *\ mpl\_pt\_to\_in\ *\ latex\_in\_to\_pt}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00530}00530\ \ \ \ \ \ \ \ \ stroke\_rgba\ =\ gc.get\_rgb()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00531}00531\ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)pgfsetlinewidth\{\%fpt\}"{}}\ \%\ lw)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00532}00532\ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00533}00533\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)definecolor\{currentstroke\}\{rgb\}\{\%f,\%f,\%f\}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00534}00534\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \%\ stroke\_rgba[:3])}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00535}00535\ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)pgfsetstrokecolor\{currentstroke\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00536}00536\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ strokeopacity\ !=\ 1.0:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00537}00537\ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)pgfsetstrokeopacity\{\%f\}"{}}\ \%\ strokeopacity)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00538}00538\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00539}00539\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ line\ style}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00540}00540\ \ \ \ \ \ \ \ \ dash\_offset,\ dash\_list\ =\ gc.get\_dashes()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00541}00541\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ dash\_list\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00542}00542\ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)pgfsetdash\{\}\{0pt\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00543}00543\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00544}00544\ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00545}00545\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)pgfsetdash\{\%s\}\{\%fpt\}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00546}00546\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \%\ (\textcolor{stringliteral}{"{}"{}}.join(\textcolor{stringliteral}{r"{}\{\%fpt\}"{}}\ \%\ dash\ \textcolor{keywordflow}{for}\ dash\ \textcolor{keywordflow}{in}\ dash\_list),}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00547}00547\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ dash\_offset))}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00548}00548\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00549}00549\ \ \ \ \ \textcolor{keyword}{def\ }\_print\_pgf\_path(self,\ gc,\ path,\ transform,\ rgbFace=None):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00550}00550\ \ \ \ \ \ \ \ \ f\ =\ 1.\ /\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a5d4bc4af6a4380e185908caf4ae8f077}{dpi}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00551}00551\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ check\ for\ clip\ box\ /\ ignore\ clip\ for\ filled\ paths}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00552}00552\ \ \ \ \ \ \ \ \ bbox\ =\ gc.get\_clip\_rectangle()\ \textcolor{keywordflow}{if}\ gc\ \textcolor{keywordflow}{else}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00553}00553\ \ \ \ \ \ \ \ \ maxcoord\ =\ 16383\ /\ 72.27\ *\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a5d4bc4af6a4380e185908caf4ae8f077}{dpi}}\ \ \textcolor{comment}{\#\ Max\ dimensions\ in\ LaTeX.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00554}00554\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ bbox\ \textcolor{keywordflow}{and}\ (rgbFace\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00555}00555\ \ \ \ \ \ \ \ \ \ \ \ \ p1,\ p2\ =\ bbox.get\_points()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00556}00556\ \ \ \ \ \ \ \ \ \ \ \ \ clip\ =\ (max(p1[0],\ -\/maxcoord),\ max(p1[1],\ -\/maxcoord),}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00557}00557\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ min(p2[0],\ maxcoord),\ min(p2[1],\ maxcoord))}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00558}00558\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00559}00559\ \ \ \ \ \ \ \ \ \ \ \ \ clip\ =\ (-\/maxcoord,\ -\/maxcoord,\ maxcoord,\ maxcoord)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00560}00560\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ build\ path}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00561}00561\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ points,\ code\ \textcolor{keywordflow}{in}\ path.iter\_segments(transform,\ clip=clip):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00562}00562\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ code\ ==\ Path.MOVETO:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00563}00563\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ x,\ y\ =\ tuple(points)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00564}00564\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00565}00565\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)pgfpathmoveto\{\(\backslash\)pgfqpoint\{\%fin\}\{\%fin\}\}"{}}\ \%}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00566}00566\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (f\ *\ x,\ f\ *\ y))}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00567}00567\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ code\ ==\ Path.CLOSEPOLY:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00568}00568\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)pgfpathclose"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00569}00569\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ code\ ==\ Path.LINETO:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00570}00570\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ x,\ y\ =\ tuple(points)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00571}00571\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00572}00572\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)pgfpathlineto\{\(\backslash\)pgfqpoint\{\%fin\}\{\%fin\}\}"{}}\ \%}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00573}00573\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (f\ *\ x,\ f\ *\ y))}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00574}00574\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ code\ ==\ Path.CURVE3:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00575}00575\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ cx,\ cy,\ px,\ py\ =\ tuple(points)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00576}00576\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ coords\ =\ cx\ *\ f,\ cy\ *\ f,\ px\ *\ f,\ py\ *\ f}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00577}00577\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00578}00578\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)pgfpathquadraticcurveto"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00579}00579\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\{\(\backslash\)pgfqpoint\{\%fin\}\{\%fin\}\}\{\(\backslash\)pgfqpoint\{\%fin\}\{\%fin\}\}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00580}00580\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \%\ coords)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00581}00581\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ code\ ==\ Path.CURVE4:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00582}00582\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ c1x,\ c1y,\ c2x,\ c2y,\ px,\ py\ =\ tuple(points)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00583}00583\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ coords\ =\ c1x\ *\ f,\ c1y\ *\ f,\ c2x\ *\ f,\ c2y\ *\ f,\ px\ *\ f,\ py\ *\ f}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00584}00584\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00585}00585\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)pgfpathcurveto"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00586}00586\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\{\(\backslash\)pgfqpoint\{\%fin\}\{\%fin\}\}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00587}00587\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\{\(\backslash\)pgfqpoint\{\%fin\}\{\%fin\}\}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00588}00588\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\{\(\backslash\)pgfqpoint\{\%fin\}\{\%fin\}\}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00589}00589\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \%\ coords)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00590}00590\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00591}00591\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ apply\ pgf\ decorators}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00592}00592\ \ \ \ \ \ \ \ \ sketch\_params\ =\ gc.get\_sketch\_params()\ \textcolor{keywordflow}{if}\ gc\ \textcolor{keywordflow}{else}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00593}00593\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ sketch\_params\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00594}00594\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Only\ "{}length"{}\ directly\ maps\ to\ "{}segment\ length"{}\ in\ PGF's\ API.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00595}00595\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ PGF\ uses\ "{}amplitude"{}\ to\ pass\ the\ combined\ deviation\ in\ both\ x-\/}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00596}00596\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ and\ y-\/direction,\ while\ matplotlib\ only\ varies\ the\ length\ of\ the}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00597}00597\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ wiggle\ along\ the\ line\ ("{}randomness"{}\ and\ "{}length"{}\ parameters)}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00598}00598\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ and\ has\ a\ separate\ "{}scale"{}\ argument\ for\ the\ amplitude.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00599}00599\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ -\/>\ Use\ "{}randomness"{}\ as\ PRNG\ seed\ to\ allow\ the\ user\ to\ force\ the}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00600}00600\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ same\ shape\ on\ multiple\ sketched\ lines}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00601}00601\ \ \ \ \ \ \ \ \ \ \ \ \ scale,\ length,\ randomness\ =\ sketch\_params}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00602}00602\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ scale\ \textcolor{keywordflow}{is}\ \textcolor{keywordflow}{not}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00603}00603\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ make\ matplotlib\ and\ PGF\ rendering\ visually\ similar}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00604}00604\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ length\ *=\ 0.5}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00605}00605\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ scale\ *=\ 2}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00606}00606\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ PGF\ guarantees\ that\ repeated\ loading\ is\ a\ no-\/op}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00607}00607\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)usepgfmodule\{decorations\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00608}00608\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)usepgflibrary\{decorations.pathmorphing\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00609}00609\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)pgfkeys\{/pgf/decoration/.cd,\ "{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00610}00610\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}segment\ length\ =\ \{(length\ *\ f):f\}in,\ "{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00611}00611\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}amplitude\ =\ \{(scale\ *\ f):f\}in\}\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00612}00612\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ f\textcolor{stringliteral}{"{}\(\backslash\)\(\backslash\)pgfmathsetseed\{\{\{int(randomness)\}\}\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00613}00613\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)pgfdecoratecurrentpath\{random\ steps\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00614}00614\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00615}00615\ \ \ \ \ \textcolor{keyword}{def\ }\_pgf\_path\_draw(self,\ stroke=True,\ fill=False):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00616}00616\ \ \ \ \ \ \ \ \ actions\ =\ []}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00617}00617\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ stroke:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00618}00618\ \ \ \ \ \ \ \ \ \ \ \ \ actions.append(\textcolor{stringliteral}{"{}stroke"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00619}00619\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ fill:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00620}00620\ \ \ \ \ \ \ \ \ \ \ \ \ actions.append(\textcolor{stringliteral}{"{}fill"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00621}00621\ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)pgfusepath\{\%s\}"{}}\ \%\ \textcolor{stringliteral}{"{},"{}}.join(actions))}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00622}00622\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00623}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_aba8b62d09074f18f8d797160e5ad465e}{00623}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_aba8b62d09074f18f8d797160e5ad465e}{option\_scale\_image}}(self):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00624}00624\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ docstring\ inherited}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00625}00625\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00626}00626\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00627}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a8b9463ffe37cb912acf1eb2b721bf83e}{00627}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a8b9463ffe37cb912acf1eb2b721bf83e}{option\_image\_nocomposite}}(self):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00628}00628\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ docstring\ inherited}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00629}00629\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keywordflow}{not}\ mpl.rcParams[\textcolor{stringliteral}{'image.composite\_image'}]}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00630}00630\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00631}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_add38e637383ba23cc74521fc66eb9c2a}{00631}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_add38e637383ba23cc74521fc66eb9c2a}{draw\_image}}(self,\ gc,\ x,\ y,\ im,\ transform=None):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00632}00632\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ docstring\ inherited}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00633}00633\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00634}00634\ \ \ \ \ \ \ \ \ h,\ w\ =\ im.shape[:2]}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00635}00635\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ w\ ==\ 0\ \textcolor{keywordflow}{or}\ h\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00636}00636\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00637}00637\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00638}00638\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ os.path.exists(getattr(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{"{}name"{}},\ \textcolor{stringliteral}{"{}"{}})):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00639}00639\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00640}00640\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}streamed\ pgf-\/code\ does\ not\ support\ raster\ graphics,\ consider\ "{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00641}00641\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}using\ the\ pgf-\/to-\/pdf\ option"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00642}00642\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00643}00643\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ save\ the\ images\ to\ png\ files}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00644}00644\ \ \ \ \ \ \ \ \ path\ =\ pathlib.Path(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}}.name)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00645}00645\ \ \ \ \ \ \ \ \ fname\_img\ =\ \textcolor{stringliteral}{"{}\%s-\/img\%d.png"{}}\ \%\ (path.stem,\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a6358b08df7838fd888daab58ab142909}{image\_counter}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00646}00646\ \ \ \ \ \ \ \ \ Image.fromarray(im[::-\/1]).save(path.parent\ /\ fname\_img)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00647}00647\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a6358b08df7838fd888daab58ab142909}{image\_counter}}\ +=\ 1}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00648}00648\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00649}00649\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ reference\ the\ image\ in\ the\ pgf\ picture}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00650}00650\ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)begin\{pgfscope\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00651}00651\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a47f52e98b55d905a951169f158eb4948}{\_print\_pgf\_clip}}(gc)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00652}00652\ \ \ \ \ \ \ \ \ f\ =\ 1.\ /\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a5d4bc4af6a4380e185908caf4ae8f077}{dpi}}\ \ \textcolor{comment}{\#\ from\ display\ coords\ to\ inch}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00653}00653\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ transform\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00654}00654\ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00655}00655\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)pgfsys@transformshift\{\%fin\}\{\%fin\}"{}}\ \%\ (x\ *\ f,\ y\ *\ f))}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00656}00656\ \ \ \ \ \ \ \ \ \ \ \ \ w,\ h\ =\ w\ *\ f,\ h\ *\ f}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00657}00657\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00658}00658\ \ \ \ \ \ \ \ \ \ \ \ \ tr1,\ tr2,\ tr3,\ tr4,\ tr5,\ tr6\ =\ transform.frozen().to\_values()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00659}00659\ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00660}00660\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)pgfsys@transformcm\{\%f\}\{\%f\}\{\%f\}\{\%f\}\{\%fin\}\{\%fin\}"{}}\ \%}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00661}00661\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (tr1\ *\ f,\ tr2\ *\ f,\ tr3\ *\ f,\ tr4\ *\ f,}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00662}00662\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (tr5\ +\ x)\ *\ f,\ (tr6\ +\ y)\ *\ f))}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00663}00663\ \ \ \ \ \ \ \ \ \ \ \ \ w\ =\ h\ =\ 1\ \ \textcolor{comment}{\#\ scale\ is\ already\ included\ in\ the\ transform}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00664}00664\ \ \ \ \ \ \ \ \ interp\ =\ str(transform\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}).lower()\ \ \textcolor{comment}{\#\ interpolation\ in\ PDF\ reader}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00665}00665\ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00666}00666\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)pgftext[left,bottom]"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00667}00667\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\{\%s[interpolate=\%s,width=\%fin,height=\%fin]\{\%s\}\}"{}}\ \%}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00668}00668\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (\_get\_image\_inclusion\_command(),}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00669}00669\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ interp,\ w,\ h,\ fname\_img))}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00670}00670\ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)end\{pgfscope\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00671}00671\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00672}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a76df6303daae65edaa5c04145b60ed68}{00672}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a76df6303daae65edaa5c04145b60ed68}{draw\_tex}}(self,\ gc,\ x,\ y,\ s,\ prop,\ angle,\ *,\ mtext=None):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00673}00673\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ docstring\ inherited}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00674}00674\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1RendererBase_a5eaf90d1255ec46894a498109fcba232}{draw\_text}}(gc,\ x,\ y,\ s,\ prop,\ angle,\ ismath=\textcolor{stringliteral}{"{}TeX"{}},\ mtext=mtext)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00675}00675\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00676}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a82b473bb29694baf9ea3ce920c9a780f}{00676}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a82b473bb29694baf9ea3ce920c9a780f}{draw\_text}}(self,\ gc,\ x,\ y,\ s,\ prop,\ angle,\ ismath=False,\ mtext=None):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00677}00677\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ docstring\ inherited}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00678}00678\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00679}00679\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ prepare\ string\ for\ tex}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00680}00680\ \ \ \ \ \ \ \ \ s\ =\ \mbox{\hyperlink{namespacematplotlib_1_1backends_1_1backend__pgf_a35ab296c9da04704986e3e7c9500bae6}{\_escape\_and\_apply\_props}}(s,\ prop)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00681}00681\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00682}00682\ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)begin\{pgfscope\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00683}00683\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a47f52e98b55d905a951169f158eb4948}{\_print\_pgf\_clip}}(gc)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00684}00684\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00685}00685\ \ \ \ \ \ \ \ \ alpha\ =\ gc.get\_alpha()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00686}00686\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ alpha\ !=\ 1.0:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00687}00687\ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)pgfsetfillopacity\{\%f\}"{}}\ \%\ alpha)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00688}00688\ \ \ \ \ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)pgfsetstrokeopacity\{\%f\}"{}}\ \%\ alpha)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00689}00689\ \ \ \ \ \ \ \ \ rgb\ =\ tuple(gc.get\_rgb())[:3]}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00690}00690\ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)definecolor\{textcolor\}\{rgb\}\{\%f,\%f,\%f\}"{}}\ \%\ rgb)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00691}00691\ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)pgfsetstrokecolor\{textcolor\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00692}00692\ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)pgfsetfillcolor\{textcolor\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00693}00693\ \ \ \ \ \ \ \ \ s\ =\ \textcolor{stringliteral}{r"{}\(\backslash\)color\{textcolor\}"{}}\ +\ s}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00694}00694\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00695}00695\ \ \ \ \ \ \ \ \ dpi\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a485a85245a232fc23e71ab5bd7525db7}{figure}}.dpi}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00696}00696\ \ \ \ \ \ \ \ \ text\_args\ =\ []}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00697}00697\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ mtext\ \textcolor{keywordflow}{and}\ (}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00698}00698\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (angle\ ==\ 0\ \textcolor{keywordflow}{or}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00699}00699\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ mtext.get\_rotation\_mode()\ ==\ \textcolor{stringliteral}{"{}anchor"{}})\ \textcolor{keywordflow}{and}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00700}00700\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ mtext.get\_verticalalignment()\ !=\ \textcolor{stringliteral}{"{}center\_baseline"{}}):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00701}00701\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ if\ text\ anchoring\ can\ be\ supported,\ get\ the\ original\ coordinates}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00702}00702\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ and\ add\ alignment\ information}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00703}00703\ \ \ \ \ \ \ \ \ \ \ \ \ pos\ =\ mtext.get\_unitless\_position()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00704}00704\ \ \ \ \ \ \ \ \ \ \ \ \ x,\ y\ =\ mtext.get\_transform().transform(pos)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00705}00705\ \ \ \ \ \ \ \ \ \ \ \ \ halign\ =\ \{\textcolor{stringliteral}{"{}left"{}}:\ \textcolor{stringliteral}{"{}left"{}},\ \textcolor{stringliteral}{"{}right"{}}:\ \textcolor{stringliteral}{"{}right"{}},\ \textcolor{stringliteral}{"{}center"{}}:\ \textcolor{stringliteral}{"{}"{}}\}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00706}00706\ \ \ \ \ \ \ \ \ \ \ \ \ valign\ =\ \{\textcolor{stringliteral}{"{}top"{}}:\ \textcolor{stringliteral}{"{}top"{}},\ \textcolor{stringliteral}{"{}bottom"{}}:\ \textcolor{stringliteral}{"{}bottom"{}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00707}00707\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}baseline"{}}:\ \textcolor{stringliteral}{"{}base"{}},\ \textcolor{stringliteral}{"{}center"{}}:\ \textcolor{stringliteral}{"{}"{}}\}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00708}00708\ \ \ \ \ \ \ \ \ \ \ \ \ text\_args.extend([}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00709}00709\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}x=\{x/dpi:f\}in"{}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00710}00710\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ f\textcolor{stringliteral}{"{}y=\{y/dpi:f\}in"{}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00711}00711\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ halign[mtext.get\_horizontalalignment()],}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00712}00712\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ valign[mtext.get\_verticalalignment()],}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00713}00713\ \ \ \ \ \ \ \ \ \ \ \ \ ])}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00714}00714\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00715}00715\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ if\ not,\ use\ the\ text\ layout\ provided\ by\ Matplotlib.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00716}00716\ \ \ \ \ \ \ \ \ \ \ \ \ text\_args.append(f\textcolor{stringliteral}{"{}x=\{x/dpi:f\}in,\ y=\{y/dpi:f\}in,\ left,\ base"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00717}00717\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00718}00718\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ angle\ !=\ 0:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00719}00719\ \ \ \ \ \ \ \ \ \ \ \ \ text\_args.append(\textcolor{stringliteral}{"{}rotate=\%f"{}}\ \%\ angle)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00720}00720\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00721}00721\ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)pgftext[\%s]\{\%s\}"{}}\ \%\ (\textcolor{stringliteral}{"{},"{}}.join(text\_args),\ s))}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00722}00722\ \ \ \ \ \ \ \ \ \_writeln(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_ab5681d558cdb788f9ad47df9b7a26c47}{fh}},\ \textcolor{stringliteral}{r"{}\(\backslash\)end\{pgfscope\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00723}00723\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00724}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_af38e6a2af6ba93e8ea1483ad622a1069}{00724}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_af38e6a2af6ba93e8ea1483ad622a1069}{get\_text\_width\_height\_descent}}(self,\ s,\ prop,\ ismath):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00725}00725\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ docstring\ inherited}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00726}00726\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ get\ text\ metrics\ in\ units\ of\ latex\ pt,\ convert\ to\ display\ units}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00727}00727\ \ \ \ \ \ \ \ \ w,\ h,\ d\ =\ (LatexManager.\_get\_cached\_or\_new()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00728}00728\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ .get\_width\_height\_descent(s,\ prop))}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00729}00729\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ TODO:\ this\ should\ be\ latex\_pt\_to\_in\ instead\ of\ mpl\_pt\_to\_in}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00730}00730\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ but\ having\ a\ little\ bit\ more\ space\ around\ the\ text\ looks\ better,}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00731}00731\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ plus\ the\ bounding\ box\ reported\ by\ LaTeX\ is\ VERY\ narrow}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00732}00732\ \ \ \ \ \ \ \ \ f\ =\ mpl\_pt\_to\_in\ *\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a5d4bc4af6a4380e185908caf4ae8f077}{dpi}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00733}00733\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ w\ *\ f,\ h\ *\ f,\ d\ *\ f}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00734}00734\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00735}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a6737178d2e4fcb53c8b18ac1da308a74}{00735}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a6737178d2e4fcb53c8b18ac1da308a74}{flipy}}(self):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00736}00736\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ docstring\ inherited}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00737}00737\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00738}00738\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00739}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_aa57e382f5c9212b129bc1ad7c654201c}{00739}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_aa57e382f5c9212b129bc1ad7c654201c}{get\_canvas\_width\_height}}(self):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00740}00740\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ docstring\ inherited}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00741}00741\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ (self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a485a85245a232fc23e71ab5bd7525db7}{figure}}.get\_figwidth()\ *\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a5d4bc4af6a4380e185908caf4ae8f077}{dpi}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00742}00742\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a485a85245a232fc23e71ab5bd7525db7}{figure}}.get\_figheight()\ *\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a5d4bc4af6a4380e185908caf4ae8f077}{dpi}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00743}00743\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00744}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_aa4306c73237dc493fd6da22f3ec670d7}{00744}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_aa4306c73237dc493fd6da22f3ec670d7}{points\_to\_pixels}}(self,\ points):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00745}00745\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ docstring\ inherited}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00746}00746\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ points\ *\ mpl\_pt\_to\_in\ *\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf_a5d4bc4af6a4380e185908caf4ae8f077}{dpi}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00747}00747\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00748}00748\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00749}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1FigureCanvasPgf}{00749}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1FigureCanvasPgf}{FigureCanvasPgf}}(\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1FigureCanvasBase}{FigureCanvasBase}}):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00750}00750\ \ \ \ \ filetypes\ =\ \{\textcolor{stringliteral}{"{}pgf"{}}:\ \textcolor{stringliteral}{"{}LaTeX\ PGF\ picture"{}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00751}00751\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}pdf"{}}:\ \textcolor{stringliteral}{"{}LaTeX\ compiled\ PGF\ picture"{}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00752}00752\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}png"{}}:\ \textcolor{stringliteral}{"{}Portable\ Network\ Graphics"{}},\ \}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00753}00753\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00754}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1FigureCanvasPgf_ac9aba82075ec4ab208057380d9daac52}{00754}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1FigureCanvasPgf_ac9aba82075ec4ab208057380d9daac52}{get\_default\_filetype}}(self):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00755}00755\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{stringliteral}{'pdf'}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00756}00756\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00757}00757\ \ \ \ \ \textcolor{keyword}{def\ }\_print\_pgf\_to\_fh(self,\ fh,\ *,\ bbox\_inches\_restore=None):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00758}00758\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00759}00759\ \ \ \ \ \ \ \ \ header\_text\ =\ \textcolor{stringliteral}{"{}"{}"{}\%\%\ Creator:\ Matplotlib,\ PGF\ backend}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00760}00760\ \textcolor{stringliteral}{\%\%}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00761}00761\ \textcolor{stringliteral}{\%\%\ To\ include\ the\ figure\ in\ your\ LaTeX\ document,\ write}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00762}00762\ \textcolor{stringliteral}{\%\%\ \ \ \(\backslash\)\(\backslash\)input\{<filename>.pgf\}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00763}00763\ \textcolor{stringliteral}{\%\%}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00764}00764\ \textcolor{stringliteral}{\%\%\ Make\ sure\ the\ required\ packages\ are\ loaded\ in\ your\ preamble}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00765}00765\ \textcolor{stringliteral}{\%\%\ \ \ \(\backslash\)\(\backslash\)usepackage\{pgf\}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00766}00766\ \textcolor{stringliteral}{\%\%}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00767}00767\ \textcolor{stringliteral}{\%\%\ Also\ ensure\ that\ all\ the\ required\ font\ packages\ are\ loaded;\ for\ instance,}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00768}00768\ \textcolor{stringliteral}{\%\%\ the\ lmodern\ package\ is\ sometimes\ necessary\ when\ using\ math\ font.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00769}00769\ \textcolor{stringliteral}{\%\%\ \ \ \(\backslash\)\(\backslash\)usepackage\{lmodern\}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00770}00770\ \textcolor{stringliteral}{\%\%}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00771}00771\ \textcolor{stringliteral}{\%\%\ Figures\ using\ additional\ raster\ images\ can\ only\ be\ included\ by\ \(\backslash\)\(\backslash\)input\ if}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00772}00772\ \textcolor{stringliteral}{\%\%\ they\ are\ in\ the\ same\ directory\ as\ the\ main\ LaTeX\ file.\ For\ loading\ figures}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00773}00773\ \textcolor{stringliteral}{\%\%\ from\ other\ directories\ you\ can\ use\ the\ \`{}import\`{}\ package}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00774}00774\ \textcolor{stringliteral}{\%\%\ \ \ \(\backslash\)\(\backslash\)usepackage\{import\}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00775}00775\ \textcolor{stringliteral}{\%\%}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00776}00776\ \textcolor{stringliteral}{\%\%\ and\ then\ include\ the\ figures\ with}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00777}00777\ \textcolor{stringliteral}{\%\%\ \ \ \(\backslash\)\(\backslash\)import\{<path\ to\ file>\}\{<filename>.pgf\}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00778}00778\ \textcolor{stringliteral}{\%\%}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00779}00779\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00780}00780\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00781}00781\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ append\ the\ preamble\ used\ by\ the\ backend\ as\ a\ comment\ for\ debugging}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00782}00782\ \ \ \ \ \ \ \ \ header\_info\_preamble\ =\ [\textcolor{stringliteral}{"{}\%\%\ Matplotlib\ used\ the\ following\ preamble"{}}]}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00783}00783\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ line\ \textcolor{keywordflow}{in}\ \mbox{\hyperlink{namespacematplotlib_1_1backends_1_1backend__pgf_a4b2a0283b5f5cbefb88c4696b1c40a0c}{\_get\_preamble}}().splitlines():}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00784}00784\ \ \ \ \ \ \ \ \ \ \ \ \ header\_info\_preamble.append(\textcolor{stringliteral}{"{}\%\%\ \ \ "{}}\ +\ line)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00785}00785\ \ \ \ \ \ \ \ \ header\_info\_preamble.append(\textcolor{stringliteral}{"{}\%\%"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00786}00786\ \ \ \ \ \ \ \ \ header\_info\_preamble\ =\ \textcolor{stringliteral}{"{}\(\backslash\)n"{}}.join(header\_info\_preamble)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00787}00787\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00788}00788\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ get\ figure\ size\ in\ inch}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00789}00789\ \ \ \ \ \ \ \ \ w,\ h\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1FigureCanvasBase_aa5120a3253575aac5d0e280f5debcff7}{figure}}.get\_figwidth(),\ self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1FigureCanvasBase_aa5120a3253575aac5d0e280f5debcff7}{figure}}.get\_figheight()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00790}00790\ \ \ \ \ \ \ \ \ dpi\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1FigureCanvasBase_aa5120a3253575aac5d0e280f5debcff7}{figure}}.dpi}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00791}00791\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00792}00792\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ create\ pgfpicture\ environment\ and\ write\ the\ pgf\ code}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00793}00793\ \ \ \ \ \ \ \ \ fh.write(header\_text)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00794}00794\ \ \ \ \ \ \ \ \ fh.write(header\_info\_preamble)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00795}00795\ \ \ \ \ \ \ \ \ fh.write(\textcolor{stringliteral}{"{}\(\backslash\)n"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00796}00796\ \ \ \ \ \ \ \ \ \_writeln(fh,\ \textcolor{stringliteral}{r"{}\(\backslash\)begingroup"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00797}00797\ \ \ \ \ \ \ \ \ \_writeln(fh,\ \textcolor{stringliteral}{r"{}\(\backslash\)makeatletter"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00798}00798\ \ \ \ \ \ \ \ \ \_writeln(fh,\ \textcolor{stringliteral}{r"{}\(\backslash\)begin\{pgfpicture\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00799}00799\ \ \ \ \ \ \ \ \ \_writeln(fh,}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00800}00800\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)pgfpathrectangle\{\(\backslash\)pgfpointorigin\}\{\(\backslash\)pgfqpoint\{\%fin\}\{\%fin\}\}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00801}00801\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \%\ (w,\ h))}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00802}00802\ \ \ \ \ \ \ \ \ \_writeln(fh,\ \textcolor{stringliteral}{r"{}\(\backslash\)pgfusepath\{use\ as\ bounding\ box,\ clip\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00803}00803\ \ \ \ \ \ \ \ \ renderer\ =\ \mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__mixed_1_1MixedModeRenderer}{MixedModeRenderer}}(self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1FigureCanvasBase_aa5120a3253575aac5d0e280f5debcff7}{figure}},\ w,\ h,\ dpi,}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00804}00804\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf}{RendererPgf}}(self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1FigureCanvasBase_aa5120a3253575aac5d0e280f5debcff7}{figure}},\ fh),}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00805}00805\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ bbox\_inches\_restore=bbox\_inches\_restore)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00806}00806\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1FigureCanvasBase_aa5120a3253575aac5d0e280f5debcff7}{figure}}.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1FigureCanvasPgf_af63237dda1ac714229f749274d89d485}{draw}}(renderer)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00807}00807\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00808}00808\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ end\ the\ pgfpicture\ environment}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00809}00809\ \ \ \ \ \ \ \ \ \_writeln(fh,\ \textcolor{stringliteral}{r"{}\(\backslash\)end\{pgfpicture\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00810}00810\ \ \ \ \ \ \ \ \ \_writeln(fh,\ \textcolor{stringliteral}{r"{}\(\backslash\)makeatother"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00811}00811\ \ \ \ \ \ \ \ \ \_writeln(fh,\ \textcolor{stringliteral}{r"{}\(\backslash\)endgroup"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00812}00812\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00813}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1FigureCanvasPgf_a0992ed7fee098d5611931ca041d534a0}{00813}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1FigureCanvasPgf_a0992ed7fee098d5611931ca041d534a0}{print\_pgf}}(self,\ fname\_or\_fh,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00814}00814\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00815}00815\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Output\ pgf\ macros\ for\ drawing\ the\ figure\ so\ it\ can\ be\ included\ and}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00816}00816\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ rendered\ in\ latex\ documents.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00817}00817\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00818}00818\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ cbook.open\_file\_cm(fname\_or\_fh,\ \textcolor{stringliteral}{"{}w"{}},\ encoding=\textcolor{stringliteral}{"{}utf-\/8"{}})\ \textcolor{keyword}{as}\ file:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00819}00819\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ cbook.file\_requires\_unicode(file):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00820}00820\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ file\ =\ codecs.getwriter(\textcolor{stringliteral}{"{}utf-\/8"{}})(file)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00821}00821\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1FigureCanvasPgf_aece97aecfff8e6ca6845bcc39eceefc9}{\_print\_pgf\_to\_fh}}(file,\ **kwargs)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00822}00822\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00823}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1FigureCanvasPgf_a81cf057eba9e0564dc6d463aea8c25ce}{00823}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1FigureCanvasPgf_a81cf057eba9e0564dc6d463aea8c25ce}{print\_pdf}}(self,\ fname\_or\_fh,\ *,\ metadata=None,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00824}00824\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Use\ LaTeX\ to\ compile\ a\ pgf\ generated\ figure\ to\ pdf."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00825}00825\ \ \ \ \ \ \ \ \ w,\ h\ =\ self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1FigureCanvasBase_aa5120a3253575aac5d0e280f5debcff7}{figure}}.get\_size\_inches()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00826}00826\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00827}00827\ \ \ \ \ \ \ \ \ info\_dict\ =\ \_create\_pdf\_info\_dict(\textcolor{stringliteral}{'pgf'},\ metadata\ \textcolor{keywordflow}{or}\ \{\})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00828}00828\ \ \ \ \ \ \ \ \ pdfinfo\ =\ \textcolor{stringliteral}{','}.join(}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00829}00829\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{namespacematplotlib_1_1backends_1_1backend__pgf_a8adafb4fe07b9d1f316ca36f135a5f20}{\_metadata\_to\_str}}(k,\ v)\ \textcolor{keywordflow}{for}\ k,\ v\ \textcolor{keywordflow}{in}\ info\_dict.items())}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00830}00830\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00831}00831\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ print\ figure\ to\ pgf\ and\ compile\ it\ with\ latex}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00832}00832\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ TemporaryDirectory()\ \textcolor{keyword}{as}\ tmpdir:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00833}00833\ \ \ \ \ \ \ \ \ \ \ \ \ tmppath\ =\ pathlib.Path(tmpdir)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00834}00834\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1FigureCanvasPgf_a0992ed7fee098d5611931ca041d534a0}{print\_pgf}}(tmppath\ /\ \textcolor{stringliteral}{"{}figure.pgf"{}},\ **kwargs)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00835}00835\ \ \ \ \ \ \ \ \ \ \ \ \ (tmppath\ /\ \textcolor{stringliteral}{"{}figure.tex"{}}).write\_text(}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00836}00836\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}\(\backslash\)n"{}}.join([}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00837}00837\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_DOCUMENTCLASS,}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00838}00838\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)usepackage[pdfinfo=\{\%s\}]\{hyperref\}"{}}\ \%\ pdfinfo,}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00839}00839\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)usepackage[papersize=\{\%fin,\%fin\},\ margin=0in]\{geometry\}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00840}00840\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \%\ (w,\ h),}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00841}00841\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)usepackage\{pgf\}"{}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00842}00842\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{namespacematplotlib_1_1backends_1_1backend__pgf_a4b2a0283b5f5cbefb88c4696b1c40a0c}{\_get\_preamble}}(),}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00843}00843\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)begin\{document\}"{}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00844}00844\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)centering"{}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00845}00845\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)input\{figure.pgf\}"{}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00846}00846\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)end\{document\}"{}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00847}00847\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ]),\ encoding=\textcolor{stringliteral}{"{}utf-\/8"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00848}00848\ \ \ \ \ \ \ \ \ \ \ \ \ texcommand\ =\ mpl.rcParams[\textcolor{stringliteral}{"{}pgf.texsystem"{}}]}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00849}00849\ \ \ \ \ \ \ \ \ \ \ \ \ cbook.\_check\_and\_log\_subprocess(}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00850}00850\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ [texcommand,\ \textcolor{stringliteral}{"{}-\/interaction=nonstopmode"{}},\ \textcolor{stringliteral}{"{}-\/halt-\/on-\/error"{}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00851}00851\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}figure.tex"{}}],\ \_log,\ cwd=tmpdir)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00852}00852\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ ((tmppath\ /\ \textcolor{stringliteral}{"{}figure.pdf"{}}).open(\textcolor{stringliteral}{"{}rb"{}})\ \textcolor{keyword}{as}\ orig,}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00853}00853\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ cbook.open\_file\_cm(fname\_or\_fh,\ \textcolor{stringliteral}{"{}wb"{}})\ \textcolor{keyword}{as}\ dest):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00854}00854\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ shutil.copyfileobj(orig,\ dest)\ \ \textcolor{comment}{\#\ copy\ file\ contents\ to\ target}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00855}00855\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00856}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1FigureCanvasPgf_a0a4a73bd3788f98e7620d5114053f549}{00856}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1FigureCanvasPgf_a0a4a73bd3788f98e7620d5114053f549}{print\_png}}(self,\ fname\_or\_fh,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00857}00857\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Use\ LaTeX\ to\ compile\ a\ pgf\ figure\ to\ pdf\ and\ convert\ it\ to\ png."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00858}00858\ \ \ \ \ \ \ \ \ converter\ =\ \mbox{\hyperlink{namespacematplotlib_1_1backends_1_1backend__pgf_af90519eec0fe60c7f5b7106cd9702139}{make\_pdf\_to\_png\_converter}}()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00859}00859\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ TemporaryDirectory()\ \textcolor{keyword}{as}\ tmpdir:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00860}00860\ \ \ \ \ \ \ \ \ \ \ \ \ tmppath\ =\ pathlib.Path(tmpdir)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00861}00861\ \ \ \ \ \ \ \ \ \ \ \ \ pdf\_path\ =\ tmppath\ /\ \textcolor{stringliteral}{"{}figure.pdf"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00862}00862\ \ \ \ \ \ \ \ \ \ \ \ \ png\_path\ =\ tmppath\ /\ \textcolor{stringliteral}{"{}figure.png"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00863}00863\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1FigureCanvasPgf_a81cf057eba9e0564dc6d463aea8c25ce}{print\_pdf}}(pdf\_path,\ **kwargs)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00864}00864\ \ \ \ \ \ \ \ \ \ \ \ \ converter(pdf\_path,\ png\_path,\ dpi=self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1FigureCanvasBase_aa5120a3253575aac5d0e280f5debcff7}{figure}}.dpi)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00865}00865\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ (png\_path.open(\textcolor{stringliteral}{"{}rb"{}})\ \textcolor{keyword}{as}\ orig,}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00866}00866\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ cbook.open\_file\_cm(fname\_or\_fh,\ \textcolor{stringliteral}{"{}wb"{}})\ \textcolor{keyword}{as}\ dest):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00867}00867\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ shutil.copyfileobj(orig,\ dest)\ \ \textcolor{comment}{\#\ copy\ file\ contents\ to\ target}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00868}00868\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00869}00869\ \ \ \ \ \textcolor{keyword}{def\ }get\_renderer(self):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00870}00870\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1RendererPgf}{RendererPgf}}(self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1FigureCanvasBase_aa5120a3253575aac5d0e280f5debcff7}{figure}},\ \textcolor{keywordtype}{None})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00871}00871\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00872}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1FigureCanvasPgf_af63237dda1ac714229f749274d89d485}{00872}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1FigureCanvasPgf_af63237dda1ac714229f749274d89d485}{draw}}(self):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00873}00873\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1FigureCanvasBase_aa5120a3253575aac5d0e280f5debcff7}{figure}}.draw\_without\_rendering()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00874}00874\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ super().\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1FigureCanvasPgf_af63237dda1ac714229f749274d89d485}{draw}}()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00875}00875\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00876}00876\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00877}00877\ FigureManagerPgf\ =\ FigureManagerBase}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00878}00878\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00879}00879\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00880}00880\ \textcolor{preprocessor}{@\_Backend.export}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00881}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1__BackendPgf}{00881}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1__BackendPgf}{\_BackendPgf}}(\mbox{\hyperlink{classmatplotlib_1_1backend__bases_1_1__Backend}{\_Backend}}):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00882}00882\ \ \ \ \ FigureCanvas\ =\ FigureCanvasPgf}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00883}00883\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00884}00884\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00885}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1PdfPages}{00885}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1PdfPages}{PdfPages}}:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00886}00886\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00887}00887\ \textcolor{stringliteral}{\ \ \ \ A\ multi-\/page\ PDF\ file\ using\ the\ pgf\ backend}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00888}00888\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00889}00889\ \textcolor{stringliteral}{\ \ \ \ Examples}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00890}00890\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00891}00891\ \textcolor{stringliteral}{\ \ \ \ >>>\ import\ matplotlib.pyplot\ as\ plt}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00892}00892\ \textcolor{stringliteral}{\ \ \ \ >>>\ \#\ Initialize:}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00893}00893\ \textcolor{stringliteral}{\ \ \ \ >>>\ with\ PdfPages('foo.pdf')\ as\ pdf:}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00894}00894\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \#\ As\ many\ times\ as\ you\ like,\ create\ a\ figure\ fig\ and\ save\ it:}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00895}00895\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ fig\ =\ plt.figure()}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00896}00896\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ pdf.savefig(fig)}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00897}00897\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ \#\ When\ no\ figure\ is\ specified\ the\ current\ figure\ is\ saved}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00898}00898\ \textcolor{stringliteral}{\ \ \ \ ...\ \ \ \ \ pdf.savefig()}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00899}00899\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00900}00900\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00901}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1PdfPages_ace64dd06b319c0e36b74a614939dd66d}{00901}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1PdfPages_ace64dd06b319c0e36b74a614939dd66d}{\_\_init\_\_}}(self,\ filename,\ *,\ metadata=None):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00902}00902\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00903}00903\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Create\ a\ new\ PdfPages\ object.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00904}00904\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00905}00905\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00906}00906\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00907}00907\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ filename\ :\ str\ or\ path-\/like}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00908}00908\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Plots\ using\ \`{}PdfPages.savefig\`{}\ will\ be\ written\ to\ a\ file\ at\ this}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00909}00909\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ location.\ Any\ older\ file\ with\ the\ same\ name\ is\ overwritten.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00910}00910\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00911}00911\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ metadata\ :\ dict,\ optional}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00912}00912\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Information\ dictionary\ object\ (see\ PDF\ reference\ section\ 10.2.1}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00913}00913\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ 'Document\ Information\ Dictionary'),\ e.g.:}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00914}00914\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ \`{}\`{}\{'Creator':\ 'My\ software',\ 'Author':\ 'Me',\ 'Title':\ 'Awesome'\}\`{}\`{}.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00915}00915\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00916}00916\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ standard\ keys\ are\ 'Title',\ 'Author',\ 'Subject',\ 'Keywords',}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00917}00917\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ 'Creator',\ 'Producer',\ 'CreationDate',\ 'ModDate',\ and}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00918}00918\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ 'Trapped'.\ Values\ have\ been\ predefined\ for\ 'Creator',\ 'Producer'}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00919}00919\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ and\ 'CreationDate'.\ They\ can\ be\ removed\ by\ setting\ them\ to\ \`{}None\`{}.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00920}00920\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00921}00921\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ Note\ that\ some\ versions\ of\ LaTeX\ engines\ may\ ignore\ the\ 'Producer'}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00922}00922\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ key\ and\ set\ it\ to\ themselves.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00923}00923\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00924}00924\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1PdfPages_a5555dc412e74bf8ca00139e0efc128a1}{\_output\_name}}\ =\ filename}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00925}00925\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1PdfPages_a0cc67e296bdfc843f2a1a41659510a45}{\_n\_figures}}\ =\ 0}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00926}00926\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1PdfPages_ade1e1adc2dee614da0b4070118c6e4b5}{\_metadata}}\ =\ (metadata\ \textcolor{keywordflow}{or}\ \{\}).copy()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00927}00927\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1PdfPages_a006c069d063d6dc7e908342e21f4c1ff}{\_info\_dict}}\ =\ \_create\_pdf\_info\_dict(\textcolor{stringliteral}{'pgf'},\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1PdfPages_ade1e1adc2dee614da0b4070118c6e4b5}{\_metadata}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00928}00928\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1PdfPages_ad96e19f8f4b69ea2631fa8f7328979cb}{\_file}}\ =\ \mbox{\hyperlink{classBytesIO}{BytesIO}}()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00929}00929\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00930}00930\ \ \ \ \ \textcolor{keyword}{def\ }\_write\_header(self,\ width\_inches,\ height\_inches):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00931}00931\ \ \ \ \ \ \ \ \ pdfinfo\ =\ \textcolor{stringliteral}{','}.join(}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00932}00932\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{namespacematplotlib_1_1backends_1_1backend__pgf_a8adafb4fe07b9d1f316ca36f135a5f20}{\_metadata\_to\_str}}(k,\ v)\ \textcolor{keywordflow}{for}\ k,\ v\ \textcolor{keywordflow}{in}\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1PdfPages_a006c069d063d6dc7e908342e21f4c1ff}{\_info\_dict}}.items())}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00933}00933\ \ \ \ \ \ \ \ \ latex\_header\ =\ \textcolor{stringliteral}{"{}\(\backslash\)n"{}}.join([}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00934}00934\ \ \ \ \ \ \ \ \ \ \ \ \ \_DOCUMENTCLASS,}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00935}00935\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)usepackage[pdfinfo=\{\%s\}]\{hyperref\}"{}}\ \%\ pdfinfo,}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00936}00936\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)usepackage[papersize=\{\%fin,\%fin\},\ margin=0in]\{geometry\}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00937}00937\ \ \ \ \ \ \ \ \ \ \ \ \ \%\ (width\_inches,\ height\_inches),}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00938}00938\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)usepackage\{pgf\}"{}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00939}00939\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{namespacematplotlib_1_1backends_1_1backend__pgf_a4b2a0283b5f5cbefb88c4696b1c40a0c}{\_get\_preamble}}(),}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00940}00940\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)setlength\{\(\backslash\)parindent\}\{0pt\}"{}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00941}00941\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{r"{}\(\backslash\)begin\{document\}\%"{}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00942}00942\ \ \ \ \ \ \ \ \ ])}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00943}00943\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1PdfPages_ad96e19f8f4b69ea2631fa8f7328979cb}{\_file}}.write(latex\_header.encode(\textcolor{stringliteral}{'utf-\/8'}))}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00944}00944\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00945}00945\ \ \ \ \ \textcolor{keyword}{def\ }\_\_enter\_\_(self):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00946}00946\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00947}00947\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00948}00948\ \ \ \ \ \textcolor{keyword}{def\ }\_\_exit\_\_(self,\ exc\_type,\ exc\_val,\ exc\_tb):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00949}00949\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1PdfPages_acd6e306512a59f4016175cfed0bad940}{close}}()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00950}00950\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00951}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1PdfPages_acd6e306512a59f4016175cfed0bad940}{00951}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1PdfPages_acd6e306512a59f4016175cfed0bad940}{close}}(self):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00952}00952\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00953}00953\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Finalize\ this\ object,\ running\ LaTeX\ in\ a\ temporary\ directory}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00954}00954\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ and\ moving\ the\ final\ pdf\ file\ to\ *filename*.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00955}00955\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00956}00956\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1PdfPages_ad96e19f8f4b69ea2631fa8f7328979cb}{\_file}}.write(rb\textcolor{stringliteral}{'\(\backslash\)end\{document\}\(\backslash\)n'})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00957}00957\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1PdfPages_a0cc67e296bdfc843f2a1a41659510a45}{\_n\_figures}}\ >\ 0:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00958}00958\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1PdfPages_ac8234fb8dd23ca8ba0bdfc9682dfa979}{\_run\_latex}}()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00959}00959\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1PdfPages_ad96e19f8f4b69ea2631fa8f7328979cb}{\_file}}.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1PdfPages_acd6e306512a59f4016175cfed0bad940}{close}}()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00960}00960\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00961}00961\ \ \ \ \ \textcolor{keyword}{def\ }\_run\_latex(self):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00962}00962\ \ \ \ \ \ \ \ \ texcommand\ =\ mpl.rcParams[\textcolor{stringliteral}{"{}pgf.texsystem"{}}]}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00963}00963\ \ \ \ \ \ \ \ \ \textcolor{keyword}{with}\ TemporaryDirectory()\ \textcolor{keyword}{as}\ tmpdir:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00964}00964\ \ \ \ \ \ \ \ \ \ \ \ \ tex\_source\ =\ pathlib.Path(tmpdir,\ \textcolor{stringliteral}{"{}pdf\_pages.tex"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00965}00965\ \ \ \ \ \ \ \ \ \ \ \ \ tex\_source.write\_bytes(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1PdfPages_ad96e19f8f4b69ea2631fa8f7328979cb}{\_file}}.getvalue())}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00966}00966\ \ \ \ \ \ \ \ \ \ \ \ \ cbook.\_check\_and\_log\_subprocess(}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00967}00967\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ [texcommand,\ \textcolor{stringliteral}{"{}-\/interaction=nonstopmode"{}},\ \textcolor{stringliteral}{"{}-\/halt-\/on-\/error"{}},}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00968}00968\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ tex\_source],}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00969}00969\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \_log,\ cwd=tmpdir)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00970}00970\ \ \ \ \ \ \ \ \ \ \ \ \ shutil.move(tex\_source.with\_suffix(\textcolor{stringliteral}{"{}.pdf"{}}),\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1PdfPages_a5555dc412e74bf8ca00139e0efc128a1}{\_output\_name}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00971}00971\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00972}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1PdfPages_a7985e5fd4d876bb35343d8e61290aa9c}{00972}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1PdfPages_a7985e5fd4d876bb35343d8e61290aa9c}{savefig}}(self,\ figure=None,\ **kwargs):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00973}00973\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00974}00974\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Save\ a\ \`{}.Figure\`{}\ to\ this\ file\ as\ a\ new\ page.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00975}00975\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00976}00976\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Any\ other\ keyword\ arguments\ are\ passed\ to\ \`{}\string~.Figure.savefig\`{}.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00977}00977\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00978}00978\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00979}00979\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00980}00980\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ figure\ :\ \`{}.Figure\`{}\ or\ int,\ default:\ the\ active\ figure}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00981}00981\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ \ \ \ \ The\ figure,\ or\ index\ of\ the\ figure,\ that\ is\ saved\ to\ the\ file.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00982}00982\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00983}00983\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ isinstance(figure,\ Figure):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00984}00984\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ figure\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00985}00985\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ manager\ =\ Gcf.get\_active()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00986}00986\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00987}00987\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ manager\ =\ Gcf.get\_fig\_manager(figure)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00988}00988\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ manager\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00989}00989\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{raise}\ \mbox{\hyperlink{classValueError}{ValueError}}(f\textcolor{stringliteral}{"{}No\ figure\ \{figure\}"{}})}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00990}00990\ \ \ \ \ \ \ \ \ \ \ \ \ figure\ =\ manager.canvas.figure}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00991}00991\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00992}00992\ \ \ \ \ \ \ \ \ width,\ height\ =\ figure.get\_size\_inches()}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00993}00993\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1PdfPages_a0cc67e296bdfc843f2a1a41659510a45}{\_n\_figures}}\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00994}00994\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1PdfPages_a9b3a6629d3e2c6a26ee48943b389b678}{\_write\_header}}(width,\ height)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00995}00995\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00996}00996\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \(\backslash\)pdfpagewidth\ and\ \(\backslash\)pdfpageheight\ exist\ on\ pdftex,\ xetex,\ and}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00997}00997\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ luatex<0.85;\ they\ were\ renamed\ to\ \(\backslash\)pagewidth\ and\ \(\backslash\)pageheight}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00998}00998\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ on\ luatex>=0.85.}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l00999}00999\ \ \ \ \ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1PdfPages_ad96e19f8f4b69ea2631fa8f7328979cb}{\_file}}.write(}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l01000}01000\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ rb\textcolor{stringliteral}{'\(\backslash\)newpage'}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l01001}01001\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ rb\textcolor{stringliteral}{'\(\backslash\)ifdefined\(\backslash\)pdfpagewidth\(\backslash\)pdfpagewidth\(\backslash\)else\(\backslash\)pagewidth\(\backslash\)fi=\%fin'}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l01002}01002\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ rb\textcolor{stringliteral}{'\(\backslash\)ifdefined\(\backslash\)pdfpageheight\(\backslash\)pdfpageheight\(\backslash\)else\(\backslash\)pageheight\(\backslash\)fi=\%fin'}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l01003}01003\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ b\textcolor{stringliteral}{'\%\%\(\backslash\)n'}\ \%\ (width,\ height)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l01004}01004\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l01005}01005\ \ \ \ \ \ \ \ \ figure.savefig(self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1PdfPages_ad96e19f8f4b69ea2631fa8f7328979cb}{\_file}},\ format=\textcolor{stringliteral}{"{}pgf"{}},\ backend=\textcolor{stringliteral}{"{}pgf"{}},\ **kwargs)}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l01006}01006\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1PdfPages_a0cc67e296bdfc843f2a1a41659510a45}{\_n\_figures}}\ +=\ 1}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l01007}01007\ }
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l01008}\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1PdfPages_a7ca7c12169890f747e65f6971a09edff}{01008}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1PdfPages_a7ca7c12169890f747e65f6971a09edff}{get\_pagecount}}(self):}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l01009}01009\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}Return\ the\ current\ number\ of\ pages\ in\ the\ multipage\ pdf\ file."{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{backend__pgf_8py_source_l01010}01010\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classmatplotlib_1_1backends_1_1backend__pgf_1_1PdfPages_a0cc67e296bdfc843f2a1a41659510a45}{\_n\_figures}}}
+
+\end{DoxyCode}

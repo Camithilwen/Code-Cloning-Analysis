@@ -1,0 +1,250 @@
+\doxysection{sum\+\_\+.\+py}
+\hypertarget{sum___8py_source}{}\label{sum___8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/pandas/core/\_numba/kernels/sum\_.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/pandas/core/\_numba/kernels/sum\_.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00001}\mbox{\hyperlink{namespacepandas_1_1core_1_1__numba_1_1kernels_1_1sum__}{00001}}\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00002}00002\ \textcolor{stringliteral}{Numba\ 1D\ sum\ kernels\ that\ can\ be\ shared\ by}}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00003}00003\ \textcolor{stringliteral}{*\ Dataframe\ /\ Series}}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00004}00004\ \textcolor{stringliteral}{*\ groupby}}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00005}00005\ \textcolor{stringliteral}{*\ rolling\ /\ expanding}}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00006}00006\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00007}00007\ \textcolor{stringliteral}{Mirrors\ pandas/\_libs/window/aggregation.pyx}}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00008}00008\ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00009}00009\ \textcolor{keyword}{from}\ \_\_future\_\_\ \textcolor{keyword}{import}\ annotations}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00010}00010\ }
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00011}00011\ \textcolor{keyword}{from}\ typing\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00012}00012\ \ \ \ \ TYPE\_CHECKING,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00013}00013\ \ \ \ \ Any,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00014}00014\ )}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00015}00015\ }
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00016}00016\ \textcolor{keyword}{import}\ numba}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00017}00017\ \textcolor{keyword}{from}\ numba.extending\ \textcolor{keyword}{import}\ register\_jitable}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00018}00018\ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00019}00019\ }
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00020}00020\ \textcolor{keywordflow}{if}\ TYPE\_CHECKING:}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00021}00021\ \ \ \ \ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1__typing}{pandas.\_typing}}\ \textcolor{keyword}{import}\ npt}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00022}00022\ }
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00023}00023\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1__numba_1_1kernels_1_1shared}{pandas.core.\_numba.kernels.shared}}\ \textcolor{keyword}{import}\ is\_monotonic\_increasing}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00024}00024\ }
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00025}00025\ }
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00026}00026\ \textcolor{preprocessor}{@numba.jit(nopython=True,\ nogil=True,\ parallel=False)}}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00027}00027\ \textcolor{keyword}{def\ }add\_sum(}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00028}00028\ \ \ \ \ val:\ Any,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00029}00029\ \ \ \ \ nobs:\ int,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00030}00030\ \ \ \ \ sum\_x:\ Any,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00031}00031\ \ \ \ \ compensation:\ Any,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00032}00032\ \ \ \ \ num\_consecutive\_same\_value:\ int,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00033}00033\ \ \ \ \ prev\_value:\ Any,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00034}00034\ )\ -\/>\ tuple[int,\ Any,\ Any,\ int,\ Any]:}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00035}00035\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ np.isnan(val):}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00036}00036\ \ \ \ \ \ \ \ \ nobs\ +=\ 1}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00037}00037\ \ \ \ \ \ \ \ \ y\ =\ val\ -\/\ compensation}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00038}00038\ \ \ \ \ \ \ \ \ t\ =\ sum\_x\ +\ y}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00039}00039\ \ \ \ \ \ \ \ \ compensation\ =\ t\ -\/\ sum\_x\ -\/\ y}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00040}00040\ \ \ \ \ \ \ \ \ sum\_x\ =\ t}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00041}00041\ }
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00042}00042\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ val\ ==\ prev\_value:}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00043}00043\ \ \ \ \ \ \ \ \ \ \ \ \ num\_consecutive\_same\_value\ +=\ 1}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00044}00044\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00045}00045\ \ \ \ \ \ \ \ \ \ \ \ \ num\_consecutive\_same\_value\ =\ 1}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00046}00046\ \ \ \ \ \ \ \ \ prev\_value\ =\ val}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00047}00047\ }
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00048}00048\ \ \ \ \ \textcolor{keywordflow}{return}\ nobs,\ sum\_x,\ compensation,\ num\_consecutive\_same\_value,\ prev\_value}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00049}00049\ }
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00050}00050\ }
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00051}00051\ \textcolor{preprocessor}{@numba.jit(nopython=True,\ nogil=True,\ parallel=False)}}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00052}00052\ \textcolor{keyword}{def\ }remove\_sum(}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00053}00053\ \ \ \ \ val:\ Any,\ nobs:\ int,\ sum\_x:\ Any,\ compensation:\ Any}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00054}00054\ )\ -\/>\ tuple[int,\ Any,\ Any]:}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00055}00055\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ np.isnan(val):}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00056}00056\ \ \ \ \ \ \ \ \ nobs\ -\/=\ 1}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00057}00057\ \ \ \ \ \ \ \ \ y\ =\ -\/val\ -\/\ compensation}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00058}00058\ \ \ \ \ \ \ \ \ t\ =\ sum\_x\ +\ y}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00059}00059\ \ \ \ \ \ \ \ \ compensation\ =\ t\ -\/\ sum\_x\ -\/\ y}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00060}00060\ \ \ \ \ \ \ \ \ sum\_x\ =\ t}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00061}00061\ \ \ \ \ \textcolor{keywordflow}{return}\ nobs,\ sum\_x,\ compensation}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00062}00062\ }
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00063}00063\ }
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00064}00064\ \textcolor{preprocessor}{@numba.jit(nopython=True,\ nogil=True,\ parallel=False)}}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00065}00065\ \textcolor{keyword}{def\ }sliding\_sum(}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00066}00066\ \ \ \ \ values:\ np.ndarray,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00067}00067\ \ \ \ \ result\_dtype:\ np.dtype,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00068}00068\ \ \ \ \ start:\ np.ndarray,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00069}00069\ \ \ \ \ end:\ np.ndarray,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00070}00070\ \ \ \ \ min\_periods:\ int,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00071}00071\ )\ -\/>\ tuple[np.ndarray,\ list[int]]:}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00072}00072\ \ \ \ \ dtype\ =\ values.dtype}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00073}00073\ }
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00074}00074\ \ \ \ \ na\_val:\ object\ =\ np.nan}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00075}00075\ \ \ \ \ \textcolor{keywordflow}{if}\ dtype.kind\ ==\ \textcolor{stringliteral}{"{}i"{}}:}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00076}00076\ \ \ \ \ \ \ \ \ na\_val\ =\ 0}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00077}00077\ }
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00078}00078\ \ \ \ \ N\ =\ len(start)}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00079}00079\ \ \ \ \ nobs\ =\ 0}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00080}00080\ \ \ \ \ sum\_x\ =\ 0}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00081}00081\ \ \ \ \ compensation\_add\ =\ 0}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00082}00082\ \ \ \ \ compensation\_remove\ =\ 0}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00083}00083\ \ \ \ \ na\_pos\ =\ []}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00084}00084\ }
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00085}00085\ \ \ \ \ is\_monotonic\_increasing\_bounds\ =\ is\_monotonic\_increasing(}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00086}00086\ \ \ \ \ \ \ \ \ start}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00087}00087\ \ \ \ \ )\ \textcolor{keywordflow}{and}\ is\_monotonic\_increasing(end)}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00088}00088\ }
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00089}00089\ \ \ \ \ output\ =\ np.empty(N,\ dtype=result\_dtype)}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00090}00090\ }
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00091}00091\ \ \ \ \ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(N):}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00092}00092\ \ \ \ \ \ \ \ \ s\ =\ start[i]}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00093}00093\ \ \ \ \ \ \ \ \ e\ =\ end[i]}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00094}00094\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ i\ ==\ 0\ \textcolor{keywordflow}{or}\ \textcolor{keywordflow}{not}\ is\_monotonic\_increasing\_bounds:}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00095}00095\ \ \ \ \ \ \ \ \ \ \ \ \ prev\_value\ =\ values[s]}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00096}00096\ \ \ \ \ \ \ \ \ \ \ \ \ num\_consecutive\_same\_value\ =\ 0}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00097}00097\ }
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00098}00098\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ j\ \textcolor{keywordflow}{in}\ range(s,\ e):}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00099}00099\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ val\ =\ values[j]}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00100}00100\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00101}00101\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ nobs,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00102}00102\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ sum\_x,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00103}00103\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ compensation\_add,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00104}00104\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ num\_consecutive\_same\_value,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00105}00105\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ prev\_value,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00106}00106\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )\ =\ add\_sum(}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00107}00107\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ val,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00108}00108\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ nobs,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00109}00109\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ sum\_x,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00110}00110\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ compensation\_add,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00111}00111\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ num\_consecutive\_same\_value,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00112}00112\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ prev\_value,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00113}00113\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00114}00114\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00115}00115\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ j\ \textcolor{keywordflow}{in}\ range(start[i\ -\/\ 1],\ s):}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00116}00116\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ val\ =\ values[j]}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00117}00117\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ nobs,\ sum\_x,\ compensation\_remove\ =\ remove\_sum(}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00118}00118\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ val,\ nobs,\ sum\_x,\ compensation\_remove}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00119}00119\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00120}00120\ }
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00121}00121\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ j\ \textcolor{keywordflow}{in}\ range(end[i\ -\/\ 1],\ e):}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00122}00122\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ val\ =\ values[j]}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00123}00123\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00124}00124\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ nobs,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00125}00125\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ sum\_x,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00126}00126\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ compensation\_add,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00127}00127\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ num\_consecutive\_same\_value,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00128}00128\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ prev\_value,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00129}00129\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )\ =\ add\_sum(}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00130}00130\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ val,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00131}00131\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ nobs,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00132}00132\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ sum\_x,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00133}00133\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ compensation\_add,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00134}00134\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ num\_consecutive\_same\_value,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00135}00135\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ prev\_value,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00136}00136\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00137}00137\ }
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00138}00138\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ nobs\ ==\ 0\ ==\ min\_periods:}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00139}00139\ \ \ \ \ \ \ \ \ \ \ \ \ result:\ object\ =\ 0}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00140}00140\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ nobs\ >=\ min\_periods:}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00141}00141\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ num\_consecutive\_same\_value\ >=\ nobs:}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00142}00142\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ result\ =\ prev\_value\ *\ nobs}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00143}00143\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00144}00144\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ result\ =\ sum\_x}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00145}00145\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00146}00146\ \ \ \ \ \ \ \ \ \ \ \ \ result\ =\ na\_val}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00147}00147\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ dtype.kind\ ==\ \textcolor{stringliteral}{"{}i"{}}:}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00148}00148\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ na\_pos.append(i)}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00149}00149\ }
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00150}00150\ \ \ \ \ \ \ \ \ output[i]\ =\ result}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00151}00151\ }
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00152}00152\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ is\_monotonic\_increasing\_bounds:}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00153}00153\ \ \ \ \ \ \ \ \ \ \ \ \ nobs\ =\ 0}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00154}00154\ \ \ \ \ \ \ \ \ \ \ \ \ sum\_x\ =\ 0}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00155}00155\ \ \ \ \ \ \ \ \ \ \ \ \ compensation\_remove\ =\ 0}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00156}00156\ }
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00157}00157\ \ \ \ \ \textcolor{keywordflow}{return}\ output,\ na\_pos}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00158}00158\ }
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00159}00159\ }
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00160}00160\ \textcolor{comment}{\#\ Mypy/pyright\ don't\ like\ the\ fact\ that\ the\ decorator\ is\ untyped}}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00161}00161\ \textcolor{preprocessor}{@register\_jitable}\ \ \textcolor{comment}{\#\ type:\ ignore[misc]}}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00162}00162\ \textcolor{keyword}{def\ }grouped\_kahan\_sum(}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00163}00163\ \ \ \ \ values:\ np.ndarray,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00164}00164\ \ \ \ \ result\_dtype:\ np.dtype,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00165}00165\ \ \ \ \ labels:\ npt.NDArray[np.intp],}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00166}00166\ \ \ \ \ ngroups:\ int,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00167}00167\ )\ -\/>\ tuple[}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00168}00168\ \ \ \ \ np.ndarray,\ npt.NDArray[np.int64],\ np.ndarray,\ npt.NDArray[np.int64],\ np.ndarray}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00169}00169\ ]:}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00170}00170\ \ \ \ \ N\ =\ len(labels)}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00171}00171\ }
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00172}00172\ \ \ \ \ nobs\_arr\ =\ np.zeros(ngroups,\ dtype=np.int64)}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00173}00173\ \ \ \ \ comp\_arr\ =\ np.zeros(ngroups,\ dtype=values.dtype)}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00174}00174\ \ \ \ \ consecutive\_counts\ =\ np.zeros(ngroups,\ dtype=np.int64)}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00175}00175\ \ \ \ \ prev\_vals\ =\ np.zeros(ngroups,\ dtype=values.dtype)}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00176}00176\ \ \ \ \ output\ =\ np.zeros(ngroups,\ dtype=result\_dtype)}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00177}00177\ }
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00178}00178\ \ \ \ \ \textcolor{keywordflow}{for}\ i\ \textcolor{keywordflow}{in}\ range(N):}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00179}00179\ \ \ \ \ \ \ \ \ lab\ =\ labels[i]}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00180}00180\ \ \ \ \ \ \ \ \ val\ =\ values[i]}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00181}00181\ }
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00182}00182\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ lab\ <\ 0:}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00183}00183\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{continue}}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00184}00184\ }
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00185}00185\ \ \ \ \ \ \ \ \ sum\_x\ =\ output[lab]}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00186}00186\ \ \ \ \ \ \ \ \ nobs\ =\ nobs\_arr[lab]}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00187}00187\ \ \ \ \ \ \ \ \ compensation\_add\ =\ comp\_arr[lab]}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00188}00188\ \ \ \ \ \ \ \ \ num\_consecutive\_same\_value\ =\ consecutive\_counts[lab]}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00189}00189\ \ \ \ \ \ \ \ \ prev\_value\ =\ prev\_vals[lab]}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00190}00190\ }
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00191}00191\ \ \ \ \ \ \ \ \ (}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00192}00192\ \ \ \ \ \ \ \ \ \ \ \ \ nobs,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00193}00193\ \ \ \ \ \ \ \ \ \ \ \ \ sum\_x,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00194}00194\ \ \ \ \ \ \ \ \ \ \ \ \ compensation\_add,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00195}00195\ \ \ \ \ \ \ \ \ \ \ \ \ num\_consecutive\_same\_value,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00196}00196\ \ \ \ \ \ \ \ \ \ \ \ \ prev\_value,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00197}00197\ \ \ \ \ \ \ \ \ )\ =\ add\_sum(}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00198}00198\ \ \ \ \ \ \ \ \ \ \ \ \ val,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00199}00199\ \ \ \ \ \ \ \ \ \ \ \ \ nobs,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00200}00200\ \ \ \ \ \ \ \ \ \ \ \ \ sum\_x,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00201}00201\ \ \ \ \ \ \ \ \ \ \ \ \ compensation\_add,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00202}00202\ \ \ \ \ \ \ \ \ \ \ \ \ num\_consecutive\_same\_value,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00203}00203\ \ \ \ \ \ \ \ \ \ \ \ \ prev\_value,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00204}00204\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00205}00205\ }
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00206}00206\ \ \ \ \ \ \ \ \ output[lab]\ =\ sum\_x}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00207}00207\ \ \ \ \ \ \ \ \ consecutive\_counts[lab]\ =\ num\_consecutive\_same\_value}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00208}00208\ \ \ \ \ \ \ \ \ prev\_vals[lab]\ =\ prev\_value}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00209}00209\ \ \ \ \ \ \ \ \ comp\_arr[lab]\ =\ compensation\_add}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00210}00210\ \ \ \ \ \ \ \ \ nobs\_arr[lab]\ =\ nobs}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00211}00211\ \ \ \ \ \textcolor{keywordflow}{return}\ output,\ nobs\_arr,\ comp\_arr,\ consecutive\_counts,\ prev\_vals}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00212}00212\ }
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00213}00213\ }
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00214}00214\ \textcolor{preprocessor}{@numba.jit(nopython=True,\ nogil=True,\ parallel=False)}}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00215}00215\ \textcolor{keyword}{def\ }grouped\_sum(}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00216}00216\ \ \ \ \ values:\ np.ndarray,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00217}00217\ \ \ \ \ result\_dtype:\ np.dtype,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00218}00218\ \ \ \ \ labels:\ npt.NDArray[np.intp],}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00219}00219\ \ \ \ \ ngroups:\ int,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00220}00220\ \ \ \ \ min\_periods:\ int,}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00221}00221\ )\ -\/>\ tuple[np.ndarray,\ list[int]]:}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00222}00222\ \ \ \ \ na\_pos\ =\ []}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00223}00223\ }
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00224}00224\ \ \ \ \ output,\ nobs\_arr,\ comp\_arr,\ consecutive\_counts,\ prev\_vals\ =\ grouped\_kahan\_sum(}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00225}00225\ \ \ \ \ \ \ \ \ values,\ result\_dtype,\ labels,\ ngroups}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00226}00226\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00227}00227\ }
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00228}00228\ \ \ \ \ \textcolor{comment}{\#\ Post-\/processing,\ replace\ sums\ that\ don't\ satisfy\ min\_periods}}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00229}00229\ \ \ \ \ \textcolor{keywordflow}{for}\ lab\ \textcolor{keywordflow}{in}\ range(ngroups):}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00230}00230\ \ \ \ \ \ \ \ \ nobs\ =\ nobs\_arr[lab]}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00231}00231\ \ \ \ \ \ \ \ \ num\_consecutive\_same\_value\ =\ consecutive\_counts[lab]}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00232}00232\ \ \ \ \ \ \ \ \ prev\_value\ =\ prev\_vals[lab]}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00233}00233\ \ \ \ \ \ \ \ \ sum\_x\ =\ output[lab]}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00234}00234\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ nobs\ >=\ min\_periods:}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00235}00235\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ num\_consecutive\_same\_value\ >=\ nobs:}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00236}00236\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ result\ =\ prev\_value\ *\ nobs}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00237}00237\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00238}00238\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ result\ =\ sum\_x}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00239}00239\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00240}00240\ \ \ \ \ \ \ \ \ \ \ \ \ result\ =\ sum\_x\ \ \textcolor{comment}{\#\ Don't\ change\ val,\ will\ be\ replaced\ by\ nan\ later}}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00241}00241\ \ \ \ \ \ \ \ \ \ \ \ \ na\_pos.append(lab)}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00242}00242\ \ \ \ \ \ \ \ \ output[lab]\ =\ result}
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00243}00243\ }
+\DoxyCodeLine{\Hypertarget{sum___8py_source_l00244}00244\ \ \ \ \ \textcolor{keywordflow}{return}\ output,\ na\_pos}
+
+\end{DoxyCode}

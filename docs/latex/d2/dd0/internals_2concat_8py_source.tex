@@ -1,0 +1,604 @@
+\doxysection{concat.\+py}
+\hypertarget{internals_2concat_8py_source}{}\label{internals_2concat_8py_source}\index{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/pandas/core/internals/concat.py@{/home/jam/Research/IRES-\/2025/dev/src/llm-\/scripts/testing/hypothesis-\/testing/hyp-\/env/lib/python3.12/site-\/packages/pandas/core/internals/concat.py}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00001}\mbox{\hyperlink{namespacepandas_1_1core_1_1internals_1_1concat}{00001}}\ \textcolor{keyword}{from}\ \_\_future\_\_\ \textcolor{keyword}{import}\ annotations}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00002}00002\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00003}00003\ \textcolor{keyword}{from}\ typing\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00004}00004\ \ \ \ \ TYPE\_CHECKING,}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00005}00005\ \ \ \ \ cast,}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00006}00006\ )}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00007}00007\ \textcolor{keyword}{import}\ warnings}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00008}00008\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00009}00009\ \textcolor{keyword}{import}\ numpy\ \textcolor{keyword}{as}\ np}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00010}00010\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00011}00011\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1__libs}{pandas.\_libs}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00012}00012\ \ \ \ \ NaT,}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00013}00013\ \ \ \ \ algos\ \textcolor{keyword}{as}\ libalgos,}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00014}00014\ \ \ \ \ internals\ \textcolor{keyword}{as}\ libinternals,}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00015}00015\ \ \ \ \ lib,}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00016}00016\ )}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00017}00017\ \textcolor{keyword}{from}\ pandas.\_libs.missing\ \textcolor{keyword}{import}\ NA}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00018}00018\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1util_1_1__decorators}{pandas.util.\_decorators}}\ \textcolor{keyword}{import}\ cache\_readonly}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00019}00019\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1util_1_1__exceptions}{pandas.util.\_exceptions}}\ \textcolor{keyword}{import}\ find\_stack\_level}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00020}00020\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00021}00021\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1dtypes_1_1cast}{pandas.core.dtypes.cast}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00022}00022\ \ \ \ \ ensure\_dtype\_can\_hold\_na,}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00023}00023\ \ \ \ \ find\_common\_type,}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00024}00024\ )}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00025}00025\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1dtypes_1_1common}{pandas.core.dtypes.common}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00026}00026\ \ \ \ \ is\_1d\_only\_ea\_dtype,}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00027}00027\ \ \ \ \ is\_scalar,}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00028}00028\ \ \ \ \ needs\_i8\_conversion,}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00029}00029\ )}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00030}00030\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1dtypes_1_1concat}{pandas.core.dtypes.concat}}\ \textcolor{keyword}{import}\ concat\_compat}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00031}00031\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1dtypes_1_1dtypes}{pandas.core.dtypes.dtypes}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00032}00032\ \ \ \ \ ExtensionDtype,}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00033}00033\ \ \ \ \ SparseDtype,}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00034}00034\ )}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00035}00035\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1dtypes_1_1missing}{pandas.core.dtypes.missing}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00036}00036\ \ \ \ \ is\_valid\_na\_for\_dtype,}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00037}00037\ \ \ \ \ isna,}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00038}00038\ \ \ \ \ isna\_all,}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00039}00039\ )}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00040}00040\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00041}00041\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1construction}{pandas.core.construction}}\ \textcolor{keyword}{import}\ ensure\_wrapped\_if\_datetimelike}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00042}00042\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1internals_1_1array__manager}{pandas.core.internals.array\_manager}}\ \textcolor{keyword}{import}\ ArrayManager}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00043}00043\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1internals_1_1blocks}{pandas.core.internals.blocks}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00044}00044\ \ \ \ \ ensure\_block\_shape,}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00045}00045\ \ \ \ \ new\_block\_2d,}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00046}00046\ )}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00047}00047\ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1internals_1_1managers}{pandas.core.internals.managers}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00048}00048\ \ \ \ \ BlockManager,}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00049}00049\ \ \ \ \ make\_na\_array,}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00050}00050\ )}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00051}00051\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00052}00052\ \textcolor{keywordflow}{if}\ TYPE\_CHECKING:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00053}00053\ \ \ \ \ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacecollections_1_1abc}{collections.abc}}\ \textcolor{keyword}{import}\ Sequence}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00054}00054\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00055}00055\ \ \ \ \ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1__typing}{pandas.\_typing}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00056}00056\ \ \ \ \ \ \ \ \ ArrayLike,}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00057}00057\ \ \ \ \ \ \ \ \ AxisInt,}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00058}00058\ \ \ \ \ \ \ \ \ DtypeObj,}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00059}00059\ \ \ \ \ \ \ \ \ Manager2D,}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00060}00060\ \ \ \ \ \ \ \ \ Shape,}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00061}00061\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00062}00062\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00063}00063\ \ \ \ \ \textcolor{keyword}{from}\ pandas\ \textcolor{keyword}{import}\ Index}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00064}00064\ \ \ \ \ \textcolor{keyword}{from}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1internals_1_1blocks}{pandas.core.internals.blocks}}\ \textcolor{keyword}{import}\ (}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00065}00065\ \ \ \ \ \ \ \ \ Block,}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00066}00066\ \ \ \ \ \ \ \ \ BlockPlacement,}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00067}00067\ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00068}00068\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00069}00069\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00070}\mbox{\hyperlink{namespacepandas_1_1core_1_1internals_1_1concat_ac176172885916f418d93396b4790f1d7}{00070}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1core_1_1internals_1_1concat_ac176172885916f418d93396b4790f1d7}{\_concatenate\_array\_managers}}(}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00071}00071\ \ \ \ \ mgrs:\ list[ArrayManager],\ axes:\ list[Index],\ concat\_axis:\ AxisInt}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00072}00072\ )\ -\/>\ Manager2D:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00073}00073\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00074}00074\ \textcolor{stringliteral}{\ \ \ \ Concatenate\ array\ managers\ into\ one.}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00075}00075\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00076}00076\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00077}00077\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00078}00078\ \textcolor{stringliteral}{\ \ \ \ mgrs\_indexers\ :\ list\ of\ (ArrayManager,\ \{axis:\ indexer,...\})\ tuples}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00079}00079\ \textcolor{stringliteral}{\ \ \ \ axes\ :\ list\ of\ Index}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00080}00080\ \textcolor{stringliteral}{\ \ \ \ concat\_axis\ :\ int}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00081}00081\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00082}00082\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00083}00083\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00084}00084\ \textcolor{stringliteral}{\ \ \ \ ArrayManager}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00085}00085\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00086}00086\ \ \ \ \ \textcolor{keywordflow}{if}\ concat\_axis\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00087}00087\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ mgrs[0].concat\_vertical(mgrs,\ axes)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00088}00088\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00089}00089\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ concatting\ along\ the\ columns\ -\/>\ combine\ reindexed\ arrays\ in\ a\ single\ manager}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00090}00090\ \ \ \ \ \ \ \ \ \textcolor{keyword}{assert}\ concat\_axis\ ==\ 0}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00091}00091\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ mgrs[0].concat\_horizontal(mgrs,\ axes)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00092}00092\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00093}00093\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00094}\mbox{\hyperlink{namespacepandas_1_1core_1_1internals_1_1concat_a0b24c7f443f10f8f833e3a86c99c8596}{00094}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1core_1_1internals_1_1concat_a0b24c7f443f10f8f833e3a86c99c8596}{concatenate\_managers}}(}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00095}00095\ \ \ \ \ mgrs\_indexers,\ axes:\ list[Index],\ concat\_axis:\ AxisInt,\ copy:\ bool}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00096}00096\ )\ -\/>\ Manager2D:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00097}00097\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00098}00098\ \textcolor{stringliteral}{\ \ \ \ Concatenate\ block\ managers\ into\ one.}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00099}00099\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00100}00100\ \textcolor{stringliteral}{\ \ \ \ Parameters}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00101}00101\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00102}00102\ \textcolor{stringliteral}{\ \ \ \ mgrs\_indexers\ :\ list\ of\ (BlockManager,\ \{axis:\ indexer,...\})\ tuples}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00103}00103\ \textcolor{stringliteral}{\ \ \ \ axes\ :\ list\ of\ Index}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00104}00104\ \textcolor{stringliteral}{\ \ \ \ concat\_axis\ :\ int}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00105}00105\ \textcolor{stringliteral}{\ \ \ \ copy\ :\ bool}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00106}00106\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00107}00107\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00108}00108\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00109}00109\ \textcolor{stringliteral}{\ \ \ \ BlockManager}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00110}00110\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00111}00111\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00112}00112\ \ \ \ \ needs\_copy\ =\ copy\ \textcolor{keywordflow}{and}\ concat\_axis\ ==\ 0}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00113}00113\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00114}00114\ \ \ \ \ \textcolor{comment}{\#\ TODO(ArrayManager)\ this\ assumes\ that\ all\ managers\ are\ of\ the\ same\ type}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00115}00115\ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(mgrs\_indexers[0][0],\ ArrayManager):}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00116}00116\ \ \ \ \ \ \ \ \ mgrs\ =\ \mbox{\hyperlink{namespacepandas_1_1core_1_1internals_1_1concat_a76c012958ab003e9370d3215556102f7}{\_maybe\_reindex\_columns\_na\_proxy}}(axes,\ mgrs\_indexers,\ needs\_copy)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00117}00117\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ error:\ Argument\ 1\ to\ "{}\_concatenate\_array\_managers"{}\ has\ incompatible}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00118}00118\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ type\ "{}List[BlockManager]"{};\ expected\ "{}List[Union[ArrayManager,}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00119}00119\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ SingleArrayManager,\ BlockManager,\ SingleBlockManager]]"{}}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00120}00120\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1internals_1_1concat_ac176172885916f418d93396b4790f1d7}{\_concatenate\_array\_managers}}(}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00121}00121\ \ \ \ \ \ \ \ \ \ \ \ \ mgrs,\ axes,\ concat\_axis\ \ \textcolor{comment}{\#\ type:\ ignore[arg-\/type]}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00122}00122\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00123}00123\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00124}00124\ \ \ \ \ \textcolor{comment}{\#\ Assertions\ disabled\ for\ performance}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00125}00125\ \ \ \ \ \textcolor{comment}{\#\ for\ tup\ in\ mgrs\_indexers:}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00126}00126\ \ \ \ \ \textcolor{comment}{\#\ \ \ \ \#\ caller\ is\ responsible\ for\ ensuring\ this}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00127}00127\ \ \ \ \ \textcolor{comment}{\#\ \ \ \ indexers\ =\ tup[1]}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00128}00128\ \ \ \ \ \textcolor{comment}{\#\ \ \ \ assert\ concat\_axis\ not\ in\ indexers}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00129}00129\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00130}00130\ \ \ \ \ \textcolor{keywordflow}{if}\ concat\_axis\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00131}00131\ \ \ \ \ \ \ \ \ mgrs\ =\ \mbox{\hyperlink{namespacepandas_1_1core_1_1internals_1_1concat_a76c012958ab003e9370d3215556102f7}{\_maybe\_reindex\_columns\_na\_proxy}}(axes,\ mgrs\_indexers,\ needs\_copy)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00132}00132\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ mgrs[0].concat\_horizontal(mgrs,\ axes)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00133}00133\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00134}00134\ \ \ \ \ \textcolor{keywordflow}{if}\ len(mgrs\_indexers)\ >\ 0\ \textcolor{keywordflow}{and}\ mgrs\_indexers[0][0].nblocks\ >\ 0:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00135}00135\ \ \ \ \ \ \ \ \ first\_dtype\ =\ mgrs\_indexers[0][0].blocks[0].dtype}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00136}00136\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ first\_dtype\ \textcolor{keywordflow}{in}\ [np.float64,\ np.float32]:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00137}00137\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ TODO:\ support\ more\ dtypes\ here.\ \ This\ will\ be\ simpler\ once}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00138}00138\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ JoinUnit.is\_na\ behavior\ is\ deprecated.}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00139}00139\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00140}00140\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ all(\mbox{\hyperlink{namespacepandas_1_1core_1_1internals_1_1concat_acfa15c84cad8506a1168c4f3e89968fc}{\_is\_homogeneous\_mgr}}(mgr,\ first\_dtype)\ \textcolor{keywordflow}{for}\ mgr,\ \_\ \textcolor{keywordflow}{in}\ mgrs\_indexers)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00141}00141\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}\ len(mgrs\_indexers)\ >\ 1}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00142}00142\ \ \ \ \ \ \ \ \ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00143}00143\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Fastpath!}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00144}00144\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ Length\ restriction\ is\ just\ to\ avoid\ having\ to\ worry\ about\ 'copy'}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00145}00145\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ shape\ =\ tuple(len(x)\ \textcolor{keywordflow}{for}\ x\ \textcolor{keywordflow}{in}\ axes)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00146}00146\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ nb\ =\ \mbox{\hyperlink{namespacepandas_1_1core_1_1internals_1_1concat_a7ce1cb09769b38766fdd53b8f8a8ef0e}{\_concat\_homogeneous\_fastpath}}(mgrs\_indexers,\ shape,\ first\_dtype)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00147}00147\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classpandas_1_1core_1_1internals_1_1managers_1_1BlockManager}{BlockManager}}((nb,),\ axes)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00148}00148\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00149}00149\ \ \ \ \ mgrs\ =\ \mbox{\hyperlink{namespacepandas_1_1core_1_1internals_1_1concat_a76c012958ab003e9370d3215556102f7}{\_maybe\_reindex\_columns\_na\_proxy}}(axes,\ mgrs\_indexers,\ needs\_copy)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00150}00150\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00151}00151\ \ \ \ \ \textcolor{keywordflow}{if}\ len(mgrs)\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00152}00152\ \ \ \ \ \ \ \ \ mgr\ =\ mgrs[0]}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00153}00153\ \ \ \ \ \ \ \ \ out\ =\ mgr.copy(deep=\textcolor{keyword}{False})}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00154}00154\ \ \ \ \ \ \ \ \ out.axes\ =\ axes}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00155}00155\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ out}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00156}00156\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00157}00157\ \ \ \ \ concat\_plan\ =\ \_get\_combined\_plan(mgrs)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00158}00158\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00159}00159\ \ \ \ \ blocks\ =\ []}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00160}00160\ \ \ \ \ values:\ ArrayLike}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00161}00161\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00162}00162\ \ \ \ \ \textcolor{keywordflow}{for}\ placement,\ join\_units\ \textcolor{keywordflow}{in}\ concat\_plan:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00163}00163\ \ \ \ \ \ \ \ \ unit\ =\ join\_units[0]}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00164}00164\ \ \ \ \ \ \ \ \ blk\ =\ unit.block}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00165}00165\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00166}00166\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \mbox{\hyperlink{namespacepandas_1_1core_1_1internals_1_1concat_acff355ce8e0306119835e40ffdf11d02}{\_is\_uniform\_join\_units}}(join\_units):}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00167}00167\ \ \ \ \ \ \ \ \ \ \ \ \ vals\ =\ [ju.block.values\ \textcolor{keywordflow}{for}\ ju\ \textcolor{keywordflow}{in}\ join\_units]}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00168}00168\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00169}00169\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ blk.is\_extension:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00170}00170\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \_is\_uniform\_join\_units\ ensures\ a\ single\ dtype,\ so}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00171}00171\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ we\ can\ use\ np.concatenate,\ which\ is\ more\ performant}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00172}00172\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ than\ concat\_compat}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00173}00173\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ error:\ Argument\ 1\ to\ "{}concatenate"{}\ has\ incompatible\ type}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00174}00174\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ "{}List[Union[ndarray[Any,\ Any],\ ExtensionArray]]"{};}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00175}00175\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ expected\ "{}Union[\_SupportsArray[dtype[Any]],}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00176}00176\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \_NestedSequence[\_SupportsArray[dtype[Any]]]]"{}}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00177}00177\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ values\ =\ np.concatenate(vals,\ axis=1)\ \ \textcolor{comment}{\#\ type:\ ignore[arg-\/type]}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00178}00178\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{elif}\ is\_1d\_only\_ea\_dtype(blk.dtype):}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00179}00179\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ TODO(EA2D):\ special-\/casing\ not\ needed\ with\ 2D\ EAs}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00180}00180\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ values\ =\ concat\_compat(vals,\ axis=0,\ ea\_compat\_axis=\textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00181}00181\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ values\ =\ ensure\_block\_shape(values,\ ndim=2)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00182}00182\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00183}00183\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ values\ =\ concat\_compat(vals,\ axis=1)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00184}00184\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00185}00185\ \ \ \ \ \ \ \ \ \ \ \ \ values\ =\ ensure\_wrapped\_if\_datetimelike(values)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00186}00186\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00187}00187\ \ \ \ \ \ \ \ \ \ \ \ \ fastpath\ =\ blk.values.dtype\ ==\ values.dtype}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00188}00188\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00189}00189\ \ \ \ \ \ \ \ \ \ \ \ \ values\ =\ \mbox{\hyperlink{namespacepandas_1_1core_1_1internals_1_1concat_acfd5ab965238adec5db71f44b15b1fc8}{\_concatenate\_join\_units}}(join\_units,\ copy=copy)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00190}00190\ \ \ \ \ \ \ \ \ \ \ \ \ fastpath\ =\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00191}00191\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00192}00192\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ fastpath:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00193}00193\ \ \ \ \ \ \ \ \ \ \ \ \ b\ =\ blk.make\_block\_same\_class(values,\ placement=placement)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00194}00194\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00195}00195\ \ \ \ \ \ \ \ \ \ \ \ \ b\ =\ new\_block\_2d(values,\ placement=placement)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00196}00196\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00197}00197\ \ \ \ \ \ \ \ \ blocks.append(b)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00198}00198\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00199}00199\ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classpandas_1_1core_1_1internals_1_1managers_1_1BlockManager}{BlockManager}}(tuple(blocks),\ axes)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00200}00200\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00201}00201\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00202}\mbox{\hyperlink{namespacepandas_1_1core_1_1internals_1_1concat_a76c012958ab003e9370d3215556102f7}{00202}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1core_1_1internals_1_1concat_a76c012958ab003e9370d3215556102f7}{\_maybe\_reindex\_columns\_na\_proxy}}(}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00203}00203\ \ \ \ \ axes:\ list[Index],}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00204}00204\ \ \ \ \ mgrs\_indexers:\ list[tuple[BlockManager,\ dict[int,\ np.ndarray]]],}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00205}00205\ \ \ \ \ needs\_copy:\ bool,}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00206}00206\ )\ -\/>\ list[BlockManager]:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00207}00207\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00208}00208\ \textcolor{stringliteral}{\ \ \ \ Reindex\ along\ columns\ so\ that\ all\ of\ the\ BlockManagers\ being\ concatenated}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00209}00209\ \textcolor{stringliteral}{\ \ \ \ have\ matching\ columns.}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00210}00210\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00211}00211\ \textcolor{stringliteral}{\ \ \ \ Columns\ added\ in\ this\ reindexing\ have\ dtype=np.void,\ indicating\ they}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00212}00212\ \textcolor{stringliteral}{\ \ \ \ should\ be\ ignored\ when\ choosing\ a\ column's\ final\ dtype.}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00213}00213\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00214}00214\ \ \ \ \ new\_mgrs\ =\ []}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00215}00215\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00216}00216\ \ \ \ \ \textcolor{keywordflow}{for}\ mgr,\ indexers\ \textcolor{keywordflow}{in}\ mgrs\_indexers:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00217}00217\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ For\ axis=0\ (i.e.\ columns)\ we\ use\_na\_proxy\ and\ only\_slice,\ so\ this}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00218}00218\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ is\ a\ cheap\ reindexing.}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00219}00219\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ i,\ indexer\ \textcolor{keywordflow}{in}\ indexers.items():}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00220}00220\ \ \ \ \ \ \ \ \ \ \ \ \ mgr\ =\ mgr.reindex\_indexer(}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00221}00221\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ axes[i],}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00222}00222\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ indexers[i],}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00223}00223\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ axis=i,}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00224}00224\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ copy=\textcolor{keyword}{False},}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00225}00225\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ only\_slice=\textcolor{keyword}{True},\ \ \textcolor{comment}{\#\ only\ relevant\ for\ i==0}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00226}00226\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ allow\_dups=\textcolor{keyword}{True},}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00227}00227\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ use\_na\_proxy=\textcolor{keyword}{True},\ \ \textcolor{comment}{\#\ only\ relevant\ for\ i==0}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00228}00228\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00229}00229\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ needs\_copy\ \textcolor{keywordflow}{and}\ \textcolor{keywordflow}{not}\ indexers:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00230}00230\ \ \ \ \ \ \ \ \ \ \ \ \ mgr\ =\ mgr.copy()}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00231}00231\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00232}00232\ \ \ \ \ \ \ \ \ new\_mgrs.append(mgr)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00233}00233\ \ \ \ \ \textcolor{keywordflow}{return}\ new\_mgrs}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00234}00234\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00235}00235\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00236}\mbox{\hyperlink{namespacepandas_1_1core_1_1internals_1_1concat_acfa15c84cad8506a1168c4f3e89968fc}{00236}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1core_1_1internals_1_1concat_acfa15c84cad8506a1168c4f3e89968fc}{\_is\_homogeneous\_mgr}}(mgr:\ BlockManager,\ first\_dtype:\ DtypeObj)\ -\/>\ bool:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00237}00237\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00238}00238\ \textcolor{stringliteral}{\ \ \ \ Check\ if\ this\ Manager\ can\ be\ treated\ as\ a\ single\ ndarray.}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00239}00239\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00240}00240\ \ \ \ \ \textcolor{keywordflow}{if}\ mgr.nblocks\ !=\ 1:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00241}00241\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00242}00242\ \ \ \ \ blk\ =\ mgr.blocks[0]}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00243}00243\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ (blk.mgr\_locs.is\_slice\_like\ \textcolor{keywordflow}{and}\ blk.mgr\_locs.as\_slice.step\ ==\ 1):}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00244}00244\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00245}00245\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00246}00246\ \ \ \ \ \textcolor{keywordflow}{return}\ blk.dtype\ ==\ first\_dtype}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00247}00247\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00248}00248\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00249}\mbox{\hyperlink{namespacepandas_1_1core_1_1internals_1_1concat_a7ce1cb09769b38766fdd53b8f8a8ef0e}{00249}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1core_1_1internals_1_1concat_a7ce1cb09769b38766fdd53b8f8a8ef0e}{\_concat\_homogeneous\_fastpath}}(}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00250}00250\ \ \ \ \ mgrs\_indexers,\ shape:\ Shape,\ first\_dtype:\ np.dtype}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00251}00251\ )\ -\/>\ Block:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00252}00252\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00253}00253\ \textcolor{stringliteral}{\ \ \ \ With\ single-\/Block\ managers\ with\ homogeneous\ dtypes\ (that\ can\ already\ hold\ nan),}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00254}00254\ \textcolor{stringliteral}{\ \ \ \ we\ avoid\ [...]}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00255}00255\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00256}00256\ \ \ \ \ \textcolor{comment}{\#\ assumes}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00257}00257\ \ \ \ \ \textcolor{comment}{\#\ \ all(\_is\_homogeneous\_mgr(mgr,\ first\_dtype)\ for\ mgr,\ \_\ in\ in\ mgrs\_indexers)}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00258}00258\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00259}00259\ \ \ \ \ \textcolor{keywordflow}{if}\ all(\textcolor{keywordflow}{not}\ indexers\ \textcolor{keywordflow}{for}\ \_,\ indexers\ \textcolor{keywordflow}{in}\ mgrs\_indexers):}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00260}00260\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ https://github.com/pandas-\/dev/pandas/pull/52685\#issuecomment-\/1523287739}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00261}00261\ \ \ \ \ \ \ \ \ arrs\ =\ [mgr.blocks[0].values.T\ \textcolor{keywordflow}{for}\ mgr,\ \_\ \textcolor{keywordflow}{in}\ mgrs\_indexers]}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00262}00262\ \ \ \ \ \ \ \ \ arr\ =\ np.concatenate(arrs).T}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00263}00263\ \ \ \ \ \ \ \ \ bp\ =\ libinternals.BlockPlacement(slice(shape[0]))}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00264}00264\ \ \ \ \ \ \ \ \ nb\ =\ new\_block\_2d(arr,\ bp)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00265}00265\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ nb}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00266}00266\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00267}00267\ \ \ \ \ arr\ =\ np.empty(shape,\ dtype=first\_dtype)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00268}00268\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00269}00269\ \ \ \ \ \textcolor{keywordflow}{if}\ first\_dtype\ ==\ np.float64:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00270}00270\ \ \ \ \ \ \ \ \ take\_func\ =\ libalgos.take\_2d\_axis0\_float64\_float64}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00271}00271\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00272}00272\ \ \ \ \ \ \ \ \ take\_func\ =\ libalgos.take\_2d\_axis0\_float32\_float32}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00273}00273\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00274}00274\ \ \ \ \ start\ =\ 0}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00275}00275\ \ \ \ \ \textcolor{keywordflow}{for}\ mgr,\ indexers\ \textcolor{keywordflow}{in}\ mgrs\_indexers:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00276}00276\ \ \ \ \ \ \ \ \ mgr\_len\ =\ mgr.shape[1]}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00277}00277\ \ \ \ \ \ \ \ \ end\ =\ start\ +\ mgr\_len}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00278}00278\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00279}00279\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ 0\ \textcolor{keywordflow}{in}\ indexers:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00280}00280\ \ \ \ \ \ \ \ \ \ \ \ \ take\_func(}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00281}00281\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ mgr.blocks[0].values,}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00282}00282\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ indexers[0],}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00283}00283\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ arr[:,\ start:end],}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00284}00284\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00285}00285\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00286}00286\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ No\ reindexing\ necessary,\ we\ can\ copy\ values\ directly}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00287}00287\ \ \ \ \ \ \ \ \ \ \ \ \ arr[:,\ start:end]\ =\ mgr.blocks[0].values}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00288}00288\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00289}00289\ \ \ \ \ \ \ \ \ start\ +=\ mgr\_len}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00290}00290\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00291}00291\ \ \ \ \ bp\ =\ libinternals.BlockPlacement(slice(shape[0]))}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00292}00292\ \ \ \ \ nb\ =\ new\_block\_2d(arr,\ bp)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00293}00293\ \ \ \ \ \textcolor{keywordflow}{return}\ nb}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00294}00294\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00295}00295\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00296}00296\ \textcolor{keyword}{def\ }\_get\_combined\_plan(}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00297}00297\ \ \ \ \ mgrs:\ list[BlockManager],}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00298}00298\ )\ -\/>\ list[tuple[BlockPlacement,\ list[JoinUnit]]]:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00299}00299\ \ \ \ \ plan\ =\ []}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00300}00300\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00301}00301\ \ \ \ \ max\_len\ =\ mgrs[0].shape[0]}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00302}00302\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00303}00303\ \ \ \ \ blknos\_list\ =\ [mgr.blknos\ \textcolor{keywordflow}{for}\ mgr\ \textcolor{keywordflow}{in}\ mgrs]}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00304}00304\ \ \ \ \ pairs\ =\ libinternals.get\_concat\_blkno\_indexers(blknos\_list)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00305}00305\ \ \ \ \ \textcolor{keywordflow}{for}\ ind,\ (blknos,\ bp)\ \textcolor{keywordflow}{in}\ enumerate(pairs):}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00306}00306\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ assert\ bp.is\_slice\_like}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00307}00307\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ assert\ len(bp)\ >\ 0}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00308}00308\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00309}00309\ \ \ \ \ \ \ \ \ units\_for\_bp\ =\ []}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00310}00310\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ k,\ mgr\ \textcolor{keywordflow}{in}\ enumerate(mgrs):}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00311}00311\ \ \ \ \ \ \ \ \ \ \ \ \ blkno\ =\ blknos[k]}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00312}00312\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00313}00313\ \ \ \ \ \ \ \ \ \ \ \ \ nb\ =\ \_get\_block\_for\_concat\_plan(mgr,\ bp,\ blkno,\ max\_len=max\_len)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00314}00314\ \ \ \ \ \ \ \ \ \ \ \ \ unit\ =\ \mbox{\hyperlink{classpandas_1_1core_1_1internals_1_1concat_1_1JoinUnit}{JoinUnit}}(nb)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00315}00315\ \ \ \ \ \ \ \ \ \ \ \ \ units\_for\_bp.append(unit)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00316}00316\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00317}00317\ \ \ \ \ \ \ \ \ plan.append((bp,\ units\_for\_bp))}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00318}00318\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00319}00319\ \ \ \ \ \textcolor{keywordflow}{return}\ plan}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00320}00320\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00321}00321\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00322}00322\ \textcolor{keyword}{def\ }\_get\_block\_for\_concat\_plan(}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00323}00323\ \ \ \ \ mgr:\ BlockManager,\ bp:\ BlockPlacement,\ blkno:\ int,\ *,\ max\_len:\ int}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00324}00324\ )\ -\/>\ Block:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00325}00325\ \ \ \ \ blk\ =\ mgr.blocks[blkno]}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00326}00326\ \ \ \ \ \textcolor{comment}{\#\ Assertions\ disabled\ for\ performance:}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00327}00327\ \ \ \ \ \textcolor{comment}{\#\ \ assert\ bp.is\_slice\_like}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00328}00328\ \ \ \ \ \textcolor{comment}{\#\ \ assert\ blkno\ !=\ -\/1}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00329}00329\ \ \ \ \ \textcolor{comment}{\#\ \ assert\ (mgr.blknos[bp]\ ==\ blkno).all()}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00330}00330\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00331}00331\ \ \ \ \ \textcolor{keywordflow}{if}\ len(bp)\ ==\ len(blk.mgr\_locs)\ \textcolor{keywordflow}{and}\ (}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00332}00332\ \ \ \ \ \ \ \ \ blk.mgr\_locs.is\_slice\_like\ \textcolor{keywordflow}{and}\ blk.mgr\_locs.as\_slice.step\ ==\ 1}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00333}00333\ \ \ \ \ ):}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00334}00334\ \ \ \ \ \ \ \ \ nb\ =\ blk}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00335}00335\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00336}00336\ \ \ \ \ \ \ \ \ ax0\_blk\_indexer\ =\ mgr.blklocs[bp.indexer]}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00337}00337\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00338}00338\ \ \ \ \ \ \ \ \ slc\ =\ lib.maybe\_indices\_to\_slice(ax0\_blk\_indexer,\ max\_len)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00339}00339\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ TODO:\ in\ all\ extant\ test\ cases\ 2023-\/04-\/08\ we\ have\ a\ slice\ here.}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00340}00340\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ Will\ this\ always\ be\ the\ case?}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00341}00341\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(slc,\ slice):}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00342}00342\ \ \ \ \ \ \ \ \ \ \ \ \ nb\ =\ blk.slice\_block\_columns(slc)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00343}00343\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00344}00344\ \ \ \ \ \ \ \ \ \ \ \ \ nb\ =\ blk.take\_block\_columns(slc)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00345}00345\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00346}00346\ \ \ \ \ \textcolor{comment}{\#\ assert\ nb.shape\ ==\ (len(bp),\ mgr.shape[1])}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00347}00347\ \ \ \ \ \textcolor{keywordflow}{return}\ nb}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00348}00348\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00349}00349\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00350}\mbox{\hyperlink{classpandas_1_1core_1_1internals_1_1concat_1_1JoinUnit}{00350}}\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classpandas_1_1core_1_1internals_1_1concat_1_1JoinUnit}{JoinUnit}}:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00351}00351\ \ \ \ \ \textcolor{keyword}{def\ }\_\_init\_\_(self,\ block:\ Block)\ -\/>\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00352}00352\ \ \ \ \ \ \ \ \ self.\mbox{\hyperlink{classpandas_1_1core_1_1internals_1_1concat_1_1JoinUnit_a2d622e76c3acba5712def874441e0294}{block}}\ =\ block}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00353}00353\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00354}00354\ \ \ \ \ \textcolor{keyword}{def\ }\_\_repr\_\_(self)\ -\/>\ str:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00355}00355\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ f\textcolor{stringliteral}{"{}\{type(self).\_\_name\_\_\}(\{repr(self.block)\})"{}}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00356}00356\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00357}\mbox{\hyperlink{classpandas_1_1core_1_1internals_1_1concat_1_1JoinUnit_ad08dd711f876dba457dfabfc0c6dc170}{00357}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classpandas_1_1core_1_1internals_1_1concat_1_1JoinUnit_ad08dd711f876dba457dfabfc0c6dc170}{\_is\_valid\_na\_for}}(self,\ dtype:\ DtypeObj)\ -\/>\ bool:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00358}00358\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00359}00359\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Check\ that\ we\ are\ all-\/NA\ of\ a\ type/dtype\ that\ is\ compatible\ with\ this\ dtype.}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00360}00360\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Augments\ \`{}self.is\_na\`{}\ with\ an\ additional\ check\ of\ the\ type\ of\ NA\ values.}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00361}00361\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00362}00362\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1internals_1_1concat_1_1JoinUnit_a35d2d5e806a3989dcd2ac92ae9990f25}{is\_na}}:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00363}00363\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00364}00364\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00365}00365\ \ \ \ \ \ \ \ \ blk\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1internals_1_1concat_1_1JoinUnit_a2d622e76c3acba5712def874441e0294}{block}}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00366}00366\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ blk.dtype.kind\ ==\ \textcolor{stringliteral}{"{}V"{}}:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00367}00367\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00368}00368\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00369}00369\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ blk.dtype\ ==\ object:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00370}00370\ \ \ \ \ \ \ \ \ \ \ \ \ values\ =\ blk.values}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00371}00371\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ all(is\_valid\_na\_for\_dtype(x,\ dtype)\ \textcolor{keywordflow}{for}\ x\ \textcolor{keywordflow}{in}\ values.ravel(order=\textcolor{stringliteral}{"{}K"{}}))}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00372}00372\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00373}00373\ \ \ \ \ \ \ \ \ na\_value\ =\ blk.fill\_value}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00374}00374\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ na\_value\ \textcolor{keywordflow}{is}\ NaT\ \textcolor{keywordflow}{and}\ blk.dtype\ !=\ dtype:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00375}00375\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ e.g.\ we\ are\ dt64\ and\ other\ is\ td64}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00376}00376\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ fill\_values\ match\ but\ we\ should\ not\ cast\ blk.values\ to\ dtype}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00377}00377\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ TODO:\ this\ will\ need\ updating\ if\ we\ ever\ have\ non-\/nano\ dt64/td64}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00378}00378\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00379}00379\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00380}00380\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ na\_value\ \textcolor{keywordflow}{is}\ NA\ \textcolor{keywordflow}{and}\ needs\_i8\_conversion(dtype):}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00381}00381\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ FIXME:\ kludge;\ test\_append\_empty\_frame\_with\_timedelta64ns\_nat}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00382}00382\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ e.g.\ blk.dtype\ ==\ "{}Int64"{}\ and\ dtype\ is\ td64,\ we\ dont\ want}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00383}00383\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ to\ consider\ these\ as\ matching}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00384}00384\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00385}00385\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00386}00386\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ TODO:\ better\ to\ use\ can\_hold\_element?}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00387}00387\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ is\_valid\_na\_for\_dtype(na\_value,\ dtype)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00388}00388\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00389}00389\ \ \ \ \ \textcolor{preprocessor}{@cache\_readonly}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00390}00390\ \ \ \ \ \textcolor{keyword}{def\ }is\_na(self)\ -\/>\ bool:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00391}00391\ \ \ \ \ \ \ \ \ blk\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1internals_1_1concat_1_1JoinUnit_a2d622e76c3acba5712def874441e0294}{block}}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00392}00392\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ blk.dtype.kind\ ==\ \textcolor{stringliteral}{"{}V"{}}:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00393}00393\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00394}00394\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00395}00395\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ blk.\_can\_hold\_na:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00396}00396\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00397}00397\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00398}00398\ \ \ \ \ \ \ \ \ values\ =\ blk.values}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00399}00399\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ values.size\ ==\ 0:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00400}00400\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ GH\#39122\ this\ case\ will\ return\ False\ once\ deprecation\ is\ enforced}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00401}00401\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00402}00402\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00403}00403\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(values.dtype,\ SparseDtype):}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00404}00404\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00405}00405\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00406}00406\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ values.ndim\ ==\ 1:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00407}00407\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ TODO(EA2D):\ no\ need\ for\ special\ case\ with\ 2D\ EAs}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00408}00408\ \ \ \ \ \ \ \ \ \ \ \ \ val\ =\ values[0]}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00409}00409\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ is\_scalar(val)\ \textcolor{keywordflow}{or}\ \textcolor{keywordflow}{not}\ isna(val):}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00410}00410\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ ideally\ isna\_all\ would\ do\ this\ short-\/circuiting}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00411}00411\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00412}00412\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ isna\_all(values)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00413}00413\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00414}00414\ \ \ \ \ \ \ \ \ \ \ \ \ val\ =\ values[0][0]}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00415}00415\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ is\_scalar(val)\ \textcolor{keywordflow}{or}\ \textcolor{keywordflow}{not}\ isna(val):}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00416}00416\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ ideally\ isna\_all\ would\ do\ this\ short-\/circuiting}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00417}00417\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00418}00418\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ all(isna\_all(row)\ \textcolor{keywordflow}{for}\ row\ \textcolor{keywordflow}{in}\ values)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00419}00419\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00420}00420\ \ \ \ \ \textcolor{preprocessor}{@cache\_readonly}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00421}\mbox{\hyperlink{classpandas_1_1core_1_1internals_1_1concat_1_1JoinUnit_a0c9018256936877718173801a59916ad}{00421}}\ \ \ \ \ \textcolor{keyword}{def\ }\mbox{\hyperlink{classpandas_1_1core_1_1internals_1_1concat_1_1JoinUnit_a0c9018256936877718173801a59916ad}{is\_na\_after\_size\_and\_isna\_all\_deprecation}}(self)\ -\/>\ bool:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00422}00422\ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00423}00423\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ Will\ self.is\_na\ be\ True\ after\ values.size\ ==\ 0\ deprecation\ and\ isna\_all}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00424}00424\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ deprecation\ are\ enforced?}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00425}00425\ \textcolor{stringliteral}{\ \ \ \ \ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00426}00426\ \ \ \ \ \ \ \ \ blk\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1internals_1_1concat_1_1JoinUnit_a2d622e76c3acba5712def874441e0294}{block}}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00427}00427\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ blk.dtype.kind\ ==\ \textcolor{stringliteral}{"{}V"{}}:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00428}00428\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{True}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00429}00429\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00430}00430\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00431}00431\ \ \ \ \ \textcolor{keyword}{def\ }get\_reindexed\_values(self,\ empty\_dtype:\ DtypeObj,\ upcasted\_na)\ -\/>\ ArrayLike:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00432}00432\ \ \ \ \ \ \ \ \ values:\ ArrayLike}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00433}00433\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00434}00434\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ upcasted\_na\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}\ \textcolor{keywordflow}{and}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1internals_1_1concat_1_1JoinUnit_a2d622e76c3acba5712def874441e0294}{block}}.dtype.kind\ !=\ \textcolor{stringliteral}{"{}V"{}}:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00435}00435\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ No\ upcasting\ is\ necessary}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00436}00436\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1internals_1_1concat_1_1JoinUnit_a2d622e76c3acba5712def874441e0294}{block}}.values}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00437}00437\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00438}00438\ \ \ \ \ \ \ \ \ \ \ \ \ fill\_value\ =\ upcasted\_na}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00439}00439\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00440}00440\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1internals_1_1concat_1_1JoinUnit_ad08dd711f876dba457dfabfc0c6dc170}{\_is\_valid\_na\_for}}(empty\_dtype):}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00441}00441\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ note:\ always\ holds\ when\ self.block.dtype.kind\ ==\ "{}V"{}}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00442}00442\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ blk\_dtype\ =\ self.\mbox{\hyperlink{classpandas_1_1core_1_1internals_1_1concat_1_1JoinUnit_a2d622e76c3acba5712def874441e0294}{block}}.dtype}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00443}00443\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00444}00444\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ blk\_dtype\ ==\ np.dtype(\textcolor{stringliteral}{"{}object"{}}):}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00445}00445\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ we\ want\ to\ avoid\ filling\ with\ np.nan\ if\ we\ are}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00446}00446\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ using\ None;\ we\ already\ know\ that\ we\ are\ all}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00447}00447\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ nulls}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00448}00448\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ values\ =\ cast(np.ndarray,\ self.\mbox{\hyperlink{classpandas_1_1core_1_1internals_1_1concat_1_1JoinUnit_a2d622e76c3acba5712def874441e0294}{block}}.values)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00449}00449\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ values.size\ \textcolor{keywordflow}{and}\ values[0,\ 0]\ \textcolor{keywordflow}{is}\ \textcolor{keywordtype}{None}:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00450}00450\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ fill\_value\ =\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00451}00451\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00452}00452\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ make\_na\_array(empty\_dtype,\ self.\mbox{\hyperlink{classpandas_1_1core_1_1internals_1_1concat_1_1JoinUnit_a2d622e76c3acba5712def874441e0294}{block}}.shape,\ fill\_value)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00453}00453\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00454}00454\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ self.\mbox{\hyperlink{classpandas_1_1core_1_1internals_1_1concat_1_1JoinUnit_a2d622e76c3acba5712def874441e0294}{block}}.values}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00455}00455\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00456}00456\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00457}\mbox{\hyperlink{namespacepandas_1_1core_1_1internals_1_1concat_acfd5ab965238adec5db71f44b15b1fc8}{00457}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1core_1_1internals_1_1concat_acfd5ab965238adec5db71f44b15b1fc8}{\_concatenate\_join\_units}}(join\_units:\ list[JoinUnit],\ copy:\ bool)\ -\/>\ ArrayLike:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00458}00458\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00459}00459\ \textcolor{stringliteral}{\ \ \ \ Concatenate\ values\ from\ several\ join\ units\ along\ axis=1.}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00460}00460\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00461}00461\ \ \ \ \ empty\_dtype,\ empty\_dtype\_future\ =\ \mbox{\hyperlink{namespacepandas_1_1core_1_1internals_1_1concat_a6b631e23aeae0f97c7085f1bb1352b8f}{\_get\_empty\_dtype}}(join\_units)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00462}00462\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00463}00463\ \ \ \ \ has\_none\_blocks\ =\ any(unit.block.dtype.kind\ ==\ \textcolor{stringliteral}{"{}V"{}}\ \textcolor{keywordflow}{for}\ unit\ \textcolor{keywordflow}{in}\ join\_units)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00464}00464\ \ \ \ \ upcasted\_na\ =\ \mbox{\hyperlink{namespacepandas_1_1core_1_1internals_1_1concat_a7a2f78434e96f1224f7f36418214b544}{\_dtype\_to\_na\_value}}(empty\_dtype,\ has\_none\_blocks)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00465}00465\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00466}00466\ \ \ \ \ to\_concat\ =\ [}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00467}00467\ \ \ \ \ \ \ \ \ ju.get\_reindexed\_values(empty\_dtype=empty\_dtype,\ upcasted\_na=upcasted\_na)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00468}00468\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ ju\ \textcolor{keywordflow}{in}\ join\_units}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00469}00469\ \ \ \ \ ]}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00470}00470\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00471}00471\ \ \ \ \ \textcolor{keywordflow}{if}\ any(is\_1d\_only\_ea\_dtype(t.dtype)\ \textcolor{keywordflow}{for}\ t\ \textcolor{keywordflow}{in}\ to\_concat):}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00472}00472\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ TODO(EA2D):\ special\ case\ not\ needed\ if\ all\ EAs\ used\ HybridBlocks}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00473}00473\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00474}00474\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ error:\ No\ overload\ variant\ of\ "{}\_\_getitem\_\_"{}\ of\ "{}ExtensionArray"{}\ matches}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00475}00475\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ argument\ type\ "{}Tuple[int,\ slice]"{}}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00476}00476\ \ \ \ \ \ \ \ \ to\_concat\ =\ [}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00477}00477\ \ \ \ \ \ \ \ \ \ \ \ \ t}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00478}00478\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ is\_1d\_only\_ea\_dtype(t.dtype)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00479}00479\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}\ t[0,\ :]\ \ \textcolor{comment}{\#\ type:\ ignore[call-\/overload]}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00480}00480\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ t\ \textcolor{keywordflow}{in}\ to\_concat}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00481}00481\ \ \ \ \ \ \ \ \ ]}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00482}00482\ \ \ \ \ \ \ \ \ concat\_values\ =\ concat\_compat(to\_concat,\ axis=0,\ ea\_compat\_axis=\textcolor{keyword}{True})}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00483}00483\ \ \ \ \ \ \ \ \ concat\_values\ =\ ensure\_block\_shape(concat\_values,\ 2)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00484}00484\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00485}00485\ \ \ \ \ \textcolor{keywordflow}{else}:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00486}00486\ \ \ \ \ \ \ \ \ concat\_values\ =\ concat\_compat(to\_concat,\ axis=1)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00487}00487\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00488}00488\ \ \ \ \ \textcolor{keywordflow}{if}\ empty\_dtype\ !=\ empty\_dtype\_future:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00489}00489\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ empty\_dtype\ ==\ concat\_values.dtype:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00490}00490\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ GH\#39122,\ GH\#40893}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00491}00491\ \ \ \ \ \ \ \ \ \ \ \ \ warnings.warn(}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00492}00492\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}The\ behavior\ of\ DataFrame\ concatenation\ with\ empty\ or\ all-\/NA\ "{}}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00493}00493\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}entries\ is\ deprecated.\ In\ a\ future\ version,\ this\ will\ no\ longer\ "{}}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00494}00494\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}exclude\ empty\ or\ all-\/NA\ columns\ when\ determining\ the\ result\ dtypes.\ "{}}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00495}00495\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}To\ retain\ the\ old\ behavior,\ exclude\ the\ relevant\ entries\ before\ "{}}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00496}00496\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{stringliteral}{"{}the\ concat\ operation."{}},}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00497}00497\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ FutureWarning,}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00498}00498\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ stacklevel=find\_stack\_level(),}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00499}00499\ \ \ \ \ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00500}00500\ \ \ \ \ \textcolor{keywordflow}{return}\ concat\_values}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00501}00501\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00502}00502\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00503}\mbox{\hyperlink{namespacepandas_1_1core_1_1internals_1_1concat_a7a2f78434e96f1224f7f36418214b544}{00503}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1core_1_1internals_1_1concat_a7a2f78434e96f1224f7f36418214b544}{\_dtype\_to\_na\_value}}(dtype:\ DtypeObj,\ has\_none\_blocks:\ bool):}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00504}00504\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00505}00505\ \textcolor{stringliteral}{\ \ \ \ Find\ the\ NA\ value\ to\ go\ with\ this\ dtype.}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00506}00506\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00507}00507\ \ \ \ \ \textcolor{keywordflow}{if}\ isinstance(dtype,\ ExtensionDtype):}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00508}00508\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ dtype.na\_value}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00509}00509\ \ \ \ \ \textcolor{keywordflow}{elif}\ dtype.kind\ \textcolor{keywordflow}{in}\ \textcolor{stringliteral}{"{}mM"{}}:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00510}00510\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ dtype.type(\textcolor{stringliteral}{"{}NaT"{}})}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00511}00511\ \ \ \ \ \textcolor{keywordflow}{elif}\ dtype.kind\ \textcolor{keywordflow}{in}\ \textcolor{stringliteral}{"{}fc"{}}:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00512}00512\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ dtype.type(\textcolor{stringliteral}{"{}NaN"{}})}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00513}00513\ \ \ \ \ \textcolor{keywordflow}{elif}\ dtype.kind\ ==\ \textcolor{stringliteral}{"{}b"{}}:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00514}00514\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ different\ from\ missing.na\_value\_for\_dtype}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00515}00515\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00516}00516\ \ \ \ \ \textcolor{keywordflow}{elif}\ dtype.kind\ \textcolor{keywordflow}{in}\ \textcolor{stringliteral}{"{}iu"{}}:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00517}00517\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ has\_none\_blocks:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00518}00518\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ different\ from\ missing.na\_value\_for\_dtype}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00519}00519\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keywordtype}{None}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00520}00520\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ np.nan}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00521}00521\ \ \ \ \ \textcolor{keywordflow}{elif}\ dtype.kind\ ==\ \textcolor{stringliteral}{"{}O"{}}:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00522}00522\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ np.nan}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00523}00523\ \ \ \ \ \textcolor{keywordflow}{raise}\ NotImplementedError}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00524}00524\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00525}00525\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00526}\mbox{\hyperlink{namespacepandas_1_1core_1_1internals_1_1concat_a6b631e23aeae0f97c7085f1bb1352b8f}{00526}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1core_1_1internals_1_1concat_a6b631e23aeae0f97c7085f1bb1352b8f}{\_get\_empty\_dtype}}(join\_units:\ Sequence[JoinUnit])\ -\/>\ tuple[DtypeObj,\ DtypeObj]:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00527}00527\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00528}00528\ \textcolor{stringliteral}{\ \ \ \ Return\ dtype\ and\ N/A\ values\ to\ use\ when\ concatenating\ specified\ units.}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00529}00529\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00530}00530\ \textcolor{stringliteral}{\ \ \ \ Returned\ N/A\ value\ may\ be\ None\ which\ means\ there\ was\ no\ casting\ involved.}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00531}00531\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00532}00532\ \textcolor{stringliteral}{\ \ \ \ Returns}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00533}00533\ \textcolor{stringliteral}{\ \ \ \ -\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00534}00534\ \textcolor{stringliteral}{\ \ \ \ dtype}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00535}00535\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00536}00536\ \ \ \ \ \textcolor{keywordflow}{if}\ lib.dtypes\_all\_equal([ju.block.dtype\ \textcolor{keywordflow}{for}\ ju\ \textcolor{keywordflow}{in}\ join\_units]):}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00537}00537\ \ \ \ \ \ \ \ \ empty\_dtype\ =\ join\_units[0].block.dtype}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00538}00538\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ empty\_dtype,\ empty\_dtype}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00539}00539\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00540}00540\ \ \ \ \ has\_none\_blocks\ =\ any(unit.block.dtype.kind\ ==\ \textcolor{stringliteral}{"{}V"{}}\ \textcolor{keywordflow}{for}\ unit\ \textcolor{keywordflow}{in}\ join\_units)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00541}00541\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00542}00542\ \ \ \ \ dtypes\ =\ [unit.block.dtype\ \textcolor{keywordflow}{for}\ unit\ \textcolor{keywordflow}{in}\ join\_units\ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ unit.is\_na]}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00543}00543\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ len(dtypes):}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00544}00544\ \ \ \ \ \ \ \ \ dtypes\ =\ [}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00545}00545\ \ \ \ \ \ \ \ \ \ \ \ \ unit.block.dtype\ \textcolor{keywordflow}{for}\ unit\ \textcolor{keywordflow}{in}\ join\_units\ \textcolor{keywordflow}{if}\ unit.block.dtype.kind\ !=\ \textcolor{stringliteral}{"{}V"{}}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00546}00546\ \ \ \ \ \ \ \ \ ]}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00547}00547\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00548}00548\ \ \ \ \ dtype\ =\ find\_common\_type(dtypes)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00549}00549\ \ \ \ \ \textcolor{keywordflow}{if}\ has\_none\_blocks:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00550}00550\ \ \ \ \ \ \ \ \ dtype\ =\ ensure\_dtype\_can\_hold\_na(dtype)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00551}00551\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00552}00552\ \ \ \ \ dtype\_future\ =\ dtype}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00553}00553\ \ \ \ \ \textcolor{keywordflow}{if}\ len(dtypes)\ !=\ len(join\_units):}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00554}00554\ \ \ \ \ \ \ \ \ dtypes\_future\ =\ [}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00555}00555\ \ \ \ \ \ \ \ \ \ \ \ \ unit.block.dtype}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00556}00556\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ unit\ \textcolor{keywordflow}{in}\ join\_units}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00557}00557\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ unit.is\_na\_after\_size\_and\_isna\_all\_deprecation}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00558}00558\ \ \ \ \ \ \ \ \ ]}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00559}00559\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keywordflow}{not}\ len(dtypes\_future):}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00560}00560\ \ \ \ \ \ \ \ \ \ \ \ \ dtypes\_future\ =\ [}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00561}00561\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ unit.block.dtype\ \textcolor{keywordflow}{for}\ unit\ \textcolor{keywordflow}{in}\ join\_units\ \textcolor{keywordflow}{if}\ unit.block.dtype.kind\ !=\ \textcolor{stringliteral}{"{}V"{}}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00562}00562\ \ \ \ \ \ \ \ \ \ \ \ \ ]}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00563}00563\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00564}00564\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ len(dtypes)\ !=\ len(dtypes\_future):}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00565}00565\ \ \ \ \ \ \ \ \ \ \ \ \ dtype\_future\ =\ find\_common\_type(dtypes\_future)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00566}00566\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ has\_none\_blocks:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00567}00567\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ dtype\_future\ =\ ensure\_dtype\_can\_hold\_na(dtype\_future)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00568}00568\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00569}00569\ \ \ \ \ \textcolor{keywordflow}{return}\ dtype,\ dtype\_future}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00570}00570\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00571}00571\ }
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00572}\mbox{\hyperlink{namespacepandas_1_1core_1_1internals_1_1concat_acff355ce8e0306119835e40ffdf11d02}{00572}}\ \textcolor{keyword}{def\ }\mbox{\hyperlink{namespacepandas_1_1core_1_1internals_1_1concat_acff355ce8e0306119835e40ffdf11d02}{\_is\_uniform\_join\_units}}(join\_units:\ list[JoinUnit])\ -\/>\ bool:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00573}00573\ \ \ \ \ \textcolor{stringliteral}{"{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00574}00574\ \textcolor{stringliteral}{\ \ \ \ Check\ if\ the\ join\ units\ consist\ of\ blocks\ of\ uniform\ type\ that\ can}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00575}00575\ \textcolor{stringliteral}{\ \ \ \ be\ concatenated\ using\ Block.concat\_same\_type\ instead\ of\ the\ generic}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00576}00576\ \textcolor{stringliteral}{\ \ \ \ \_concatenate\_join\_units\ (which\ uses\ \`{}concat\_compat\`{}).}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00577}00577\ \textcolor{stringliteral}{}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00578}00578\ \textcolor{stringliteral}{\ \ \ \ "{}"{}"{}}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00579}00579\ \ \ \ \ first\ =\ join\_units[0].block}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00580}00580\ \ \ \ \ \textcolor{keywordflow}{if}\ first.dtype.kind\ ==\ \textcolor{stringliteral}{"{}V"{}}:}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00581}00581\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{False}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00582}00582\ \ \ \ \ \textcolor{keywordflow}{return}\ (}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00583}00583\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ exclude\ cases\ where\ a)\ ju.block\ is\ None\ or\ b)\ we\ have\ e.g.\ Int64+int64}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00584}00584\ \ \ \ \ \ \ \ \ all(type(ju.block)\ \textcolor{keywordflow}{is}\ type(first)\ \textcolor{keywordflow}{for}\ ju\ \textcolor{keywordflow}{in}\ join\_units)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00585}00585\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00586}00586\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ e.g.\ DatetimeLikeBlock\ can\ be\ dt64\ or\ td64,\ but\ these\ are\ not\ uniform}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00587}00587\ \ \ \ \ \ \ \ \ all(}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00588}00588\ \ \ \ \ \ \ \ \ \ \ \ \ ju.block.dtype\ ==\ first.dtype}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00589}00589\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ GH\#42092\ we\ only\ want\ the\ dtype\_equal\ check\ for\ non-\/numeric\ blocks}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00590}00590\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ \ (for\ now,\ may\ change\ but\ that\ would\ need\ a\ deprecation)}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00591}00591\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{or}\ ju.block.dtype.kind\ \textcolor{keywordflow}{in}\ \textcolor{stringliteral}{"{}iub"{}}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00592}00592\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ ju\ \textcolor{keywordflow}{in}\ join\_units}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00593}00593\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00594}00594\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{and}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00595}00595\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ no\ blocks\ that\ would\ get\ missing\ values\ (can\ lead\ to\ type\ upcasts)}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00596}00596\ \ \ \ \ \ \ \ \ \textcolor{comment}{\#\ unless\ we're\ an\ extension\ dtype.}}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00597}00597\ \ \ \ \ \ \ \ \ all(\textcolor{keywordflow}{not}\ ju.is\_na\ \textcolor{keywordflow}{or}\ ju.block.is\_extension\ \textcolor{keywordflow}{for}\ ju\ \textcolor{keywordflow}{in}\ join\_units)}
+\DoxyCodeLine{\Hypertarget{internals_2concat_8py_source_l00598}00598\ \ \ \ \ )}
+
+\end{DoxyCode}
