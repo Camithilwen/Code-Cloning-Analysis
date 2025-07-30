@@ -80,10 +80,10 @@ ground_truth_df = pd.read_csv(GROUND_TRUTH_CSV)
 ground_truth_map = dict(zip(ground_truth_df['pair-id'], ground_truth_df['similar']))
 
 # -- JSON MAPPER --
-## @fn safe_parse_response(response)
-#  @brief Translates the given response from the model into the proper dictionary format.
-#  @param response The RAG output.
 def safe_parse_response(response):
+    '''! Translates the given response from the model into the proper dictionary format.
+
+ @param response The RAG output.'''
     import json
     print(type(response))
     json_response = json.loads(response.text)
@@ -104,15 +104,16 @@ def safe_parse_response(response):
             print("Parsing error 2: ", e)
             return {"Type-1": "no", "Type-2": "no", "Type-3": "no", "Type-4": "no"} 
 
-## @fn ensemble_assessment(code1, code2, model_name, thr, n=3)
-#  @brief Performs multiple assessments and aggregates predictions using voting.
-#  @param code1 First code string.
-#  @param code2 Second code string.
-#  @param model_name The name of the LLM model to use.
-#  @param thr Threshold for similarity.
-#  @param n Number of repeated assessments for ensemble.
-#  @return Tuple of (average type scores, majority predicted type, majority binary similarity).
 def ensemble_assessment(code1, code2, model_name, prompt, n=3):
+    '''! Performs multiple assessments and aggregates predictions using voting.
+
+ @param code1 First code string.
+ @param code2 Second code string.
+ @param model_name The name of the LLM model to use.
+ @param thr Threshold for similarity.
+ @param n Number of repeated assessments for ensemble.
+ @return Tuple of (average type scores, majority predicted type, majority binary similarity).
+ '''
     predictions = []
     for _ in range(n):
         results, predicted_type, predicted_sim = rag_similarity_assessment(code1, code2, model_name, prompt)
@@ -152,12 +153,12 @@ def ensemble_assessment(code1, code2, model_name, prompt, n=3):
     print("average res", average_res)
     return average_res, final_type, final_sim
 
-## @fn determine_similarity(results, min_threshold=0.1)
-#  @brief Determines the predicted type and binary similarity from score dictionary.
-#  @param results Dictionary mapping clone types to similarity scores.
-#  @param min_threshold Minimum similarity score to consider as a valid clone.
-#  @return Tuple of (predicted type, binary similarity: 1 if above threshold, else 0).
 def determine_similarity(results):
+    '''!  Determines the predicted type and binary similarity from score dictionary.
+
+ @param results Dictionary mapping clone types to similarity scores.
+ @param min_threshold Minimum similarity score to consider as a valid clone.
+ @return Tuple of (predicted type, binary similarity: 1 if above threshold, else 0).'''
     if 'yes' in list(results.values()):
         if list(results.keys())[list(results.values()).index('yes')] == 'Type-4':
             return 'Type-4', 1
@@ -167,14 +168,14 @@ def determine_similarity(results):
         return 'Non-clone', 0
 
 # --- PROMPT-AWARE ASSESSMENT ---
-## @fn rag_similarity_assessment(code1, code2, model_name, thr)
-#  @brief Sends a prompt to the LLM to classify clone type and score similarities.
-#  @param code1 First code snippet to evaluate.
-#  @param code2 Second code snippet to evaluate.
-#  @param model_name Name of the language model to query.
-#  @param thr Threshold for determining clone similarity.
-#  @return Tuple of (type score dictionary, predicted type, binary similarity).
 def rag_similarity_assessment(code1, code2, model_name, prompt):
+    '''!  Sends a prompt to the LLM to classify clone type and score similarities.
+ @param code1 First code snippet to evaluate.
+ @param code2 Second code snippet to evaluate.
+ @param model_name Name of the language model to query.
+ @param thr Threshold for determining clone similarity.
+ @return Tuple of (type score dictionary, predicted type, binary similarity).
+ '''
     # Format the prompt with the code snippets
     prompt_filled = prompt.format(code1=code1, code2=code2)
 
